@@ -20,8 +20,6 @@ iRead 서비스의 백엔드 애플리케이션입니다.
 
 Docker Compose는 로컬 개발용 MySQL, Redis 컨테이너를 실행합니다.
 
-실행 전에 프로젝트 루트에 `.env` 파일을 생성합니다. 필요한 값은 `.env.example`을 참고합니다.
-
 ### 실행
 
 ```bash
@@ -33,7 +31,7 @@ docker compose up -d
 - MySQL: `localhost:3306`
 - Redis: `localhost:6379`
 
-데이터베이스 이름과 계정 정보는 커밋하지 않는 `.env` 또는 로컬 환경 설정에서 관리합니다.
+Spring Boot에서 사용할 데이터베이스 접속 정보는 로컬 환경 설정에서 관리합니다.
 
 ### 상태 확인
 
