@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 public interface TrainingRepository extends JpaRepository<TrainingEntity, Long> {
     @EntityGraph(attributePaths = {"trainingTemplate", "dailyCurriculum"})
@@ -14,5 +15,9 @@ public interface TrainingRepository extends JpaRepository<TrainingEntity, Long> 
 
     List<TrainingEntity> findAllByDailyCurriculumStudentIdAndTrainingTemplateIdAndStatusAndFinishedAtLessThanOrderByFinishedAtDesc(
             Long studentId, Long templateId, TrainingStatus status, java.time.LocalDateTime finishedAt
+    );
+
+    List<TrainingEntity> findAllByDailyCurriculumStudentIdAndStatusAndFinishedAtBetweenOrderByFinishedAtAsc(
+            Long studentId, TrainingStatus status, LocalDateTime start, LocalDateTime end
     );
 }
