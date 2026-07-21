@@ -38,6 +38,9 @@ public class TeacherEntity {
     @Column(name = "organization", length = 100)
     private String organization;
 
+    @Column(name = "gender", length = 10)
+    private String gender;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -45,11 +48,12 @@ public class TeacherEntity {
     @Column(name = "images_id")
     private Long imagesId;
 
-    public TeacherEntity(String email, String password, String name, String organization, Long imagesId) {
+    public TeacherEntity(String email, String password, String name, String organization, String gender, Long imagesId) {
         this.email = email;
         this.password = password;
         this.name = name;
         this.organization = organization;
+        this.gender = gender;
         this.imagesId = imagesId;
     }
 }

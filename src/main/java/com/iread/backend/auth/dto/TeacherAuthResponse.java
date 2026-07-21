@@ -8,6 +8,7 @@ public record TeacherAuthResponse(
         String email,
         String name,
         String organization,
+        String gender,
         Long imagesId
 ) {
 
@@ -17,6 +18,7 @@ public record TeacherAuthResponse(
                 teacher.getEmail(),
                 teacher.getName(),
                 teacher.getOrganization(),
+                teacher.getGender(),
                 teacher.getImagesId()
         );
     }
@@ -27,6 +29,7 @@ public record TeacherAuthResponse(
                 teacher.email(),
                 teacher.name(),
                 teacher.organization(),
+                teacher.gender(),
                 teacher.imagesId()
         );
     }

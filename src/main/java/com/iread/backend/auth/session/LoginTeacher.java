@@ -9,6 +9,7 @@ public record LoginTeacher(
         String email,
         String name,
         String organization,
+        String gender,
         Long imagesId
 ) implements Serializable {
 
@@ -18,6 +19,7 @@ public record LoginTeacher(
                 teacher.getEmail(),
                 teacher.getName(),
                 teacher.getOrganization(),
+                teacher.getGender(),
                 teacher.getImagesId()
         );
     }
