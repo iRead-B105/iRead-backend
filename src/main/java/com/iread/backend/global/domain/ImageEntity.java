@@ -14,23 +14,13 @@ import java.time.LocalDateTime;
 @Table(name = "images")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ImageEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(
-            name = "original_file_name",
-            nullable = false,
-            length = 255
-    )
+    @Column(name = "original_file_name", nullable = false, length = 255)
     private String originalFileName;
 
-    @Column(
-            name = "store_file_name",
-            nullable = false,
-            length = 255
-    )
+    @Column(name = "store_file_name", nullable = false, length = 255)
     private String storeFileName;
 
     @Column(name = "file_size", nullable = false)
@@ -40,20 +30,11 @@ public class ImageEntity {
     private String url;
 
     @CreationTimestamp
-    @Column(
-            name = "created_at",
-            nullable = false,
-            updatable = false
-    )
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Builder
-    public ImageEntity(
-            String originalFileName,
-            String storeFileName,
-            Long fileSize,
-            String url
-    ) {
+    public ImageEntity(String originalFileName, String storeFileName, Long fileSize, String url) {
         this.originalFileName = originalFileName;
         this.storeFileName = storeFileName;
         this.fileSize = fileSize;

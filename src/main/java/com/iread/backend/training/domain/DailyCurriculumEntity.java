@@ -1,0 +1,56 @@
+package com.iread.backend.training.domain;
+
+import com.iread.backend.student.domain.StudentEntity;
+import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Getter
+@Entity
+@Table(name = "daily_curriculums")
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class DailyCurriculumEntity {
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "student_id", nullable = false)
+    private StudentEntity student;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private DailyCurriculumStatus status = DailyCurriculumStatus.NOT_STARTED;
+
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    @OneToMany(mappedBy = "dailyCurriculum", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sequenceNo ASC")
+    private List<TrainingEntity> trainings = new ArrayList<>();
+
+    public void replaceTrainings(List<TrainingTemplateEntity> templates) {
+        trainings.clear();
+        for (int index = 0; index < templates.size(); index++) {
+            trainings.add(new TrainingEntity(this, templates.get(index), index + 1));
+        }
+        status = DailyCurriculumStatus.NOT_STARTED;
+        completedAt = null;
+    }
+
+    public void refreshCompletion(LocalDateTime now) {
+        if (!trainings.isEmpty() && trainings.stream().allMatch(TrainingEntity::isCompleted)) {
+            status = DailyCurriculumStatus.COMPLETED;
+            if (completedAt == null) completedAt = now;
+        }
+    }
+}

@@ -1,9 +1,9 @@
 package com.iread.backend.student.repository;
 
 import com.iread.backend.student.domain.StudentEntity;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
@@ -13,13 +13,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
-
     List<StudentEntity> findAllByTeacherIdOrderByIdAsc(Long teacherId);
-
     Optional<StudentEntity> findByIdAndTeacherId(Long id, Long teacherId);
-
     boolean existsByStudentCode(String studentCode);
-
     boolean existsByStudentCodeAndIdNot(String studentCode, Long id);
 
     @Query(value = """
@@ -54,11 +50,8 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
     List<AccuracyTrendProjection> findAccuracyTrend(@Param("studentId") Long studentId);
 
     @Query(value = """
-            SELECT DATE(t.started_at) AS learningDate,
-                   tt.name AS learningType,
-                   t.started_at AS startedAt,
-                   t.finished_at AS finishedAt,
-                   t.accuracy AS achievement
+            SELECT DATE(t.started_at) AS learningDate, tt.name AS learningType,
+                   t.started_at AS startedAt, t.finished_at AS finishedAt, t.accuracy AS achievement
               FROM daily_curriculums dc
               JOIN trainings t ON t.daily_curriculum_id = dc.id
               JOIN training_templates tt ON tt.id = t.training_template_id

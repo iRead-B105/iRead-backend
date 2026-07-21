@@ -14,23 +14,14 @@ import java.time.LocalDateTime;
 
 @Getter
 @Entity
-@Table(
-        name = "students",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "uk_students_student_code",
-                        columnNames = "student_code"
-                )
-        }
-)
+@Table(name = "students", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_students_student_code", columnNames = "student_code")
+})
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class StudentEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 담당 지도자
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "teacher_id", nullable = false)
     private TeacherEntity teacher;
@@ -41,7 +32,6 @@ public class StudentEntity {
     @Column(name = "student_code", nullable = false, length = 10)
     private String studentCode;
 
-    @Column
     private LocalDate birthday;
 
     @Enumerated(EnumType.STRING)
@@ -67,25 +57,14 @@ public class StudentEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    // 프로필 사진
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "image_id")
     private ImageEntity image;
 
     @Builder
-    public StudentEntity(
-            TeacherEntity teacher,
-            String name,
-            String studentCode,
-            LocalDate birthday,
-            Gender gender,
-            String school,
-            String guardian,
-            String guardianContact,
-            String guardianEmail,
-            String address,
-            ImageEntity image
-    ) {
+    public StudentEntity(TeacherEntity teacher, String name, String studentCode, LocalDate birthday,
+                         Gender gender, String school, String guardian, String guardianContact,
+                         String guardianEmail, String address, ImageEntity image) {
         this.teacher = teacher;
         this.name = name;
         this.studentCode = studentCode;
@@ -99,19 +78,9 @@ public class StudentEntity {
         this.image = image;
     }
 
-    public void update(
-            String name,
-            String studentCode,
-            LocalDate birthday,
-            Gender gender,
-            String school,
-            String guardian,
-            String guardianContact,
-            String guardianEmail,
-            String address,
-            ImageEntity image,
-            boolean updateImage
-    ) {
+    public void update(String name, String studentCode, LocalDate birthday, Gender gender, String school,
+                       String guardian, String guardianContact, String guardianEmail, String address,
+                       ImageEntity image, boolean updateImage) {
         if (name != null) this.name = name;
         if (studentCode != null) this.studentCode = studentCode;
         if (birthday != null) this.birthday = birthday;
