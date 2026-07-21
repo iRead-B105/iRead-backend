@@ -1,6 +1,7 @@
-package com.iread.backend.auth.dto;
+package com.iread.backend.auth.dto.res;
 
 import com.iread.backend.auth.session.LoginTeacher;
+import com.iread.backend.teacher.domain.Gender;
 import com.iread.backend.teacher.domain.TeacherEntity;
 
 public record TeacherAuthResponse(
@@ -8,7 +9,7 @@ public record TeacherAuthResponse(
         String email,
         String name,
         String organization,
-        String gender,
+        Gender gender,
         Long imagesId
 ) {
 
@@ -19,7 +20,7 @@ public record TeacherAuthResponse(
                 teacher.getName(),
                 teacher.getOrganization(),
                 teacher.getGender(),
-                teacher.getImagesId()
+                teacher.getImage() == null ? null : teacher.getImage().getId()
         );
     }
 

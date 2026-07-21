@@ -1,5 +1,6 @@
 package com.iread.backend.auth.session;
 
+import com.iread.backend.teacher.domain.Gender;
 import com.iread.backend.teacher.domain.TeacherEntity;
 
 import java.io.Serializable;
@@ -9,7 +10,7 @@ public record LoginTeacher(
         String email,
         String name,
         String organization,
-        String gender,
+        Gender gender,
         Long imagesId
 ) implements Serializable {
 
@@ -20,7 +21,7 @@ public record LoginTeacher(
                 teacher.getName(),
                 teacher.getOrganization(),
                 teacher.getGender(),
-                teacher.getImagesId()
+                teacher.getImage() == null ? null : teacher.getImage().getId()
         );
     }
 }

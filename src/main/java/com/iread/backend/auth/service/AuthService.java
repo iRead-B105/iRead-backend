@@ -1,10 +1,14 @@
 package com.iread.backend.auth.service;
 
-import com.iread.backend.auth.dto.LoginRequest;
-import com.iread.backend.auth.dto.SignUpRequest;
-import com.iread.backend.auth.dto.TeacherAuthResponse;
+import com.iread.backend.auth.dto.req.LoginRequest;
+import com.iread.backend.auth.dto.req.SignUpRequest;
+import com.iread.backend.auth.dto.res.TeacherAuthResponse;
 import com.iread.backend.auth.session.LoginTeacher;
 import com.iread.backend.auth.session.SessionConst;
+import com.iread.backend.global.domain.ImageEntity;
+import com.iread.backend.global.repository.ImageRepository;
+import com.iread.backend.global.storage.FileStorage;
+import com.iread.backend.global.storage.StoredFile;
 import com.iread.backend.teacher.domain.TeacherEntity;
 import com.iread.backend.teacher.repository.TeacherRepository;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -20,23 +25,49 @@ public class AuthService {
 
     private final TeacherRepository teacherRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ImageRepository imageRepository;
+    private final FileStorage fileStorage;
 
     @Transactional
     public TeacherAuthResponse signUp(SignUpRequest request) {
+        return signUp(request, null);
+    }
+
+    @Transactional
+    public TeacherAuthResponse signUp(SignUpRequest request, MultipartFile imageFile) {
         if (teacherRepository.existsByEmail(request.email())) {
             throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
         }
 
-        TeacherEntity teacher = new TeacherEntity(
-                request.email(),
-                passwordEncoder.encode(request.password()),
-                request.name(),
-                request.organization(),
-                request.gender(),
-                request.imagesId()
-        );
+        StoredFile storedFile = null;
+        try {
+            ImageEntity image = null;
+            if (imageFile != null && !imageFile.isEmpty()) {
+                storedFile = fileStorage.store(imageFile);
+                image = imageRepository.save(ImageEntity.builder()
+                        .originalFileName(storedFile.originalFileName())
+                        .storeFileName(storedFile.storeFileName())
+                        .fileSize(storedFile.fileSize())
+                        .url(storedFile.url())
+                        .build());
+            }
 
-        return TeacherAuthResponse.from(teacherRepository.save(teacher));
+            TeacherEntity teacher = new TeacherEntity(
+                    request.email(),
+                    passwordEncoder.encode(request.password()),
+                    request.name(),
+                    request.organization(),
+                    request.gender(),
+                    image
+            );
+
+            return TeacherAuthResponse.from(teacherRepository.save(teacher));
+        } catch (RuntimeException exception) {
+            if (storedFile != null) {
+                fileStorage.delete(storedFile.storeFileName());
+            }
+            throw exception;
+        }
     }
 
     @Transactional(readOnly = true)

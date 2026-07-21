@@ -1,12 +1,8 @@
 package com.iread.backend.global.domain;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
@@ -18,9 +14,7 @@ import java.time.LocalDateTime;
 @Table(name = "images")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ImageEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(name = "original_file_name", nullable = false, length = 255)
@@ -38,4 +32,12 @@ public class ImageEntity {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Builder
+    public ImageEntity(String originalFileName, String storeFileName, Long fileSize, String url) {
+        this.originalFileName = originalFileName;
+        this.storeFileName = storeFileName;
+        this.fileSize = fileSize;
+        this.url = url;
+    }
 }
