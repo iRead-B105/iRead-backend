@@ -1,0 +1,213 @@
+package com.iread.backend.training.admin.service;
+
+import com.iread.backend.student.domain.StudentEntity;
+import com.iread.backend.student.repository.StudentRepository;
+import com.iread.backend.training.domain.*;
+import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
+import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
+import com.iread.backend.training.repository.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+import tools.jackson.databind.json.JsonMapper;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class TrainingServiceTest {
+
+    @Mock StudentRepository studentRepository;
+    @Mock DailyCurriculumRepository dailyCurriculumRepository;
+    @Mock TrainingRepository trainingRepository;
+    @Mock TrainingTemplateRepository trainingTemplateRepository;
+    @Mock TrainingDataRepository trainingDataRepository;
+    @Mock StudentStudyProgressRepository progressRepository;
+    @Mock WordRepository wordRepository;
+
+    private TrainingService trainingService;
+
+    @BeforeEach
+    void setUp() {
+        trainingService = new TrainingService(
+                studentRepository,
+                dailyCurriculumRepository,
+                trainingRepository,
+                trainingTemplateRepository,
+                trainingDataRepository,
+                progressRepository,
+                wordRepository,
+                JsonMapper.builder().build()
+        );
+    }
+
+    @Test
+    void 커리큘럼_달성률은_훈련_정답률의_평균이다() {
+        DailyCurriculumEntity curriculum = curriculum(100L);
+        TrainingEntity first = training(1L, curriculum, template(11L, "훈련1"), new BigDecimal("80.00"));
+        TrainingEntity second = training(2L, curriculum, template(12L, "훈련2"), new BigDecimal("90.00"));
+        curriculum.getTrainings().addAll(List.of(first, second));
+        ReflectionTestUtils.setField(curriculum, "completedAt", LocalDateTime.of(2026, 7, 20, 12, 0));
+        allowStudent();
+        when(dailyCurriculumRepository.findAllByStudentIdAndCompletedAtIsNotNullOrderByCompletedAtDesc(10L))
+                .thenReturn(List.of(curriculum));
+
+        var result = trainingService.getCurriculumLogs(1L, 10L);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().achievement()).isEqualByComparingTo("85.00");
+        assertThat(result.getFirst().trainings()).hasSize(2);
+    }
+
+    @Test
+    void 훈련_result_JSON을_문항별_이력으로_변환한다() {
+        DailyCurriculumEntity curriculum = curriculum(100L);
+        TrainingEntity training = training(1L, curriculum, template(11L, "단어 훈련"), new BigDecimal("50.00"));
+        ReflectionTestUtils.setField(training, "result", """
+                {"version":1,"questions":[
+                  {"questionNumber":1,"wordId":101,"question":"사과","isCorrect":false,
+                   "correctAnswer":"사과","selectedAnswer":"사가"}
+                ]}
+                """);
+        curriculum.getTrainings().add(training);
+        allowStudent();
+        when(dailyCurriculumRepository.findByIdAndStudentId(100L, 10L)).thenReturn(Optional.of(curriculum));
+
+        var result = trainingService.getTrainingLog(1L, 10L, 100L);
+
+        var question = result.trainings().getFirst().questions().getFirst();
+        assertThat(question.questionNumber()).isEqualTo(1);
+        assertThat(question.wordId()).isEqualTo(101L);
+        assertThat(question.correct()).isFalse();
+        assertThat(question.correctAnswer()).isEqualTo("사과");
+        assertThat(question.selectedAnswer()).isEqualTo("사가");
+    }
+
+    @Test
+    void 진행중인_훈련이_있으면_차회_커리큘럼을_수정할_수_없다() {
+        DailyCurriculumEntity curriculum = curriculum(100L);
+        TrainingEntity training = training(1L, curriculum, template(11L, "훈련"), null);
+        ReflectionTestUtils.setField(training, "status", TrainingStatus.IN_PROGRESS);
+        curriculum.getTrainings().add(training);
+        allowStudent();
+        when(dailyCurriculumRepository.findByIdAndStudentId(100L, 10L)).thenReturn(Optional.of(curriculum));
+
+        assertThatThrownBy(() -> trainingService.updateDailyCurriculum(
+                1L, 10L, 100L, new UpdateCurriculumRequest(List.of(11L))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("시작했거나 완료된 커리큘럼은 수정할 수 없습니다.");
+        verify(trainingTemplateRepository, never()).findAllById(any());
+    }
+
+    @Test
+    void 예정_단어가_없으면_단어를_생성하고_JSON에_추가한다() {
+        TrainingEntity training = ownedTraining(1L);
+        TrainingDataEntity data = new TrainingDataEntity(
+                training, "{\"version\":1,\"expectedWords\":[],\"content\":{}}"
+        );
+        WordEntity word = new WordEntity("사과");
+        ReflectionTestUtils.setField(word, "id", 101L);
+        allowStudent();
+        when(trainingRepository.findByIdAndDailyCurriculumStudentId(1L, 10L)).thenReturn(Optional.of(training));
+        when(trainingDataRepository.findByTrainingId(1L)).thenReturn(Optional.of(data));
+        when(wordRepository.findByContent("사과")).thenReturn(Optional.empty());
+        when(wordRepository.save(any(WordEntity.class))).thenReturn(word);
+
+        trainingService.addExpectedWord(1L, 10L, 1L, new ExpectedWordRequest("사과"));
+
+        assertThat(data.getGeneratedData()).contains("\"wordId\":101").contains("\"wordName\":\"사과\"");
+        assertThat(training.getStatus()).isEqualTo(TrainingStatus.NOT_READY);
+    }
+
+    @Test
+    void 예정_단어는_중복해서_추가할_수_없다() {
+        TrainingEntity training = ownedTraining(1L);
+        TrainingDataEntity data = new TrainingDataEntity(
+                training, "{\"version\":1,\"expectedWords\":[{\"wordId\":101,\"wordName\":\"사과\"}]}"
+        );
+        allowStudent();
+        when(trainingRepository.findByIdAndDailyCurriculumStudentId(1L, 10L)).thenReturn(Optional.of(training));
+        when(trainingDataRepository.findByTrainingId(1L)).thenReturn(Optional.of(data));
+
+        assertThatThrownBy(() -> trainingService.addExpectedWord(
+                1L, 10L, 1L, new ExpectedWordRequest("사과")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("이미 추가된 예정 단어입니다.");
+        verify(wordRepository, never()).save(any());
+    }
+
+    @Test
+    void 모든_훈련이_완료되면_일일커리큘럼의_완료일을_기록한다() {
+        DailyCurriculumEntity curriculum = curriculum(100L);
+        TrainingEntity first = training(1L, curriculum, template(11L, "훈련1"), null);
+        TrainingEntity second = training(2L, curriculum, template(12L, "훈련2"), null);
+        curriculum.getTrainings().addAll(List.of(first, second));
+        LocalDateTime firstFinishedAt = LocalDateTime.of(2026, 7, 20, 10, 0);
+        LocalDateTime lastFinishedAt = LocalDateTime.of(2026, 7, 20, 10, 30);
+
+        first.complete("{}", new BigDecimal("80"), firstFinishedAt);
+        assertThat(curriculum.getCompletedAt()).isNull();
+        second.complete("{}", new BigDecimal("90"), lastFinishedAt);
+
+        assertThat(curriculum.getStatus()).isEqualTo(DailyCurriculumStatus.COMPLETED);
+        assertThat(curriculum.getCompletedAt()).isEqualTo(lastFinishedAt);
+    }
+
+    private void allowStudent() {
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(org.mockito.Mockito.mock(StudentEntity.class)));
+    }
+
+    private DailyCurriculumEntity curriculum(Long id) {
+        DailyCurriculumEntity entity = instantiate(DailyCurriculumEntity.class);
+        ReflectionTestUtils.setField(entity, "id", id);
+        ReflectionTestUtils.setField(entity, "trainings", new java.util.ArrayList<TrainingEntity>());
+        return entity;
+    }
+
+    private TrainingTemplateEntity template(Long id, String name) {
+        CurriculumUnitEntity unit = instantiate(CurriculumUnitEntity.class);
+        ReflectionTestUtils.setField(unit, "unitName", "단원");
+        TrainingTemplateEntity template = instantiate(TrainingTemplateEntity.class);
+        ReflectionTestUtils.setField(template, "id", id);
+        ReflectionTestUtils.setField(template, "name", name);
+        ReflectionTestUtils.setField(template, "curriculumUnit", unit);
+        return template;
+    }
+
+    private TrainingEntity training(Long id, DailyCurriculumEntity curriculum,
+                                    TrainingTemplateEntity template, BigDecimal accuracy) {
+        TrainingEntity training = instantiate(TrainingEntity.class);
+        ReflectionTestUtils.setField(training, "id", id);
+        ReflectionTestUtils.setField(training, "dailyCurriculum", curriculum);
+        ReflectionTestUtils.setField(training, "trainingTemplate", template);
+        ReflectionTestUtils.setField(training, "accuracy", accuracy);
+        ReflectionTestUtils.setField(training, "status", TrainingStatus.NOT_READY);
+        return training;
+    }
+
+    private TrainingEntity ownedTraining(Long id) {
+        return training(id, curriculum(100L), template(11L, "훈련"), null);
+    }
+
+    private <T> T instantiate(Class<T> type) {
+        try {
+            var constructor = type.getDeclaredConstructor();
+            constructor.setAccessible(true);
+            return constructor.newInstance();
+        } catch (Exception exception) {
+            throw new IllegalStateException(exception);
+        }
+    }
+}
