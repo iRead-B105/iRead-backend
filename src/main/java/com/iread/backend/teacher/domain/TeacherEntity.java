@@ -2,6 +2,8 @@ package com.iread.backend.teacher.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -38,8 +40,9 @@ public class TeacherEntity {
     @Column(name = "organization", length = 100)
     private String organization;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "gender", length = 10)
-    private String gender;
+    private Gender gender;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -48,7 +51,7 @@ public class TeacherEntity {
     @Column(name = "images_id")
     private Long imagesId;
 
-    public TeacherEntity(String email, String password, String name, String organization, String gender, Long imagesId) {
+    public TeacherEntity(String email, String password, String name, String organization, Gender gender, Long imagesId) {
         this.email = email;
         this.password = password;
         this.name = name;

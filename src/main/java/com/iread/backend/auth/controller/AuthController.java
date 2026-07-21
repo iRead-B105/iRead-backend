@@ -1,8 +1,8 @@
 package com.iread.backend.auth.controller;
 
-import com.iread.backend.auth.dto.LoginRequest;
-import com.iread.backend.auth.dto.SignUpRequest;
-import com.iread.backend.auth.dto.TeacherAuthResponse;
+import com.iread.backend.auth.dto.req.LoginRequest;
+import com.iread.backend.auth.dto.req.SignUpRequest;
+import com.iread.backend.auth.dto.res.TeacherAuthResponse;
 import com.iread.backend.auth.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;

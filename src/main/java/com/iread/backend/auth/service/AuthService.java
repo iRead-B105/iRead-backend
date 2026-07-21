@@ -1,8 +1,8 @@
 package com.iread.backend.auth.service;
 
-import com.iread.backend.auth.dto.LoginRequest;
-import com.iread.backend.auth.dto.SignUpRequest;
-import com.iread.backend.auth.dto.TeacherAuthResponse;
+import com.iread.backend.auth.dto.req.LoginRequest;
+import com.iread.backend.auth.dto.req.SignUpRequest;
+import com.iread.backend.auth.dto.res.TeacherAuthResponse;
 import com.iread.backend.auth.session.LoginTeacher;
 import com.iread.backend.auth.session.SessionConst;
 import com.iread.backend.teacher.domain.TeacherEntity;

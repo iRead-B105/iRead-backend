@@ -1,4 +1,4 @@
-package com.iread.backend.auth.dto;
+package com.iread.backend.auth.dto.req;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

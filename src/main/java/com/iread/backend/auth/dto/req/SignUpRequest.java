@@ -1,5 +1,6 @@
-package com.iread.backend.auth.dto;
+package com.iread.backend.auth.dto.req;
 
+import com.iread.backend.teacher.domain.Gender;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -19,8 +20,7 @@ public record SignUpRequest(
         @Size(max = 100)
         String organization,
 
-        @Size(max = 10)
-        String gender,
+        Gender gender,
 
         Long imagesId
 ) {
