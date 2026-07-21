@@ -98,4 +98,29 @@ public class StudentEntity {
         this.address = address;
         this.image = image;
     }
+
+    public void update(
+            String name,
+            String studentCode,
+            LocalDate birthday,
+            Gender gender,
+            String school,
+            String guardian,
+            String guardianContact,
+            String guardianEmail,
+            String address,
+            ImageEntity image,
+            boolean updateImage
+    ) {
+        if (name != null) this.name = name;
+        if (studentCode != null) this.studentCode = studentCode;
+        if (birthday != null) this.birthday = birthday;
+        if (gender != null) this.gender = gender;
+        if (school != null) this.school = school;
+        if (guardian != null) this.guardian = guardian;
+        if (guardianContact != null) this.guardianContact = guardianContact;
+        if (guardianEmail != null) this.guardianEmail = guardianEmail;
+        if (address != null) this.address = address;
+        if (updateImage) this.image = image;
+    }
 }

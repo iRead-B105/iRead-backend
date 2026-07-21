@@ -1,10 +1,8 @@
 package com.iread.backend.student.controller;
 
 import com.iread.backend.auth.annotation.CurrentTeacherId;
-import com.iread.backend.student.dto.req.StudentCharacteristicsRequest;
 import com.iread.backend.student.dto.req.StudentRequest;
 import com.iread.backend.student.dto.res.AccuracyTrendResponse;
-import com.iread.backend.student.dto.res.StudentCharacteristicsResponse;
 import com.iread.backend.student.dto.res.StudentListResponse;
 import com.iread.backend.student.dto.res.StudentResponse;
 import com.iread.backend.student.dto.res.TrainingHistoryResponse;
@@ -81,21 +79,4 @@ public class StudentController {
         return studentService.getTrainingHistory(teacherId, studentId);
     }
 
-    @GetMapping("/{studentId}/student-characteristics")
-    public StudentCharacteristicsResponse getCharacteristics(
-            @CurrentTeacherId Long teacherId,
-            @PathVariable Long studentId
-    ) {
-        return studentService.getCharacteristics(teacherId, studentId);
-    }
-
-    @PatchMapping("/{studentId}/student-characteristics")
-    public ResponseEntity<Void> updateCharacteristics(
-            @CurrentTeacherId Long teacherId,
-            @PathVariable Long studentId,
-            @Valid @RequestBody StudentCharacteristicsRequest request
-    ) {
-        studentService.updateCharacteristics(teacherId, studentId, request);
-        return ResponseEntity.ok().build();
-    }
 }
