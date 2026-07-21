@@ -1,6 +1,9 @@
 package com.iread.backend.student.service;
 
+import com.iread.backend.global.domain.ImageEntity;
 import com.iread.backend.global.repository.ImageRepository;
+import com.iread.backend.global.storage.FileStorage;
+import com.iread.backend.global.storage.StoredFile;
 import com.iread.backend.student.domain.Gender;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.dto.req.StudentRequest;
@@ -15,6 +18,7 @@ import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.mock.web.MockMultipartFile;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -25,6 +29,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -41,12 +46,15 @@ class StudentServiceImplTest {
     @Mock
     private ImageRepository imageRepository;
 
+    @Mock
+    private FileStorage fileStorage;
+
     private StudentServiceImpl studentService;
     private TeacherEntity teacher;
 
     @BeforeEach
     void setUp() {
-        studentService = new StudentServiceImpl(studentRepository, teacherRepository, imageRepository);
+        studentService = new StudentServiceImpl(studentRepository, teacherRepository, imageRepository, fileStorage);
         teacher = new TeacherEntity(
                 "teacher@test.com",
                 "encoded-password",
@@ -120,6 +128,48 @@ class StudentServiceImplTest {
     }
 
     @Test
+    void 학생_등록시_업로드한_이미지를_저장하고_연결한다() {
+        StudentRequest request = request("학생", "ST00000002", null);
+        MockMultipartFile imageFile = imageFile("profile.png");
+        StoredFile storedFile = new StoredFile(
+                "profile.png", "stored-profile.png", imageFile.getSize(), "/uploads/images/stored-profile.png"
+        );
+        ImageEntity image = image(20L, storedFile);
+        when(teacherRepository.findById(1L)).thenReturn(Optional.of(teacher));
+        when(studentRepository.existsByStudentCode("ST00000002")).thenReturn(false);
+        when(fileStorage.store(imageFile)).thenReturn(storedFile);
+        when(imageRepository.save(org.mockito.ArgumentMatchers.any(ImageEntity.class))).thenReturn(image);
+
+        studentService.createStudent(1L, request, imageFile);
+
+        ArgumentCaptor<StudentEntity> captor = ArgumentCaptor.forClass(StudentEntity.class);
+        verify(studentRepository).save(captor.capture());
+        assertThat(captor.getValue().getImage()).isSameAs(image);
+        verify(fileStorage).store(imageFile);
+    }
+
+    @Test
+    void 학생_등록실패시_새로_업로드한_파일을_삭제한다() {
+        StudentRequest request = request("학생", "ST00000002", null);
+        MockMultipartFile imageFile = imageFile("profile.png");
+        StoredFile storedFile = new StoredFile(
+                "profile.png", "stored-profile.png", imageFile.getSize(), "/uploads/images/stored-profile.png"
+        );
+        ImageEntity image = image(20L, storedFile);
+        when(teacherRepository.findById(1L)).thenReturn(Optional.of(teacher));
+        when(studentRepository.existsByStudentCode("ST00000002")).thenReturn(false);
+        when(fileStorage.store(imageFile)).thenReturn(storedFile);
+        when(imageRepository.save(org.mockito.ArgumentMatchers.any(ImageEntity.class))).thenReturn(image);
+        doThrow(new RuntimeException("DB 저장 실패"))
+                .when(studentRepository).save(org.mockito.ArgumentMatchers.any(StudentEntity.class));
+
+        assertThatThrownBy(() -> studentService.createStudent(1L, request, imageFile))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("DB 저장 실패");
+        verify(fileStorage).delete("stored-profile.png");
+    }
+
+    @Test
     void 중복_학생코드는_등록할_수_없다() {
         StudentRequest request = request("학생", "ST00000002", null);
         when(teacherRepository.findById(1L)).thenReturn(Optional.of(teacher));
@@ -145,6 +195,35 @@ class StudentServiceImplTest {
         assertThat(student.getName()).isEqualTo("수정 이름");
         assertThat(student.getStudentCode()).isEqualTo("ST00000001");
         assertThat(student.getBirthday()).isEqualTo(LocalDate.of(2016, 3, 10));
+    }
+
+    @Test
+    void 학생_수정시_새_이미지로_교체하고_기존_이미지를_삭제한다() {
+        StudentEntity student = student(10L, LocalDate.of(2016, 3, 10));
+        StoredFile oldStoredFile = new StoredFile(
+                "old.png", "old-stored.png", 10L, "/uploads/images/old-stored.png"
+        );
+        ImageEntity oldImage = image(20L, oldStoredFile);
+        ReflectionTestUtils.setField(student, "image", oldImage);
+
+        MockMultipartFile newImageFile = imageFile("new.png");
+        StoredFile newStoredFile = new StoredFile(
+                "new.png", "new-stored.png", newImageFile.getSize(), "/uploads/images/new-stored.png"
+        );
+        ImageEntity newImage = image(21L, newStoredFile);
+        StudentRequest request = new StudentRequest(
+                null, null, null, null, null,
+                null, null, null, null, null
+        );
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(fileStorage.store(newImageFile)).thenReturn(newStoredFile);
+        when(imageRepository.save(org.mockito.ArgumentMatchers.any(ImageEntity.class))).thenReturn(newImage);
+
+        studentService.updateStudent(1L, 10L, request, newImageFile);
+
+        assertThat(student.getImage()).isSameAs(newImage);
+        verify(imageRepository).delete(oldImage);
+        verify(fileStorage).delete("old-stored.png");
     }
 
     @Test
@@ -214,6 +293,21 @@ class StudentServiceImplTest {
                 name, studentCode, LocalDate.of(2016, 3, 10), Gender.Boy,
                 "학교", "보호자", "010-0000-0000", "guardian@test.com", "주소", imageId
         );
+    }
+
+    private MockMultipartFile imageFile(String fileName) {
+        return new MockMultipartFile("image", fileName, "image/png", new byte[]{1, 2, 3});
+    }
+
+    private ImageEntity image(Long id, StoredFile storedFile) {
+        ImageEntity image = ImageEntity.builder()
+                .originalFileName(storedFile.originalFileName())
+                .storeFileName(storedFile.storeFileName())
+                .fileSize(storedFile.fileSize())
+                .url(storedFile.url())
+                .build();
+        ReflectionTestUtils.setField(image, "id", id);
+        return image;
     }
 
     private StudentRepository.StudentLearningSummaryProjection learningSummary(

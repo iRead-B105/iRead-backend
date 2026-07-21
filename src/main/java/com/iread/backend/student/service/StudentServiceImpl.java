@@ -2,6 +2,8 @@ package com.iread.backend.student.service;
 
 import com.iread.backend.global.domain.ImageEntity;
 import com.iread.backend.global.repository.ImageRepository;
+import com.iread.backend.global.storage.FileStorage;
+import com.iread.backend.global.storage.StoredFile;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.dto.req.StudentRequest;
 import com.iread.backend.student.dto.res.AccuracyTrendResponse;
@@ -14,6 +16,7 @@ import com.iread.backend.teacher.repository.TeacherRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.Period;
@@ -30,6 +33,7 @@ public class StudentServiceImpl implements StudentService {
     private final StudentRepository studentRepository;
     private final TeacherRepository teacherRepository;
     private final ImageRepository imageRepository;
+    private final FileStorage fileStorage;
 
     @Override
     public List<StudentListResponse> getStudents(Long teacherId) {
@@ -55,6 +59,12 @@ public class StudentServiceImpl implements StudentService {
     @Override
     @Transactional
     public void createStudent(Long teacherId, StudentRequest request) {
+        createStudent(teacherId, request, null);
+    }
+
+    @Override
+    @Transactional
+    public void createStudent(Long teacherId, StudentRequest request, MultipartFile imageFile) {
         TeacherEntity teacher = validateTeacher(teacherId);
         if (request.name() == null || request.name().isBlank()) {
             throw new IllegalArgumentException("학생 이름은 필수입니다.");
@@ -63,7 +73,8 @@ public class StudentServiceImpl implements StudentService {
             throw new IllegalArgumentException("학생 코드는 필수입니다.");
         }
         validateStudentCodeForCreate(request.studentCode());
-        ImageEntity image = findImageOrNull(request.imageId());
+        boolean uploaded = imageFile != null && !imageFile.isEmpty();
+        ImageEntity image = uploaded ? storeImage(imageFile) : findImageOrNull(request.imageId());
 
         StudentEntity student = StudentEntity.builder()
                 .teacher(teacher)
@@ -79,7 +90,12 @@ public class StudentServiceImpl implements StudentService {
                 .image(image)
                 .build();
 
-        studentRepository.save(student);
+        try {
+            studentRepository.save(student);
+        } catch (RuntimeException exception) {
+            if (uploaded) deleteUploadedImage(image);
+            throw exception;
+        }
     }
 
     @Override
@@ -94,6 +110,17 @@ public class StudentServiceImpl implements StudentService {
     @Override
     @Transactional
     public void updateStudent(Long teacherId, Long studentId, StudentRequest request) {
+        updateStudent(teacherId, studentId, request, null);
+    }
+
+    @Override
+    @Transactional
+    public void updateStudent(
+            Long teacherId,
+            Long studentId,
+            StudentRequest request,
+            MultipartFile imageFile
+    ) {
         StudentEntity student = findOwnedStudent(teacherId, studentId);
 
         if (request.studentCode() != null
@@ -101,8 +128,11 @@ public class StudentServiceImpl implements StudentService {
             throw new IllegalArgumentException("이미 사용 중인 학생 코드입니다.");
         }
 
-        boolean updateImage = request.imageId() != null;
-        ImageEntity image = updateImage ? findImageOrNull(request.imageId()) : null;
+        boolean uploaded = imageFile != null && !imageFile.isEmpty();
+        boolean updateImage = uploaded || request.imageId() != null;
+        ImageEntity oldImage = student.getImage();
+        ImageEntity image = uploaded ? storeImage(imageFile)
+                : updateImage ? findImageOrNull(request.imageId()) : null;
         student.update(
                 request.name(),
                 request.studentCode(),
@@ -116,6 +146,11 @@ public class StudentServiceImpl implements StudentService {
                 image,
                 updateImage
         );
+
+        if (uploaded && oldImage != null) {
+            imageRepository.delete(oldImage);
+            fileStorage.delete(oldImage.getStoreFileName());
+        }
     }
 
     @Override
@@ -158,6 +193,25 @@ public class StudentServiceImpl implements StudentService {
 
     private ImageEntity findImageOrNull(Long imageId) {
         return imageId == null ? null : imageRepository.findById(imageId).orElse(null);
+    }
+
+    private ImageEntity storeImage(MultipartFile imageFile) {
+        StoredFile storedFile = fileStorage.store(imageFile);
+        try {
+            return imageRepository.save(ImageEntity.builder()
+                    .originalFileName(storedFile.originalFileName())
+                    .storeFileName(storedFile.storeFileName())
+                    .fileSize(storedFile.fileSize())
+                    .url(storedFile.url())
+                    .build());
+        } catch (RuntimeException exception) {
+            fileStorage.delete(storedFile.storeFileName());
+            throw exception;
+        }
+    }
+
+    private void deleteUploadedImage(ImageEntity image) {
+        fileStorage.delete(image.getStoreFileName());
     }
 
     private StudentListResponse toListResponse(

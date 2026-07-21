@@ -21,7 +21,7 @@ public record LoginTeacher(
                 teacher.getName(),
                 teacher.getOrganization(),
                 teacher.getGender(),
-                teacher.getImagesId()
+                teacher.getImage() == null ? null : teacher.getImage().getId()
         );
     }
 }
