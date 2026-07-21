@@ -32,6 +32,7 @@ public class AuthService {
                 passwordEncoder.encode(request.password()),
                 request.name(),
                 request.organization(),
+                request.gender(),
                 request.imagesId()
         );
 

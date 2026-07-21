@@ -19,6 +19,9 @@ public record SignUpRequest(
         @Size(max = 100)
         String organization,
 
+        @Size(max = 10)
+        String gender,
+
         Long imagesId
 ) {
 }
