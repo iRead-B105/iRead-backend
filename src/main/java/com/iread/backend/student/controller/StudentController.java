@@ -7,6 +7,8 @@ import com.iread.backend.student.dto.res.StudentListResponse;
 import com.iread.backend.student.dto.res.StudentResponse;
 import com.iread.backend.student.dto.res.TrainingHistoryResponse;
 import com.iread.backend.student.service.StudentService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
+@Tag(name = "학생 관리", description = "관리자 앱 학생 관리 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/admin/student")
@@ -31,16 +34,19 @@ public class StudentController {
 
     private final StudentService studentService;
 
+    @Operation(summary = "담당 학생 목록 조회")
     @GetMapping("/list")
     public List<StudentListResponse> getStudents(@CurrentTeacherId Long teacherId) {
         return studentService.getStudents(teacherId);
     }
 
+    @Operation(summary = "학생 상세 정보 조회")
     @GetMapping("/{studentId}")
     public StudentResponse getStudent(@CurrentTeacherId Long teacherId, @PathVariable Long studentId) {
         return studentService.getStudent(teacherId, studentId);
     }
 
+    @Operation(summary = "학생 등록")
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Void> createStudent(
             @CurrentTeacherId Long teacherId,
@@ -50,6 +56,7 @@ public class StudentController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "프로필 이미지와 함께 학생 등록")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Void> createStudentWithImage(
             @CurrentTeacherId Long teacherId,
@@ -60,12 +67,14 @@ public class StudentController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "학생 삭제")
     @DeleteMapping("/{studentId}")
     public ResponseEntity<Void> deleteStudent(@CurrentTeacherId Long teacherId, @PathVariable Long studentId) {
         studentService.deleteStudent(teacherId, studentId);
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "학생 정보 수정")
     @PatchMapping(value = "/{studentId}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Void> updateStudent(
             @CurrentTeacherId Long teacherId,
@@ -76,6 +85,7 @@ public class StudentController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "프로필 이미지와 함께 학생 정보 수정")
     @PatchMapping(value = "/{studentId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<Void> updateStudentWithImage(
             @CurrentTeacherId Long teacherId,
@@ -87,6 +97,7 @@ public class StudentController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "학생의 일별 평균 정답률 추이 조회")
     @GetMapping("/{studentId}/accuracy-trend")
     public List<AccuracyTrendResponse> getAccuracyTrend(
             @CurrentTeacherId Long teacherId,
@@ -95,6 +106,7 @@ public class StudentController {
         return studentService.getAccuracyTrend(teacherId, studentId);
     }
 
+    @Operation(summary = "학생의 학습 기록 조회")
     @GetMapping("/{studentId}/training-history")
     public List<TrainingHistoryResponse> getTrainingHistory(
             @CurrentTeacherId Long teacherId,
