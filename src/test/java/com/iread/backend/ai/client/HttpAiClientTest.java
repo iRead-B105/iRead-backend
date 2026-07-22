@@ -1,6 +1,10 @@
 package com.iread.backend.ai.client;
 
+import com.iread.backend.ai.dto.req.ContinueStoryRequest;
+import com.iread.backend.ai.dto.req.GenerateStoryRequest;
 import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
+import com.iread.backend.ai.dto.req.StoryHistoryLine;
+import com.iread.backend.ai.dto.req.StoryTemplateData;
 import com.iread.backend.ai.exception.AiClientException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,6 +14,8 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.json.JsonMapper;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -119,6 +125,77 @@ class HttpAiClientTest {
         assertThatThrownBy(() -> aiClient.generateTraining(request("request-4")))
                 .isInstanceOf(AiClientException.class)
                 .hasMessage("AI 서버 응답의 generatedData는 JSON 객체여야 합니다.");
+        server.verify();
+    }
+
+    @Test
+    void 최초_스토리_생성을_요청하고_선택지까지의_대사를_반환한다() {
+        GenerateStoryRequest request = new GenerateStoryRequest(
+                "story-request-1",
+                100L,
+                20L,
+                1,
+                new StoryTemplateData(30L, "신비한 숲", "숲에서 친구를 만나는 이야기")
+        );
+        server.expect(requestTo("http://localhost:8081/api/v1/story/generate"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Idempotency-Key", "story-request-1"))
+                .andRespond(withSuccess("""
+                        {
+                          "requestId": "story-request-1",
+                          "schemaVersion": 1,
+                          "completed": false,
+                          "lines": [
+                            {"content": "숲에 도착했어요.", "hasChoices": false},
+                            {"content": "어디로 갈까요?", "hasChoices": true}
+                          ]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var response = aiClient.generateStory(request);
+
+        assertThat(response.completed()).isFalse();
+        assertThat(response.lines()).extracting("content")
+                .containsExactly("숲에 도착했어요.", "어디로 갈까요?");
+        assertThat(response.lines().getLast().hasChoices()).isTrue();
+        server.verify();
+    }
+
+    @Test
+    void 자연어_선택지와_이전_내용으로_다음_스토리_생성을_요청한다() {
+        ContinueStoryRequest request = new ContinueStoryRequest(
+                "story-request-2",
+                100L,
+                20L,
+                1,
+                new StoryTemplateData(30L, "신비한 숲", "숲에서 친구를 만나는 이야기"),
+                1001L,
+                "노랫소리를 따라간다",
+                List.of(new StoryHistoryLine(1001L, "어디로 갈까요?", true, "노랫소리를 따라간다"))
+        );
+        server.expect(requestTo("http://localhost:8081/api/v1/story/continue"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().json("""
+                        {
+                          "choice": "노랫소리를 따라간다",
+                          "selectedStoryLineId": 1001
+                        }
+                        """))
+                .andRespond(withSuccess("""
+                        {
+                          "requestId": "story-request-2",
+                          "schemaVersion": 1,
+                          "completed": true,
+                          "lines": [
+                            {"content": "친구를 만나 집으로 돌아왔어요.", "hasChoices": false}
+                          ]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var response = aiClient.continueStory(request);
+
+        assertThat(response.completed()).isTrue();
+        assertThat(response.lines().getFirst().content()).isEqualTo("친구를 만나 집으로 돌아왔어요.");
         server.verify();
     }
 
