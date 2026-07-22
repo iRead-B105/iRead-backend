@@ -15,6 +15,8 @@ import java.util.Optional;
 public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
     List<StudentEntity> findAllByTeacherIdOrderByIdAsc(Long teacherId);
     Optional<StudentEntity> findByIdAndTeacherId(Long id, Long teacherId);
+
+    Optional<StudentEntity> findByStudentCodeAndTeacherId(String studentCode, Long teacherId);
     boolean existsByStudentCode(String studentCode);
     boolean existsByStudentCodeAndIdNot(String studentCode, Long id);
 
