@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/public/report")
+@RequestMapping("/api/admin/report/shared")
 public class SharedReportController {
 
     private final ReportShareService reportShareService;
