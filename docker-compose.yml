@@ -37,6 +37,16 @@ services:
       timeout: 5s
       retries: 5
 
+  ai-mock:
+    image: wiremock/wiremock:3.13.2
+    container_name: iread-ai-mock
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./mock-ai:/home/wiremock
+    command: ["--global-response-templating", "--verbose"]
+
 volumes:
   mysql-data:
   redis-data:

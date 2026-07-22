@@ -1,0 +1,32 @@
+{
+  "request": {
+    "method": "POST",
+    "urlPath": "/api/v1/trainings/generate"
+  },
+  "response": {
+    "status": 200,
+    "headers": {
+      "Content-Type": "application/json; charset=utf-8"
+    },
+    "transformers": [
+      "response-template"
+    ],
+    "jsonBody": {
+      "requestId": "{{jsonPath request.body '$.requestId'}}",
+      "schemaVersion": 1,
+      "generatedData": {
+        "version": 1,
+        "expectedWords": [],
+        "content": {
+          "questions": [
+            {
+              "questionNumber": 1,
+              "question": "사과를 소리 내어 읽어보세요.",
+              "correctAnswer": "사과"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

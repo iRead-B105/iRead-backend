@@ -1,6 +1,9 @@
 package com.iread.backend.ai.client;
 
+import com.iread.backend.ai.dto.req.ContinueStoryRequest;
+import com.iread.backend.ai.dto.req.GenerateStoryRequest;
 import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
+import com.iread.backend.ai.dto.res.GenerateStoryResponse;
 import com.iread.backend.ai.dto.res.GenerateTrainingResponse;
 import com.iread.backend.ai.exception.AiClientException;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -16,6 +19,8 @@ import java.util.Objects;
 public class HttpAiClient implements AiClient {
 
     static final String GENERATE_TRAINING_PATH = "/api/v1/trainings/generate";
+    static final String GENERATE_STORY_PATH = "/api/v1/story/generate";
+    static final String CONTINUE_STORY_PATH = "/api/v1/story/continue";
 
     private final RestClient restClient;
 
@@ -50,6 +55,42 @@ public class HttpAiClient implements AiClient {
         }
     }
 
+    @Override
+    public GenerateStoryResponse generateStory(GenerateStoryRequest request) {
+        return requestStory(GENERATE_STORY_PATH, request, request.requestId(), request.schemaVersion());
+    }
+
+    @Override
+    public GenerateStoryResponse continueStory(ContinueStoryRequest request) {
+        return requestStory(CONTINUE_STORY_PATH, request, request.requestId(), request.schemaVersion());
+    }
+
+    private GenerateStoryResponse requestStory(String path, Object request, String requestId, int schemaVersion) {
+        try {
+            GenerateStoryResponse response = restClient.post()
+                    .uri(path)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .header("Idempotency-Key", requestId)
+                    .body(request)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (httpRequest, httpResponse) -> {
+                        throw new AiClientException(
+                                "AI 서버가 오류 응답을 반환했습니다.",
+                                httpResponse.getStatusCode().value()
+                        );
+                    })
+                    .requiredBody(GenerateStoryResponse.class);
+
+            validateStoryResponse(requestId, schemaVersion, response);
+            return response;
+        } catch (AiClientException exception) {
+            throw exception;
+        } catch (RestClientException exception) {
+            throw new AiClientException("AI 서버와 통신하는 데 실패했습니다.", exception);
+        }
+    }
+
     private void validateResponse(GenerateTrainingRequest request, GenerateTrainingResponse response) {
         if (!Objects.equals(request.requestId(), response.requestId())) {
             throw new AiClientException("AI 서버 응답의 requestId가 요청과 일치하지 않습니다.");
@@ -60,6 +101,18 @@ public class HttpAiClient implements AiClient {
         if (response.generatedData() == null || response.generatedData().isNull()
                 || !response.generatedData().isObject()) {
             throw new AiClientException("AI 서버 응답의 generatedData는 JSON 객체여야 합니다.");
+        }
+    }
+
+    private void validateStoryResponse(String requestId, int schemaVersion, GenerateStoryResponse response) {
+        if (!Objects.equals(requestId, response.requestId())) {
+            throw new AiClientException("AI 서버 응답의 requestId가 요청과 일치하지 않습니다.");
+        }
+        if (schemaVersion != response.schemaVersion()) {
+            throw new AiClientException("AI 서버 응답의 schemaVersion이 요청과 일치하지 않습니다.");
+        }
+        if (response.lines() == null) {
+            throw new AiClientException("AI 서버 응답의 lines는 필수입니다.");
         }
     }
 }
