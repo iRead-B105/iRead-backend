@@ -15,6 +15,7 @@ public record StudentResponse(
         String guardianContact,
         String guardianEmail,
         String address,
-        Long imageId
+        String imageUrl,
+        String teacherMemo
 ) {
 }

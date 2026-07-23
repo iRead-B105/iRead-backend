@@ -26,9 +26,15 @@ public class MypageService {
 
         return characterRepository.findAllByStudentIdOrderByCreatedAtDesc(student.getId()).stream()
                 .map(character -> new CharacterResponse(
-                        character.getImage().getUrl(),
-                        character.getImage().getOriginalFileName()
+                        character.getImageUrl(),
+                        fileNameOf(character.getImageUrl())
                 ))
                 .toList();
+    }
+
+    private String fileNameOf(String imageUrl) {
+        if (imageUrl == null || imageUrl.isBlank()) return null;
+        int slash = imageUrl.lastIndexOf('/');
+        return slash < 0 ? imageUrl : imageUrl.substring(slash + 1);
     }
 }

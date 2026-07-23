@@ -24,7 +24,7 @@ public class StoryEntity {
     private StudentEntity student;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "story_templates_id", nullable = false)
+    @JoinColumn(name = "story_template_id", nullable = false)
     private StoryTemplateEntity storyTemplate;
 
     @CreationTimestamp

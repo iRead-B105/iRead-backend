@@ -1,7 +1,5 @@
 package com.iread.backend.student.service;
 
-import com.iread.backend.global.domain.ImageEntity;
-import com.iread.backend.global.repository.ImageRepository;
 import com.iread.backend.global.storage.FileStorage;
 import com.iread.backend.global.storage.StoredFile;
 import com.iread.backend.student.domain.StudentEntity;
@@ -32,7 +30,6 @@ public class StudentServiceImpl implements StudentService {
 
     private final StudentRepository studentRepository;
     private final TeacherRepository teacherRepository;
-    private final ImageRepository imageRepository;
     private final FileStorage fileStorage;
 
     @Override
@@ -74,7 +71,8 @@ public class StudentServiceImpl implements StudentService {
         }
         validateStudentCodeForCreate(request.studentCode());
         boolean uploaded = imageFile != null && !imageFile.isEmpty();
-        ImageEntity image = uploaded ? storeImage(imageFile) : findImageOrNull(request.imageId());
+        StoredFile storedFile = uploaded ? fileStorage.store(imageFile) : null;
+        String imageUrl = uploaded ? storedFile.url() : request.imageUrl();
 
         StudentEntity student = StudentEntity.builder()
                 .teacher(teacher)
@@ -87,13 +85,13 @@ public class StudentServiceImpl implements StudentService {
                 .guardianContact(request.guardianContact())
                 .guardianEmail(request.guardianEmail())
                 .address(request.address())
-                .image(image)
+                .imageUrl(imageUrl)
                 .build();
 
         try {
             studentRepository.save(student);
         } catch (RuntimeException exception) {
-            if (uploaded) deleteUploadedImage(image);
+            if (storedFile != null) fileStorage.delete(storedFile.storeFileName());
             throw exception;
         }
     }
@@ -129,10 +127,10 @@ public class StudentServiceImpl implements StudentService {
         }
 
         boolean uploaded = imageFile != null && !imageFile.isEmpty();
-        boolean updateImage = uploaded || request.imageId() != null;
-        ImageEntity oldImage = student.getImage();
-        ImageEntity image = uploaded ? storeImage(imageFile)
-                : updateImage ? findImageOrNull(request.imageId()) : null;
+        boolean updateImage = uploaded || request.imageUrl() != null;
+        String oldImageUrl = student.getImageUrl();
+        StoredFile storedFile = uploaded ? fileStorage.store(imageFile) : null;
+        String imageUrl = uploaded ? storedFile.url() : request.imageUrl();
         student.update(
                 request.name(),
                 request.studentCode(),
@@ -143,14 +141,20 @@ public class StudentServiceImpl implements StudentService {
                 request.guardianContact(),
                 request.guardianEmail(),
                 request.address(),
-                image,
+                imageUrl,
                 updateImage
         );
 
-        if (uploaded && oldImage != null) {
-            imageRepository.delete(oldImage);
-            fileStorage.delete(oldImage.getStoreFileName());
+        if (uploaded && oldImageUrl != null) {
+            fileStorage.delete(fileNameOf(oldImageUrl));
         }
+    }
+
+    @Override
+    @Transactional
+    public void updateTeacherMemo(Long teacherId, Long studentId, String teacherMemo) {
+        StudentEntity student = findOwnedStudent(teacherId, studentId);
+        student.updateTeacherMemo(teacherMemo);
     }
 
     @Override
@@ -191,27 +195,10 @@ public class StudentServiceImpl implements StudentService {
         }
     }
 
-    private ImageEntity findImageOrNull(Long imageId) {
-        return imageId == null ? null : imageRepository.findById(imageId).orElse(null);
-    }
-
-    private ImageEntity storeImage(MultipartFile imageFile) {
-        StoredFile storedFile = fileStorage.store(imageFile);
-        try {
-            return imageRepository.save(ImageEntity.builder()
-                    .originalFileName(storedFile.originalFileName())
-                    .storeFileName(storedFile.storeFileName())
-                    .fileSize(storedFile.fileSize())
-                    .url(storedFile.url())
-                    .build());
-        } catch (RuntimeException exception) {
-            fileStorage.delete(storedFile.storeFileName());
-            throw exception;
-        }
-    }
-
-    private void deleteUploadedImage(ImageEntity image) {
-        fileStorage.delete(image.getStoreFileName());
+    private String fileNameOf(String imageUrl) {
+        if (imageUrl == null || imageUrl.isBlank()) return null;
+        int slash = imageUrl.lastIndexOf('/');
+        return slash < 0 ? imageUrl : imageUrl.substring(slash + 1);
     }
 
     private StudentListResponse toListResponse(
@@ -245,7 +232,8 @@ public class StudentServiceImpl implements StudentService {
                 student.getGuardianContact(),
                 student.getGuardianEmail(),
                 student.getAddress(),
-                student.getImage() == null ? null : student.getImage().getId()
+                student.getImageUrl(),
+                student.getTeacherMemo()
         );
     }
 }

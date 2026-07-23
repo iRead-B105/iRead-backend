@@ -5,8 +5,6 @@ import com.iread.backend.auth.dto.req.SignUpRequest;
 import com.iread.backend.auth.dto.res.TeacherAuthResponse;
 import com.iread.backend.auth.session.LoginTeacher;
 import com.iread.backend.auth.session.SessionConst;
-import com.iread.backend.global.domain.ImageEntity;
-import com.iread.backend.global.repository.ImageRepository;
 import com.iread.backend.global.storage.FileStorage;
 import com.iread.backend.global.storage.StoredFile;
 import com.iread.backend.teacher.domain.TeacherEntity;
@@ -25,7 +23,6 @@ public class AuthService {
 
     private final TeacherRepository teacherRepository;
     private final PasswordEncoder passwordEncoder;
-    private final ImageRepository imageRepository;
     private final FileStorage fileStorage;
 
     @Transactional
@@ -41,15 +38,10 @@ public class AuthService {
 
         StoredFile storedFile = null;
         try {
-            ImageEntity image = null;
+            String imageUrl = null;
             if (imageFile != null && !imageFile.isEmpty()) {
                 storedFile = fileStorage.store(imageFile);
-                image = imageRepository.save(ImageEntity.builder()
-                        .originalFileName(storedFile.originalFileName())
-                        .storeFileName(storedFile.storeFileName())
-                        .fileSize(storedFile.fileSize())
-                        .url(storedFile.url())
-                        .build());
+                imageUrl = storedFile.url();
             }
 
             TeacherEntity teacher = new TeacherEntity(
@@ -58,7 +50,7 @@ public class AuthService {
                     request.name(),
                     request.organization(),
                     request.gender(),
-                    image
+                    imageUrl
             );
 
             return TeacherAuthResponse.from(teacherRepository.save(teacher));

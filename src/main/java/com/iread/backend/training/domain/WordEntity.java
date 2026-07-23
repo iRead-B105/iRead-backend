@@ -12,9 +12,9 @@ import lombok.NoArgsConstructor;
 public class WordEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(nullable = false, unique = true, length = 100)
+    @Column(nullable = false, unique = true, length = 50)
     private String content;
-    @Column(nullable = false)
+    @Column
     private Integer length;
 
     public WordEntity(String content) {

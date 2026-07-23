@@ -10,7 +10,7 @@ public record TeacherAuthResponse(
         String name,
         String organization,
         Gender gender,
-        Long imagesId
+        String imageUrl
 ) {
 
     public static TeacherAuthResponse from(TeacherEntity teacher) {
@@ -20,7 +20,7 @@ public record TeacherAuthResponse(
                 teacher.getName(),
                 teacher.getOrganization(),
                 teacher.getGender(),
-                teacher.getImage() == null ? null : teacher.getImage().getId()
+                teacher.getImageUrl()
         );
     }
 
@@ -31,7 +31,7 @@ public record TeacherAuthResponse(
                 teacher.name(),
                 teacher.organization(),
                 teacher.gender(),
-                teacher.imagesId()
+                teacher.imageUrl()
         );
     }
 }

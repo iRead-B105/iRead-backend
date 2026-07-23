@@ -17,14 +17,14 @@ public class TrainingDataEntity {
     private Long id;
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "training_id", nullable = false, unique = true)
+    @JoinColumn(name = "train_id", nullable = false, unique = true)
     private TrainingEntity training;
 
-    @Column(name = "generated_data", nullable = false, columnDefinition = "json")
+    @Column(name = "generated_data", columnDefinition = "json")
     private String generatedData;
 
     @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     public TrainingDataEntity(TrainingEntity training, String generatedData) {

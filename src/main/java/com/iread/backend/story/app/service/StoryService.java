@@ -240,7 +240,7 @@ public class StoryService {
                 line.getId(),
                 line.getPreviousStoryLine() == null ? null : line.getPreviousStoryLine().getId(),
                 line.getStory().getId(),
-                line.getImage() == null ? null : line.getImage().getUrl(),
+                line.getImageUrl(),
                 line.isHasChoices(),
                 line.getContent(),
                 line.getSequenceNo(),

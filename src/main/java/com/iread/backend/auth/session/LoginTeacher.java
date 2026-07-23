@@ -11,7 +11,7 @@ public record LoginTeacher(
         String name,
         String organization,
         Gender gender,
-        Long imagesId
+        String imageUrl
 ) implements Serializable {
 
     public static LoginTeacher from(TeacherEntity teacher) {
@@ -21,7 +21,7 @@ public record LoginTeacher(
                 teacher.getName(),
                 teacher.getOrganization(),
                 teacher.getGender(),
-                teacher.getImage() == null ? null : teacher.getImage().getId()
+                teacher.getImageUrl()
         );
     }
 }

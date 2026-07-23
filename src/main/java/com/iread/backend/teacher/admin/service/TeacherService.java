@@ -18,8 +18,6 @@ public class TeacherService {
         TeacherEntity teacher = teacherRepository.findById(teacherId)
                 .orElseThrow(() -> new IllegalArgumentException("교사를 찾을 수 없습니다."));
 
-        String profileImageUrl = teacher.getImage() == null ? null : teacher.getImage().getUrl();
-
-        return TeacherInfoResponse.from(teacher, profileImageUrl);
+        return TeacherInfoResponse.from(teacher, teacher.getImageUrl());
     }
 }

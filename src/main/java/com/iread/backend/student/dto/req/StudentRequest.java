@@ -14,6 +14,6 @@ public record StudentRequest(
         String guardianContact,
         String guardianEmail,
         String address,
-        Long imageId
+        String imageUrl
 ) {
 }

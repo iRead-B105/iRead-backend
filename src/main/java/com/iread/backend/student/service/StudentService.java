@@ -17,6 +17,7 @@ public interface StudentService {
     void deleteStudent(Long teacherId, Long studentId);
     void updateStudent(Long teacherId, Long studentId, StudentRequest request);
     void updateStudent(Long teacherId, Long studentId, StudentRequest request, MultipartFile imageFile);
+    void updateTeacherMemo(Long teacherId, Long studentId, String teacherMemo);
     List<AccuracyTrendResponse> getAccuracyTrend(Long teacherId, Long studentId);
     List<TrainingHistoryResponse> getTrainingHistory(Long teacherId, Long studentId);
 }

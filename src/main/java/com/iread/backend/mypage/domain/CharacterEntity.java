@@ -1,6 +1,5 @@
 package com.iread.backend.mypage.domain;
 
-import com.iread.backend.global.domain.ImageEntity;
 import com.iread.backend.student.domain.StudentEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -23,9 +22,8 @@ public class CharacterEntity {
     @JoinColumn(name = "student_id", nullable = false)
     private StudentEntity student;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "image_id", nullable = false)
-    private ImageEntity image;
+    @Column(name = "image_url", length = 255)
+    private String imageUrl;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

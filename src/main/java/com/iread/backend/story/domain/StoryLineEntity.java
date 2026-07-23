@@ -1,6 +1,5 @@
 package com.iread.backend.story.domain;
 
-import com.iread.backend.global.domain.ImageEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -22,16 +21,15 @@ public class StoryLineEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "previous_story_line_id")
+    @JoinColumn(name = "previous_line_id")
     private StoryLineEntity previousStoryLine;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "story_id", nullable = false)
     private StoryEntity story;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "image_id")
-    private ImageEntity image;
+    @Column(name = "image_url", length = 255)
+    private String imageUrl;
 
     @Column(name = "has_choices", nullable = false)
     private boolean hasChoices;
@@ -49,11 +47,11 @@ public class StoryLineEntity {
     @Column(name = "read_at")
     private LocalDateTime readAt;
 
-    public StoryLineEntity(StoryLineEntity previousStoryLine, StoryEntity story, ImageEntity image,
+    public StoryLineEntity(StoryLineEntity previousStoryLine, StoryEntity story, String imageUrl,
                            boolean hasChoices, String content, Integer sequenceNo) {
         this.previousStoryLine = previousStoryLine;
         this.story = story;
-        this.image = image;
+        this.imageUrl = imageUrl;
         this.hasChoices = hasChoices;
         this.content = content;
         this.sequenceNo = sequenceNo;
