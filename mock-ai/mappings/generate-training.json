@@ -15,17 +15,25 @@
       "requestId": "{{jsonPath request.body '$.requestId'}}",
       "schemaVersion": 1,
       "generatedData": {
-        "version": 1,
-        "expectedWords": [],
-        "content": {
-          "questions": [
-            {
-              "questionNumber": 1,
-              "question": "사과를 소리 내어 읽어보세요.",
-              "correctAnswer": "사과"
+        "questions": [
+          {
+            "questionId": "q-001",
+            "sequence": 1,
+            "problem": {
+              "target": {"text": "가지", "audioScript": "가지"},
+              "choices": [
+                {"choiceId": "c1", "text": "가방"},
+                {"choiceId": "c2", "text": "나비"},
+                {"choiceId": "c3", "text": "다리"}
+              ]
+            },
+            "answer": {
+              "type": "CHOICE",
+              "correctChoiceId": "c1",
+              "correctText": "가방"
             }
-          ]
-        }
+          }
+        ]
       }
     }
   }

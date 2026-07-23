@@ -20,7 +20,7 @@ public class TrainingTemplateEntity {
     @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false, columnDefinition = "json")
     private String form;
 
     @Column(name = "sequence_no", nullable = false)

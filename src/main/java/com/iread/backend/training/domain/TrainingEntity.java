@@ -52,6 +52,7 @@ public class TrainingEntity {
     public boolean isCompleted() { return status == TrainingStatus.COMPLETED; }
     public boolean isEditable() { return status == TrainingStatus.NOT_READY || status == TrainingStatus.NOT_STARTED; }
     public void markNotReady() { status = TrainingStatus.NOT_READY; }
+    public void markReady() { status = TrainingStatus.NOT_STARTED; }
 
     public void complete(String result, BigDecimal accuracy, LocalDateTime finishedAt) {
         this.result = result;
