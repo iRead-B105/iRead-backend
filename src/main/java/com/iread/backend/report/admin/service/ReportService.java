@@ -65,10 +65,49 @@ public class ReportService {
     }
 
     public ReportResponse getReport(Long teacherId, Long reportId) {
-        ReportEntity report = reportRepository.findByIdAndStudentTeacherId(reportId, teacherId)
-                .orElseThrow(() -> new IllegalArgumentException("리포트를 찾을 수 없습니다."));
+        ReportEntity report = findOwnedReport(teacherId, reportId);
         return new ReportResponse(report.getId(), report.getStudent().getId(), report.getStartDate(),
                 report.getEndDate(), readSnapshot(report.getSnapshotData()), report.getTeacherMemo());
+    }
+
+    public List<ReportListResponse> getReports(Long teacherId, Long studentId) {
+        List<ReportEntity> reports;
+        if (studentId == null) {
+            reports = reportRepository.findAllByStudentTeacherIdOrderByCreatedAtDesc(teacherId);
+        } else {
+            studentRepository.findByIdAndTeacherId(studentId, teacherId)
+                    .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다."));
+            reports = reportRepository
+                    .findAllByStudentIdAndStudentTeacherIdOrderByCreatedAtDesc(studentId, teacherId);
+        }
+        return reports.stream().map(this::toListResponse).toList();
+    }
+
+    @Transactional
+    public void updateReportMemo(Long teacherId, Long reportId, String teacherMemo) {
+        findOwnedReport(teacherId, reportId).updateTeacherMemo(teacherMemo);
+    }
+
+    @Transactional
+    public void deleteReport(Long teacherId, Long reportId) {
+        reportRepository.delete(findOwnedReport(teacherId, reportId));
+    }
+
+    private ReportEntity findOwnedReport(Long teacherId, Long reportId) {
+        return reportRepository.findByIdAndStudentTeacherId(reportId, teacherId)
+                .orElseThrow(() -> new IllegalArgumentException("리포트를 찾을 수 없습니다."));
+    }
+
+    private ReportListResponse toListResponse(ReportEntity report) {
+        return new ReportListResponse(
+                report.getId(),
+                report.getStudent().getId(),
+                report.getStudent().getName(),
+                report.getStartDate(),
+                report.getEndDate(),
+                report.getTeacherMemo(),
+                report.getCreatedAt()
+        );
     }
 
     private ReportSnapshot buildSnapshot(Long studentId, List<TrainingEntity> trainings,

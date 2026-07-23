@@ -26,6 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -78,5 +79,66 @@ class ReportServiceTest {
                 10L, LocalDate.of(2026, 8, 1), LocalDate.of(2026, 7, 1), null)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("시작일은 종료일보다 늦을 수 없습니다.");
+    }
+
+    @Test
+    void 학생별_리포트_목록을_최신순으로_반환한다() {
+        StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
+        when(student.getId()).thenReturn(10L);
+        when(student.getName()).thenReturn("학생");
+        ReportEntity report = report(student, 25L, "기존 메모");
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(reportRepository.findAllByStudentIdAndStudentTeacherIdOrderByCreatedAtDesc(10L, 1L))
+                .thenReturn(List.of(report));
+
+        var response = reportService.getReports(1L, 10L);
+
+        assertThat(response).hasSize(1);
+        assertThat(response.getFirst().reportId()).isEqualTo(25L);
+        assertThat(response.getFirst().studentName()).isEqualTo("학생");
+        assertThat(response.getFirst().teacherMemo()).isEqualTo("기존 메모");
+    }
+
+    @Test
+    void 소유한_리포트의_메모를_수정한다() {
+        StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
+        ReportEntity report = report(student, 25L, "기존 메모");
+        when(reportRepository.findByIdAndStudentTeacherId(25L, 1L)).thenReturn(Optional.of(report));
+
+        reportService.updateReportMemo(1L, 25L, "  수정 메모  ");
+
+        assertThat(report.getTeacherMemo()).isEqualTo("수정 메모");
+    }
+
+    @Test
+    void 소유한_리포트를_삭제한다() {
+        StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
+        ReportEntity report = report(student, 25L, null);
+        when(reportRepository.findByIdAndStudentTeacherId(25L, 1L)).thenReturn(Optional.of(report));
+
+        reportService.deleteReport(1L, 25L);
+
+        verify(reportRepository).delete(report);
+    }
+
+    @Test
+    void 다른_교사의_리포트는_삭제할_수_없다() {
+        when(reportRepository.findByIdAndStudentTeacherId(25L, 1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> reportService.deleteReport(1L, 25L))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(reportRepository, never()).delete(any());
+    }
+
+    private ReportEntity report(StudentEntity student, Long id, String memo) {
+        ReportEntity report = new ReportEntity(
+                student,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31),
+                "{}",
+                memo
+        );
+        ReflectionTestUtils.setField(report, "id", id);
+        return report;
     }
 }
