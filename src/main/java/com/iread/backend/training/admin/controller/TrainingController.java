@@ -8,6 +8,7 @@ import com.iread.backend.training.admin.service.TrainingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import tools.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -85,5 +86,12 @@ public class TrainingController {
                                                     @PathVariable Long trainingId, @PathVariable Long wordId) {
         trainingService.deleteExpectedWord(teacherId, studentId, trainingId, wordId);
         return ResponseEntity.ok().build();
+    }
+
+    @Operation(summary = "AI 훈련 문제 생성")
+    @PostMapping("/{studentId}/{trainingId}/generate")
+    public JsonNode generateTraining(@CurrentTeacherId Long teacherId, @PathVariable Long studentId,
+                                     @PathVariable Long trainingId) {
+        return trainingService.generateTraining(teacherId, studentId, trainingId);
     }
 }

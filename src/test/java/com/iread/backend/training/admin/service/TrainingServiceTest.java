@@ -1,5 +1,6 @@
 package com.iread.backend.training.admin.service;
 
+import com.iread.backend.ai.client.AiClient;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.*;
@@ -36,6 +37,7 @@ class TrainingServiceTest {
     @Mock TrainingDataRepository trainingDataRepository;
     @Mock StudentStudyProgressRepository progressRepository;
     @Mock WordRepository wordRepository;
+    @Mock AiClient aiClient;
 
     private TrainingService trainingService;
 
@@ -49,6 +51,7 @@ class TrainingServiceTest {
                 trainingDataRepository,
                 progressRepository,
                 wordRepository,
+                aiClient,
                 JsonMapper.builder().build()
         );
     }

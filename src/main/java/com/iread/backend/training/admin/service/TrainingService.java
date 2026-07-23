@@ -4,6 +4,9 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
+import com.iread.backend.ai.client.AiClient;
+import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
+import com.iread.backend.ai.dto.res.GenerateTrainingResponse;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.*;
 import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
@@ -32,6 +35,7 @@ public class TrainingService {
     private final TrainingDataRepository trainingDataRepository;
     private final StudentStudyProgressRepository progressRepository;
     private final WordRepository wordRepository;
+    private final AiClient aiClient;
     private final ObjectMapper objectMapper;
 
     public List<CurriculumLogResponse> getCurriculumLogs(Long teacherId, Long studentId) {
@@ -116,6 +120,34 @@ public class TrainingService {
         root.withArray("expectedWords").forEach(node -> result.add(new ExpectedWordResponse(
                 node.path("wordId").asLong(), node.path("wordName").asText())));
         return result;
+    }
+
+    @Transactional
+    public JsonNode generateTraining(Long teacherId, Long studentId, Long trainingId) {
+        TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
+        if (!training.isEditable()) {
+            throw new IllegalStateException("시작했거나 완료한 훈련은 다시 생성할 수 없습니다.");
+        }
+
+        TrainingDataEntity data = findOrCreateTrainingData(training);
+        ObjectNode currentData = parseObject(data.getGeneratedData());
+        ObjectNode inputData = objectMapper.createObjectNode();
+        inputData.put("trainingTemplateId", training.getTrainingTemplate().getId());
+        inputData.put("templateName", training.getTrainingTemplate().getName());
+        inputData.set("generationSpec", parseObject(training.getTrainingTemplate().getForm()));
+        inputData.set("expectedWords", currentData.withArray("expectedWords").deepCopy());
+
+        String requestId = "training-" + trainingId + "-" + UUID.randomUUID();
+        GenerateTrainingResponse response = aiClient.generateTraining(new GenerateTrainingRequest(
+                requestId, trainingId, studentId, training.getTrainingTemplate().getId(), 1, inputData
+        ));
+
+        ObjectNode generatedData = validateGeneratedData(response.generatedData());
+        generatedData.put("trainingTemplateId", training.getTrainingTemplate().getId());
+        generatedData.set("expectedWords", currentData.withArray("expectedWords").deepCopy());
+        data.updateGeneratedData(writeJson(generatedData));
+        training.markReady();
+        return generatedData;
     }
 
     @Transactional
@@ -237,6 +269,30 @@ public class TrainingService {
         } catch (Exception exception) {
             throw new IllegalArgumentException("저장된 훈련 데이터 형식이 올바르지 않습니다.");
         }
+    }
+
+    private ObjectNode validateGeneratedData(JsonNode generatedData) {
+        if (!(generatedData instanceof ObjectNode root)) {
+            throw new IllegalArgumentException("AI가 생성한 훈련 데이터는 JSON 객체여야 합니다.");
+        }
+        JsonNode questions = root.path("questions");
+        if (!questions.isArray() || questions.isEmpty()) {
+            throw new IllegalArgumentException("AI가 생성한 훈련 데이터에는 questions가 한 개 이상 필요합니다.");
+        }
+        Set<String> questionIds = new HashSet<>();
+        for (JsonNode question : questions) {
+            String questionId = question.path("questionId").asText();
+            if (questionId.isBlank() || !questionIds.add(questionId)) {
+                throw new IllegalArgumentException("각 문제에는 중복되지 않는 questionId가 필요합니다.");
+            }
+            if (!question.path("problem").isObject()) {
+                throw new IllegalArgumentException("각 문제에는 problem JSON 객체가 필요합니다.");
+            }
+            if (!question.path("answer").isObject()) {
+                throw new IllegalArgumentException("각 문제에는 answer JSON 객체가 필요합니다.");
+            }
+        }
+        return root.deepCopy();
     }
 
     private String writeJson(JsonNode node) {
