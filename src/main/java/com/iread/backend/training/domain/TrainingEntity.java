@@ -1,5 +1,6 @@
 package com.iread.backend.training.domain;
 
+import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -8,6 +9,8 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Entity
@@ -47,6 +50,9 @@ public class TrainingEntity {
 
     @Column(precision = 5, scale = 2)
     private BigDecimal accuracy;
+
+    @OneToMany(mappedBy = "training", cascade = CascadeType.REMOVE)
+    private List<WordAttemptLogEntity> wordAttemptLogs = new ArrayList<>();
 
     TrainingEntity(DailyCurriculumEntity dailyCurriculum, TrainingTemplateEntity trainingTemplate, Integer sequenceNo) {
         this.dailyCurriculum = dailyCurriculum;

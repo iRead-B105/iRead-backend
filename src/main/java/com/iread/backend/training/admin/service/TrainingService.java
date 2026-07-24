@@ -16,6 +16,8 @@ import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.admin.dto.res.*;
 import com.iread.backend.training.repository.*;
+import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
+import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -37,6 +40,7 @@ public class TrainingService {
     private final TrainingTemplateRepository trainingTemplateRepository;
     private final TrainingDataRepository trainingDataRepository;
     private final WordRepository wordRepository;
+    private final WordAttemptLogRepository wordAttemptLogRepository;
     private final AiClient aiClient;
     private final ObjectMapper objectMapper;
 
@@ -185,8 +189,14 @@ public class TrainingService {
     }
 
     @Transactional
-    public BigDecimal completeTraining(Long teacherId, Long studentId, Long trainingId, JsonNode result) {
-        validateStudentOwner(teacherId, studentId);
+    public BigDecimal completeTraining(
+            Long teacherId,
+            Long studentId,
+            Long trainingId,
+            JsonNode result,
+            LocalDateTime completedAt
+    ) {
+        StudentEntity student = validateStudentOwner(teacherId, studentId);
         TrainingEntity training = trainingRepository.findForUpdate(trainingId, studentId)
                 .orElseThrow(() -> new IllegalArgumentException("훈련을 찾을 수 없습니다."));
 
@@ -210,10 +220,11 @@ public class TrainingService {
                 result
         ));
         BigDecimal accuracy = response.accuracy().setScale(2, RoundingMode.HALF_UP);
-        java.time.LocalDateTime finishedAt = java.time.LocalDateTime.now();
+        LocalDateTime finishedAt = completedAt == null ? LocalDateTime.now() : completedAt;
         if (training.getStartedAt() == null) {
             training.start(finishedAt);
         }
+        saveWordAttemptLogs(student, training, result.path("wordAttempts"));
         training.complete(writeJson(result), accuracy, finishedAt);
         return accuracy;
     }
@@ -255,9 +266,73 @@ public class TrainingService {
         training.markNotReady();
     }
 
-    private void validateStudentOwner(Long teacherId, Long studentId) {
-        studentRepository.findByIdAndTeacherId(studentId, teacherId)
+    private StudentEntity validateStudentOwner(Long teacherId, Long studentId) {
+        return studentRepository.findByIdAndTeacherId(studentId, teacherId)
                 .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다."));
+    }
+
+    private void saveWordAttemptLogs(StudentEntity student, TrainingEntity training, JsonNode attempts) {
+        if (!attempts.isArray() || attempts.isEmpty()) {
+            return;
+        }
+
+        Map<String, WordEntity> words = new HashMap<>();
+        List<WordAttemptLogEntity> logs = new ArrayList<>();
+        for (JsonNode attempt : attempts) {
+            String surfaceText = requiredSurfaceText(attempt);
+            WordEntity word = words.computeIfAbsent(surfaceText, text ->
+                    wordRepository.findByContent(text)
+                            .orElseGet(() -> wordRepository.save(new WordEntity(text))));
+            logs.add(new WordAttemptLogEntity(
+                    student,
+                    word,
+                    training,
+                    surfaceText,
+                    attempt.path("hasGazeData").asBoolean(false),
+                    attempt.path("hasAudioData").asBoolean(false),
+                    nullableInteger(attempt, "fixationDurationMs"),
+                    nullableInteger(attempt, "fixationCount"),
+                    nullableInteger(attempt, "gazeStartOffsetMs"),
+                    nullableInteger(attempt, "gazeEndOffsetMs"),
+                    nullableBoolean(attempt, "isSkipped"),
+                    nullableInteger(attempt, "regressionCount"),
+                    nullableText(attempt, "recognizedText", 255),
+                    nullableInteger(attempt, "speechStartOffsetMs"),
+                    nullableInteger(attempt, "speechEndOffsetMs"),
+                    nullableBoolean(attempt, "isCorrect")
+            ));
+        }
+        wordAttemptLogRepository.saveAll(logs);
+    }
+
+    private String requiredSurfaceText(JsonNode attempt) {
+        String surfaceText = nullableText(attempt, "surfaceText", 50);
+        if (surfaceText == null) {
+            throw new IllegalArgumentException("단어 시도 로그의 surfaceText는 필수입니다.");
+        }
+        return surfaceText;
+    }
+
+    private String nullableText(JsonNode node, String field, int maxLength) {
+        if (!node.hasNonNull(field)) {
+            return null;
+        }
+        String value = node.path(field).asText().trim();
+        if (value.isEmpty()) {
+            return null;
+        }
+        if (value.length() > maxLength) {
+            throw new IllegalArgumentException(field + "의 길이는 " + maxLength + "자를 초과할 수 없습니다.");
+        }
+        return value;
+    }
+
+    private Integer nullableInteger(JsonNode node, String field) {
+        return node.hasNonNull(field) ? node.path(field).asInt() : null;
+    }
+
+    private Boolean nullableBoolean(JsonNode node, String field) {
+        return node.hasNonNull(field) ? node.path(field).asBoolean() : null;
     }
 
     private DailyCurriculumEntity findCurriculum(Long studentId, Long curriculumId) {

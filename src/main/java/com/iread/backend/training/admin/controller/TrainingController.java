@@ -122,9 +122,15 @@ public class TrainingController {
             @PathVariable Long studentId,
             @PathVariable Long trainingId,
             @Valid @RequestBody CompleteTrainingRequest request
-    ) {
+        ) {
         return new TrainingEvaluationResponse(
-                trainingService.completeTraining(teacherId, studentId, trainingId, request.result())
+                trainingService.completeTraining(
+                        teacherId,
+                        studentId,
+                        trainingId,
+                        request.result(),
+                        request.completedAt()
+                )
         );
     }
 }

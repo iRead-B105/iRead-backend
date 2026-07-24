@@ -2,11 +2,13 @@ package com.iread.backend.student.service;
 
 import com.iread.backend.student.dto.req.StudentRequest;
 import com.iread.backend.student.dto.res.AccuracyTrendResponse;
+import com.iread.backend.student.dto.res.ReadingSpeedTrendResponse;
 import com.iread.backend.student.dto.res.StudentListResponse;
 import com.iread.backend.student.dto.res.StudentResponse;
 import com.iread.backend.student.dto.res.TrainingHistoryResponse;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface StudentService {
@@ -20,4 +22,10 @@ public interface StudentService {
     void updateTeacherMemo(Long teacherId, Long studentId, String teacherMemo);
     List<AccuracyTrendResponse> getAccuracyTrend(Long teacherId, Long studentId);
     List<TrainingHistoryResponse> getTrainingHistory(Long teacherId, Long studentId);
+    ReadingSpeedTrendResponse getReadingSpeedTrend(
+            Long teacherId,
+            Long studentId,
+            LocalDate from,
+            LocalDate to
+    );
 }

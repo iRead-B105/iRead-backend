@@ -9,6 +9,9 @@ import com.iread.backend.training.domain.*;
 import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.repository.*;
+import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
+import com.iread.backend.wordattempt.domain.WordAttemptUseLocation;
+import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.StreamSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -39,6 +43,7 @@ class TrainingServiceTest {
     @Mock TrainingTemplateRepository trainingTemplateRepository;
     @Mock TrainingDataRepository trainingDataRepository;
     @Mock WordRepository wordRepository;
+    @Mock WordAttemptLogRepository wordAttemptLogRepository;
     @Mock AiClient aiClient;
 
     private TrainingService trainingService;
@@ -52,6 +57,7 @@ class TrainingServiceTest {
                 trainingTemplateRepository,
                 trainingDataRepository,
                 wordRepository,
+                wordAttemptLogRepository,
                 aiClient,
                 JsonMapper.builder().build()
         );
@@ -250,17 +256,83 @@ class TrainingServiceTest {
         var resultJson = JsonMapper.builder().build().readTree("""
                 {"questions":[{"questionId":"q1","selectedAnswer":"apple"}]}
                 """);
+        LocalDateTime completedAt = LocalDateTime.of(2026, 7, 21, 15, 30);
 
-        BigDecimal accuracy = trainingService.completeTraining(1L, 10L, 1L, resultJson);
+        BigDecimal accuracy = trainingService.completeTraining(
+                1L,
+                10L,
+                1L,
+                resultJson,
+                completedAt
+        );
 
         assertThat(accuracy).isEqualByComparingTo("87.46");
         assertThat(training.getAccuracy()).isEqualByComparingTo("87.46");
         assertThat(training.getResult()).contains("\"questionId\":\"q1\"");
         assertThat(training.getStatus()).isEqualTo(TrainingStatus.COMPLETED);
+        assertThat(training.getFinishedAt()).isEqualTo(completedAt);
         ArgumentCaptor<EvaluateTrainingRequest> captor = ArgumentCaptor.forClass(EvaluateTrainingRequest.class);
         verify(aiClient).evaluateTraining(captor.capture());
         assertThat(captor.getValue().requestId()).isEqualTo("training-evaluation-1");
         assertThat(captor.getValue().result()).isEqualTo(resultJson);
+    }
+
+    @Test
+    void completeTrainingStoresSubmittedWordAttemptLogs() throws Exception {
+        TrainingEntity training = ownedTraining(1L);
+        ReflectionTestUtils.setField(training, "status", TrainingStatus.NOT_STARTED);
+        training.getDailyCurriculum().getTrainings().add(training);
+        allowStudent();
+        when(trainingRepository.findForUpdate(1L, 10L)).thenReturn(Optional.of(training));
+        when(aiClient.evaluateTraining(any(EvaluateTrainingRequest.class)))
+                .thenReturn(new EvaluateTrainingResponse(
+                        "training-evaluation-1", 1, new BigDecimal("100.00")
+                ));
+        when(wordRepository.findByContent("사과")).thenReturn(Optional.empty());
+        when(wordRepository.save(any(WordEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        var resultJson = JsonMapper.builder().build().readTree("""
+                {
+                  "questions": [{"questionId": "q1", "isCorrect": true}],
+                  "wordAttempts": [{
+                    "surfaceText": "사과",
+                    "hasGazeData": true,
+                    "hasAudioData": true,
+                    "fixationDurationMs": 320,
+                    "fixationCount": 1,
+                    "gazeStartOffsetMs": 100,
+                    "gazeEndOffsetMs": 500,
+                    "isSkipped": false,
+                    "regressionCount": 0,
+                    "recognizedText": "사과",
+                    "speechStartOffsetMs": 180,
+                    "speechEndOffsetMs": 620,
+                    "isCorrect": true
+                  }]
+                }
+                """);
+
+        trainingService.completeTraining(
+                1L,
+                10L,
+                1L,
+                resultJson,
+                LocalDateTime.of(2026, 7, 21, 15, 30)
+        );
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Iterable<WordAttemptLogEntity>> captor =
+                ArgumentCaptor.forClass(Iterable.class);
+        verify(wordAttemptLogRepository).saveAll(captor.capture());
+        List<WordAttemptLogEntity> logs = StreamSupport
+                .stream(captor.getValue().spliterator(), false)
+                .toList();
+        assertThat(logs).hasSize(1);
+        assertThat(logs.getFirst().getTraining()).isSameAs(training);
+        assertThat(logs.getFirst().getSurfaceText()).isEqualTo("사과");
+        assertThat(logs.getFirst().getUseLocation()).isEqualTo(WordAttemptUseLocation.TRAINING);
+        assertThat(logs.getFirst().getSpeechStartOffsetMs()).isEqualTo(180);
+        assertThat(logs.getFirst().getGazeEndOffsetMs()).isEqualTo(500);
+        assertThat(logs.getFirst().getCorrect()).isTrue();
     }
 
     @Test
@@ -272,7 +344,7 @@ class TrainingServiceTest {
         when(trainingRepository.findForUpdate(1L, 10L)).thenReturn(Optional.of(training));
         var resultJson = JsonMapper.builder().build().readTree("{}");
 
-        BigDecimal accuracy = trainingService.completeTraining(1L, 10L, 1L, resultJson);
+        BigDecimal accuracy = trainingService.completeTraining(1L, 10L, 1L, resultJson, null);
 
         assertThat(accuracy).isEqualByComparingTo("93.00");
         verify(aiClient, never()).evaluateTraining(any());

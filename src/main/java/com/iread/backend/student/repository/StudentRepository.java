@@ -48,8 +48,9 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
     List<AccuracyTrendProjection> findAccuracyTrend(@Param("studentId") Long studentId);
 
     @Query(value = """
-            SELECT DATE(t.started_at) AS learningDate, tt.name AS learningType,
-                   t.started_at AS startedAt, t.finished_at AS finishedAt, t.accuracy AS achievement
+            SELECT t.id AS trainingId, DATE(t.started_at) AS learningDate, tt.name AS learningType,
+                   t.started_at AS startedAt, t.finished_at AS finishedAt, t.accuracy AS achievement,
+                   t.result AS result
               FROM daily_curriculums dc
               JOIN trainings t ON t.daily_curriculum_id = dc.id
               JOIN training_templates tt ON tt.id = t.training_template_id
@@ -59,6 +60,91 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
              ORDER BY t.finished_at DESC, t.id DESC
             """, nativeQuery = true)
     List<TrainingHistoryProjection> findTrainingHistory(@Param("studentId") Long studentId);
+
+    @Query(value = """
+            SELECT wal.training_id AS trainingId,
+                   DATE(t.finished_at) AS learningDate,
+                   SUM(
+                       CASE
+                           WHEN wal.has_audio_data = TRUE
+                            AND wal.speech_start_offset_ms IS NOT NULL
+                            AND wal.speech_end_offset_ms IS NOT NULL
+                            AND wal.speech_end_offset_ms > wal.speech_start_offset_ms
+                            AND wal.is_correct = TRUE
+                            AND COALESCE(wal.is_skipped, FALSE) = FALSE
+                           THEN 1 ELSE 0
+                       END
+                   ) AS voiceWordCount,
+                   MAX(
+                       CASE
+                           WHEN wal.has_audio_data = TRUE
+                            AND wal.speech_start_offset_ms IS NOT NULL
+                            AND wal.speech_end_offset_ms IS NOT NULL
+                            AND wal.speech_end_offset_ms > wal.speech_start_offset_ms
+                           THEN wal.speech_end_offset_ms
+                       END
+                   ) - MIN(
+                       CASE
+                           WHEN wal.has_audio_data = TRUE
+                            AND wal.speech_start_offset_ms IS NOT NULL
+                            AND wal.speech_end_offset_ms IS NOT NULL
+                            AND wal.speech_end_offset_ms > wal.speech_start_offset_ms
+                           THEN wal.speech_start_offset_ms
+                       END
+                   ) AS voiceDurationMs,
+                   SUM(
+                       CASE
+                           WHEN wal.has_gaze_data = TRUE
+                            AND wal.gaze_start_offset_ms IS NOT NULL
+                            AND wal.gaze_end_offset_ms IS NOT NULL
+                            AND wal.gaze_end_offset_ms > wal.gaze_start_offset_ms
+                            AND COALESCE(wal.is_skipped, FALSE) = FALSE
+                           THEN 1 ELSE 0
+                       END
+                   ) AS gazeWordCount,
+                   MAX(
+                       CASE
+                           WHEN wal.has_gaze_data = TRUE
+                            AND wal.gaze_start_offset_ms IS NOT NULL
+                            AND wal.gaze_end_offset_ms IS NOT NULL
+                            AND wal.gaze_end_offset_ms > wal.gaze_start_offset_ms
+                           THEN wal.gaze_end_offset_ms
+                       END
+                   ) - MIN(
+                       CASE
+                           WHEN wal.has_gaze_data = TRUE
+                            AND wal.gaze_start_offset_ms IS NOT NULL
+                            AND wal.gaze_end_offset_ms IS NOT NULL
+                            AND wal.gaze_end_offset_ms > wal.gaze_start_offset_ms
+                           THEN wal.gaze_start_offset_ms
+                       END
+                   ) AS gazeDurationMs
+              FROM word_attempt_logs wal
+              JOIN trainings t ON t.id = wal.training_id
+              JOIN daily_curriculums dc ON dc.id = t.daily_curriculum_id
+              JOIN training_templates tt ON tt.id = t.training_template_id
+             WHERE dc.student_id = :studentId
+               AND wal.use_location = 'TRAINING'
+               AND t.status = 'COMPLETED'
+               AND t.finished_at >= :fromDateTime
+               AND t.finished_at < :toDateTimeExclusive
+               AND JSON_UNQUOTE(JSON_EXTRACT(tt.form, '$.questionType')) IN (
+                   'WORD_GRID_READING',
+                   'SENTENCE_READING',
+                   'PASSAGE_READING'
+               )
+             GROUP BY wal.training_id, DATE(t.finished_at)
+             ORDER BY DATE(t.finished_at), wal.training_id
+            """, nativeQuery = true)
+    List<ReadingSpeedTrainingProjection> findReadingSpeedTrainings(
+            @Param("studentId") Long studentId,
+            @Param("fromDateTime") LocalDateTime fromDateTime,
+            @Param("toDateTimeExclusive") LocalDateTime toDateTimeExclusive
+    );
+
+    @Modifying
+    @Query(value = "DELETE FROM word_attempt_logs WHERE student_id = :studentId", nativeQuery = true)
+    void deleteWordAttemptLogsByStudentId(@Param("studentId") Long studentId);
 
     @Modifying
     @Query(value = "DELETE t FROM trainings t JOIN daily_curriculums dc ON dc.id = t.daily_curriculum_id WHERE dc.student_id = :studentId", nativeQuery = true)
@@ -81,10 +167,21 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
     }
 
     interface TrainingHistoryProjection {
+        Long getTrainingId();
         LocalDate getLearningDate();
         String getLearningType();
         LocalDateTime getStartedAt();
         LocalDateTime getFinishedAt();
         BigDecimal getAchievement();
+        String getResult();
+    }
+
+    interface ReadingSpeedTrainingProjection {
+        Long getTrainingId();
+        LocalDate getLearningDate();
+        Long getVoiceWordCount();
+        Long getVoiceDurationMs();
+        Long getGazeWordCount();
+        Long getGazeDurationMs();
     }
 }

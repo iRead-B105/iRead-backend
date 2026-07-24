@@ -5,6 +5,7 @@ import com.iread.backend.student.dto.req.StudentRequest;
 import com.iread.backend.student.dto.req.TeacherMemoRequest;
 import com.iread.backend.student.dto.res.AccuracyTrendResponse;
 import com.iread.backend.student.dto.res.CreateStudentResponse;
+import com.iread.backend.student.dto.res.ReadingSpeedTrendResponse;
 import com.iread.backend.student.dto.res.StudentListResponse;
 import com.iread.backend.student.dto.res.StudentResponse;
 import com.iread.backend.student.dto.res.TrainingHistoryResponse;
@@ -15,6 +16,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -23,9 +25,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Tag(name = "학생 관리", description = "관리자 앱 학생 관리 API")
@@ -126,6 +130,19 @@ public class StudentController {
             @PathVariable Long studentId
     ) {
         return studentService.getTrainingHistory(teacherId, studentId);
+    }
+
+    @Operation(summary = "학생의 일별 읽기 속도 추이 조회")
+    @GetMapping("/{studentId}/reading-speed-trend")
+    public ReadingSpeedTrendResponse getReadingSpeedTrend(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return studentService.getReadingSpeedTrend(teacherId, studentId, from, to);
     }
 
 }
