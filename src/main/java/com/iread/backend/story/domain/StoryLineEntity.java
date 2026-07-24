@@ -31,8 +31,8 @@ public class StoryLineEntity {
     @Column(name = "image_url", length = 255)
     private String imageUrl;
 
-    @Column(name = "has_choices", nullable = false)
-    private boolean hasChoices;
+    @Column(name = "requires_branch_input", nullable = false)
+    private boolean requiresBranchInput;
 
     @Column(nullable = false, columnDefinition = "text")
     private String content;
@@ -48,11 +48,11 @@ public class StoryLineEntity {
     private LocalDateTime readAt;
 
     public StoryLineEntity(StoryLineEntity previousStoryLine, StoryEntity story, String imageUrl,
-                           boolean hasChoices, String content, Integer sequenceNo) {
+                           boolean requiresBranchInput, String content, Integer sequenceNo) {
         this.previousStoryLine = previousStoryLine;
         this.story = story;
         this.imageUrl = imageUrl;
-        this.hasChoices = hasChoices;
+        this.requiresBranchInput = requiresBranchInput;
         this.content = content;
         this.sequenceNo = sequenceNo;
     }

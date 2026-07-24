@@ -35,6 +35,9 @@ public class StoryEntity {
     @Column(nullable = false, length = 30)
     private StoryStatus status = StoryStatus.IN_PROGRESS;
 
+    @Column(nullable = false, columnDefinition = "tinyint unsigned")
+    private int progress;
+
     public StoryEntity(StudentEntity student, StoryTemplateEntity storyTemplate) {
         this.student = student;
         this.storyTemplate = storyTemplate;
@@ -45,6 +48,17 @@ public class StoryEntity {
     }
 
     public void complete() {
+        progress = 100;
         status = StoryStatus.COMPLETED;
+    }
+
+    public void updateProgress(int nextProgress) {
+        if (nextProgress < progress || nextProgress > 100) {
+            throw new IllegalArgumentException("이야기 진행률은 현재값 이상 100 이하여야 합니다.");
+        }
+        progress = nextProgress;
+        if (progress == 100) {
+            status = StoryStatus.COMPLETED;
+        }
     }
 }

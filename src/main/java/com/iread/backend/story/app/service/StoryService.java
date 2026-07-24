@@ -17,8 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -31,7 +29,6 @@ public class StoryService {
     private final StoryTemplateRepository storyTemplateRepository;
     private final StoryRepository storyRepository;
     private final StoryLineRepository storyLineRepository;
-    private final StoryChoiceRepository storyChoiceRepository;
     private final AiClient aiClient;
 
     public StoryShelfResponse getStoryShelf(Long teacherId, Long studentId) {
@@ -70,8 +67,7 @@ public class StoryService {
                 .findFirstByStoryIdAndReadAtIsNullOrderBySequenceNoAsc(storyId);
         if (resumeLine.isEmpty() && story.isInProgress()) {
             resumeLine = storyLineRepository.findFirstByStoryIdOrderBySequenceNoDesc(storyId)
-                    .filter(StoryLineEntity::isHasChoices)
-                    .filter(line -> !storyChoiceRepository.existsByStoryLineId(line.getId()));
+                    .filter(StoryLineEntity::isRequiresBranchInput);
         }
 
         return new StoryResumeResponse(story.getId(), story.getStatus(), resumeLine.map(this::toLineResponse).orElse(null));
@@ -105,11 +101,12 @@ public class StoryService {
                 story.getId(),
                 student.getId(),
                 STORY_SCHEMA_VERSION,
+                story.getProgress(),
                 toTemplateData(template)
         ));
 
         appendGeneratedLines(story, null, 1, generated);
-        completeIfNeeded(story, generated);
+        updateProgress(story, generated);
 
         return new StorySessionResponse(
                 story.getId(), student.getId(), template.getId(), story.getCreatedAt(), story.getStatus()
@@ -121,34 +118,23 @@ public class StoryService {
                                                     Long storyLineId, StoryChoiceRequest request) {
         StoryEntity story = findOwnedStory(teacherId, studentId, storyId);
         if (!story.isInProgress()) {
-            throw new IllegalArgumentException("진행 중인 스토리에서만 선택지를 제출할 수 있습니다.");
+            throw new IllegalArgumentException("진행 중인 스토리에서만 분기 입력을 제출할 수 있습니다.");
         }
 
         StoryLineEntity selectedLine = findLine(story.getId(), storyLineId);
         StoryLineEntity lastLine = storyLineRepository.findFirstByStoryIdOrderBySequenceNoDesc(story.getId())
                 .orElseThrow(() -> new IllegalArgumentException("스토리 대사를 찾을 수 없습니다."));
         if (!Objects.equals(selectedLine.getId(), lastLine.getId())) {
-            throw new IllegalArgumentException("현재 마지막 선택지에만 답할 수 있습니다.");
+            throw new IllegalArgumentException("현재 마지막 분기 장면에만 답할 수 있습니다.");
         }
-        if (!selectedLine.isHasChoices()) {
-            throw new IllegalArgumentException("선택지를 입력할 수 있는 장면이 아닙니다.");
+        if (!selectedLine.isRequiresBranchInput()) {
+            throw new IllegalArgumentException("분기 입력이 필요한 장면이 아닙니다.");
         }
         if (selectedLine.getReadAt() == null) {
             throw new IllegalArgumentException("장면을 읽은 후 선택지를 제출할 수 있습니다.");
         }
-        if (storyChoiceRepository.existsByStoryLineId(selectedLine.getId())) {
-            throw new IllegalArgumentException("이미 선택지를 제출한 장면입니다.");
-        }
-
-        StoryChoiceEntity choice = storyChoiceRepository.saveAndFlush(
-                new StoryChoiceEntity(selectedLine, request.content())
-        );
         List<StoryLineEntity> historyLines = storyLineRepository
                 .findAllByStoryIdOrderBySequenceNoAsc(story.getId());
-        Map<Long, StoryChoiceEntity> choicesByLineId = storyChoiceRepository
-                .findAllByStoryLineStoryId(story.getId())
-                .stream()
-                .collect(Collectors.toMap(item -> item.getStoryLine().getId(), Function.identity()));
 
         String requestId = UUID.randomUUID().toString();
         GenerateStoryResponse generated = aiClient.continueStory(new ContinueStoryRequest(
@@ -156,19 +142,20 @@ public class StoryService {
                 story.getId(),
                 studentId,
                 STORY_SCHEMA_VERSION,
+                story.getProgress(),
                 toTemplateData(story.getStoryTemplate()),
                 selectedLine.getId(),
                 request.content(),
-                historyLines.stream().map(line -> toHistoryLine(line, choicesByLineId)).toList()
+                historyLines.stream().map(this::toHistoryLine).toList()
         ));
 
         List<StoryLineEntity> generatedLines = appendGeneratedLines(
                 story, selectedLine, selectedLine.getSequenceNo() + 1, generated
         );
-        completeIfNeeded(story, generated);
+        updateProgress(story, generated);
 
         return new StoryChoiceResponse(
-                choice.getId(),
+                selectedLine.getId(),
                 story.getStatus(),
                 generatedLines.stream().map(this::toLineResponse).toList()
         );
@@ -185,7 +172,7 @@ public class StoryService {
                     previous,
                     story,
                     null,
-                    generated.hasChoices(),
+                    generated.requiresBranchInput(),
                     generated.content(),
                     startSequence + index
             );
@@ -204,34 +191,36 @@ public class StoryService {
             if (line.content() == null || line.content().isBlank()) {
                 throw new AiClientException("AI 서버가 빈 스토리 대사를 반환했습니다.");
             }
-            if (index < response.lines().size() - 1 && line.hasChoices()) {
-                throw new AiClientException("AI 서버 응답의 선택지는 생성 구간 마지막에만 올 수 있습니다.");
+            if (index < response.lines().size() - 1 && line.requiresBranchInput()) {
+                throw new AiClientException("AI 서버 응답의 분기 입력은 생성 구간 마지막에만 올 수 있습니다.");
             }
         }
 
-        boolean lastHasChoices = response.lines().getLast().hasChoices();
-        if (response.completed() == lastHasChoices) {
-            throw new AiClientException("AI 서버 응답의 완료 상태와 마지막 선택지 상태가 일치하지 않습니다.");
+        boolean lastRequiresBranchInput = response.lines().getLast().requiresBranchInput();
+        if (response.completed() == lastRequiresBranchInput) {
+            throw new AiClientException("AI 서버 응답의 완료 상태와 마지막 분기 입력 상태가 일치하지 않습니다.");
         }
     }
 
-    private void completeIfNeeded(StoryEntity story, GenerateStoryResponse response) {
-        if (response.completed()) {
-            story.complete();
+    private void updateProgress(StoryEntity story, GenerateStoryResponse response) {
+        if (response.nextProgress() < story.getProgress() || response.nextProgress() > 100) {
+            throw new AiClientException("AI 서버 응답의 nextProgress가 유효하지 않습니다.");
         }
+        if (response.completed() != (response.nextProgress() == 100)) {
+            throw new AiClientException("AI 서버 응답의 완료 상태와 진행률이 일치하지 않습니다.");
+        }
+        story.updateProgress(response.nextProgress());
     }
 
     private StoryTemplateData toTemplateData(StoryTemplateEntity template) {
         return new StoryTemplateData(template.getId(), template.getTitle(), template.getContent());
     }
 
-    private StoryHistoryLine toHistoryLine(StoryLineEntity line, Map<Long, StoryChoiceEntity> choicesByLineId) {
-        StoryChoiceEntity choice = choicesByLineId.get(line.getId());
+    private StoryHistoryLine toHistoryLine(StoryLineEntity line) {
         return new StoryHistoryLine(
                 line.getId(),
                 line.getContent(),
-                line.isHasChoices(),
-                choice == null ? null : choice.getContent()
+                line.isRequiresBranchInput()
         );
     }
 
@@ -241,7 +230,7 @@ public class StoryService {
                 line.getPreviousStoryLine() == null ? null : line.getPreviousStoryLine().getId(),
                 line.getStory().getId(),
                 line.getImageUrl(),
-                line.isHasChoices(),
+                line.isRequiresBranchInput(),
                 line.getContent(),
                 line.getSequenceNo(),
                 line.getCreatedAt(),

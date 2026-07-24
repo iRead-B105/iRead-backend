@@ -7,7 +7,7 @@ public record StoryLineResponse(
         Long previousStoryLineId,
         Long storyId,
         String imageUrl,
-        boolean hasChoices,
+        boolean requiresBranchInput,
         String content,
         Integer sequenceNo,
         LocalDateTime createdAt,

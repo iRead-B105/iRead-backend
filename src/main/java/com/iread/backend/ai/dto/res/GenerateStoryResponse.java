@@ -5,6 +5,7 @@ import java.util.List;
 public record GenerateStoryResponse(
         String requestId,
         int schemaVersion,
+        int nextProgress,
         boolean completed,
         List<GeneratedStoryLine> lines
 ) {

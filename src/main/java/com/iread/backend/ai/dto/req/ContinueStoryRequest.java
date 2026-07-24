@@ -8,19 +8,23 @@ public record ContinueStoryRequest(
         Long storyId,
         Long studentId,
         int schemaVersion,
+        int currentProgress,
         StoryTemplateData storyTemplate,
-        Long selectedStoryLineId,
-        String choice,
+        Long currentStoryLineId,
+        String branchIntent,
         List<StoryHistoryLine> history
 ) {
     public ContinueStoryRequest {
         requireText(requestId, "requestId");
         requirePositive(storyId, "storyId");
         requirePositive(studentId, "studentId");
-        requirePositive(selectedStoryLineId, "selectedStoryLineId");
-        requireText(choice, "choice");
+        requirePositive(currentStoryLineId, "currentStoryLineId");
+        requireText(branchIntent, "branchIntent");
         if (schemaVersion < 1) {
             throw new IllegalArgumentException("schemaVersion은 1 이상이어야 합니다.");
+        }
+        if (currentProgress < 0 || currentProgress > 100) {
+            throw new IllegalArgumentException("currentProgress는 0 이상 100 이하여야 합니다.");
         }
         Objects.requireNonNull(storyTemplate, "storyTemplate은 필수입니다.");
         history = List.copyOf(Objects.requireNonNull(history, "history는 필수입니다."));

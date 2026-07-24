@@ -7,6 +7,7 @@ public record GenerateStoryRequest(
         Long storyId,
         Long studentId,
         int schemaVersion,
+        int currentProgress,
         StoryTemplateData storyTemplate
 ) {
     public GenerateStoryRequest {
@@ -15,6 +16,9 @@ public record GenerateStoryRequest(
         requirePositive(studentId, "studentId");
         if (schemaVersion < 1) {
             throw new IllegalArgumentException("schemaVersion은 1 이상이어야 합니다.");
+        }
+        if (currentProgress < 0 || currentProgress > 100) {
+            throw new IllegalArgumentException("currentProgress는 0 이상 100 이하여야 합니다.");
         }
         Objects.requireNonNull(storyTemplate, "storyTemplate은 필수입니다.");
     }
