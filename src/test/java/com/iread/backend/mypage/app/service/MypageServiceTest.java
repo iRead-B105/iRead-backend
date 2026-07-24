@@ -30,12 +30,12 @@ class MypageServiceTest {
         CharacterEntity character = mock(CharacterEntity.class);
         when(student.getId()).thenReturn(10L);
         when(character.getImageUrl()).thenReturn("/uploads/images/character.png");
-        when(studentRepository.findByStudentCodeAndTeacherId("ST00000001", 1L))
+        when(studentRepository.findByIdAndTeacherId(2L, 1L))
                 .thenReturn(Optional.of(student));
         when(characterRepository.findAllByStudentIdOrderByCreatedAtDesc(10L))
                 .thenReturn(List.of(character));
 
-        var result = mypageService.getCharacters(1L, "ST00000001");
+        var result = mypageService.getCharacters(1L, 2L);
 
         assertThat(result.getFirst().imageUrl()).isEqualTo("/uploads/images/character.png");
         assertThat(result.getFirst().imageName()).isEqualTo("character.png");
@@ -43,9 +43,9 @@ class MypageServiceTest {
 
     @Test
     void rejectsUnknownStudent() {
-        when(studentRepository.findByStudentCodeAndTeacherId("ST00000001", 1L))
+        when(studentRepository.findByIdAndTeacherId(2L, 1L))
                 .thenReturn(Optional.empty());
-        assertThatThrownBy(() -> mypageService.getCharacters(1L, "ST00000001"))
+        assertThatThrownBy(() -> mypageService.getCharacters(1L, 2L))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }

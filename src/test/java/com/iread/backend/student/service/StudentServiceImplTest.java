@@ -55,7 +55,6 @@ class StudentServiceImplTest {
                 "/uploads/images/stored-profile.png"
         );
         when(teacherRepository.findById(1L)).thenReturn(Optional.of(teacher));
-        when(studentRepository.existsByStudentCode("ST00000002")).thenReturn(false);
         when(fileStorage.store(image)).thenReturn(stored);
 
         studentService.createStudent(1L, request, image);
@@ -75,7 +74,6 @@ class StudentServiceImplTest {
                 "/uploads/images/stored-profile.png"
         );
         when(teacherRepository.findById(1L)).thenReturn(Optional.of(teacher));
-        when(studentRepository.existsByStudentCode("ST00000002")).thenReturn(false);
         when(fileStorage.store(image)).thenReturn(stored);
         doThrow(new RuntimeException("save failed")).when(studentRepository).save(any(StudentEntity.class));
 
@@ -87,7 +85,7 @@ class StudentServiceImplTest {
     @Test
     void replacesImageUrlAndDeletesOldLocalFile() {
         StudentEntity student = StudentEntity.builder()
-                .teacher(teacher).name("학생").studentCode("ST00000001")
+                .teacher(teacher).name("학생")
                 .birthday(LocalDate.of(2016, 3, 10)).gender(Gender.Boy)
                 .imageUrl("/uploads/images/old-stored.png").build();
         ReflectionTestUtils.setField(student, "id", 10L);
@@ -108,7 +106,7 @@ class StudentServiceImplTest {
     @Test
     void updatesTeacherMemoForOwnedStudent() {
         StudentEntity student = StudentEntity.builder()
-                .teacher(teacher).name("학생").studentCode("ST00000001").build();
+                .teacher(teacher).name("학생").build();
         ReflectionTestUtils.setField(student, "id", 10L);
         when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
 
@@ -120,7 +118,7 @@ class StudentServiceImplTest {
     @Test
     void clearsTeacherMemoWithBlankText() {
         StudentEntity student = StudentEntity.builder()
-                .teacher(teacher).name("학생").studentCode("ST00000001").build();
+                .teacher(teacher).name("학생").build();
         student.updateTeacherMemo("기존 메모");
         ReflectionTestUtils.setField(student, "id", 10L);
         when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
@@ -132,7 +130,7 @@ class StudentServiceImplTest {
 
     private StudentRequest request(String imageUrl) {
         return new StudentRequest(
-                "학생", "ST00000002", LocalDate.of(2016, 3, 10), Gender.Boy,
+                "학생", LocalDate.of(2016, 3, 10), Gender.Boy,
                 "학교", "보호자", "010-0000-0000", "guardian@test.com", "주소", imageUrl
         );
     }

@@ -17,11 +17,8 @@ public class MypageService {
     private final StudentRepository studentRepository;
     private final CharacterRepository characterRepository;
 
-    public List<CharacterResponse> getCharacters(Long teacherId, String studentCode) {
-        if (studentCode == null || studentCode.isBlank()) {
-            throw new IllegalArgumentException("학생 코드는 필수입니다.");
-        }
-        StudentEntity student = studentRepository.findByStudentCodeAndTeacherId(studentCode, teacherId)
+    public List<CharacterResponse> getCharacters(Long teacherId, Long studentId) {
+        StudentEntity student = studentRepository.findByIdAndTeacherId(studentId, teacherId)
                 .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다."));
 
         return characterRepository.findAllByStudentIdOrderByCreatedAtDesc(student.getId()).stream()

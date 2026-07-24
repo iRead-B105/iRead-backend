@@ -21,8 +21,8 @@ public class MypageController {
     @GetMapping("/character")
     public List<CharacterResponse> getCharacters(
             @CurrentTeacherId Long teacherId,
-            @RequestParam String studentCode
+            @RequestParam Long studentId
     ) {
-        return mypageService.getCharacters(teacherId, studentCode);
+        return mypageService.getCharacters(teacherId, studentId);
     }
 }

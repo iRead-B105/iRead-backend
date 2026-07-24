@@ -66,10 +66,6 @@ public class StudentServiceImpl implements StudentService {
         if (request.name() == null || request.name().isBlank()) {
             throw new IllegalArgumentException("학생 이름은 필수입니다.");
         }
-        if (request.studentCode() == null || request.studentCode().isBlank()) {
-            throw new IllegalArgumentException("학생 코드는 필수입니다.");
-        }
-        validateStudentCodeForCreate(request.studentCode());
         boolean uploaded = imageFile != null && !imageFile.isEmpty();
         StoredFile storedFile = uploaded ? fileStorage.store(imageFile) : null;
         String imageUrl = uploaded ? storedFile.url() : request.imageUrl();
@@ -77,7 +73,6 @@ public class StudentServiceImpl implements StudentService {
         StudentEntity student = StudentEntity.builder()
                 .teacher(teacher)
                 .name(request.name())
-                .studentCode(request.studentCode())
                 .birthday(request.birthday())
                 .gender(request.gender())
                 .school(request.school())
@@ -121,11 +116,6 @@ public class StudentServiceImpl implements StudentService {
     ) {
         StudentEntity student = findOwnedStudent(teacherId, studentId);
 
-        if (request.studentCode() != null
-                && studentRepository.existsByStudentCodeAndIdNot(request.studentCode(), studentId)) {
-            throw new IllegalArgumentException("이미 사용 중인 학생 코드입니다.");
-        }
-
         boolean uploaded = imageFile != null && !imageFile.isEmpty();
         boolean updateImage = uploaded || request.imageUrl() != null;
         String oldImageUrl = student.getImageUrl();
@@ -133,7 +123,6 @@ public class StudentServiceImpl implements StudentService {
         String imageUrl = uploaded ? storedFile.url() : request.imageUrl();
         student.update(
                 request.name(),
-                request.studentCode(),
                 request.birthday(),
                 request.gender(),
                 request.school(),
@@ -189,12 +178,6 @@ public class StudentServiceImpl implements StudentService {
                 .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다."));
     }
 
-    private void validateStudentCodeForCreate(String studentCode) {
-        if (studentRepository.existsByStudentCode(studentCode)) {
-            throw new IllegalArgumentException("이미 사용 중인 학생 코드입니다.");
-        }
-    }
-
     private String fileNameOf(String imageUrl) {
         if (imageUrl == null || imageUrl.isBlank()) return null;
         int slash = imageUrl.lastIndexOf('/');
@@ -224,7 +207,6 @@ public class StudentServiceImpl implements StudentService {
         return new StudentResponse(
                 student.getId(),
                 student.getName(),
-                student.getStudentCode(),
                 student.getBirthday(),
                 student.getGender(),
                 student.getSchool(),

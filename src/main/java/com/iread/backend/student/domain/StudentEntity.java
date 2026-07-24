@@ -13,9 +13,7 @@ import java.time.LocalDateTime;
 
 @Getter
 @Entity
-@Table(name = "students", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_students_student_code", columnNames = "student_code")
-})
+@Table(name = "students")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class StudentEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -27,9 +25,6 @@ public class StudentEntity {
 
     @Column(length = 10, nullable = false)
     private String name;
-
-    @Column(name = "student_code", nullable = false, length = 10)
-    private String studentCode;
 
     private LocalDate birthday;
 
@@ -63,12 +58,11 @@ public class StudentEntity {
     private String teacherMemo;
 
     @Builder
-    public StudentEntity(TeacherEntity teacher, String name, String studentCode, LocalDate birthday,
+    public StudentEntity(TeacherEntity teacher, String name, LocalDate birthday,
                          Gender gender, String school, String guardian, String guardianContact,
                          String guardianEmail, String address, String imageUrl) {
         this.teacher = teacher;
         this.name = name;
-        this.studentCode = studentCode;
         this.birthday = birthday;
         this.gender = gender;
         this.school = school;
@@ -79,11 +73,10 @@ public class StudentEntity {
         this.imageUrl = imageUrl;
     }
 
-    public void update(String name, String studentCode, LocalDate birthday, Gender gender, String school,
+    public void update(String name, LocalDate birthday, Gender gender, String school,
                        String guardian, String guardianContact, String guardianEmail, String address,
                        String imageUrl, boolean updateImage) {
         if (name != null) this.name = name;
-        if (studentCode != null) this.studentCode = studentCode;
         if (birthday != null) this.birthday = birthday;
         if (gender != null) this.gender = gender;
         if (school != null) this.school = school;
