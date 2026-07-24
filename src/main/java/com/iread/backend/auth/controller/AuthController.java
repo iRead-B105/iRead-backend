@@ -2,6 +2,7 @@ package com.iread.backend.auth.controller;
 
 import com.iread.backend.auth.dto.req.LoginRequest;
 import com.iread.backend.auth.dto.req.SignUpRequest;
+import com.iread.backend.auth.dto.req.ResetPasswordRequest;
 import com.iread.backend.auth.dto.res.TeacherAuthResponse;
 import com.iread.backend.auth.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -62,5 +63,12 @@ public class AuthController {
     @GetMapping("/me")
     public TeacherAuthResponse me(HttpServletRequest request) {
         return authService.getLoginTeacher(request);
+    }
+
+    @Operation(summary = "교사 비밀번호 재설정")
+    @PostMapping("/password/reset")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.noContent().build();
     }
 }

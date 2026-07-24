@@ -2,6 +2,7 @@ package com.iread.backend.auth.service;
 
 import com.iread.backend.auth.dto.req.LoginRequest;
 import com.iread.backend.auth.dto.req.SignUpRequest;
+import com.iread.backend.auth.dto.req.ResetPasswordRequest;
 import com.iread.backend.auth.dto.res.TeacherAuthResponse;
 import com.iread.backend.auth.session.LoginTeacher;
 import com.iread.backend.auth.session.SessionConst;
@@ -88,6 +89,17 @@ public class AuthService {
         if (session != null) {
             session.invalidate();
         }
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        if (!request.newPassword().equals(request.confirmation())) {
+            throw new IllegalArgumentException("새 비밀번호가 일치하지 않습니다.");
+        }
+        TeacherEntity teacher = teacherRepository.findByEmail(request.email())
+                .filter(found -> found.getName().equals(request.loginId()))
+                .orElseThrow(() -> new IllegalArgumentException("계정 정보를 확인할 수 없습니다."));
+        teacher.updatePassword(passwordEncoder.encode(request.newPassword()));
     }
 
     public TeacherAuthResponse getLoginTeacher(HttpServletRequest request) {

@@ -59,4 +59,19 @@ public class TeacherEntity {
         this.gender = gender;
         this.imageUrl = imageUrl;
     }
+
+    public void updatePassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
+
+    public void updateProfile(String email, String name, String organization, Gender gender) {
+        this.email = email.trim();
+        this.name = name.trim();
+        this.organization = organization == null || organization.isBlank() ? null : organization.trim();
+        this.gender = gender;
+    }
+
+    public void updateImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
+    }
 }
