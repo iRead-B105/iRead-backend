@@ -54,7 +54,9 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
               JOIN trainings t ON t.daily_curriculum_id = dc.id
               JOIN training_templates tt ON tt.id = t.training_template_id
              WHERE dc.student_id = :studentId
-             ORDER BY t.started_at DESC, t.id DESC
+               AND t.status = 'COMPLETED'
+               AND t.finished_at IS NOT NULL
+             ORDER BY t.finished_at DESC, t.id DESC
             """, nativeQuery = true)
     List<TrainingHistoryProjection> findTrainingHistory(@Param("studentId") Long studentId);
 

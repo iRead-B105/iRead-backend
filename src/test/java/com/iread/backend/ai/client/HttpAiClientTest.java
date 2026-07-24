@@ -7,6 +7,7 @@ import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
 import com.iread.backend.ai.dto.req.StoryHistoryLine;
 import com.iread.backend.ai.dto.req.StoryTemplateData;
 import com.iread.backend.ai.exception.AiClientException;
+import com.iread.backend.ai.config.AiClientProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpMethod;
@@ -17,6 +18,8 @@ import org.springframework.web.client.RestClient;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
+import java.net.URI;
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -39,7 +42,19 @@ class HttpAiClientTest {
     void setUp() {
         RestClient.Builder builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
-        aiClient = new HttpAiClient(builder.baseUrl("http://localhost:8081").build());
+        aiClient = new HttpAiClient(
+                builder.baseUrl("http://localhost:8081").build(),
+                new AiClientProperties(
+                        URI.create("http://localhost:8081"),
+                        Duration.ofSeconds(1),
+                        Duration.ofSeconds(1),
+                        "",
+                        false,
+                        false
+                ),
+                new MockTrainingGenerator(objectMapper),
+                new MockTrainingEvaluator()
+        );
     }
 
     @Test

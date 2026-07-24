@@ -7,6 +7,7 @@ import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
 import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
 import com.iread.backend.ai.dto.res.GenerateStoryResponse;
 import com.iread.backend.ai.dto.res.GenerateTrainingResponse;
+import com.iread.backend.ai.config.AiClientProperties;
 import com.iread.backend.ai.exception.AiClientException;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatusCode;
@@ -27,13 +28,27 @@ public class HttpAiClient implements AiClient {
     static final String CONTINUE_STORY_PATH = "/api/v1/story/continue";
 
     private final RestClient restClient;
+    private final AiClientProperties properties;
+    private final MockTrainingGenerator mockTrainingGenerator;
+    private final MockTrainingEvaluator mockTrainingEvaluator;
 
-    public HttpAiClient(@Qualifier("aiRestClient") RestClient restClient) {
+    public HttpAiClient(
+            @Qualifier("aiRestClient") RestClient restClient,
+            AiClientProperties properties,
+            MockTrainingGenerator mockTrainingGenerator,
+            MockTrainingEvaluator mockTrainingEvaluator
+    ) {
         this.restClient = restClient;
+        this.properties = properties;
+        this.mockTrainingGenerator = mockTrainingGenerator;
+        this.mockTrainingEvaluator = mockTrainingEvaluator;
     }
 
     @Override
     public GenerateTrainingResponse generateTraining(GenerateTrainingRequest request) {
+        if (properties.mockGenerate()) {
+            return mockTrainingGenerator.generate(request);
+        }
         try {
             GenerateTrainingResponse response = restClient.post()
                     .uri(GENERATE_TRAINING_PATH)
@@ -61,6 +76,9 @@ public class HttpAiClient implements AiClient {
 
     @Override
     public EvaluateTrainingResponse evaluateTraining(EvaluateTrainingRequest request) {
+        if (properties.mockEvaluate()) {
+            return mockTrainingEvaluator.evaluate(request);
+        }
         try {
             EvaluateTrainingResponse response = restClient.post()
                     .uri(EVALUATE_TRAINING_PATH)

@@ -62,6 +62,11 @@ public class TrainingEntity {
     public void markNotReady() { status = TrainingStatus.NOT_READY; }
     public void markReady() { status = TrainingStatus.NOT_STARTED; }
 
+    public void start(LocalDateTime startedAt) {
+        this.startedAt = startedAt;
+        this.status = TrainingStatus.IN_PROGRESS;
+    }
+
     public void complete(String result, BigDecimal accuracy, LocalDateTime finishedAt) {
         this.result = result;
         this.accuracy = accuracy;

@@ -12,8 +12,8 @@ import java.util.List;
 public interface StudentService {
     List<StudentListResponse> getStudents(Long teacherId);
     StudentResponse getStudent(Long teacherId, Long studentId);
-    void createStudent(Long teacherId, StudentRequest request);
-    void createStudent(Long teacherId, StudentRequest request, MultipartFile imageFile);
+    Long createStudent(Long teacherId, StudentRequest request);
+    Long createStudent(Long teacherId, StudentRequest request, MultipartFile imageFile);
     void deleteStudent(Long teacherId, Long studentId);
     void updateStudent(Long teacherId, Long studentId, StudentRequest request);
     void updateStudent(Long teacherId, Long studentId, StudentRequest request, MultipartFile imageFile);

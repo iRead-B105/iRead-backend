@@ -10,6 +10,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Getter
 @Entity
@@ -37,6 +38,11 @@ public class DailyCurriculumEntity {
     @OneToMany(mappedBy = "dailyCurriculum", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sequenceNo ASC")
     private List<TrainingEntity> trainings = new ArrayList<>();
+
+    public DailyCurriculumEntity(StudentEntity student, List<TrainingTemplateEntity> templates) {
+        this.student = Objects.requireNonNull(student, "student는 필수입니다.");
+        replaceTrainings(templates);
+    }
 
     public void replaceTrainings(List<TrainingTemplateEntity> templates) {
         trainings.clear();

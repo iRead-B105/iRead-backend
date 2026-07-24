@@ -4,6 +4,7 @@ import com.iread.backend.auth.annotation.CurrentTeacherId;
 import com.iread.backend.student.dto.req.StudentRequest;
 import com.iread.backend.student.dto.req.TeacherMemoRequest;
 import com.iread.backend.student.dto.res.AccuracyTrendResponse;
+import com.iread.backend.student.dto.res.CreateStudentResponse;
 import com.iread.backend.student.dto.res.StudentListResponse;
 import com.iread.backend.student.dto.res.StudentResponse;
 import com.iread.backend.student.dto.res.TrainingHistoryResponse;
@@ -49,23 +50,23 @@ public class StudentController {
 
     @Operation(summary = "학생 등록")
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Void> createStudent(
+    public ResponseEntity<CreateStudentResponse> createStudent(
             @CurrentTeacherId Long teacherId,
             @Valid @RequestBody StudentRequest request
     ) {
-        studentService.createStudent(teacherId, request);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(new CreateStudentResponse(studentService.createStudent(teacherId, request)));
     }
 
     @Operation(summary = "프로필 이미지와 함께 학생 등록")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Void> createStudentWithImage(
+    public ResponseEntity<CreateStudentResponse> createStudentWithImage(
             @CurrentTeacherId Long teacherId,
             @Valid @RequestPart("request") StudentRequest request,
             @RequestPart(value = "image", required = false) MultipartFile image
     ) {
-        studentService.createStudent(teacherId, request, image);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(new CreateStudentResponse(
+                studentService.createStudent(teacherId, request, image)
+        ));
     }
 
     @Operation(summary = "학생 삭제")

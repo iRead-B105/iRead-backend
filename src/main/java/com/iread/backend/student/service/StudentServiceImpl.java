@@ -55,13 +55,13 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     @Transactional
-    public void createStudent(Long teacherId, StudentRequest request) {
-        createStudent(teacherId, request, null);
+    public Long createStudent(Long teacherId, StudentRequest request) {
+        return createStudent(teacherId, request, null);
     }
 
     @Override
     @Transactional
-    public void createStudent(Long teacherId, StudentRequest request, MultipartFile imageFile) {
+    public Long createStudent(Long teacherId, StudentRequest request, MultipartFile imageFile) {
         TeacherEntity teacher = validateTeacher(teacherId);
         if (request.name() == null || request.name().isBlank()) {
             throw new IllegalArgumentException("학생 이름은 필수입니다.");
@@ -85,6 +85,7 @@ public class StudentServiceImpl implements StudentService {
 
         try {
             studentRepository.save(student);
+            return student.getId();
         } catch (RuntimeException exception) {
             if (storedFile != null) fileStorage.delete(storedFile.storeFileName());
             throw exception;

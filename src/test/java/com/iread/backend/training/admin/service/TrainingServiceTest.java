@@ -116,6 +116,54 @@ class TrainingServiceTest {
     }
 
     @Test
+    void 훈련_템플릿_ID로_일일_커리큘럼을_생성한다() {
+        StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
+        List<TrainingTemplateEntity> templates = List.of(
+                template(11L, "훈련1"),
+                template(12L, "훈련2")
+        );
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(dailyCurriculumRepository.findByStudentIdAndStatus(10L, DailyCurriculumStatus.NOT_STARTED))
+                .thenReturn(Optional.empty());
+        when(trainingTemplateRepository.findAllById(List.of(11L, 12L))).thenReturn(templates);
+        when(dailyCurriculumRepository.saveAndFlush(any(DailyCurriculumEntity.class)))
+                .thenAnswer(invocation -> {
+                    DailyCurriculumEntity saved = invocation.getArgument(0);
+                    ReflectionTestUtils.setField(saved, "id", 100L);
+                    ReflectionTestUtils.setField(saved.getTrainings().get(0), "id", 1L);
+                    ReflectionTestUtils.setField(saved.getTrainings().get(1), "id", 2L);
+                    return saved;
+                });
+
+        var result = trainingService.createDailyCurriculum(
+                1L,
+                10L,
+                new UpdateCurriculumRequest(List.of(11L, 12L))
+        );
+
+        assertThat(result.curriculumId()).isEqualTo(100L);
+        assertThat(result.trainings()).extracting("trainingId").containsExactly(1L, 2L);
+        assertThat(result.trainings()).extracting("trainingTemplateId").containsExactly(11L, 12L);
+    }
+
+    @Test
+    void 수정_가능한_커리큘럼은_한_개만_생성할_수_있다() {
+        StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(dailyCurriculumRepository.findByStudentIdAndStatus(10L, DailyCurriculumStatus.NOT_STARTED))
+                .thenReturn(Optional.of(curriculum(100L)));
+
+        assertThatThrownBy(() -> trainingService.createDailyCurriculum(
+                1L,
+                10L,
+                new UpdateCurriculumRequest(List.of(11L))
+        ))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("수정 가능한 커리큘럼은 한 개만 생성할 수 있습니다.");
+        verify(trainingTemplateRepository, never()).findAllById(any());
+    }
+
+    @Test
     void 예정_단어가_없으면_단어를_생성하고_JSON에_추가한다() {
         TrainingEntity training = ownedTraining(1L);
         TrainingDataEntity data = new TrainingDataEntity(

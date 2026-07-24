@@ -9,6 +9,7 @@ import com.iread.backend.ai.dto.req.EvaluateTrainingRequest;
 import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
 import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
 import com.iread.backend.ai.dto.res.GenerateTrainingResponse;
+import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.*;
 import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
@@ -108,6 +109,28 @@ public class TrainingService {
     }
 
     @Transactional
+    public DailyCurriculumResponse createDailyCurriculum(
+            Long teacherId,
+            Long studentId,
+            UpdateCurriculumRequest request
+    ) {
+        StudentEntity student = studentRepository.findByIdAndTeacherId(studentId, teacherId)
+                .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다."));
+        if (dailyCurriculumRepository
+                .findByStudentIdAndStatus(studentId, DailyCurriculumStatus.NOT_STARTED)
+                .isPresent()) {
+            throw new IllegalStateException("수정 가능한 커리큘럼은 한 개만 생성할 수 있습니다.");
+        }
+
+        List<Long> ids = request.trainingTemplateIds();
+        List<TrainingTemplateEntity> templates = resolveTemplates(ids);
+        DailyCurriculumEntity curriculum = dailyCurriculumRepository.saveAndFlush(
+                new DailyCurriculumEntity(student, templates)
+        );
+        return toDailyCurriculumResponse(curriculum);
+    }
+
+    @Transactional
     public void updateDailyCurriculum(Long teacherId, Long studentId, Long curriculumId,
                                       UpdateCurriculumRequest request) {
         validateStudentOwner(teacherId, studentId);
@@ -116,14 +139,11 @@ public class TrainingService {
             throw new IllegalStateException("시작했거나 완료된 커리큘럼은 수정할 수 없습니다.");
         }
         List<Long> ids = request.trainingTemplateIds();
-        Set<Long> uniqueIds = new HashSet<>(ids);
-        Map<Long, TrainingTemplateEntity> templates = trainingTemplateRepository.findAllById(ids).stream()
-                .collect(Collectors.toMap(TrainingTemplateEntity::getId, Function.identity()));
-        if (templates.size() != uniqueIds.size()) throw new IllegalArgumentException("존재하지 않는 훈련 템플릿이 있습니다.");
+        List<TrainingTemplateEntity> templates = resolveTemplates(ids);
 
         curriculum.getTrainings().forEach(t -> trainingDataRepository.deleteByTrainingId(t.getId()));
         trainingDataRepository.flush();
-        curriculum.replaceTrainings(ids.stream().map(templates::get).toList());
+        curriculum.replaceTrainings(templates);
     }
 
     public List<ExpectedWordResponse> getExpectedWords(Long teacherId, Long studentId, Long trainingId) {
@@ -190,7 +210,11 @@ public class TrainingService {
                 result
         ));
         BigDecimal accuracy = response.accuracy().setScale(2, RoundingMode.HALF_UP);
-        training.complete(writeJson(result), accuracy, java.time.LocalDateTime.now());
+        java.time.LocalDateTime finishedAt = java.time.LocalDateTime.now();
+        if (training.getStartedAt() == null) {
+            training.start(finishedAt);
+        }
+        training.complete(writeJson(result), accuracy, finishedAt);
         return accuracy;
     }
 
@@ -245,6 +269,27 @@ public class TrainingService {
         validateStudentOwner(teacherId, studentId);
         return trainingRepository.findByIdAndDailyCurriculumStudentId(trainingId, studentId)
                 .orElseThrow(() -> new IllegalArgumentException("훈련을 찾을 수 없습니다."));
+    }
+
+    private List<TrainingTemplateEntity> resolveTemplates(List<Long> ids) {
+        Set<Long> uniqueIds = new HashSet<>(ids);
+        Map<Long, TrainingTemplateEntity> templates = trainingTemplateRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(TrainingTemplateEntity::getId, Function.identity()));
+        if (templates.size() != uniqueIds.size()) {
+            throw new IllegalArgumentException("존재하지 않는 훈련 템플릿이 있습니다.");
+        }
+        return ids.stream().map(templates::get).toList();
+    }
+
+    private DailyCurriculumResponse toDailyCurriculumResponse(DailyCurriculumEntity curriculum) {
+        return new DailyCurriculumResponse(curriculum.getId(), curriculum.getTrainings().stream()
+                .map(training -> new DailyCurriculumResponse.TrainingItem(
+                        training.getId(),
+                        training.getTrainingTemplate().getId(),
+                        training.getTrainingTemplate().getCurriculumUnit().getUnitName(),
+                        training.getTrainingTemplate().getName()
+                ))
+                .toList());
     }
 
     private BigDecimal averageAccuracy(DailyCurriculumEntity curriculum) {
