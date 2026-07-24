@@ -114,7 +114,7 @@ public class StudentController {
         return ResponseEntity.ok().build();
     }
 
-    @Operation(summary = "학생의 일별 평균 정답률 추이 조회")
+    @Operation(summary = "단어 시도 점수 기반 학생의 일별 읽기 정확도 추이 조회")
     @GetMapping("/{studentId}/accuracy-trend")
     public List<AccuracyTrendResponse> getAccuracyTrend(
             @CurrentTeacherId Long teacherId,

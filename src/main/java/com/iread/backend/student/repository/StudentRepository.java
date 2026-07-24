@@ -36,10 +36,14 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
     List<StudentLearningSummaryProjection> findLearningSummaries(@Param("teacherId") Long teacherId);
 
     @Query(value = """
-            SELECT DATE(t.finished_at) AS learningDate, AVG(t.accuracy) AS accuracy
-              FROM daily_curriculums dc
-              JOIN trainings t ON t.daily_curriculum_id = dc.id
+            SELECT DATE(t.finished_at) AS learningDate,
+                   AVG(wal.total_score) AS averageScore
+              FROM word_attempt_logs wal
+              JOIN trainings t ON t.id = wal.training_id
+              JOIN daily_curriculums dc ON dc.id = t.daily_curriculum_id
              WHERE dc.student_id = :studentId
+               AND wal.use_location = 'TRAINING'
+               AND wal.total_score IS NOT NULL
                AND t.status = 'COMPLETED'
                AND t.finished_at IS NOT NULL
              GROUP BY DATE(t.finished_at)
@@ -163,7 +167,7 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
 
     interface AccuracyTrendProjection {
         LocalDate getLearningDate();
-        BigDecimal getAccuracy();
+        BigDecimal getAverageScore();
     }
 
     interface TrainingHistoryProjection {

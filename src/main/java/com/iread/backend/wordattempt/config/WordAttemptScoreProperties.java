@@ -1,0 +1,28 @@
+package com.iread.backend.wordattempt.config;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+@ConfigurationProperties(prefix = "word-attempt.score")
+public record WordAttemptScoreProperties(
+        int retryPenalty,
+        int sttMismatchPenalty,
+        int incorrectPenalty,
+        int skippedPenalty,
+        int missingAudioPenalty
+) {
+    public WordAttemptScoreProperties {
+        requireNonNegative(retryPenalty, "retry-penalty");
+        requireNonNegative(sttMismatchPenalty, "stt-mismatch-penalty");
+        requireNonNegative(incorrectPenalty, "incorrect-penalty");
+        requireNonNegative(skippedPenalty, "skipped-penalty");
+        requireNonNegative(missingAudioPenalty, "missing-audio-penalty");
+    }
+
+    private static void requireNonNegative(int value, String propertyName) {
+        if (value < 0) {
+            throw new IllegalArgumentException(
+                    "word-attempt.score." + propertyName + "은 0 이상이어야 합니다."
+            );
+        }
+    }
+}

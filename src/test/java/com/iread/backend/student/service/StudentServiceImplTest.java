@@ -138,6 +138,25 @@ class StudentServiceImplTest {
     }
 
     @Test
+    void convertsAverageWordAttemptScoreToReadingAccuracyPercentage() {
+        StudentEntity student = StudentEntity.builder()
+                .teacher(teacher).name("학생").build();
+        ReflectionTestUtils.setField(student, "id", 10L);
+        StudentRepository.AccuracyTrendProjection row =
+                org.mockito.Mockito.mock(StudentRepository.AccuracyTrendProjection.class);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(studentRepository.findAccuracyTrend(10L)).thenReturn(List.of(row));
+        when(row.getLearningDate()).thenReturn(LocalDate.of(2026, 7, 23));
+        when(row.getAverageScore()).thenReturn(new BigDecimal("845.55"));
+
+        var result = studentService.getAccuracyTrend(1L, 10L);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().date()).isEqualTo(LocalDate.of(2026, 7, 23));
+        assertThat(result.getFirst().accuracy()).isEqualByComparingTo("84.56");
+    }
+
+    @Test
     void mapsTrainingResultQuestionsToHistoryResponse() {
         StudentEntity student = StudentEntity.builder()
                 .teacher(teacher).name("학생").build();

@@ -96,6 +96,9 @@ public class WordAttemptLogEntity {
     @Column(name = "is_correct")
     private Boolean correct;
 
+    @Column(name = "total_score", nullable = false)
+    private Integer totalScore;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -116,8 +119,12 @@ public class WordAttemptLogEntity {
             String recognizedText,
             Integer speechStartOffsetMs,
             Integer speechEndOffsetMs,
-            Boolean correct
+            Boolean correct,
+            Integer totalScore
     ) {
+        if (totalScore == null || totalScore < 0 || totalScore > 1000) {
+            throw new IllegalArgumentException("단어 정확도 점수는 0점 이상 1000점 이하여야 합니다.");
+        }
         this.student = student;
         this.word = word;
         this.training = training;
@@ -135,5 +142,6 @@ public class WordAttemptLogEntity {
         this.speechStartOffsetMs = speechStartOffsetMs;
         this.speechEndOffsetMs = speechEndOffsetMs;
         this.correct = correct;
+        this.totalScore = totalScore;
     }
 }

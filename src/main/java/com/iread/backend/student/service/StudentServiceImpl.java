@@ -161,7 +161,10 @@ public class StudentServiceImpl implements StudentService {
     public List<AccuracyTrendResponse> getAccuracyTrend(Long teacherId, Long studentId) {
         findOwnedStudent(teacherId, studentId);
         return studentRepository.findAccuracyTrend(studentId).stream()
-                .map(row -> new AccuracyTrendResponse(row.getLearningDate(), row.getAccuracy()))
+                .map(row -> new AccuracyTrendResponse(
+                        row.getLearningDate(),
+                        row.getAverageScore().divide(BigDecimal.TEN, 2, RoundingMode.HALF_UP)
+                ))
                 .toList();
     }
 

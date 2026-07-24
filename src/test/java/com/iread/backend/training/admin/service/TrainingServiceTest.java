@@ -12,6 +12,8 @@ import com.iread.backend.training.repository.*;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.domain.WordAttemptUseLocation;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
+import com.iread.backend.wordattempt.config.WordAttemptScoreProperties;
+import com.iread.backend.wordattempt.service.WordAttemptScoreCalculator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -58,6 +60,9 @@ class TrainingServiceTest {
                 trainingDataRepository,
                 wordRepository,
                 wordAttemptLogRepository,
+                new WordAttemptScoreCalculator(
+                        new WordAttemptScoreProperties(100, 300, 200, 600, 250)
+                ),
                 aiClient,
                 JsonMapper.builder().build()
         );
@@ -302,7 +307,7 @@ class TrainingServiceTest {
                     "gazeStartOffsetMs": 100,
                     "gazeEndOffsetMs": 500,
                     "isSkipped": false,
-                    "regressionCount": 0,
+                    "retryCount": 2,
                     "recognizedText": "사과",
                     "speechStartOffsetMs": 180,
                     "speechEndOffsetMs": 620,
@@ -332,7 +337,9 @@ class TrainingServiceTest {
         assertThat(logs.getFirst().getUseLocation()).isEqualTo(WordAttemptUseLocation.TRAINING);
         assertThat(logs.getFirst().getSpeechStartOffsetMs()).isEqualTo(180);
         assertThat(logs.getFirst().getGazeEndOffsetMs()).isEqualTo(500);
+        assertThat(logs.getFirst().getRegressionCount()).isEqualTo(2);
         assertThat(logs.getFirst().getCorrect()).isTrue();
+        assertThat(logs.getFirst().getTotalScore()).isEqualTo(800);
     }
 
     @Test

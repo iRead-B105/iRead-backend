@@ -18,6 +18,7 @@ import com.iread.backend.training.admin.dto.res.*;
 import com.iread.backend.training.repository.*;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
+import com.iread.backend.wordattempt.service.WordAttemptScoreCalculator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,7 @@ public class TrainingService {
     private final TrainingDataRepository trainingDataRepository;
     private final WordRepository wordRepository;
     private final WordAttemptLogRepository wordAttemptLogRepository;
+    private final WordAttemptScoreCalculator wordAttemptScoreCalculator;
     private final AiClient aiClient;
     private final ObjectMapper objectMapper;
 
@@ -280,6 +282,25 @@ public class TrainingService {
         List<WordAttemptLogEntity> logs = new ArrayList<>();
         for (JsonNode attempt : attempts) {
             String surfaceText = requiredSurfaceText(attempt);
+            String recognizedText = nullableText(attempt, "recognizedText", 255);
+            boolean hasAudioData = attempt.path("hasAudioData").asBoolean(false);
+            Boolean skipped = nullableBoolean(attempt, "isSkipped");
+            Boolean correct = nullableBoolean(attempt, "isCorrect");
+            Integer retryCount = nullableInteger(attempt, "retryCount");
+            if (retryCount == null) {
+                retryCount = nullableInteger(attempt, "regressionCount");
+            }
+            if (retryCount != null && retryCount < 0) {
+                throw new IllegalArgumentException("단어 재응시 횟수는 0 이상이어야 합니다.");
+            }
+            int totalScore = wordAttemptScoreCalculator.calculate(
+                    surfaceText,
+                    recognizedText,
+                    hasAudioData,
+                    skipped,
+                    retryCount,
+                    correct
+            );
             WordEntity word = words.computeIfAbsent(surfaceText, text ->
                     wordRepository.findByContent(text)
                             .orElseGet(() -> wordRepository.save(new WordEntity(text))));
@@ -289,17 +310,18 @@ public class TrainingService {
                     training,
                     surfaceText,
                     attempt.path("hasGazeData").asBoolean(false),
-                    attempt.path("hasAudioData").asBoolean(false),
+                    hasAudioData,
                     nullableInteger(attempt, "fixationDurationMs"),
                     nullableInteger(attempt, "fixationCount"),
                     nullableInteger(attempt, "gazeStartOffsetMs"),
                     nullableInteger(attempt, "gazeEndOffsetMs"),
-                    nullableBoolean(attempt, "isSkipped"),
-                    nullableInteger(attempt, "regressionCount"),
-                    nullableText(attempt, "recognizedText", 255),
+                    skipped,
+                    retryCount,
+                    recognizedText,
                     nullableInteger(attempt, "speechStartOffsetMs"),
                     nullableInteger(attempt, "speechEndOffsetMs"),
-                    nullableBoolean(attempt, "isCorrect")
+                    correct,
+                    totalScore
             ));
         }
         wordAttemptLogRepository.saveAll(logs);
