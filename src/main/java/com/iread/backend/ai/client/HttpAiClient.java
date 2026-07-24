@@ -106,15 +106,33 @@ public class HttpAiClient implements AiClient {
 
     @Override
     public GenerateStoryResponse generateStory(GenerateStoryRequest request) {
-        return requestStory(GENERATE_STORY_PATH, request, request.requestId(), request.schemaVersion());
+        return requestStory(
+                GENERATE_STORY_PATH,
+                request,
+                request.requestId(),
+                request.schemaVersion(),
+                request.currentProgress()
+        );
     }
 
     @Override
     public GenerateStoryResponse continueStory(ContinueStoryRequest request) {
-        return requestStory(CONTINUE_STORY_PATH, request, request.requestId(), request.schemaVersion());
+        return requestStory(
+                CONTINUE_STORY_PATH,
+                request,
+                request.requestId(),
+                request.schemaVersion(),
+                request.currentProgress()
+        );
     }
 
-    private GenerateStoryResponse requestStory(String path, Object request, String requestId, int schemaVersion) {
+    private GenerateStoryResponse requestStory(
+            String path,
+            Object request,
+            String requestId,
+            int schemaVersion,
+            int currentProgress
+    ) {
         try {
             GenerateStoryResponse response = restClient.post()
                     .uri(path)
@@ -131,7 +149,7 @@ public class HttpAiClient implements AiClient {
                     })
                     .requiredBody(GenerateStoryResponse.class);
 
-            validateStoryResponse(requestId, schemaVersion, response);
+            validateStoryResponse(requestId, schemaVersion, currentProgress, response);
             return response;
         } catch (AiClientException exception) {
             throw exception;
@@ -167,7 +185,12 @@ public class HttpAiClient implements AiClient {
         }
     }
 
-    private void validateStoryResponse(String requestId, int schemaVersion, GenerateStoryResponse response) {
+    private void validateStoryResponse(
+            String requestId,
+            int schemaVersion,
+            int currentProgress,
+            GenerateStoryResponse response
+    ) {
         if (!Objects.equals(requestId, response.requestId())) {
             throw new AiClientException("AI 서버 응답의 requestId가 요청과 일치하지 않습니다.");
         }
@@ -176,6 +199,12 @@ public class HttpAiClient implements AiClient {
         }
         if (response.lines() == null) {
             throw new AiClientException("AI 서버 응답의 lines는 필수입니다.");
+        }
+        if (response.nextProgress() < currentProgress || response.nextProgress() > 100) {
+            throw new AiClientException("AI 서버 응답의 nextProgress가 유효하지 않습니다.");
+        }
+        if (response.completed() != (response.nextProgress() == 100)) {
+            throw new AiClientException("AI 서버 응답의 완료 상태와 진행률이 일치하지 않습니다.");
         }
     }
 }

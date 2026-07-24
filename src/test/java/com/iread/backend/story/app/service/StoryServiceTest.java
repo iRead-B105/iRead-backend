@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -36,7 +35,6 @@ class StoryServiceTest {
     @Mock StoryTemplateRepository storyTemplateRepository;
     @Mock StoryRepository storyRepository;
     @Mock StoryLineRepository storyLineRepository;
-    @Mock StoryChoiceRepository storyChoiceRepository;
     @Mock AiClient aiClient;
     @InjectMocks StoryService storyService;
 
@@ -82,6 +80,7 @@ class StoryServiceTest {
         when(aiClient.generateStory(any())).thenReturn(new GenerateStoryResponse(
                 "ignored-by-service-mock",
                 1,
+                50,
                 false,
                 List.of(
                         new GeneratedStoryLine("숲에 도착했어요.", false),
@@ -101,7 +100,7 @@ class StoryServiceTest {
         assertThat(lines).extracting(StoryLineEntity::getContent)
                 .containsExactly("숲에 도착했어요.", "어디로 갈까요?");
         assertThat(lines.get(1).getPreviousStoryLine()).isSameAs(lines.getFirst());
-        assertThat(lines.getLast().isHasChoices()).isTrue();
+        assertThat(lines.getLast().isRequiresBranchInput()).isTrue();
     }
 
     @Test
@@ -127,8 +126,6 @@ class StoryServiceTest {
                 .thenReturn(Optional.empty());
         when(storyLineRepository.findFirstByStoryIdOrderBySequenceNoDesc(100L))
                 .thenReturn(Optional.of(choiceLine));
-        when(storyChoiceRepository.existsByStoryLineId(1001L)).thenReturn(false);
-
         var response = storyService.resumeStory(1L, 20L, 100L);
 
         assertThat(response.storyLine().storyLineId()).isEqualTo(1001L);
@@ -145,22 +142,12 @@ class StoryServiceTest {
         when(storyLineRepository.findByIdAndStoryId(1001L, 100L)).thenReturn(Optional.of(choiceLine));
         when(storyLineRepository.findFirstByStoryIdOrderBySequenceNoDesc(100L))
                 .thenReturn(Optional.of(choiceLine));
-        when(storyChoiceRepository.existsByStoryLineId(1001L)).thenReturn(false);
-
-        AtomicReference<StoryChoiceEntity> savedChoice = new AtomicReference<>();
-        when(storyChoiceRepository.saveAndFlush(any(StoryChoiceEntity.class))).thenAnswer(invocation -> {
-            StoryChoiceEntity choice = invocation.getArgument(0);
-            ReflectionTestUtils.setField(choice, "id", 2000L);
-            savedChoice.set(choice);
-            return choice;
-        });
         when(storyLineRepository.findAllByStoryIdOrderBySequenceNoAsc(100L))
                 .thenReturn(List.of(firstLine, choiceLine));
-        when(storyChoiceRepository.findAllByStoryLineStoryId(100L))
-                .thenAnswer(invocation -> List.of(savedChoice.get()));
         when(aiClient.continueStory(any())).thenReturn(new GenerateStoryResponse(
                 "ignored-by-service-mock",
                 1,
+                100,
                 true,
                 List.of(new GeneratedStoryLine("모두와 인사하고 집으로 돌아왔어요.", false))
         ));
@@ -170,17 +157,15 @@ class StoryServiceTest {
                 1L, 20L, 100L, 1001L, new StoryChoiceRequest("이야기를 끝내고 집으로 간다")
         );
 
-        assertThat(savedChoice.get().getContent()).isEqualTo("이야기를 끝내고 집으로 간다");
-        assertThat(response.storyChoiceId()).isEqualTo(2000L);
+        assertThat(response.storyLineId()).isEqualTo(1001L);
         assertThat(response.status()).isEqualTo(StoryStatus.COMPLETED);
         assertThat(response.generatedLines()).hasSize(1);
         assertThat(response.generatedLines().getFirst().previousStoryLineId()).isEqualTo(1001L);
 
         ArgumentCaptor<ContinueStoryRequest> requestCaptor = ArgumentCaptor.forClass(ContinueStoryRequest.class);
         verify(aiClient).continueStory(requestCaptor.capture());
-        assertThat(requestCaptor.getValue().choice()).isEqualTo("이야기를 끝내고 집으로 간다");
-        assertThat(requestCaptor.getValue().history().getLast().selectedChoice())
-                .isEqualTo("이야기를 끝내고 집으로 간다");
+        assertThat(requestCaptor.getValue().branchIntent()).isEqualTo("이야기를 끝내고 집으로 간다");
+        assertThat(requestCaptor.getValue().currentStoryLineId()).isEqualTo(1001L);
     }
 
     private void ownedStory(StoryEntity story) {
@@ -195,9 +180,11 @@ class StoryServiceTest {
         return story;
     }
 
-    private StoryLineEntity line(Long id, StoryEntity story, StoryLineEntity previous, boolean hasChoices,
+    private StoryLineEntity line(Long id, StoryEntity story, StoryLineEntity previous, boolean requiresBranchInput,
                                  String content, int sequenceNo, LocalDateTime readAt) {
-        StoryLineEntity line = new StoryLineEntity(previous, story, null, hasChoices, content, sequenceNo);
+        StoryLineEntity line = new StoryLineEntity(
+                previous, story, null, requiresBranchInput, content, sequenceNo
+        );
         ReflectionTestUtils.setField(line, "id", id);
         ReflectionTestUtils.setField(line, "createdAt", LocalDateTime.of(2026, 7, 22, 10, sequenceNo));
         ReflectionTestUtils.setField(line, "readAt", readAt);

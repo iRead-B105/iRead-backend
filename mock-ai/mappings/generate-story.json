@@ -14,15 +14,16 @@
     "jsonBody": {
       "requestId": "{{jsonPath request.body '$.requestId'}}",
       "schemaVersion": 1,
+      "nextProgress": 50,
       "completed": false,
       "lines": [
         {
           "content": "어느 날, 주인공은 반짝이는 숲 입구에 도착했어요.",
-          "hasChoices": false
+          "requiresBranchInput": false
         },
         {
           "content": "숲 안쪽에서 신비한 노랫소리가 들려옵니다. 이제 어떻게 할까요?",
-          "hasChoices": true
+          "requiresBranchInput": true
         }
       ]
     }

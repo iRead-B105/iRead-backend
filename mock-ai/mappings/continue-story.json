@@ -15,15 +15,16 @@
     "jsonBody": {
       "requestId": "{{jsonPath request.body '$.requestId'}}",
       "schemaVersion": 1,
+      "nextProgress": 75,
       "completed": false,
       "lines": [
         {
           "content": "주인공은 용기를 내어 선택한 방향으로 걸어갔어요.",
-          "hasChoices": false
+          "requiresBranchInput": false
         },
         {
           "content": "잠시 뒤 두 갈래 길과 마주쳤습니다. 다음에는 어떻게 할까요?",
-          "hasChoices": true
+          "requiresBranchInput": true
         }
       ]
     }

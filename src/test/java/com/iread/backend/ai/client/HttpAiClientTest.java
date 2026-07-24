@@ -151,6 +151,7 @@ class HttpAiClientTest {
                 100L,
                 20L,
                 1,
+                0,
                 new StoryTemplateData(30L, "신비한 숲", "숲에서 친구를 만나는 이야기")
         );
         server.expect(requestTo("http://localhost:8081/api/v1/story/generate"))
@@ -160,10 +161,11 @@ class HttpAiClientTest {
                         {
                           "requestId": "story-request-1",
                           "schemaVersion": 1,
+                          "nextProgress": 50,
                           "completed": false,
                           "lines": [
-                            {"content": "숲에 도착했어요.", "hasChoices": false},
-                            {"content": "어디로 갈까요?", "hasChoices": true}
+                            {"content": "숲에 도착했어요.", "requiresBranchInput": false},
+                            {"content": "어디로 갈까요?", "requiresBranchInput": true}
                           ]
                         }
                         """, MediaType.APPLICATION_JSON));
@@ -173,7 +175,7 @@ class HttpAiClientTest {
         assertThat(response.completed()).isFalse();
         assertThat(response.lines()).extracting("content")
                 .containsExactly("숲에 도착했어요.", "어디로 갈까요?");
-        assertThat(response.lines().getLast().hasChoices()).isTrue();
+        assertThat(response.lines().getLast().requiresBranchInput()).isTrue();
         server.verify();
     }
 
@@ -184,26 +186,29 @@ class HttpAiClientTest {
                 100L,
                 20L,
                 1,
+                50,
                 new StoryTemplateData(30L, "신비한 숲", "숲에서 친구를 만나는 이야기"),
                 1001L,
                 "노랫소리를 따라간다",
-                List.of(new StoryHistoryLine(1001L, "어디로 갈까요?", true, "노랫소리를 따라간다"))
+                List.of(new StoryHistoryLine(1001L, "어디로 갈까요?", true))
         );
         server.expect(requestTo("http://localhost:8081/api/v1/story/continue"))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(content().json("""
                         {
-                          "choice": "노랫소리를 따라간다",
-                          "selectedStoryLineId": 1001
+                          "branchIntent": "노랫소리를 따라간다",
+                          "currentStoryLineId": 1001,
+                          "currentProgress": 50
                         }
                         """))
                 .andRespond(withSuccess("""
                         {
                           "requestId": "story-request-2",
                           "schemaVersion": 1,
+                          "nextProgress": 100,
                           "completed": true,
                           "lines": [
-                            {"content": "친구를 만나 집으로 돌아왔어요.", "hasChoices": false}
+                            {"content": "친구를 만나 집으로 돌아왔어요.", "requiresBranchInput": false}
                           ]
                         }
                         """, MediaType.APPLICATION_JSON));

@@ -25,6 +25,9 @@ public class CharacterEntity {
     @Column(name = "image_url", length = 255)
     private String imageUrl;
 
+    @Column(name = "is_representative", nullable = false)
+    private boolean representative;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
