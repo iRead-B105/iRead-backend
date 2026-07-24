@@ -7,7 +7,6 @@ import com.iread.backend.report.repository.StudentWordStatRepository;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.test.repository.StudentTestRepository;
-import com.iread.backend.training.repository.StudentStudyProgressRepository;
 import com.iread.backend.training.repository.TrainingRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,7 +34,6 @@ class ReportServiceTest {
     @Mock StudentRepository studentRepository;
     @Mock TrainingRepository trainingRepository;
     @Mock StudentTestRepository testRepository;
-    @Mock StudentStudyProgressRepository progressRepository;
     @Mock StudentWordStatRepository wordStatRepository;
 
     private ReportService reportService;
@@ -43,7 +41,7 @@ class ReportServiceTest {
     @BeforeEach
     void setUp() {
         reportService = new ReportService(reportRepository, studentRepository, trainingRepository,
-                testRepository, progressRepository, wordStatRepository, JsonMapper.builder().build());
+                testRepository, wordStatRepository, JsonMapper.builder().build());
     }
 
     @Test
@@ -54,7 +52,6 @@ class ReportServiceTest {
                 any(), any(), any(), any())).thenReturn(List.of());
         when(testRepository.findAllByStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
                 any(), any(), any(), any())).thenReturn(List.of());
-        when(progressRepository.findAllByStudentId(10L)).thenReturn(List.of());
         when(wordStatRepository.findAllByStudentId(10L)).thenReturn(List.of());
         when(reportRepository.save(any())).thenAnswer(invocation -> {
             ReportEntity report = invocation.getArgument(0);

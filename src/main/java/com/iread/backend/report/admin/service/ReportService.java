@@ -11,10 +11,8 @@ import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.test.domain.StudentTestEntity;
 import com.iread.backend.test.domain.TestStatus;
 import com.iread.backend.test.repository.StudentTestRepository;
-import com.iread.backend.training.domain.StudentStudyProgressEntity;
 import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.domain.TrainingStatus;
-import com.iread.backend.training.repository.StudentStudyProgressRepository;
 import com.iread.backend.training.repository.TrainingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -27,6 +25,7 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.function.BinaryOperator;
 import java.util.stream.Collectors;
 
 @Service
@@ -37,7 +36,6 @@ public class ReportService {
     private final StudentRepository studentRepository;
     private final TrainingRepository trainingRepository;
     private final StudentTestRepository testRepository;
-    private final StudentStudyProgressRepository progressRepository;
     private final StudentWordStatRepository wordStatRepository;
     private final ObjectMapper objectMapper;
 
@@ -125,11 +123,17 @@ public class ReportService {
         }).toList();
         BigDecimal averageReadingSpeed = average(growth.stream().map(ReportSnapshot.Growth::readingSpeed).toList());
 
-        Map<String, List<BigDecimal>> achievementByUnit = progressRepository.findAllByStudentId(studentId).stream()
-                .filter(progress -> progress.getAchievement() != null)
+        Map<Long, TrainingEntity> bestTrainingByTemplate = trainings.stream()
+                .filter(training -> training.getAccuracy() != null)
+                .collect(Collectors.toMap(
+                        training -> training.getTrainingTemplate().getId(),
+                        training -> training,
+                        BinaryOperator.maxBy(Comparator.comparing(TrainingEntity::getAccuracy))
+                ));
+        Map<String, List<BigDecimal>> achievementByUnit = bestTrainingByTemplate.values().stream()
                 .collect(Collectors.groupingBy(
-                        progress -> progress.getTrainingTemplate().getCurriculumUnit().getUnitName(),
-                        Collectors.mapping(StudentStudyProgressEntity::getAchievement, Collectors.toList())));
+                        training -> training.getTrainingTemplate().getCurriculumUnit().getUnitName(),
+                        Collectors.mapping(TrainingEntity::getAccuracy, Collectors.toList())));
         List<ReportSnapshot.AreaAchievement> achievements = achievementByUnit.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
                 .map(entry -> new ReportSnapshot.AreaAchievement(entry.getKey(), average(entry.getValue())))

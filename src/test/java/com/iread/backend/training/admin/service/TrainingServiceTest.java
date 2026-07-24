@@ -1,6 +1,8 @@
 package com.iread.backend.training.admin.service;
 
 import com.iread.backend.ai.client.AiClient;
+import com.iread.backend.ai.dto.req.EvaluateTrainingRequest;
+import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.*;
@@ -10,6 +12,7 @@ import com.iread.backend.training.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -35,7 +38,6 @@ class TrainingServiceTest {
     @Mock TrainingRepository trainingRepository;
     @Mock TrainingTemplateRepository trainingTemplateRepository;
     @Mock TrainingDataRepository trainingDataRepository;
-    @Mock StudentStudyProgressRepository progressRepository;
     @Mock WordRepository wordRepository;
     @Mock AiClient aiClient;
 
@@ -49,7 +51,6 @@ class TrainingServiceTest {
                 trainingRepository,
                 trainingTemplateRepository,
                 trainingDataRepository,
-                progressRepository,
                 wordRepository,
                 aiClient,
                 JsonMapper.builder().build()
@@ -166,6 +167,67 @@ class TrainingServiceTest {
 
         assertThat(curriculum.getStatus()).isEqualTo(DailyCurriculumStatus.COMPLETED);
         assertThat(curriculum.getCompletedAt()).isEqualTo(lastFinishedAt);
+    }
+
+    @Test
+    void catalogAchievementUsesMaximumAccuracyForSameTemplate() {
+        TrainingTemplateEntity template = template(11L, "word training");
+        TrainingEntity lower = training(1L, curriculum(100L), template, new BigDecimal("72.50"));
+        TrainingEntity higher = training(2L, curriculum(101L), template, new BigDecimal("91.25"));
+        ReflectionTestUtils.setField(lower, "status", TrainingStatus.COMPLETED);
+        ReflectionTestUtils.setField(higher, "status", TrainingStatus.COMPLETED);
+        allowStudent();
+        when(trainingRepository.findAllByDailyCurriculumStudentIdAndStatus(10L, TrainingStatus.COMPLETED))
+                .thenReturn(List.of(lower, higher));
+        when(trainingTemplateRepository.findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc())
+                .thenReturn(List.of(template));
+
+        var result = trainingService.getTrainingCatalog(1L, 10L);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().studentAchievement()).isEqualByComparingTo("91.25");
+    }
+
+    @Test
+    void completeTrainingStoresAiAccuracyAndResultJson() throws Exception {
+        TrainingEntity training = ownedTraining(1L);
+        ReflectionTestUtils.setField(training, "status", TrainingStatus.NOT_STARTED);
+        training.getDailyCurriculum().getTrainings().add(training);
+        allowStudent();
+        when(trainingRepository.findForUpdate(1L, 10L)).thenReturn(Optional.of(training));
+        when(aiClient.evaluateTraining(any(EvaluateTrainingRequest.class)))
+                .thenReturn(new EvaluateTrainingResponse(
+                        "training-evaluation-1", 1, new BigDecimal("87.456")
+                ));
+        var resultJson = JsonMapper.builder().build().readTree("""
+                {"questions":[{"questionId":"q1","selectedAnswer":"apple"}]}
+                """);
+
+        BigDecimal accuracy = trainingService.completeTraining(1L, 10L, 1L, resultJson);
+
+        assertThat(accuracy).isEqualByComparingTo("87.46");
+        assertThat(training.getAccuracy()).isEqualByComparingTo("87.46");
+        assertThat(training.getResult()).contains("\"questionId\":\"q1\"");
+        assertThat(training.getStatus()).isEqualTo(TrainingStatus.COMPLETED);
+        ArgumentCaptor<EvaluateTrainingRequest> captor = ArgumentCaptor.forClass(EvaluateTrainingRequest.class);
+        verify(aiClient).evaluateTraining(captor.capture());
+        assertThat(captor.getValue().requestId()).isEqualTo("training-evaluation-1");
+        assertThat(captor.getValue().result()).isEqualTo(resultJson);
+    }
+
+    @Test
+    void completedTrainingReturnsStoredAccuracyWithoutCallingAiAgain() throws Exception {
+        TrainingEntity training = ownedTraining(1L);
+        ReflectionTestUtils.setField(training, "status", TrainingStatus.COMPLETED);
+        ReflectionTestUtils.setField(training, "accuracy", new BigDecimal("93.00"));
+        allowStudent();
+        when(trainingRepository.findForUpdate(1L, 10L)).thenReturn(Optional.of(training));
+        var resultJson = JsonMapper.builder().build().readTree("{}");
+
+        BigDecimal accuracy = trainingService.completeTraining(1L, 10L, 1L, resultJson);
+
+        assertThat(accuracy).isEqualByComparingTo("93.00");
+        verify(aiClient, never()).evaluateTraining(any());
     }
 
     private void allowStudent() {

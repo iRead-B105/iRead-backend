@@ -5,7 +5,9 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 import com.iread.backend.ai.client.AiClient;
+import com.iread.backend.ai.dto.req.EvaluateTrainingRequest;
 import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
+import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
 import com.iread.backend.ai.dto.res.GenerateTrainingResponse;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.*;
@@ -33,7 +35,6 @@ public class TrainingService {
     private final TrainingRepository trainingRepository;
     private final TrainingTemplateRepository trainingTemplateRepository;
     private final TrainingDataRepository trainingDataRepository;
-    private final StudentStudyProgressRepository progressRepository;
     private final WordRepository wordRepository;
     private final AiClient aiClient;
     private final ObjectMapper objectMapper;
@@ -72,9 +73,15 @@ public class TrainingService {
 
     public List<TrainingCatalogResponse> getTrainingCatalog(Long teacherId, Long studentId) {
         validateStudentOwner(teacherId, studentId);
-        Map<Long, BigDecimal> achievements = progressRepository.findAllByStudentId(studentId).stream()
-                .collect(Collectors.toMap(p -> p.getTrainingTemplate().getId(),
-                        StudentStudyProgressEntity::getAchievement, (first, second) -> second));
+        Map<Long, BigDecimal> achievements = trainingRepository
+                .findAllByDailyCurriculumStudentIdAndStatus(studentId, TrainingStatus.COMPLETED)
+                .stream()
+                .filter(training -> training.getAccuracy() != null)
+                .collect(Collectors.toMap(
+                        training -> training.getTrainingTemplate().getId(),
+                        TrainingEntity::getAccuracy,
+                        BigDecimal::max
+                ));
         return trainingTemplateRepository.findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc().stream()
                 .map(template -> new TrainingCatalogResponse(
                         template.getId(), template.getCurriculumUnit().getUnitName(), template.getSequenceNo(),
@@ -155,6 +162,36 @@ public class TrainingService {
         data.updateGeneratedData(writeJson(generatedData));
         training.markReady();
         return generatedData;
+    }
+
+    @Transactional
+    public BigDecimal completeTraining(Long teacherId, Long studentId, Long trainingId, JsonNode result) {
+        validateStudentOwner(teacherId, studentId);
+        TrainingEntity training = trainingRepository.findForUpdate(trainingId, studentId)
+                .orElseThrow(() -> new IllegalArgumentException("훈련을 찾을 수 없습니다."));
+
+        if (training.isCompleted()) {
+            return training.getAccuracy();
+        }
+        if (!training.isCompletable()) {
+            throw new IllegalStateException("준비되지 않은 훈련은 완료할 수 없습니다.");
+        }
+        if (result == null || !result.isObject()) {
+            throw new IllegalArgumentException("훈련 결과는 JSON 객체여야 합니다.");
+        }
+
+        String requestId = "training-evaluation-" + trainingId;
+        EvaluateTrainingResponse response = aiClient.evaluateTraining(new EvaluateTrainingRequest(
+                requestId,
+                trainingId,
+                studentId,
+                training.getTrainingTemplate().getId(),
+                1,
+                result
+        ));
+        BigDecimal accuracy = response.accuracy().setScale(2, RoundingMode.HALF_UP);
+        training.complete(writeJson(result), accuracy, java.time.LocalDateTime.now());
+        return accuracy;
     }
 
     @Transactional

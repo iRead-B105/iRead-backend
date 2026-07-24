@@ -1,6 +1,7 @@
 package com.iread.backend.training.admin.controller;
 
 import com.iread.backend.auth.annotation.CurrentTeacherId;
+import com.iread.backend.training.admin.dto.req.CompleteTrainingRequest;
 import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.admin.dto.res.*;
@@ -102,5 +103,18 @@ public class TrainingController {
     public JsonNode generateTraining(@CurrentTeacherId Long teacherId, @PathVariable Long studentId,
                                      @PathVariable Long trainingId) {
         return trainingService.generateTraining(teacherId, studentId, trainingId);
+    }
+
+    @Operation(summary = "훈련 결과 AI 평가 및 완료")
+    @PostMapping("/{studentId}/{trainingId}/complete")
+    public TrainingEvaluationResponse completeTraining(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @PathVariable Long trainingId,
+            @Valid @RequestBody CompleteTrainingRequest request
+    ) {
+        return new TrainingEvaluationResponse(
+                trainingService.completeTraining(teacherId, studentId, trainingId, request.result())
+        );
     }
 }

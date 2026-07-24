@@ -1,6 +1,7 @@
 package com.iread.backend.ai.client;
 
 import com.iread.backend.ai.dto.req.ContinueStoryRequest;
+import com.iread.backend.ai.dto.req.EvaluateTrainingRequest;
 import com.iread.backend.ai.dto.req.GenerateStoryRequest;
 import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
 import com.iread.backend.ai.dto.req.StoryHistoryLine;
@@ -196,6 +197,75 @@ class HttpAiClientTest {
 
         assertThat(response.completed()).isTrue();
         assertThat(response.lines().getFirst().content()).isEqualTo("친구를 만나 집으로 돌아왔어요.");
+        server.verify();
+    }
+
+    @Test
+    void sendsTrainingResultAndReturnsAccuracy() throws Exception {
+        EvaluateTrainingRequest request = new EvaluateTrainingRequest(
+                "training-evaluation-10",
+                10L,
+                20L,
+                30L,
+                1,
+                objectMapper.readTree("""
+                        {"questions":[{"questionId":"q1","selectedAnswer":"apple"}]}
+                        """)
+        );
+        server.expect(once(), requestTo("http://localhost:8081/api/v1/trainings/evaluate"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Idempotency-Key", "training-evaluation-10"))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(content().json("""
+                        {
+                          "requestId": "training-evaluation-10",
+                          "trainingId": 10,
+                          "studentId": 20,
+                          "trainingTemplateId": 30,
+                          "schemaVersion": 1,
+                          "result": {
+                            "questions": [
+                              {"questionId": "q1", "selectedAnswer": "apple"}
+                            ]
+                          }
+                        }
+                        """))
+                .andRespond(withSuccess("""
+                        {
+                          "requestId": "training-evaluation-10",
+                          "schemaVersion": 1,
+                          "accuracy": 87.25
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var response = aiClient.evaluateTraining(request);
+
+        assertThat(response.accuracy()).isEqualByComparingTo("87.25");
+        server.verify();
+    }
+
+    @Test
+    void rejectsAccuracyOutsideZeroToOneHundred() throws Exception {
+        EvaluateTrainingRequest request = new EvaluateTrainingRequest(
+                "training-evaluation-10",
+                10L,
+                20L,
+                30L,
+                1,
+                objectMapper.readTree("{}")
+        );
+        server.expect(requestTo("http://localhost:8081/api/v1/trainings/evaluate"))
+                .andRespond(withSuccess("""
+                        {
+                          "requestId": "training-evaluation-10",
+                          "schemaVersion": 1,
+                          "accuracy": 100.01
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> aiClient.evaluateTraining(request))
+                .isInstanceOf(AiClientException.class)
+                .hasMessage("AI 훈련 평가 응답의 accuracy는 0.0 이상 100.0 이하여야 합니다.");
         server.verify();
     }
 
