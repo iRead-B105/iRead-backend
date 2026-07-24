@@ -55,6 +55,15 @@ public class TrainingController {
         return trainingService.getDailyCurriculum(teacherId, studentId, curriculumId);
     }
 
+    @Operation(summary = "수정 가능한 현재 커리큘럼 조회")
+    @GetMapping("/{studentId}/current")
+    public DailyCurriculumResponse getCurrentDailyCurriculum(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId
+    ) {
+        return trainingService.getCurrentDailyCurriculum(teacherId, studentId);
+    }
+
     @Operation(summary = "학생의 일일 커리큘럼 수정")
     @PatchMapping("/{studentId}/{curriculumId}")
     public ResponseEntity<Void> updateDailyCurriculum(@CurrentTeacherId Long teacherId, @PathVariable Long studentId,

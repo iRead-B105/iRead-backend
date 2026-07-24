@@ -1,6 +1,7 @@
 package com.iread.backend.training.repository;
 
 import com.iread.backend.training.domain.DailyCurriculumEntity;
+import com.iread.backend.training.domain.DailyCurriculumStatus;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -13,4 +14,7 @@ public interface DailyCurriculumRepository extends JpaRepository<DailyCurriculum
 
     @EntityGraph(attributePaths = {"trainings", "trainings.trainingTemplate", "trainings.trainingTemplate.curriculumUnit"})
     Optional<DailyCurriculumEntity> findByIdAndStudentId(Long id, Long studentId);
+
+    @EntityGraph(attributePaths = {"trainings", "trainings.trainingTemplate", "trainings.trainingTemplate.curriculumUnit"})
+    Optional<DailyCurriculumEntity> findByStudentIdAndStatus(Long studentId, DailyCurriculumStatus status);
 }

@@ -87,8 +87,17 @@ public class TrainingService {
         DailyCurriculumEntity curriculum = findCurriculum(studentId, curriculumId);
         return new DailyCurriculumResponse(curriculum.getId(), curriculum.getTrainings().stream()
                 .map(t -> new DailyCurriculumResponse.TrainingItem(
-                        t.getId(), t.getTrainingTemplate().getCurriculumUnit().getUnitName(),
+                        t.getId(), t.getTrainingTemplate().getId(),
+                        t.getTrainingTemplate().getCurriculumUnit().getUnitName(),
                         t.getTrainingTemplate().getName())).toList());
+    }
+
+    public DailyCurriculumResponse getCurrentDailyCurriculum(Long teacherId, Long studentId) {
+        validateStudentOwner(teacherId, studentId);
+        DailyCurriculumEntity curriculum = dailyCurriculumRepository
+                .findByStudentIdAndStatus(studentId, DailyCurriculumStatus.NOT_STARTED)
+                .orElseThrow(() -> new IllegalArgumentException("수정 가능한 커리큘럼을 찾을 수 없습니다."));
+        return getDailyCurriculum(teacherId, studentId, curriculum.getId());
     }
 
     @Transactional
@@ -100,12 +109,10 @@ public class TrainingService {
             throw new IllegalStateException("시작했거나 완료된 커리큘럼은 수정할 수 없습니다.");
         }
         List<Long> ids = request.trainingTemplateIds();
-        if (new HashSet<>(ids).size() != ids.size()) {
-            throw new IllegalArgumentException("훈련 템플릿을 중복해서 지정할 수 없습니다.");
-        }
+        Set<Long> uniqueIds = new HashSet<>(ids);
         Map<Long, TrainingTemplateEntity> templates = trainingTemplateRepository.findAllById(ids).stream()
                 .collect(Collectors.toMap(TrainingTemplateEntity::getId, Function.identity()));
-        if (templates.size() != ids.size()) throw new IllegalArgumentException("존재하지 않는 훈련 템플릿이 있습니다.");
+        if (templates.size() != uniqueIds.size()) throw new IllegalArgumentException("존재하지 않는 훈련 템플릿이 있습니다.");
 
         curriculum.getTrainings().forEach(t -> trainingDataRepository.deleteByTrainingId(t.getId()));
         trainingDataRepository.flush();
