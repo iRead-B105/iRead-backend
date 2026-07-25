@@ -33,6 +33,14 @@ docker compose up -d
 
 Spring Boot에서 사용할 데이터베이스 접속 정보는 로컬 환경 설정에서 관리합니다.
 
+JWT 인증을 사용하는 로컬 실행 환경에는 다음 환경변수가 필요합니다.
+
+- `AUTH_JWT_SECRET`: 32바이트 이상의 임의 문자열
+- `AUTH_DEMO_VERIFICATION_CODE`: MVP 데모 비밀번호 재설정 코드
+- `AUTH_COOKIE_SECURE`: 로컬 HTTP에서는 `false`, HTTPS에서는 `true`
+
+비밀값과 데모 인증 코드는 채팅, 저장소, 로그에 기록하지 않습니다.
+
 ### 상태 확인
 
 ```bash
