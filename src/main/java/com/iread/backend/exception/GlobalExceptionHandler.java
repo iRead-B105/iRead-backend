@@ -1,5 +1,6 @@
 package com.iread.backend.exception;
 
+import com.iread.backend.auth.exception.AuthException;
 import com.iread.backend.global.api.ApiErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -9,6 +10,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(AuthException.class)
+    public ResponseEntity<ApiErrorResponse> handleAuth(AuthException exception) {
+        return ResponseEntity.status(exception.status()).body(
+                ApiErrorResponse.of(exception.code(), exception.getMessage())
+        );
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidation(MethodArgumentNotValidException exception) {

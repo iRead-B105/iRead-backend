@@ -28,6 +28,9 @@ public class TeacherEntity {
     @Column(name = "id")
     private Long id;
 
+    @Column(name = "login_id", length = 50, nullable = false, unique = true)
+    private String loginId;
+
     @Column(name = "email", length = 50, nullable = false, unique = true)
     private String email;
 
@@ -51,13 +54,26 @@ public class TeacherEntity {
     @Column(name = "image_url", length = 255)
     private String imageUrl;
 
-    public TeacherEntity(String email, String password, String name, String organization, Gender gender, String imageUrl) {
+    public TeacherEntity(
+            String loginId,
+            String email,
+            String password,
+            String name,
+            String organization,
+            Gender gender,
+            String imageUrl
+    ) {
+        this.loginId = loginId;
         this.email = email;
         this.password = password;
         this.name = name;
         this.organization = organization;
         this.gender = gender;
         this.imageUrl = imageUrl;
+    }
+
+    public TeacherEntity(String email, String password, String name, String organization, Gender gender, String imageUrl) {
+        this(email, email, password, name, organization, gender, imageUrl);
     }
 
     public void updatePassword(String encodedPassword) {
