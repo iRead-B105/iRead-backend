@@ -47,8 +47,11 @@ class JwtTokenServiceTest {
     void rejectsTamperedToken() {
         JwtTokenService service = service(Duration.ofMinutes(15));
         String token = service.issueAdminAccessToken(10L).value();
-        String tampered = token.substring(0, token.length() - 1)
-                + (token.endsWith("a") ? "b" : "a");
+        int payloadStart = token.indexOf('.') + 1;
+        char original = token.charAt(payloadStart);
+        String tampered = token.substring(0, payloadStart)
+                + (original == 'a' ? 'b' : 'a')
+                + token.substring(payloadStart + 1);
 
         assertThatThrownBy(() -> service.parseAndValidate(tampered))
                 .isInstanceOf(AuthException.class)
