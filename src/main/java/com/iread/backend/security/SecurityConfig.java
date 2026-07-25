@@ -54,7 +54,6 @@ public class SecurityConfig {
                         "/api/auth/admin/sign-up",
                         "/api/auth/app/refresh",
                         "/api/auth/app/teacher-login",
-                        "/api/admin/report/shared/**",
                         "/v3/api-docs/**",
                         "/swagger-ui.html",
                         "/swagger-ui/**",

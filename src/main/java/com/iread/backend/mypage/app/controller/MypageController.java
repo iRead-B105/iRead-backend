@@ -1,8 +1,10 @@
 package com.iread.backend.mypage.app.controller;
 
 import com.iread.backend.auth.annotation.CurrentTeacherId;
+import com.iread.backend.auth.annotation.CurrentStudentId;
 import com.iread.backend.mypage.app.dto.res.CharacterResponse;
 import com.iread.backend.mypage.app.service.MypageService;
+import com.iread.backend.security.StudentResourceAccessPolicy;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -16,13 +18,16 @@ import java.util.List;
 @RequestMapping("/api/app/mypage")
 public class MypageController {
     private final MypageService mypageService;
+    private final StudentResourceAccessPolicy studentResourceAccessPolicy;
 
     @Operation(summary = "학생이 보유한 캐릭터 목록 조회")
     @GetMapping("/character")
     public List<CharacterResponse> getCharacters(
             @CurrentTeacherId Long teacherId,
+            @CurrentStudentId Long authenticatedStudentId,
             @RequestParam Long studentId
     ) {
+        studentResourceAccessPolicy.requireSameStudent(authenticatedStudentId, studentId);
         return mypageService.getCharacters(teacherId, studentId);
     }
 }
