@@ -6,11 +6,13 @@ import com.iread.backend.report.admin.dto.req.UpdateReportMemoRequest;
 import com.iread.backend.report.admin.dto.res.CreateReportResponse;
 import com.iread.backend.report.admin.dto.res.ReportListResponse;
 import com.iread.backend.report.admin.dto.res.ReportResponse;
+import com.iread.backend.report.admin.dto.res.UpdateReportMemoResponse;
 import com.iread.backend.report.admin.service.ReportService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 import java.util.List;
 
@@ -47,6 +50,7 @@ public class ReportController {
 
     @Operation(summary = "리포트 생성")
     @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
     public CreateReportResponse createReport(
             @CurrentTeacherId Long teacherId,
             @Valid @RequestBody CreateReportRequest request
@@ -55,13 +59,13 @@ public class ReportController {
     }
 
     @Operation(summary = "리포트 메모 수정")
-    @PatchMapping("/{reportId}/memo")
-    public void updateReportMemo(
+    @PatchMapping("/{reportId}/teacher-memo")
+    public UpdateReportMemoResponse updateReportMemo(
             @CurrentTeacherId Long teacherId,
             @PathVariable Long reportId,
             @RequestBody UpdateReportMemoRequest request
     ) {
-        reportService.updateReportMemo(teacherId, reportId, request.teacherMemo());
+        return reportService.updateReportMemo(teacherId, reportId, request.teacherMemo());
     }
 
     @Operation(summary = "리포트 삭제")

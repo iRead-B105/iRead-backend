@@ -144,6 +144,9 @@ public class StudentServiceImpl implements StudentService {
                 imageUrl,
                 updateImage
         );
+        if (request.teacherMemo() != null) {
+            student.updateTeacherMemo(request.teacherMemo());
+        }
 
         if (uploaded && oldImageUrl != null) {
             fileStorage.delete(fileNameOf(oldImageUrl));

@@ -8,7 +8,6 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -44,17 +43,16 @@ public class StoryController {
     }
 
     @Operation(summary = "스토리 대사 상세 조회")
-    @GetMapping("/{studentId}/{storyId}/lines/{storyLineId}")
+    @GetMapping("/{studentId}/{storyId}/lines/{lineId}")
     public StoryLineResponse getStoryLine(@CurrentTeacherId Long teacherId,
                                           @PathVariable Long studentId,
                                           @PathVariable Long storyId,
-                                          @PathVariable Long storyLineId) {
-        return storyService.getStoryLine(teacherId, studentId, storyId, storyLineId);
+                                          @PathVariable Long lineId) {
+        return storyService.getStoryLine(teacherId, studentId, storyId, lineId);
     }
 
     @Operation(summary = "새 스토리 세션 시작")
     @PostMapping("/{studentId}/{storyTemplateId}/sessions")
-    @ResponseStatus(HttpStatus.CREATED)
     public StorySessionResponse startStory(@CurrentTeacherId Long teacherId,
                                            @PathVariable Long studentId,
                                            @PathVariable Long storyTemplateId) {

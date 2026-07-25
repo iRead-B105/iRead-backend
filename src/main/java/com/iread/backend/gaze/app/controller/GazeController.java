@@ -41,7 +41,6 @@ public class GazeController {
 
     @Operation(summary = "시선 데이터 수집 시작")
     @PostMapping("/sessions")
-    @ResponseStatus(HttpStatus.CREATED)
     public GazeSessionResponse startSession(
             @CurrentTeacherId Long teacherId,
             @Valid @RequestBody StartGazeSessionRequest request

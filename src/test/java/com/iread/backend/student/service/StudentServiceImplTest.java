@@ -247,7 +247,7 @@ class StudentServiceImplTest {
     private StudentRequest request(String imageUrl) {
         return new StudentRequest(
                 "학생", LocalDate.of(2016, 3, 10), Gender.Boy,
-                "학교", "보호자", "010-0000-0000", "guardian@test.com", "주소", imageUrl
+                "학교", "보호자", "010-0000-0000", "guardian@test.com", "주소", imageUrl, null
         );
     }
 
