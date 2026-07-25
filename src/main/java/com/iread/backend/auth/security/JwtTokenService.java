@@ -1,12 +1,12 @@
 package com.iread.backend.auth.security;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.iread.backend.auth.config.AuthSettings;
 import com.iread.backend.auth.exception.AuthException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -137,7 +137,7 @@ public class JwtTokenService {
             String signingInput = HEADER + "." + payload;
             String signature = BASE64_URL_ENCODER.encodeToString(sign(signingInput));
             return new IssuedToken(signingInput + "." + signature, ttl.toSeconds());
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalStateException("인증 토큰을 생성할 수 없습니다.", exception);
         }
     }
