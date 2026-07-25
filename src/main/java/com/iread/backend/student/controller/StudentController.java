@@ -2,7 +2,6 @@ package com.iread.backend.student.controller;
 
 import com.iread.backend.auth.annotation.CurrentTeacherId;
 import com.iread.backend.student.dto.req.StudentRequest;
-import com.iread.backend.student.dto.req.TeacherMemoRequest;
 import com.iread.backend.student.dto.res.AccuracyTrendResponse;
 import com.iread.backend.student.dto.res.CreateStudentResponse;
 import com.iread.backend.student.dto.res.ReadingSpeedTrendResponse;
@@ -100,17 +99,6 @@ public class StudentController {
             @RequestPart(value = "image", required = false) MultipartFile image
     ) {
         studentService.updateStudent(teacherId, studentId, request, image);
-        return ResponseEntity.ok().build();
-    }
-
-    @Operation(summary = "학생 교수자 내부 메모 저장")
-    @PatchMapping("/{studentId}/teacher-memo")
-    public ResponseEntity<Void> updateTeacherMemo(
-            @CurrentTeacherId Long teacherId,
-            @PathVariable Long studentId,
-            @RequestBody TeacherMemoRequest request
-    ) {
-        studentService.updateTeacherMemo(teacherId, studentId, request.teacherMemo());
         return ResponseEntity.ok().build();
     }
 

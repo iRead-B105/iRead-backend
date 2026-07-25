@@ -82,8 +82,14 @@ public class ReportService {
     }
 
     @Transactional
-    public void updateReportMemo(Long teacherId, Long reportId, String teacherMemo) {
-        findOwnedReport(teacherId, reportId).updateTeacherMemo(teacherMemo);
+    public UpdateReportMemoResponse updateReportMemo(Long teacherId, Long reportId, String teacherMemo) {
+        ReportEntity report = findOwnedReport(teacherId, reportId);
+        report.updateTeacherMemo(teacherMemo);
+        return new UpdateReportMemoResponse(
+                report.getId(),
+                report.getTeacherMemo(),
+                report.getCreatedAt()
+        );
     }
 
     @Transactional

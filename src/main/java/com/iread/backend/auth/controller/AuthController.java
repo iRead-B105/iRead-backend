@@ -10,8 +10,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,12 +32,14 @@ public class AuthController {
 
     @Operation(summary = "교사 회원가입")
     @PostMapping(value = "/sign-up", consumes = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
     public TeacherAuthResponse signUp(@Valid @RequestBody SignUpRequest request) {
         return authService.signUp(request);
     }
 
     @Operation(summary = "프로필 이미지와 함께 교사 회원가입")
     @PostMapping(value = "/sign-up", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
     public TeacherAuthResponse signUpWithImage(
             @Valid @RequestPart("request") SignUpRequest request,
             @RequestPart(value = "image", required = false) MultipartFile image
@@ -69,6 +73,6 @@ public class AuthController {
     @PostMapping("/password/reset")
     public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok().build();
     }
 }

@@ -13,6 +13,7 @@ public record StudentRequest(
         String guardianContact,
         String guardianEmail,
         String address,
-        String imageUrl
+        String imageUrl,
+        String teacherMemo
 ) {
 }
