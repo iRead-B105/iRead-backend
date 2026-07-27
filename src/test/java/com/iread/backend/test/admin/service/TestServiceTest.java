@@ -69,6 +69,24 @@ class TestServiceTest {
     }
 
     @Test
+    void 비교_대상을_생략하면_기준_테스트만_반환한다() {
+        allowStudent();
+        StudentTestEntity current = test(
+                10L,
+                LocalDateTime.of(2026, 7, 21, 10, 0),
+                resultJson(120, 180),
+                "85.50"
+        );
+        when(testRepository.findByIdAndStudentIdAndStatus(10L, 1L, TestStatus.COMPLETED))
+                .thenReturn(Optional.of(current));
+
+        var result = testService.compareTests(100L, 1L, 10L, null);
+
+        assertThat(result.currentTest().testId()).isEqualTo(10L);
+        assertThat(result.comparisonTests()).isEmpty();
+    }
+
+    @Test
     void 완료되지_않은_비교_테스트가_포함되면_오류가_발생한다() {
         allowStudent();
         StudentTestEntity current = test(10L, LocalDateTime.now(), "{}", "85.00");

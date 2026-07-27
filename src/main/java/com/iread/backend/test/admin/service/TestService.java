@@ -35,27 +35,31 @@ public class TestService {
     public TestCompareResponse compareTests(Long teacherId, Long studentId, Long currentTestId,
                                             List<Long> comparisonTestIds) {
         validateStudentOwner(teacherId, studentId);
-        if (comparisonTestIds == null || comparisonTestIds.isEmpty()) {
-            throw new IllegalArgumentException("비교할 테스트 ID가 필요합니다.");
-        }
-        if (comparisonTestIds.contains(currentTestId)) {
+        List<Long> resolvedComparisonIds = comparisonTestIds == null
+                ? List.of() : List.copyOf(comparisonTestIds);
+        if (resolvedComparisonIds.contains(currentTestId)) {
             throw new IllegalArgumentException("현재 테스트는 비교 목록에 포함할 수 없습니다.");
         }
-        if (new HashSet<>(comparisonTestIds).size() != comparisonTestIds.size()) {
+        if (new HashSet<>(resolvedComparisonIds).size() != resolvedComparisonIds.size()) {
             throw new IllegalArgumentException("비교 테스트 ID를 중복해서 지정할 수 없습니다.");
         }
 
         StudentTestEntity current = findCompletedTest(studentId, currentTestId);
+        if (resolvedComparisonIds.isEmpty()) {
+            return new TestCompareResponse(toDetail(current), List.of());
+        }
         Map<Long, StudentTestEntity> comparisons = testRepository
-                .findAllByIdInAndStudentIdAndStatus(comparisonTestIds, studentId, TestStatus.COMPLETED)
+                .findAllByIdInAndStudentIdAndStatus(
+                        resolvedComparisonIds, studentId, TestStatus.COMPLETED
+                )
                 .stream().collect(Collectors.toMap(StudentTestEntity::getId, Function.identity()));
-        if (comparisons.size() != comparisonTestIds.size()) {
+        if (comparisons.size() != resolvedComparisonIds.size()) {
             throw new IllegalArgumentException("완료된 비교 테스트를 찾을 수 없습니다.");
         }
 
         return new TestCompareResponse(
                 toDetail(current),
-                comparisonTestIds.stream().map(comparisons::get).map(this::toDetail).toList()
+                resolvedComparisonIds.stream().map(comparisons::get).map(this::toDetail).toList()
         );
     }
 
