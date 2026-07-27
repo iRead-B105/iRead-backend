@@ -4,6 +4,7 @@ import com.iread.backend.global.storage.FileStorage;
 import com.iread.backend.global.storage.StoredFile;
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.student.domain.StudentEntity;
+import com.iread.backend.student.domain.LearningEventType;
 import com.iread.backend.student.dto.req.StudentRequest;
 import com.iread.backend.student.dto.res.AccuracyTrendResponse;
 import com.iread.backend.student.dto.res.LearningEventResponse;
@@ -246,11 +247,15 @@ public class StudentServiceImpl implements StudentService {
     public LearningEventResponse getLearningEvent(
             Long teacherId,
             Long studentId,
+            LearningEventType eventType,
             Long eventId
     ) {
         findOwnedStudent(teacherId, studentId);
+        LearningEventType resolvedType = eventType == null
+                ? LearningEventType.TRAINING
+                : eventType;
         StudentRepository.LearningEventProjection event =
-                studentRepository.findLearningEvent(studentId, eventId)
+                findLearningEvent(studentId, resolvedType, eventId)
                         .orElseThrow(() -> new ResourceNotFoundException(
                                 "학습 이벤트를 찾을 수 없습니다."
                         ));
@@ -262,7 +267,7 @@ public class StudentServiceImpl implements StudentService {
 
         return new LearningEventResponse(
                 event.getEventId(),
-                "TRAINING",
+                resolvedType.name(),
                 event.getOccurredAt(),
                 event.getEventId(),
                 event.getAccuracy(),
@@ -277,6 +282,19 @@ public class StudentServiceImpl implements StudentService {
                 recommendation == null ? null : 10,
                 recommendation == null ? null : 2
         );
+    }
+
+    private java.util.Optional<StudentRepository.LearningEventProjection> findLearningEvent(
+            Long studentId,
+            LearningEventType eventType,
+            Long eventId
+    ) {
+        return switch (eventType) {
+            case TEST -> studentRepository.findTestLearningEvent(studentId, eventId);
+            case TRAINING -> studentRepository.findLearningEvent(studentId, eventId);
+            case STORY -> studentRepository.findStoryLearningEvent(studentId, eventId);
+            case GAZE -> studentRepository.findGazeLearningEvent(studentId, eventId);
+        };
     }
 
     @Override

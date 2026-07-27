@@ -2,6 +2,7 @@ package com.iread.backend.student.controller;
 
 import com.iread.backend.auth.annotation.CurrentTeacherId;
 import com.iread.backend.student.dto.req.StudentRequest;
+import com.iread.backend.student.domain.LearningEventType;
 import com.iread.backend.student.dto.res.AccuracyTrendDataResponse;
 import com.iread.backend.student.dto.res.CreateStudentResponse;
 import com.iread.backend.student.dto.res.LearningEventResponse;
@@ -161,9 +162,10 @@ public class StudentController {
     public LearningEventResponse getLearningEvent(
             @CurrentTeacherId Long teacherId,
             @PathVariable Long studentId,
+            @RequestParam(required = false) LearningEventType eventType,
             @RequestParam Long eventId
     ) {
-        return studentService.getLearningEvent(teacherId, studentId, eventId);
+        return studentService.getLearningEvent(teacherId, studentId, eventType, eventId);
     }
 
     @Operation(summary = "학생의 일별 읽기 속도 추이 조회")

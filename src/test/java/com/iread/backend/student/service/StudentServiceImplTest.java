@@ -3,6 +3,7 @@ package com.iread.backend.student.service;
 import com.iread.backend.global.storage.FileStorage;
 import com.iread.backend.global.storage.StoredFile;
 import com.iread.backend.student.domain.Gender;
+import com.iread.backend.student.domain.LearningEventType;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.dto.req.StudentRequest;
 import com.iread.backend.student.repository.StudentRepository;
@@ -223,13 +224,40 @@ class StudentServiceImplTest {
         when(recommendation.getCurriculumUnitName()).thenReturn("문장 읽기");
         when(recommendation.getAverageAccuracy()).thenReturn(new BigDecimal("65.00"));
 
-        var result = studentService.getLearningEvent(1L, 10L, 100L);
+        var result = studentService.getLearningEvent(
+                1L, 10L, LearningEventType.TRAINING, 100L);
 
         assertThat(result.eventType()).isEqualTo("TRAINING");
         assertThat(result.problemSegments()).containsExactly("사과", "바나나");
         assertThat(result.recommendedTrainingTemplateId()).isEqualTo(30L);
         assertThat(result.recommendedMinutes()).isEqualTo(10);
         assertThat(result.recommendedRepeatCount()).isEqualTo(2);
+    }
+
+    @Test
+    void dispatchesLearningEventLookupByEventType() {
+        StudentEntity student = student(10L, "민준", LocalDate.now().minusYears(10));
+        StudentRepository.LearningEventProjection event =
+                org.mockito.Mockito.mock(StudentRepository.LearningEventProjection.class);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(studentRepository.findTestLearningEvent(10L, 100L)).thenReturn(Optional.of(event));
+        when(studentRepository.findLearningEvent(10L, 100L)).thenReturn(Optional.of(event));
+        when(studentRepository.findStoryLearningEvent(10L, 100L)).thenReturn(Optional.of(event));
+        when(studentRepository.findGazeLearningEvent(10L, 100L)).thenReturn(Optional.of(event));
+        when(studentRepository.findTrainingRecommendation(10L)).thenReturn(Optional.empty());
+        when(event.getEventId()).thenReturn(100L);
+        when(event.getOccurredAt()).thenReturn(LocalDateTime.of(2026, 7, 27, 12, 0));
+
+        assertThat(studentService.getLearningEvent(
+                1L, 10L, LearningEventType.TEST, 100L).eventType()).isEqualTo("TEST");
+        assertThat(studentService.getLearningEvent(
+                1L, 10L, LearningEventType.TRAINING, 100L).eventType()).isEqualTo("TRAINING");
+        assertThat(studentService.getLearningEvent(
+                1L, 10L, LearningEventType.STORY, 100L).eventType()).isEqualTo("STORY");
+        assertThat(studentService.getLearningEvent(
+                1L, 10L, LearningEventType.GAZE, 100L).eventType()).isEqualTo("GAZE");
+        assertThat(studentService.getLearningEvent(
+                1L, 10L, null, 100L).eventType()).isEqualTo("TRAINING");
     }
 
     @Test

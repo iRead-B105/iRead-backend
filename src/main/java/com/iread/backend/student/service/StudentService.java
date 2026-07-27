@@ -1,6 +1,7 @@
 package com.iread.backend.student.service;
 
 import com.iread.backend.student.dto.req.StudentRequest;
+import com.iread.backend.student.domain.LearningEventType;
 import com.iread.backend.student.dto.res.AccuracyTrendResponse;
 import com.iread.backend.student.dto.res.LearningEventResponse;
 import com.iread.backend.student.dto.res.LearningSummaryResponse;
@@ -39,7 +40,12 @@ public interface StudentService {
             LocalDate to
     );
     LearningSummaryResponse getLearningSummary(Long teacherId, Long studentId);
-    LearningEventResponse getLearningEvent(Long teacherId, Long studentId, Long eventId);
+    LearningEventResponse getLearningEvent(
+            Long teacherId,
+            Long studentId,
+            LearningEventType eventType,
+            Long eventId
+    );
     ReadingSpeedTrendResponse getReadingSpeedTrend(
             Long teacherId,
             Long studentId,

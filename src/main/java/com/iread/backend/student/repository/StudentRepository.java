@@ -174,6 +174,75 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
     );
 
     @Query(value = """
+            SELECT t.id AS eventId,
+                   COALESCE(t.finished_at, t.started_at, t.created_at) AS occurredAt,
+                   t.accuracy AS accuracy,
+                   COALESCE(CAST(JSON_UNQUOTE(JSON_EXTRACT(t.result, '$.retryCount')) AS SIGNED), 0)
+                       AS retryCount,
+                   GROUP_CONCAT(
+                       DISTINCT CASE
+                           WHEN wal.is_correct = FALSE OR wal.is_skipped = TRUE
+                           THEN wal.surface_text
+                       END
+                       ORDER BY wal.id SEPARATOR '|||'
+                   ) AS problemSegments
+              FROM tests t
+              JOIN test_curriculums tc ON tc.id = t.test_curriculum_id
+              LEFT JOIN word_attempt_logs wal ON wal.test_id = t.id
+             WHERE tc.student_id = :studentId
+               AND t.id = :eventId
+               AND t.status = 'COMPLETED'
+             GROUP BY t.id, t.finished_at, t.started_at, t.created_at, t.accuracy, t.result
+            """, nativeQuery = true)
+    Optional<LearningEventProjection> findTestLearningEvent(
+            @Param("studentId") Long studentId,
+            @Param("eventId") Long eventId
+    );
+
+    @Query(value = """
+            SELECT s.id AS eventId,
+                   s.created_at AS occurredAt,
+                   AVG(wal.total_score) / 10 AS accuracy,
+                   0 AS retryCount,
+                   GROUP_CONCAT(
+                       DISTINCT CASE
+                           WHEN wal.is_correct = FALSE OR wal.is_skipped = TRUE
+                           THEN wal.surface_text
+                       END
+                       ORDER BY wal.id SEPARATOR '|||'
+                   ) AS problemSegments
+              FROM stories s
+              LEFT JOIN story_scenes ss ON ss.story_id = s.id
+              LEFT JOIN story_lines sl ON sl.scene_id = ss.scene_id
+              LEFT JOIN word_attempt_logs wal ON wal.story_line_id = sl.id
+             WHERE s.student_id = :studentId
+               AND s.id = :eventId
+               AND s.status = 'COMPLETED'
+             GROUP BY s.id, s.created_at
+            """, nativeQuery = true)
+    Optional<LearningEventProjection> findStoryLearningEvent(
+            @Param("studentId") Long studentId,
+            @Param("eventId") Long eventId
+    );
+
+    @Query(value = """
+            SELECT gs.id AS eventId,
+                   COALESCE(gs.ended_at, gs.created_at) AS occurredAt,
+                   NULL AS accuracy,
+                   0 AS retryCount,
+                   CASE WHEN gs.status = 'FAILED' THEN '시선 분석 실패' ELSE NULL END
+                       AS problemSegments
+              FROM gaze_sessions gs
+             WHERE gs.student_id = :studentId
+               AND gs.id = :eventId
+               AND gs.status IN ('COMPLETED', 'FAILED')
+            """, nativeQuery = true)
+    Optional<LearningEventProjection> findGazeLearningEvent(
+            @Param("studentId") Long studentId,
+            @Param("eventId") Long eventId
+    );
+
+    @Query(value = """
             SELECT tt.id AS trainingTemplateId,
                    cu.id AS curriculumUnitId,
                    cu.unit_name AS curriculumUnitName,
