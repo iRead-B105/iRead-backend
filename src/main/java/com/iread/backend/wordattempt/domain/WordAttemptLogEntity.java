@@ -96,7 +96,7 @@ public class WordAttemptLogEntity {
     @Column(name = "is_correct")
     private Boolean correct;
 
-    @Column(name = "total_score", nullable = false)
+    @Column(name = "total_score")
     private Integer totalScore;
 
     @CreationTimestamp

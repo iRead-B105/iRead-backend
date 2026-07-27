@@ -23,14 +23,17 @@ class EntitySchemaShapeTest {
             "CREATE TABLE `([^`]+)` \\((.*?)\\n\\);",
             Pattern.DOTALL
     );
-    private static final Pattern COLUMN_PATTERN = Pattern.compile("^\\s*`([^`]+)`\\s+", Pattern.MULTILINE);
+    private static final Pattern COLUMN_PATTERN = Pattern.compile(
+            "^\\s*`([^`]+)`\\s+([^\\r\\n]+)",
+            Pattern.MULTILINE
+    );
 
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired ResourceLoader resourceLoader;
 
     @Test
     void entityTablesUseOnlyColumnsFromAcceptedFlywaySchema() throws Exception {
-        Map<String, Set<String>> accepted = acceptedSchemaColumns();
+        Map<String, Map<String, Boolean>> accepted = acceptedSchemaColumns();
         Set<String> entityTables = new LinkedHashSet<>(jdbcTemplate.queryForList(
                 """
                 SELECT table_name
@@ -43,36 +46,54 @@ class EntitySchemaShapeTest {
 
         assertThat(entityTables).isSubsetOf(accepted.keySet());
         for (String table : entityTables) {
-            Set<String> actualColumns = new LinkedHashSet<>(jdbcTemplate.queryForList(
+            Map<String, Boolean> actualColumns = jdbcTemplate.query(
                     """
-                    SELECT column_name
+                    SELECT column_name, is_nullable
                       FROM information_schema.columns
                      WHERE table_schema = 'public'
                        AND table_name = ?
                     """,
-                    String.class,
+                    resultSet -> {
+                        Map<String, Boolean> columns = new LinkedHashMap<>();
+                        while (resultSet.next()) {
+                            columns.put(
+                                    resultSet.getString("column_name"),
+                                    "YES".equalsIgnoreCase(resultSet.getString("is_nullable"))
+                            );
+                        }
+                        return columns;
+                    },
                     table
-            ));
-            assertThat(actualColumns)
+            );
+            assertThat(actualColumns.keySet())
                     .as("entity table %s columns", table)
-                    .containsExactlyInAnyOrderElementsOf(accepted.get(table));
+                    .containsExactlyInAnyOrderElementsOf(accepted.get(table).keySet());
+            for (Map.Entry<String, Boolean> column : accepted.get(table).entrySet()) {
+                assertThat(actualColumns.get(column.getKey()))
+                        .as("entity table %s column %s nullable", table, column.getKey())
+                        .isEqualTo(column.getValue());
+            }
         }
     }
 
-    private Map<String, Set<String>> acceptedSchemaColumns() throws Exception {
+    private Map<String, Map<String, Boolean>> acceptedSchemaColumns() throws Exception {
         String sql;
         try (var input = resourceLoader
                 .getResource("classpath:db/migration/V1__baseline_schema.sql")
                 .getInputStream()) {
             sql = new String(input.readAllBytes(), StandardCharsets.UTF_8);
         }
-        Map<String, Set<String>> tables = new LinkedHashMap<>();
+        Map<String, Map<String, Boolean>> tables = new LinkedHashMap<>();
         Matcher tableMatcher = TABLE_PATTERN.matcher(sql);
         while (tableMatcher.find()) {
-            Set<String> columns = new LinkedHashSet<>();
+            Map<String, Boolean> columns = new LinkedHashMap<>();
             Matcher columnMatcher = COLUMN_PATTERN.matcher(tableMatcher.group(2));
             while (columnMatcher.find()) {
-                columns.add(columnMatcher.group(1).toLowerCase(Locale.ROOT));
+                String definition = columnMatcher.group(2).toUpperCase(Locale.ROOT);
+                columns.put(
+                        columnMatcher.group(1).toLowerCase(Locale.ROOT),
+                        !definition.contains("NOT NULL")
+                );
             }
             tables.put(tableMatcher.group(1).toLowerCase(Locale.ROOT), columns);
         }
