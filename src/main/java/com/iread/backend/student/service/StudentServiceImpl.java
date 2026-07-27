@@ -121,7 +121,7 @@ public class StudentServiceImpl implements StudentService {
                 .guardian(request.guardian())
                 .guardianContact(request.guardianContact())
                 .guardianEmail(request.guardianEmail())
-                .address(request.address())
+                .address(normalizeAddress(request.address()))
                 .imageUrl(imageUrl)
                 .build();
 
@@ -173,7 +173,7 @@ public class StudentServiceImpl implements StudentService {
                 request.guardian(),
                 request.guardianContact(),
                 request.guardianEmail(),
-                request.address(),
+                normalizeAddress(request.address()),
                 imageUrl,
                 updateImage
         );
@@ -438,6 +438,40 @@ public class StudentServiceImpl implements StudentService {
         return slash < 0 ? imageUrl : imageUrl.substring(slash + 1);
     }
 
+    private String normalizeAddress(Object address) {
+        if (address == null) {
+            return null;
+        }
+        String normalized;
+        if (address instanceof String text) {
+            normalized = text.trim();
+        } else {
+            try {
+                normalized = objectMapper.writeValueAsString(address);
+            } catch (Exception exception) {
+                throw new IllegalArgumentException("주소 형식이 올바르지 않습니다.");
+            }
+        }
+        if (normalized.length() > 100) {
+            throw new IllegalArgumentException("주소는 100자 이하여야 합니다.");
+        }
+        return normalized.isBlank() ? null : normalized;
+    }
+
+    private Object contractAddress(String address) {
+        if (address == null || address.isBlank()) {
+            return List.of();
+        }
+        if (address.startsWith("[")) {
+            try {
+                return objectMapper.readTree(address);
+            } catch (Exception exception) {
+                throw new IllegalStateException("저장된 주소 형식이 올바르지 않습니다.");
+            }
+        }
+        return List.of(Map.of("value", address));
+    }
+
     private StudentListResponse toListResponse(
             StudentEntity student,
             StudentRepository.StudentLearningSummaryProjection summary
@@ -467,9 +501,10 @@ public class StudentServiceImpl implements StudentService {
                 student.getGuardian(),
                 student.getGuardianContact(),
                 student.getGuardianEmail(),
-                student.getAddress(),
+                contractAddress(student.getAddress()),
                 student.getImageUrl(),
-                student.getTeacherMemo()
+                student.getTeacherMemo(),
+                student.getCreatedAt()
         );
     }
 
