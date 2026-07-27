@@ -1,6 +1,7 @@
 package com.iread.backend.test.domain;
 
 import com.iread.backend.student.domain.StudentEntity;
+import com.iread.backend.training.domain.TrainingTemplateEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -19,20 +20,37 @@ public class StudentTestEntity {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "student_id", nullable = false)
-    private StudentEntity student;
+    @JoinColumn(name = "test_curriculum_id", nullable = false)
+    private TestCurriculumEntity testCurriculum;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "training_template_id", nullable = false)
+    private TrainingTemplateEntity trainingTemplate;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(length = 20)
     private TestStatus status;
 
     @Column(columnDefinition = "json")
     private String result;
 
-    @Column(precision = 5, scale = 2)
+    @Column(precision = 10)
     private BigDecimal accuracy;
+
+    @Column(name = "started_at")
+    private LocalDateTime startedAt;
+
+    @Column(name = "finished_at")
+    private LocalDateTime finishedAt;
+
+    @Column(name = "sequence_no", nullable = false)
+    private Integer sequenceNo;
+
+    public StudentEntity getStudent() {
+        return testCurriculum.getStudent();
+    }
 }

@@ -50,7 +50,7 @@ public class TestService {
             return new TestCompareResponse(toDetail(current), List.of());
         }
         Map<Long, StudentTestEntity> comparisons = testRepository
-                .findAllByIdInAndStudentIdAndStatus(
+                .findAllByIdInAndTestCurriculumStudentIdAndStatus(
                         resolvedComparisonIds, studentId, TestStatus.COMPLETED
                 )
                 .stream().collect(Collectors.toMap(StudentTestEntity::getId, Function.identity()));
@@ -91,11 +91,13 @@ public class TestService {
     }
 
     private List<StudentTestEntity> completedTests(Long studentId) {
-        return testRepository.findAllByStudentIdAndStatusOrderByCreatedAtDesc(studentId, TestStatus.COMPLETED);
+        return testRepository.findAllByTestCurriculumStudentIdAndStatusOrderByCreatedAtDesc(
+                studentId, TestStatus.COMPLETED);
     }
 
     private StudentTestEntity findCompletedTest(Long studentId, Long testId) {
-        return testRepository.findByIdAndStudentIdAndStatus(testId, studentId, TestStatus.COMPLETED)
+        return testRepository.findByIdAndTestCurriculumStudentIdAndStatus(
+                        testId, studentId, TestStatus.COMPLETED)
                 .orElseThrow(() -> new ResourceNotFoundException("완료된 테스트를 찾을 수 없습니다."));
     }
 

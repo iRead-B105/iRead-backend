@@ -57,7 +57,7 @@ public class ReportService {
                 .findAllByDailyCurriculumStudentIdAndStatusAndFinishedAtBetweenOrderByFinishedAtAsc(
                         request.studentId(), TrainingStatus.COMPLETED, start, endExclusive);
         List<StudentTestEntity> tests = testRepository
-                .findAllByStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
+                .findAllByTestCurriculumStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
                         request.studentId(), TestStatus.COMPLETED, start, endExclusive);
 
         ReportSnapshot snapshot = buildSnapshot(request.studentId(), trainings, tests);

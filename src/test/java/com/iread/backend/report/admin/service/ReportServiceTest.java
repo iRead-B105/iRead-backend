@@ -56,7 +56,7 @@ class ReportServiceTest {
         when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
         when(trainingRepository.findAllByDailyCurriculumStudentIdAndStatusAndFinishedAtBetweenOrderByFinishedAtAsc(
                 any(), any(), any(), any())).thenReturn(List.of());
-        when(testRepository.findAllByStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
+        when(testRepository.findAllByTestCurriculumStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
                 any(), any(), any(), any())).thenReturn(List.of());
         when(wordStatRepository.findAllByStudentId(10L)).thenReturn(List.of());
         when(reportRepository.saveAndFlush(any())).thenAnswer(invocation -> {
