@@ -1,5 +1,6 @@
 package com.iread.backend.test.admin.service;
 
+import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.test.admin.dto.res.TestCompareResponse;
 import com.iread.backend.test.admin.dto.res.TestListResponse;
@@ -54,7 +55,7 @@ public class TestService {
                 )
                 .stream().collect(Collectors.toMap(StudentTestEntity::getId, Function.identity()));
         if (comparisons.size() != resolvedComparisonIds.size()) {
-            throw new IllegalArgumentException("완료된 비교 테스트를 찾을 수 없습니다.");
+            throw new ResourceNotFoundException("완료된 비교 테스트를 찾을 수 없습니다.");
         }
 
         return new TestCompareResponse(
@@ -95,12 +96,12 @@ public class TestService {
 
     private StudentTestEntity findCompletedTest(Long studentId, Long testId) {
         return testRepository.findByIdAndStudentIdAndStatus(testId, studentId, TestStatus.COMPLETED)
-                .orElseThrow(() -> new IllegalArgumentException("완료된 테스트를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("완료된 테스트를 찾을 수 없습니다."));
     }
 
     private void validateStudentOwner(Long teacherId, Long studentId) {
         studentRepository.findByIdAndTeacherId(studentId, teacherId)
-                .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("학생을 찾을 수 없습니다."));
     }
 
     private JsonNode parseResult(String result) {

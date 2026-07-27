@@ -65,7 +65,7 @@ public class ReportController {
     public UpdateReportMemoResponse updateReportMemo(
             @CurrentTeacherId Long teacherId,
             @PathVariable Long reportId,
-            @RequestBody UpdateReportMemoRequest request
+            @Valid @RequestBody UpdateReportMemoRequest request
     ) {
         return reportService.updateReportMemo(teacherId, reportId, request.teacherMemo());
     }

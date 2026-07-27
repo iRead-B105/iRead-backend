@@ -5,6 +5,8 @@ import com.iread.backend.teacher.admin.dto.res.TeacherInfoResponse;
 import com.iread.backend.teacher.admin.dto.req.UpdateTeacherProfileRequest;
 import com.iread.backend.global.storage.FileStorage;
 import com.iread.backend.global.storage.StoredFile;
+import com.iread.backend.exception.ConflictException;
+import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.teacher.repository.TeacherRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,7 +31,7 @@ public class TeacherService {
     public TeacherInfoResponse updateProfile(Long teacherId, UpdateTeacherProfileRequest request) {
         TeacherEntity teacher = findTeacher(teacherId);
         if (teacherRepository.existsByEmailAndIdNot(request.email(), teacherId)) {
-            throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
+            throw new ConflictException("이미 사용 중인 이메일입니다.");
         }
         teacher.updateProfile(request.email(), request.name(), request.organization(), request.gender());
         return TeacherInfoResponse.from(teacher, teacher.getImageUrl());
@@ -55,7 +57,7 @@ public class TeacherService {
 
     private TeacherEntity findTeacher(Long teacherId) {
         return teacherRepository.findById(teacherId)
-                .orElseThrow(() -> new IllegalArgumentException("교사를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("교사를 찾을 수 없습니다."));
     }
 
     private String fileNameOf(String imageUrl) {

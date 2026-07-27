@@ -2,6 +2,7 @@ package com.iread.backend.report.admin.service;
 
 import com.iread.backend.gaze.domain.GazeAnalysisResultEntity;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
+import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.report.admin.dto.req.CreateReportRequest;
 import com.iread.backend.report.admin.dto.res.*;
 import com.iread.backend.report.domain.ReportEntity;
@@ -48,7 +49,7 @@ public class ReportService {
             throw new IllegalArgumentException("시작일은 종료일보다 늦을 수 없습니다.");
         }
         StudentEntity student = studentRepository.findByIdAndTeacherId(request.studentId(), teacherId)
-                .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("학생을 찾을 수 없습니다."));
 
         LocalDateTime start = request.startDate().atStartOfDay();
         LocalDateTime endExclusive = request.endDate().plusDays(1).atStartOfDay();
@@ -103,7 +104,9 @@ public class ReportService {
             reports = reportRepository.findAllByStudentTeacherIdOrderByCreatedAtDesc(teacherId);
         } else {
             studentRepository.findByIdAndTeacherId(studentId, teacherId)
-                    .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다."));
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "학생을 찾을 수 없습니다."
+                    ));
             reports = reportRepository
                     .findAllByStudentIdAndStudentTeacherIdOrderByCreatedAtDesc(studentId, teacherId);
         }
@@ -132,7 +135,7 @@ public class ReportService {
                 .findByIdAndGazeSessionStudentTeacherId(gazeAnalysisResultId, teacherId)
                 .filter(candidate -> candidate.getGazeSession().getStudent().getId()
                         .equals(report.getStudent().getId()))
-                .orElseThrow(() -> new IllegalArgumentException(
+                .orElseThrow(() -> new ResourceNotFoundException(
                         "보고서 아동의 시선 분석 결과를 찾을 수 없습니다."
                 ));
         ReportSnapshot snapshot = readSnapshot(report.getSnapshotData());
@@ -167,7 +170,7 @@ public class ReportService {
 
     private ReportEntity findOwnedReport(Long teacherId, Long reportId) {
         return reportRepository.findByIdAndStudentTeacherId(reportId, teacherId)
-                .orElseThrow(() -> new IllegalArgumentException("리포트를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("리포트를 찾을 수 없습니다."));
     }
 
     private ReportListResponse toListResponse(ReportEntity report) {

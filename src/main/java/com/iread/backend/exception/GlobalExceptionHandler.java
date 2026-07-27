@@ -4,9 +4,15 @@ import com.iread.backend.auth.exception.AuthException;
 import com.iread.backend.global.api.ApiErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -15,6 +21,60 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleAuth(AuthException exception) {
         return ResponseEntity.status(exception.status()).body(
                 ApiErrorResponse.of(exception.code(), exception.getMessage())
+        );
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleNotFound(
+            ResourceNotFoundException exception
+    ) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
+                ApiErrorResponse.of("RESOURCE_NOT_FOUND", exception.getMessage())
+        );
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ApiErrorResponse> handleConflict(ConflictException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                ApiErrorResponse.of("CONFLICT", exception.getMessage())
+        );
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiErrorResponse> handleDataConflict(
+            DataIntegrityViolationException exception
+    ) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                ApiErrorResponse.of("CONFLICT", "이미 존재하거나 사용 중인 데이터입니다.")
+        );
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiErrorResponse> handleAuthentication(
+            AuthenticationException exception
+    ) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+                ApiErrorResponse.of("UNAUTHORIZED", "인증이 필요합니다.")
+        );
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiErrorResponse> handleAccessDenied(
+            AccessDeniedException exception
+    ) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                ApiErrorResponse.of("FORBIDDEN", "접근 권한이 없습니다.")
+        );
+    }
+
+    @ExceptionHandler({
+            MissingServletRequestParameterException.class,
+            MethodArgumentTypeMismatchException.class,
+            HttpMessageNotReadableException.class
+    })
+    public ResponseEntity<ApiErrorResponse> handleMalformedRequest(Exception exception) {
+        return ResponseEntity.badRequest().body(
+                ApiErrorResponse.of("INVALID_REQUEST", "요청 값의 형식이 올바르지 않습니다.")
         );
     }
 
@@ -38,9 +98,16 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<ApiErrorResponse> handleUnauthorized(IllegalStateException exception) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
-                ApiErrorResponse.of("UNAUTHORIZED", exception.getMessage())
+    public ResponseEntity<ApiErrorResponse> handleInvalidState(IllegalStateException exception) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                ApiErrorResponse.of("CONFLICT", exception.getMessage())
+        );
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiErrorResponse> handleUnexpected(Exception exception) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ApiErrorResponse.of("INTERNAL_ERROR", "서버 처리 중 오류가 발생했습니다.")
         );
     }
 }

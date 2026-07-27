@@ -2,6 +2,7 @@ package com.iread.backend.student.service;
 
 import com.iread.backend.global.storage.FileStorage;
 import com.iread.backend.global.storage.StoredFile;
+import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.dto.req.StudentRequest;
 import com.iread.backend.student.dto.res.AccuracyTrendResponse;
@@ -244,7 +245,7 @@ public class StudentServiceImpl implements StudentService {
         findOwnedStudent(teacherId, studentId);
         StudentRepository.LearningEventProjection event =
                 studentRepository.findLearningEvent(studentId, eventId)
-                        .orElseThrow(() -> new IllegalArgumentException(
+                        .orElseThrow(() -> new ResourceNotFoundException(
                                 "학습 이벤트를 찾을 수 없습니다."
                         ));
         StudentRepository.LearningOverviewProjection overview =
@@ -342,7 +343,7 @@ public class StudentServiceImpl implements StudentService {
 
     private TeacherEntity validateTeacher(Long teacherId) {
         return teacherRepository.findById(teacherId)
-                .orElseThrow(() -> new IllegalArgumentException("교사를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("교사를 찾을 수 없습니다."));
     }
 
     private void validateStudentFilters(
@@ -416,7 +417,7 @@ public class StudentServiceImpl implements StudentService {
 
     private StudentEntity findOwnedStudent(Long teacherId, Long studentId) {
         return studentRepository.findByIdAndTeacherId(studentId, teacherId)
-                .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("학생을 찾을 수 없습니다."));
     }
 
     private String fileNameOf(String imageUrl) {
