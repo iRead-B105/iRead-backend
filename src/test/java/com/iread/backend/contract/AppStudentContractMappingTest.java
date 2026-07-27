@@ -32,7 +32,14 @@ class AppStudentContractMappingTest {
 
         assertThat(actual).contains(
                 new Route(RequestMethod.GET, "/api/app/mypage/character"),
-                new Route(RequestMethod.GET, "/api/app/student/{studentId}/growth")
+                new Route(RequestMethod.GET, "/api/app/student/{studentId}/growth"),
+                new Route(RequestMethod.GET, "/api/app/training/{studentId}/{trainingId}/intro"),
+                new Route(RequestMethod.GET, "/api/app/training/{studentId}/{trainingId}/questions/{questionNumber}"),
+                new Route(RequestMethod.POST, "/api/app/training/{studentId}/{trainingId}/start"),
+                new Route(RequestMethod.POST, "/api/app/training/{studentId}/{trainingId}/session-reset"),
+                new Route(RequestMethod.POST, "/api/app/training/{studentId}/{trainingId}/questions/{questionNumber}/recordings"),
+                new Route(RequestMethod.POST, "/api/app/training/{studentId}/{trainingId}/questions/{questionNumber}/responses"),
+                new Route(RequestMethod.POST, "/api/app/training/{studentId}/{trainingId}/complete")
         );
     }
 

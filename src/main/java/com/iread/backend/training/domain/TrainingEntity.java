@@ -74,6 +74,17 @@ public class TrainingEntity {
         this.status = TrainingStatus.IN_PROGRESS;
     }
 
+    public void reset() {
+        if (status == TrainingStatus.COMPLETED) {
+            throw new IllegalStateException("완료된 훈련은 초기화할 수 없습니다.");
+        }
+        startedAt = null;
+        finishedAt = null;
+        result = null;
+        accuracy = null;
+        status = TrainingStatus.NOT_STARTED;
+    }
+
     public void complete(String result, BigDecimal accuracy, LocalDateTime finishedAt) {
         this.result = result;
         this.accuracy = accuracy;
