@@ -31,7 +31,7 @@ public class StoryLineEntity {
     @Column(name = "image_url", length = 255)
     private String imageUrl;
 
-    @Column(name = "requires_branch_input", nullable = false)
+    @Column(name = "has_choices", nullable = false)
     private boolean requiresBranchInput;
 
     @Column(nullable = false, columnDefinition = "text")

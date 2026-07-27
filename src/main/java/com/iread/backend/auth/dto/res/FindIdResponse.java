@@ -1,10 +1,10 @@
 package com.iread.backend.auth.dto.res;
 
 public record FindIdResponse(
-        String maskedLoginId,
+        String maskedEmail,
         String verificationStatus
 ) {
-    public static FindIdResponse completed(String maskedLoginId) {
-        return new FindIdResponse(maskedLoginId, "COMPLETED");
+    public static FindIdResponse completed(String maskedEmail) {
+        return new FindIdResponse(maskedEmail, "COMPLETED");
     }
 }

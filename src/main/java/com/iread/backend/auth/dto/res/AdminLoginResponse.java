@@ -4,7 +4,6 @@ import com.iread.backend.teacher.domain.TeacherEntity;
 
 public record AdminLoginResponse(
         String teacherId,
-        String loginId,
         String email,
         String name,
         String organization,
@@ -21,7 +20,6 @@ public record AdminLoginResponse(
     ) {
         return new AdminLoginResponse(
                 teacher.getId().toString(),
-                teacher.getLoginId(),
                 teacher.getEmail(),
                 teacher.getName(),
                 teacher.getOrganization(),

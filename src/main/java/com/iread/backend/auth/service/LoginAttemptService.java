@@ -20,8 +20,8 @@ public class LoginAttemptService {
 
     private final ConcurrentHashMap<String, Attempt> attempts = new ConcurrentHashMap<>();
 
-    public void checkAllowed(String loginId) {
-        String key = hash(loginId);
+    public void checkAllowed(String email) {
+        String key = hash(email);
         Attempt attempt = attempts.get(key);
         if (attempt == null) {
             return;
@@ -39,8 +39,8 @@ public class LoginAttemptService {
         }
     }
 
-    public void recordFailure(String loginId) {
-        String key = hash(loginId);
+    public void recordFailure(String email) {
+        String key = hash(email);
         Instant now = Instant.now();
         attempts.compute(key, (ignored, current) -> {
             if (current == null || current.windowStartedAt().plus(WINDOW).isBefore(now)) {
@@ -50,8 +50,8 @@ public class LoginAttemptService {
         });
     }
 
-    public void clear(String loginId) {
-        attempts.remove(hash(loginId));
+    public void clear(String email) {
+        attempts.remove(hash(email));
     }
 
     private String hash(String value) {

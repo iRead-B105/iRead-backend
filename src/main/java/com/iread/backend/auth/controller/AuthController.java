@@ -41,7 +41,7 @@ public class AuthController {
         this.cookieService = cookieService;
     }
 
-    @Operation(summary = "교수자 아이디 찾기")
+    @Operation(summary = "교수자 로그인 이메일 확인")
     @PostMapping("/admin/find-id")
     public FindIdResponse findId(@Valid @RequestBody FindIdRequest request) {
         return authService.findId(request);
