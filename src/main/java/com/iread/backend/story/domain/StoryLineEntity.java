@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Getter
 @Entity
 @Table(name = "story_lines", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_story_lines_story_sequence", columnNames = {"story_id", "sequence_no"})
+        @UniqueConstraint(name = "uk_story_lines_scene_sequence", columnNames = {"scene_id", "sequence_no"})
 })
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class StoryLineEntity {
@@ -20,15 +20,17 @@ public class StoryLineEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "previous_line_id")
+    @Transient
     private StoryLineEntity previousStoryLine;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "story_id", nullable = false)
+    @JoinColumn(name = "scene_id", nullable = false)
+    private StorySceneEntity scene;
+
+    @Transient
     private StoryEntity story;
 
-    @Column(name = "image_url", length = 255)
+    @Transient
     private String imageUrl;
 
     @Column(name = "has_choices", nullable = false)
@@ -61,5 +63,13 @@ public class StoryLineEntity {
         if (this.readAt == null) {
             this.readAt = readAt;
         }
+    }
+
+    public StoryEntity getStory() {
+        return scene == null ? story : scene.getStory();
+    }
+
+    public String getImageUrl() {
+        return scene == null ? imageUrl : scene.getImageUrl();
     }
 }
