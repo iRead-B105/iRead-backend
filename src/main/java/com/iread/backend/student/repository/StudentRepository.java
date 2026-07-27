@@ -15,6 +15,17 @@ import java.util.Optional;
 public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
     List<StudentEntity> findAllByTeacherIdOrderByIdAsc(Long teacherId);
     Optional<StudentEntity> findByIdAndTeacherId(Long id, Long teacherId);
+    long countByTeacherId(Long teacherId);
+
+    @Query(value = """
+            SELECT COUNT(DISTINCT dc.student_id)
+              FROM daily_curriculums dc
+              JOIN students s ON s.id = dc.student_id
+             WHERE s.teacher_id = :teacherId
+               AND DATE(dc.created_at) = CURRENT_DATE
+               AND dc.status IN ('NOT_STARTED', 'IN_PROGRESS')
+            """, nativeQuery = true)
+    long countScheduledToday(@Param("teacherId") Long teacherId);
 
     @Query(value = """
             SELECT s.id AS studentId,
@@ -53,17 +64,150 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
 
     @Query(value = """
             SELECT t.id AS trainingId, DATE(t.started_at) AS learningDate, tt.name AS learningType,
+                   cu.unit_name AS learningCategory,
                    t.started_at AS startedAt, t.finished_at AS finishedAt, t.accuracy AS achievement,
                    t.result AS result
               FROM daily_curriculums dc
               JOIN trainings t ON t.daily_curriculum_id = dc.id
               JOIN training_templates tt ON tt.id = t.training_template_id
+              JOIN curriculum_units cu ON cu.id = tt.curriculum_unit_id
              WHERE dc.student_id = :studentId
                AND t.status = 'COMPLETED'
                AND t.finished_at IS NOT NULL
              ORDER BY t.finished_at DESC, t.id DESC
             """, nativeQuery = true)
     List<TrainingHistoryProjection> findTrainingHistory(@Param("studentId") Long studentId);
+
+    @Query(value = """
+            SELECT (
+                       SELECT cu.unit_name
+                         FROM trainings t
+                         JOIN daily_curriculums dc ON dc.id = t.daily_curriculum_id
+                         JOIN training_templates tt ON tt.id = t.training_template_id
+                         JOIN curriculum_units cu ON cu.id = tt.curriculum_unit_id
+                        WHERE dc.student_id = :studentId
+                        ORDER BY COALESCE(t.finished_at, t.started_at, t.created_at) DESC, t.id DESC
+                        LIMIT 1
+                   ) AS currentStage,
+                   (
+                       SELECT MAX(event_at)
+                         FROM (
+                               SELECT MAX(t.finished_at) AS event_at
+                                 FROM trainings t
+                                 JOIN daily_curriculums dc ON dc.id = t.daily_curriculum_id
+                                WHERE dc.student_id = :studentId AND t.status = 'COMPLETED'
+                               UNION ALL
+                               SELECT MAX(gs.ended_at)
+                                 FROM gaze_sessions gs
+                                WHERE gs.student_id = :studentId AND gs.status = 'COMPLETED'
+                              ) learning_events
+                   ) AS lastLearningAt,
+                   (
+                       SELECT COUNT(*)
+                         FROM trainings t
+                         JOIN daily_curriculums dc ON dc.id = t.daily_curriculum_id
+                        WHERE dc.student_id = :studentId
+                          AND t.status = 'COMPLETED'
+                          AND t.finished_at >= CURRENT_TIMESTAMP - INTERVAL 6 WEEK
+                   ) AS recentCompletedCount,
+                   (
+                       SELECT AVG(t.accuracy) / 10
+                         FROM trainings t
+                         JOIN daily_curriculums dc ON dc.id = t.daily_curriculum_id
+                        WHERE dc.student_id = :studentId
+                          AND t.status = 'COMPLETED'
+                          AND t.finished_at >= CURRENT_TIMESTAMP - INTERVAL 6 WEEK
+                          AND t.accuracy IS NOT NULL
+                   ) AS recentAverageAccuracy,
+                   (
+                       SELECT COUNT(*)
+                         FROM gaze_sessions gs
+                        WHERE gs.student_id = :studentId
+                          AND gs.id = (
+                              SELECT latest_gs.id
+                                FROM gaze_sessions latest_gs
+                               WHERE latest_gs.student_id = :studentId
+                               ORDER BY COALESCE(
+                                            latest_gs.ended_at,
+                                            latest_gs.created_at
+                                        ) DESC,
+                                        latest_gs.id DESC
+                               LIMIT 1
+                          )
+                          AND gs.status = 'FAILED'
+                          AND COALESCE(gs.ended_at, gs.created_at)
+                              >= CURRENT_TIMESTAMP - INTERVAL 30 DAY
+                   ) AS recentGazeFailureCount
+            """, nativeQuery = true)
+    LearningOverviewProjection findLearningOverview(@Param("studentId") Long studentId);
+
+    @Query(value = """
+            SELECT t.id AS eventId,
+                   t.finished_at AS occurredAt,
+                   t.accuracy / 10 AS accuracy,
+                   COALESCE(CAST(JSON_UNQUOTE(JSON_EXTRACT(t.result, '$.retryCount')) AS SIGNED), 0)
+                       AS retryCount,
+                   GROUP_CONCAT(
+                       DISTINCT CASE
+                           WHEN wal.is_correct = FALSE OR wal.is_skipped = TRUE
+                           THEN wal.surface_text
+                       END
+                       ORDER BY wal.id SEPARATOR '|||'
+                   ) AS problemSegments
+              FROM trainings t
+              JOIN daily_curriculums dc ON dc.id = t.daily_curriculum_id
+              LEFT JOIN word_attempt_logs wal ON wal.training_id = t.id
+             WHERE dc.student_id = :studentId
+               AND t.id = :eventId
+               AND t.status = 'COMPLETED'
+             GROUP BY t.id, t.finished_at, t.accuracy, t.result
+            """, nativeQuery = true)
+    Optional<LearningEventProjection> findLearningEvent(
+            @Param("studentId") Long studentId,
+            @Param("eventId") Long eventId
+    );
+
+    @Query(value = """
+            SELECT tt.id AS trainingTemplateId,
+                   cu.id AS curriculumUnitId,
+                   cu.unit_name AS curriculumUnitName,
+                   performance.averageAccuracy AS averageAccuracy
+              FROM training_templates tt
+              JOIN curriculum_units cu ON cu.id = tt.curriculum_unit_id
+              LEFT JOIN (
+                    SELECT tt2.curriculum_unit_id AS curriculumUnitId,
+                           AVG(t2.accuracy) / 10 AS averageAccuracy,
+                           COUNT(*) AS completedAttempts
+                      FROM trainings t2
+                      JOIN daily_curriculums dc2 ON dc2.id = t2.daily_curriculum_id
+                      JOIN training_templates tt2 ON tt2.id = t2.training_template_id
+                     WHERE dc2.student_id = :studentId
+                       AND t2.status = 'COMPLETED'
+                       AND t2.finished_at >= CURRENT_TIMESTAMP - INTERVAL 6 WEEK
+                       AND t2.accuracy IS NOT NULL
+                     GROUP BY tt2.curriculum_unit_id
+              ) performance ON performance.curriculumUnitId = cu.id
+             WHERE NOT EXISTS (
+                    SELECT 1
+                      FROM trainings completed
+                      JOIN daily_curriculums completed_dc
+                        ON completed_dc.id = completed.daily_curriculum_id
+                     WHERE completed_dc.student_id = :studentId
+                       AND completed.training_template_id = tt.id
+                       AND completed.status = 'COMPLETED'
+             )
+             ORDER BY CASE WHEN performance.averageAccuracy IS NULL THEN 1 ELSE 0 END,
+                      performance.averageAccuracy ASC,
+                      performance.completedAttempts DESC,
+                      cu.sequence_no ASC,
+                      cu.id ASC,
+                      tt.sequence_no ASC,
+                      tt.id ASC
+             LIMIT 1
+            """, nativeQuery = true)
+    Optional<TrainingRecommendationProjection> findTrainingRecommendation(
+            @Param("studentId") Long studentId
+    );
 
     @Query(value = """
             SELECT wal.training_id AS trainingId,
@@ -174,6 +318,7 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
         Long getTrainingId();
         LocalDate getLearningDate();
         String getLearningType();
+        String getLearningCategory();
         LocalDateTime getStartedAt();
         LocalDateTime getFinishedAt();
         BigDecimal getAchievement();
@@ -187,5 +332,28 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
         Long getVoiceDurationMs();
         Long getGazeWordCount();
         Long getGazeDurationMs();
+    }
+
+    interface LearningOverviewProjection {
+        String getCurrentStage();
+        LocalDateTime getLastLearningAt();
+        Long getRecentCompletedCount();
+        BigDecimal getRecentAverageAccuracy();
+        Long getRecentGazeFailureCount();
+    }
+
+    interface LearningEventProjection {
+        Long getEventId();
+        LocalDateTime getOccurredAt();
+        BigDecimal getAccuracy();
+        Long getRetryCount();
+        String getProblemSegments();
+    }
+
+    interface TrainingRecommendationProjection {
+        Long getTrainingTemplateId();
+        Long getCurriculumUnitId();
+        String getCurriculumUnitName();
+        BigDecimal getAverageAccuracy();
     }
 }

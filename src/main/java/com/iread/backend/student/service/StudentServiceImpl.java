@@ -5,9 +5,12 @@ import com.iread.backend.global.storage.StoredFile;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.dto.req.StudentRequest;
 import com.iread.backend.student.dto.res.AccuracyTrendResponse;
+import com.iread.backend.student.dto.res.LearningEventResponse;
+import com.iread.backend.student.dto.res.LearningSummaryResponse;
 import com.iread.backend.student.dto.res.ReadingSpeedTrendResponse;
 import com.iread.backend.student.dto.res.StudentListResponse;
 import com.iread.backend.student.dto.res.StudentResponse;
+import com.iread.backend.student.dto.res.StudentSummaryResponse;
 import com.iread.backend.student.dto.res.TrainingHistoryResponse;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.teacher.domain.TeacherEntity;
@@ -23,6 +26,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.Period;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -42,8 +48,16 @@ public class StudentServiceImpl implements StudentService {
     private final ObjectMapper objectMapper;
 
     @Override
-    public List<StudentListResponse> getStudents(Long teacherId) {
+    public List<StudentListResponse> getStudents(
+            Long teacherId,
+            String keyword,
+            Integer minAge,
+            Integer maxAge,
+            LocalDate learnedFrom,
+            LocalDate learnedTo
+    ) {
         validateTeacher(teacherId);
+        validateStudentFilters(minAge, maxAge, learnedFrom, learnedTo);
 
         Map<Long, StudentRepository.StudentLearningSummaryProjection> summaries =
                 studentRepository.findLearningSummaries(teacherId).stream()
@@ -54,7 +68,25 @@ public class StudentServiceImpl implements StudentService {
 
         return studentRepository.findAllByTeacherIdOrderByIdAsc(teacherId).stream()
                 .map(student -> toListResponse(student, summaries.get(student.getId())))
+                .filter(student -> matchesKeyword(student, keyword))
+                .filter(student -> minAge == null || student.age() != null && student.age() >= minAge)
+                .filter(student -> maxAge == null || student.age() != null && student.age() <= maxAge)
+                .filter(student -> learnedFrom == null
+                        || student.lastLearningDate() != null
+                        && !student.lastLearningDate().isBefore(learnedFrom))
+                .filter(student -> learnedTo == null
+                        || student.lastLearningDate() != null
+                        && !student.lastLearningDate().isAfter(learnedTo))
                 .toList();
+    }
+
+    @Override
+    public StudentSummaryResponse getStudentSummary(Long teacherId) {
+        validateTeacher(teacherId);
+        return new StudentSummaryResponse(
+                studentRepository.countByTeacherId(teacherId),
+                studentRepository.countScheduledToday(teacherId)
+        );
     }
 
     @Override
@@ -179,12 +211,65 @@ public class StudentServiceImpl implements StudentService {
                         row.getTrainingId(),
                         row.getLearningDate(),
                         row.getLearningType(),
+                        row.getLearningCategory(),
                         row.getStartedAt(),
                         row.getFinishedAt(),
                         row.getAchievement(),
                         parseTrainingQuestions(row.getResult())
                 ))
                 .toList();
+    }
+
+    @Override
+    public LearningSummaryResponse getLearningSummary(Long teacherId, Long studentId) {
+        findOwnedStudent(teacherId, studentId);
+        StudentRepository.LearningOverviewProjection overview =
+                studentRepository.findLearningOverview(studentId);
+        List<String> attentionReasons = attentionReasons(overview);
+        return new LearningSummaryResponse(
+                studentId,
+                overview == null ? null : overview.getCurrentStage(),
+                overview == null ? null : overview.getLastLearningAt(),
+                attentionReasons.size(),
+                attentionReasons
+        );
+    }
+
+    @Override
+    public LearningEventResponse getLearningEvent(
+            Long teacherId,
+            Long studentId,
+            Long eventId
+    ) {
+        findOwnedStudent(teacherId, studentId);
+        StudentRepository.LearningEventProjection event =
+                studentRepository.findLearningEvent(studentId, eventId)
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                "학습 이벤트를 찾을 수 없습니다."
+                        ));
+        StudentRepository.LearningOverviewProjection overview =
+                studentRepository.findLearningOverview(studentId);
+        List<String> attentionReasons = attentionReasons(overview);
+        StudentRepository.TrainingRecommendationProjection recommendation =
+                studentRepository.findTrainingRecommendation(studentId).orElse(null);
+
+        return new LearningEventResponse(
+                event.getEventId(),
+                "TRAINING",
+                event.getOccurredAt(),
+                event.getEventId(),
+                event.getAccuracy(),
+                event.getRetryCount() == null ? 0 : event.getRetryCount(),
+                splitProblemSegments(event.getProblemSegments()),
+                !attentionReasons.isEmpty(),
+                attentionReasons,
+                recommendation == null ? null : recommendation.getTrainingTemplateId(),
+                recommendation == null ? null : recommendation.getCurriculumUnitId(),
+                recommendation == null ? null : recommendation.getCurriculumUnitName(),
+                recommendationReason(recommendation),
+                recommendation == null ? null : 10,
+                recommendation == null ? null : 2
+        );
     }
 
     @Override
@@ -258,6 +343,75 @@ public class StudentServiceImpl implements StudentService {
     private TeacherEntity validateTeacher(Long teacherId) {
         return teacherRepository.findById(teacherId)
                 .orElseThrow(() -> new IllegalArgumentException("교사를 찾을 수 없습니다."));
+    }
+
+    private void validateStudentFilters(
+            Integer minAge,
+            Integer maxAge,
+            LocalDate learnedFrom,
+            LocalDate learnedTo
+    ) {
+        if (minAge != null && minAge < 0 || maxAge != null && maxAge < 0) {
+            throw new IllegalArgumentException("나이는 0 이상이어야 합니다.");
+        }
+        if (minAge != null && maxAge != null && minAge > maxAge) {
+            throw new IllegalArgumentException("최소 나이는 최대 나이보다 클 수 없습니다.");
+        }
+        if (learnedFrom != null && learnedTo != null && learnedFrom.isAfter(learnedTo)) {
+            throw new IllegalArgumentException("최근 학습 시작일은 종료일보다 늦을 수 없습니다.");
+        }
+    }
+
+    private boolean matchesKeyword(StudentListResponse student, String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return true;
+        }
+        return student.name().toLowerCase().contains(keyword.trim().toLowerCase());
+    }
+
+    private List<String> attentionReasons(
+            StudentRepository.LearningOverviewProjection overview
+    ) {
+        if (overview == null || overview.getLastLearningAt() == null) {
+            return List.of();
+        }
+        List<String> reasons = new ArrayList<>();
+        long completedCount = overview.getRecentCompletedCount() == null
+                ? 0 : overview.getRecentCompletedCount();
+        if (completedCount >= 3
+                && overview.getRecentAverageAccuracy() != null
+                && overview.getRecentAverageAccuracy().compareTo(BigDecimal.valueOf(70)) < 0) {
+            reasons.add("LOW_ACCURACY");
+        }
+        if (overview.getRecentGazeFailureCount() != null
+                && overview.getRecentGazeFailureCount() > 0) {
+            reasons.add("GAZE_ANALYSIS_FAILED");
+        }
+        if (overview.getLastLearningAt().isBefore(LocalDateTime.now().minusDays(14))) {
+            reasons.add("INACTIVE");
+        }
+        return List.copyOf(reasons);
+    }
+
+    private List<String> splitProblemSegments(String problemSegments) {
+        if (problemSegments == null || problemSegments.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(problemSegments.split("\\|\\|\\|"))
+                .filter(segment -> !segment.isBlank())
+                .toList();
+    }
+
+    private String recommendationReason(
+            StudentRepository.TrainingRecommendationProjection recommendation
+    ) {
+        if (recommendation == null) {
+            return null;
+        }
+        if (recommendation.getAverageAccuracy() != null) {
+            return "최근 6주 평균 정확도가 가장 낮은 영역의 다음 미완료 훈련";
+        }
+        return "현재 학습 단계에서 아직 완료하지 않은 다음 훈련";
     }
 
     private StudentEntity findOwnedStudent(Long teacherId, Long studentId) {

@@ -2,12 +2,15 @@ package com.iread.backend.student.controller;
 
 import com.iread.backend.auth.annotation.CurrentTeacherId;
 import com.iread.backend.student.dto.req.StudentRequest;
-import com.iread.backend.student.dto.res.AccuracyTrendResponse;
+import com.iread.backend.student.dto.res.AccuracyTrendDataResponse;
 import com.iread.backend.student.dto.res.CreateStudentResponse;
+import com.iread.backend.student.dto.res.LearningEventResponse;
+import com.iread.backend.student.dto.res.LearningSummaryResponse;
 import com.iread.backend.student.dto.res.ReadingSpeedTrendResponse;
-import com.iread.backend.student.dto.res.StudentListResponse;
+import com.iread.backend.student.dto.res.StudentListDataResponse;
 import com.iread.backend.student.dto.res.StudentResponse;
-import com.iread.backend.student.dto.res.TrainingHistoryResponse;
+import com.iread.backend.student.dto.res.StudentSummaryResponse;
+import com.iread.backend.student.dto.res.TrainingHistoryDataResponse;
 import com.iread.backend.student.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,7 +32,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
-import java.util.List;
 
 @Tag(name = "학생 관리", description = "관리자 앱 학생 관리 API")
 @RestController
@@ -41,8 +43,25 @@ public class StudentController {
 
     @Operation(summary = "담당 학생 목록 조회")
     @GetMapping("/list")
-    public List<StudentListResponse> getStudents(@CurrentTeacherId Long teacherId) {
-        return studentService.getStudents(teacherId);
+    public StudentListDataResponse getStudents(
+            @CurrentTeacherId Long teacherId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer minAge,
+            @RequestParam(required = false) Integer maxAge,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate learnedFrom,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate learnedTo
+    ) {
+        return new StudentListDataResponse(studentService.getStudents(
+                teacherId, keyword, minAge, maxAge, learnedFrom, learnedTo
+        ));
+    }
+
+    @Operation(summary = "담당 아동 수와 오늘 학습 예정 아동 수 조회")
+    @GetMapping("/summary")
+    public StudentSummaryResponse getStudentSummary(@CurrentTeacherId Long teacherId) {
+        return studentService.getStudentSummary(teacherId);
     }
 
     @Operation(summary = "학생 상세 정보 조회")
@@ -104,20 +123,43 @@ public class StudentController {
 
     @Operation(summary = "단어 시도 점수 기반 학생의 일별 읽기 정확도 추이 조회")
     @GetMapping("/{studentId}/accuracy-trend")
-    public List<AccuracyTrendResponse> getAccuracyTrend(
+    public AccuracyTrendDataResponse getAccuracyTrend(
             @CurrentTeacherId Long teacherId,
             @PathVariable Long studentId
     ) {
-        return studentService.getAccuracyTrend(teacherId, studentId);
+        return new AccuracyTrendDataResponse(
+                studentService.getAccuracyTrend(teacherId, studentId)
+        );
     }
 
     @Operation(summary = "학생의 학습 기록 조회")
     @GetMapping("/{studentId}/training-history")
-    public List<TrainingHistoryResponse> getTrainingHistory(
+    public TrainingHistoryDataResponse getTrainingHistory(
             @CurrentTeacherId Long teacherId,
             @PathVariable Long studentId
     ) {
-        return studentService.getTrainingHistory(teacherId, studentId);
+        return new TrainingHistoryDataResponse(
+                studentService.getTrainingHistory(teacherId, studentId)
+        );
+    }
+
+    @Operation(summary = "아동 학습 요약 조회")
+    @GetMapping("/{studentId}/learning-summary")
+    public LearningSummaryResponse getLearningSummary(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId
+    ) {
+        return studentService.getLearningSummary(teacherId, studentId);
+    }
+
+    @Operation(summary = "아동 학습 이벤트 상세와 추천 훈련 조회")
+    @GetMapping("/{studentId}/learning-events")
+    public LearningEventResponse getLearningEvent(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @RequestParam Long eventId
+    ) {
+        return studentService.getLearningEvent(teacherId, studentId, eventId);
     }
 
     @Operation(summary = "학생의 일별 읽기 속도 추이 조회")

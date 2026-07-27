@@ -6,7 +6,7 @@ public record StudentListResponse(
         Long id,
         String name,
         Integer age,
-        LocalDate recentLearningDate,
+        LocalDate lastLearningDate,
         Long totalLearningTime,
         String recentTraining
 ) {

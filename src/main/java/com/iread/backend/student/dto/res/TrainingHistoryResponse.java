@@ -9,9 +9,10 @@ public record TrainingHistoryResponse(
         Long trainingId,
         LocalDate date,
         String learningType,
+        String learningCategory,
         LocalDateTime startedAt,
         LocalDateTime finishedAt,
-        BigDecimal achievement,
+        BigDecimal accuracyRate,
         List<QuestionResult> questions
 ) {
     public record QuestionResult(
