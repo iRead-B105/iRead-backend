@@ -74,9 +74,15 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
              WHERE dc.student_id = :studentId
                AND t.status = 'COMPLETED'
                AND t.finished_at IS NOT NULL
+               AND (:fromDate IS NULL OR DATE(t.finished_at) >= :fromDate)
+               AND (:toDate IS NULL OR DATE(t.finished_at) <= :toDate)
              ORDER BY t.finished_at DESC, t.id DESC
             """, nativeQuery = true)
-    List<TrainingHistoryProjection> findTrainingHistory(@Param("studentId") Long studentId);
+    List<TrainingHistoryProjection> findTrainingHistory(
+            @Param("studentId") Long studentId,
+            @Param("fromDate") LocalDate from,
+            @Param("toDate") LocalDate to
+    );
 
     @Query(value = """
             SELECT (

@@ -259,7 +259,9 @@ class StudentServiceImplTest {
         StudentRepository.TrainingHistoryProjection row =
                 org.mockito.Mockito.mock(StudentRepository.TrainingHistoryProjection.class);
         when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
-        when(studentRepository.findTrainingHistory(10L)).thenReturn(List.of(row));
+        LocalDate from = LocalDate.of(2026, 5, 1);
+        LocalDate to = LocalDate.of(2026, 7, 31);
+        when(studentRepository.findTrainingHistory(10L, from, to)).thenReturn(List.of(row));
         when(row.getTrainingId()).thenReturn(100L);
         when(row.getLearningDate()).thenReturn(LocalDate.of(2026, 7, 23));
         when(row.getLearningType()).thenReturn("소리 듣고 말하기");
@@ -279,7 +281,7 @@ class StudentServiceImplTest {
                 }
                 """);
 
-        var result = studentService.getTrainingHistory(1L, 10L);
+        var result = studentService.getTrainingHistory(1L, 10L, from, to);
 
         assertThat(result.getFirst().trainingId()).isEqualTo(100L);
         assertThat(result.getFirst().learningCategory()).isEqualTo("낱말 읽기");
@@ -288,6 +290,24 @@ class StudentServiceImplTest {
         assertThat(result.getFirst().questions().getFirst().correct()).isFalse();
         assertThat(result.getFirst().questions().getFirst().selectedAnswer()).isEqualTo("사가");
         assertThat(result.getFirst().questions().getFirst().correctAnswer()).isEqualTo("사과");
+        verify(studentRepository).findTrainingHistory(10L, from, to);
+    }
+
+    @Test
+    void rejectsReversedTrainingHistoryDateRange() {
+        StudentEntity student = StudentEntity.builder()
+                .teacher(teacher).name("학생").build();
+        ReflectionTestUtils.setField(student, "id", 10L);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+
+        assertThatThrownBy(() -> studentService.getTrainingHistory(
+                1L,
+                10L,
+                LocalDate.of(2026, 7, 31),
+                LocalDate.of(2026, 5, 1)
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("조회 시작일은 종료일보다 늦을 수 없습니다.");
     }
 
     @Test

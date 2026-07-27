@@ -32,7 +32,12 @@ public interface StudentService {
     void updateStudent(Long teacherId, Long studentId, StudentRequest request, MultipartFile imageFile);
     void updateTeacherMemo(Long teacherId, Long studentId, String teacherMemo);
     List<AccuracyTrendResponse> getAccuracyTrend(Long teacherId, Long studentId);
-    List<TrainingHistoryResponse> getTrainingHistory(Long teacherId, Long studentId);
+    List<TrainingHistoryResponse> getTrainingHistory(
+            Long teacherId,
+            Long studentId,
+            LocalDate from,
+            LocalDate to
+    );
     LearningSummaryResponse getLearningSummary(Long teacherId, Long studentId);
     LearningEventResponse getLearningEvent(Long teacherId, Long studentId, Long eventId);
     ReadingSpeedTrendResponse getReadingSpeedTrend(

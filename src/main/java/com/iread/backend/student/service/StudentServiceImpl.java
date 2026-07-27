@@ -205,9 +205,15 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
-    public List<TrainingHistoryResponse> getTrainingHistory(Long teacherId, Long studentId) {
+    public List<TrainingHistoryResponse> getTrainingHistory(
+            Long teacherId,
+            Long studentId,
+            LocalDate from,
+            LocalDate to
+    ) {
         findOwnedStudent(teacherId, studentId);
-        return studentRepository.findTrainingHistory(studentId).stream()
+        validateDateRange(from, to);
+        return studentRepository.findTrainingHistory(studentId, from, to).stream()
                 .map(row -> new TrainingHistoryResponse(
                         row.getTrainingId(),
                         row.getLearningDate(),
@@ -360,6 +366,12 @@ public class StudentServiceImpl implements StudentService {
         }
         if (learnedFrom != null && learnedTo != null && learnedFrom.isAfter(learnedTo)) {
             throw new IllegalArgumentException("최근 학습 시작일은 종료일보다 늦을 수 없습니다.");
+        }
+    }
+
+    private void validateDateRange(LocalDate from, LocalDate to) {
+        if (from != null && to != null && from.isAfter(to)) {
+            throw new IllegalArgumentException("조회 시작일은 종료일보다 늦을 수 없습니다.");
         }
     }
 

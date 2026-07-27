@@ -136,10 +136,14 @@ public class StudentController {
     @GetMapping("/{studentId}/training-history")
     public TrainingHistoryDataResponse getTrainingHistory(
             @CurrentTeacherId Long teacherId,
-            @PathVariable Long studentId
+            @PathVariable Long studentId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
         return new TrainingHistoryDataResponse(
-                studentService.getTrainingHistory(teacherId, studentId)
+                studentService.getTrainingHistory(teacherId, studentId, from, to)
         );
     }
 
