@@ -138,9 +138,9 @@ public class StudentController {
     public TrainingHistoryDataResponse getTrainingHistory(
             @CurrentTeacherId Long teacherId,
             @PathVariable Long studentId,
-            @RequestParam(required = false)
+            @RequestParam(name = "from", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false)
+            @RequestParam(name = "to", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
         return new TrainingHistoryDataResponse(

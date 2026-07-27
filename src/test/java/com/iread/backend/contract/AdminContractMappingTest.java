@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -47,6 +48,26 @@ class AdminContractMappingTest {
         assertThat(eventType).isNotNull();
         assertThat(eventType.name()).isEqualTo("eventType");
         assertThat(eventType.required()).isTrue();
+    }
+
+    @Test
+    void exposesOptionalTrainingHistoryDateRangeQueryParameters() throws Exception {
+        var method = StudentController.class.getDeclaredMethod(
+                "getTrainingHistory",
+                Long.class,
+                Long.class,
+                LocalDate.class,
+                LocalDate.class
+        );
+        RequestParam from = method.getParameters()[2].getAnnotation(RequestParam.class);
+        RequestParam to = method.getParameters()[3].getAnnotation(RequestParam.class);
+
+        assertThat(from).isNotNull();
+        assertThat(from.name()).isEqualTo("from");
+        assertThat(from.required()).isFalse();
+        assertThat(to).isNotNull();
+        assertThat(to.name()).isEqualTo("to");
+        assertThat(to.required()).isFalse();
     }
 
     private Set<Route> expectedRoutes() {
