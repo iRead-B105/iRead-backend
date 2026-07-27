@@ -27,9 +27,13 @@ public record AppTeacherLoginResponse(
         );
     }
 
-    public record LinkedStudent(String studentId, String name) {
+    public record LinkedStudent(String studentId, String name, String profileImage) {
         public static LinkedStudent from(StudentEntity student) {
-            return new LinkedStudent(student.getId().toString(), student.getName());
+            return new LinkedStudent(
+                    student.getId().toString(),
+                    student.getName(),
+                    student.getImageUrl()
+            );
         }
     }
 }
