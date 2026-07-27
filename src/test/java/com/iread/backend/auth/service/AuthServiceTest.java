@@ -12,6 +12,7 @@ import com.iread.backend.auth.exception.AuthException;
 import com.iread.backend.auth.security.AuthPrincipal;
 import com.iread.backend.auth.security.AuthRole;
 import com.iread.backend.auth.security.JwtTokenService;
+import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.teacher.domain.TeacherEntity;
 import com.iread.backend.teacher.repository.TeacherRepository;
@@ -25,6 +26,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -123,6 +125,31 @@ class AuthServiceTest {
         assertThat(result.refreshToken()).isEqualTo("refresh-token");
         assertThat(result.response()).extracting("accessToken").isEqualTo("access-token");
         verify(loginAttemptService).clear("teacher@example.com");
+    }
+
+    @Test
+    void appTeacherLoginReturnsLinkedStudentProfilesForSelection() {
+        LoginRequest request = new LoginRequest("teacher@example.com", "password123");
+        StudentEntity student = StudentEntity.builder()
+                .teacher(teacher)
+                .name("김아동")
+                .imageUrl("https://cdn.example.com/students/20.png")
+                .build();
+        ReflectionTestUtils.setField(student, "id", 20L);
+        when(teacherRepository.findByEmail("teacher@example.com")).thenReturn(Optional.of(teacher));
+        when(passwordEncoder.matches("password123", "encoded-password")).thenReturn(true);
+        when(jwtTokenService.issueBootstrapToken(10L))
+                .thenReturn(new JwtTokenService.IssuedToken("bootstrap-token", 300));
+        when(studentRepository.findAllByTeacherIdOrderByIdAsc(10L)).thenReturn(List.of(student));
+
+        var response = authService.appTeacherLogin(request);
+
+        assertThat(response.linkedStudents()).singleElement().satisfies(linkedStudent -> {
+            assertThat(linkedStudent.studentId()).isEqualTo("20");
+            assertThat(linkedStudent.name()).isEqualTo("김아동");
+            assertThat(linkedStudent.profileImage())
+                    .isEqualTo("https://cdn.example.com/students/20.png");
+        });
     }
 
     @Test
