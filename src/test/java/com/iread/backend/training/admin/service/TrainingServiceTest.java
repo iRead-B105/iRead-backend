@@ -82,7 +82,7 @@ class TrainingServiceTest {
         var result = trainingService.getCurriculumLogs(1L, 10L);
 
         assertThat(result).hasSize(1);
-        assertThat(result.getFirst().achievement()).isEqualByComparingTo("85.00");
+        assertThat(result.getFirst().achievementRate()).isEqualByComparingTo("85.00");
         assertThat(result.getFirst().trainings()).hasSize(2);
     }
 
@@ -102,12 +102,13 @@ class TrainingServiceTest {
 
         var result = trainingService.getTrainingLog(1L, 10L, 100L);
 
-        var question = result.trainings().getFirst().questions().getFirst();
+        var question = result.trainings().getFirst().questionResults().getFirst();
         assertThat(question.questionNumber()).isEqualTo(1);
-        assertThat(question.wordId()).isEqualTo(101L);
-        assertThat(question.correct()).isFalse();
-        assertThat(question.correctAnswer()).isEqualTo("사과");
-        assertThat(question.selectedAnswer()).isEqualTo("사가");
+        assertThat(question.isCorrect()).isFalse();
+        var incorrectItem = result.trainings().getFirst().incorrectItems().getFirst();
+        assertThat(incorrectItem.question()).isEqualTo("사과");
+        assertThat(incorrectItem.correctAnswer()).isEqualTo("사과");
+        assertThat(incorrectItem.selectedAnswer()).isEqualTo("사가");
     }
 
     @Test
@@ -244,7 +245,53 @@ class TrainingServiceTest {
         var result = trainingService.getTrainingCatalog(1L, 10L);
 
         assertThat(result).hasSize(1);
-        assertThat(result.getFirst().studentAchievement()).isEqualByComparingTo("91.25");
+        assertThat(result.getFirst().studentAchievementRate()).isEqualByComparingTo("91.25");
+    }
+
+    @Test
+    void returnsOwnedTrainingDetailWithParsedJsonFields() {
+        TrainingEntity training = ownedTraining(1L);
+        ReflectionTestUtils.setField(training.getTrainingTemplate(), "form", "{\"questionType\":\"WORD\"}");
+        ReflectionTestUtils.setField(training, "status", TrainingStatus.COMPLETED);
+        ReflectionTestUtils.setField(training, "result", "{\"questions\":[]}");
+        ReflectionTestUtils.setField(training, "accuracy", new BigDecimal("88.50"));
+        TrainingDataEntity data = new TrainingDataEntity(training, "{\"questions\":[{\"questionId\":\"q1\"}]}");
+        allowStudent();
+        when(trainingRepository.findByIdAndDailyCurriculumStudentId(1L, 10L))
+                .thenReturn(Optional.of(training));
+        when(trainingDataRepository.findByTrainingId(1L)).thenReturn(Optional.of(data));
+
+        var result = trainingService.getTrainingDetail(1L, 10L, 1L);
+
+        assertThat(result.trainingTemplateId()).isEqualTo(11L);
+        assertThat(result.form().path("questionType").asText()).isEqualTo("WORD");
+        assertThat(result.generatedData().path("questions")).hasSize(1);
+        assertThat(result.status()).isEqualTo("completed");
+        assertThat(result.accuracy()).isEqualByComparingTo("88.50");
+    }
+
+    @Test
+    void exportsOwnedTrainingAsImmediateJsonFile() {
+        TrainingEntity training = ownedTraining(1L);
+        ReflectionTestUtils.setField(training.getTrainingTemplate(), "form", "{}");
+        allowStudent();
+        when(trainingRepository.findByIdAndDailyCurriculumStudentId(1L, 10L))
+                .thenReturn(Optional.of(training));
+        when(trainingDataRepository.findByTrainingId(1L)).thenReturn(Optional.empty());
+
+        var result = trainingService.exportTraining(1L, 10L, 1L, "json");
+
+        assertThat(result.fileName()).isEqualTo("training-1.json");
+        assertThat(new String(result.content(), java.nio.charset.StandardCharsets.UTF_8))
+                .contains("\"trainingId\":1")
+                .contains("\"status\":\"not_ready\"");
+    }
+
+    @Test
+    void rejectsUnsupportedTrainingExportFormat() {
+        assertThatThrownBy(() -> trainingService.exportTraining(1L, 10L, 1L, "xml"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("내보내기 형식은 csv 또는 json이어야 합니다.");
     }
 
     @Test

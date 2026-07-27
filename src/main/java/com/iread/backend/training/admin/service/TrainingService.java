@@ -25,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -61,7 +62,8 @@ public class TrainingService {
         return new TrainingLogResponse(curriculum.getTrainings().stream().map(training ->
                 new TrainingLogResponse.TrainingItem(
                         training.getId(), training.getTrainingTemplate().getName(), training.getStartedAt(),
-                        training.getFinishedAt(), training.getAccuracy(), parseQuestions(training.getResult())
+                        training.getFinishedAt(), parseQuestionResults(training.getResult()),
+                        training.getAccuracy(), parseIncorrectItems(training.getResult())
                 )).toList());
     }
 
@@ -160,6 +162,51 @@ public class TrainingService {
         root.withArray("expectedWords").forEach(node -> result.add(new ExpectedWordResponse(
                 node.path("wordId").asLong(), node.path("wordName").asText())));
         return result;
+    }
+
+    public TrainingDetailResponse getTrainingDetail(
+            Long teacherId,
+            Long studentId,
+            Long trainingId
+    ) {
+        TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
+        JsonNode generatedData = trainingDataRepository.findByTrainingId(trainingId)
+                .map(TrainingDataEntity::getGeneratedData)
+                .map(this::parseNullableObject)
+                .orElse(null);
+        return new TrainingDetailResponse(
+                training.getId(),
+                training.getTrainingTemplate().getId(),
+                training.getTrainingTemplate().getName(),
+                parseObject(training.getTrainingTemplate().getForm()),
+                generatedData,
+                training.getStatus().name().toLowerCase(Locale.ROOT),
+                training.getStartedAt(),
+                training.getFinishedAt(),
+                parseNullableObject(training.getResult()),
+                training.getAccuracy()
+        );
+    }
+
+    public TrainingExportFile exportTraining(
+            Long teacherId,
+            Long studentId,
+            Long trainingId,
+            String format
+    ) {
+        String normalizedFormat = format == null
+                ? "" : format.trim().toLowerCase(Locale.ROOT);
+        if (!Set.of("json", "csv").contains(normalizedFormat)) {
+            throw new IllegalArgumentException("내보내기 형식은 csv 또는 json이어야 합니다.");
+        }
+        TrainingDetailResponse detail = getTrainingDetail(teacherId, studentId, trainingId);
+        byte[] content = normalizedFormat.equals("json")
+                ? writeBytes(detail)
+                : toCsv(detail).getBytes(StandardCharsets.UTF_8);
+        return new TrainingExportFile(
+                "training-" + trainingId + "." + normalizedFormat,
+                content
+        );
     }
 
     @Transactional
@@ -415,15 +462,34 @@ public class TrainingService {
         return training.getFinishedAt() == null ? null : training.getFinishedAt().toLocalDate();
     }
 
-    private List<TrainingLogResponse.QuestionResult> parseQuestions(String result) {
+    private List<TrainingLogResponse.QuestionResult> parseQuestionResults(String result) {
         if (result == null || result.isBlank()) return List.of();
         JsonNode questions = parseObject(result).path("questions");
         if (!questions.isArray()) return List.of();
         List<TrainingLogResponse.QuestionResult> response = new ArrayList<>();
         questions.forEach(q -> response.add(new TrainingLogResponse.QuestionResult(
-                q.path("questionNumber").asInt(), q.hasNonNull("wordId") ? q.path("wordId").asLong() : null,
-                q.path("question").asText(null), q.path("isCorrect").asBoolean(),
-                q.path("correctAnswer").asText(null), q.path("selectedAnswer").asText(null))));
+                q.path("questionNumber").asInt(),
+                q.path("isCorrect").asBoolean()
+        )));
+        return response;
+    }
+
+    private List<TrainingLogResponse.IncorrectItem> parseIncorrectItems(String result) {
+        if (result == null || result.isBlank()) return List.of();
+        JsonNode questions = parseObject(result).path("questions");
+        if (!questions.isArray()) return List.of();
+        List<TrainingLogResponse.IncorrectItem> response = new ArrayList<>();
+        questions.forEach(question -> {
+            if (question.path("isCorrect").asBoolean()) {
+                return;
+            }
+            response.add(new TrainingLogResponse.IncorrectItem(
+                    question.path("questionNumber").asInt(),
+                    question.path("question").asText(null),
+                    question.path("correctAnswer").asText(null),
+                    question.path("selectedAnswer").asText(null)
+            ));
+        });
         return response;
     }
 
@@ -455,6 +521,54 @@ public class TrainingService {
         } catch (Exception exception) {
             throw new IllegalArgumentException("저장된 훈련 데이터 형식이 올바르지 않습니다.");
         }
+    }
+
+    private JsonNode parseNullableObject(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        return parseObject(json);
+    }
+
+    private byte[] writeBytes(Object value) {
+        try {
+            return objectMapper.writeValueAsBytes(value);
+        } catch (Exception exception) {
+            throw new IllegalStateException("훈련 결과 파일 생성에 실패했습니다.");
+        }
+    }
+
+    private String toCsv(TrainingDetailResponse detail) {
+        return String.join(",",
+                "trainingId",
+                "trainingTemplateId",
+                "name",
+                "status",
+                "startedAt",
+                "finishedAt",
+                "accuracy",
+                "result"
+        ) + System.lineSeparator() + String.join(",",
+                csv(detail.trainingId()),
+                csv(detail.trainingTemplateId()),
+                csv(detail.name()),
+                csv(detail.status()),
+                csv(detail.startedAt()),
+                csv(detail.finishedAt()),
+                csv(detail.accuracy()),
+                csv(detail.result())
+        ) + System.lineSeparator();
+    }
+
+    private String csv(Object value) {
+        if (value == null) {
+            return "";
+        }
+        String text = value.toString()
+                .replace("\r", " ")
+                .replace("\n", " ")
+                .replace("\"", "\"\"");
+        return "\"" + text + "\"";
     }
 
     private ObjectNode validateGeneratedData(JsonNode generatedData) {
