@@ -1,9 +1,11 @@
 package com.iread.backend.contract;
 
+import com.iread.backend.student.controller.StudentController;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
@@ -29,6 +31,22 @@ class AdminContractMappingTest {
         }
 
         assertThat(actual).containsAll(expectedRoutes());
+    }
+
+    @Test
+    void requiresLearningEventTypeQueryParameter() throws Exception {
+        var method = StudentController.class.getDeclaredMethod(
+                "getLearningEvent",
+                Long.class,
+                Long.class,
+                String.class,
+                Long.class
+        );
+        RequestParam eventType = method.getParameters()[2].getAnnotation(RequestParam.class);
+
+        assertThat(eventType).isNotNull();
+        assertThat(eventType.name()).isEqualTo("eventType");
+        assertThat(eventType.required()).isTrue();
     }
 
     private Set<Route> expectedRoutes() {

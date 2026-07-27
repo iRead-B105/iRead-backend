@@ -251,11 +251,11 @@ public class StudentServiceImpl implements StudentService {
             Long eventId
     ) {
         findOwnedStudent(teacherId, studentId);
-        LearningEventType resolvedType = eventType == null
-                ? LearningEventType.TRAINING
-                : eventType;
+        if (eventType == null) {
+            throw new IllegalArgumentException("eventType은 필수입니다.");
+        }
         StudentRepository.LearningEventProjection event =
-                findLearningEvent(studentId, resolvedType, eventId)
+                findLearningEvent(studentId, eventType, eventId)
                         .orElseThrow(() -> new ResourceNotFoundException(
                                 "학습 이벤트를 찾을 수 없습니다."
                         ));
@@ -267,7 +267,7 @@ public class StudentServiceImpl implements StudentService {
 
         return new LearningEventResponse(
                 event.getEventId(),
-                resolvedType.name(),
+                eventType.apiValue(),
                 event.getOccurredAt(),
                 event.getEventId(),
                 event.getAccuracy(),

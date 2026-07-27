@@ -227,7 +227,7 @@ class StudentServiceImplTest {
         var result = studentService.getLearningEvent(
                 1L, 10L, LearningEventType.TRAINING, 100L);
 
-        assertThat(result.eventType()).isEqualTo("TRAINING");
+        assertThat(result.eventType()).isEqualTo("training");
         assertThat(result.problemSegments()).containsExactly("사과", "바나나");
         assertThat(result.recommendedTrainingTemplateId()).isEqualTo(30L);
         assertThat(result.recommendedMinutes()).isEqualTo(10);
@@ -249,15 +249,17 @@ class StudentServiceImplTest {
         when(event.getOccurredAt()).thenReturn(LocalDateTime.of(2026, 7, 27, 12, 0));
 
         assertThat(studentService.getLearningEvent(
-                1L, 10L, LearningEventType.TEST, 100L).eventType()).isEqualTo("TEST");
+                1L, 10L, LearningEventType.TEST, 100L).eventType()).isEqualTo("test");
         assertThat(studentService.getLearningEvent(
-                1L, 10L, LearningEventType.TRAINING, 100L).eventType()).isEqualTo("TRAINING");
+                1L, 10L, LearningEventType.TRAINING, 100L).eventType()).isEqualTo("training");
         assertThat(studentService.getLearningEvent(
-                1L, 10L, LearningEventType.STORY, 100L).eventType()).isEqualTo("STORY");
+                1L, 10L, LearningEventType.STORY, 100L).eventType()).isEqualTo("story");
         assertThat(studentService.getLearningEvent(
-                1L, 10L, LearningEventType.GAZE, 100L).eventType()).isEqualTo("GAZE");
-        assertThat(studentService.getLearningEvent(
-                1L, 10L, null, 100L).eventType()).isEqualTo("TRAINING");
+                1L, 10L, LearningEventType.GAZE, 100L).eventType()).isEqualTo("gaze");
+        assertThatThrownBy(() -> studentService.getLearningEvent(
+                1L, 10L, null, 100L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("eventType은 필수입니다.");
     }
 
     @Test

@@ -162,10 +162,15 @@ public class StudentController {
     public LearningEventResponse getLearningEvent(
             @CurrentTeacherId Long teacherId,
             @PathVariable Long studentId,
-            @RequestParam(required = false) LearningEventType eventType,
+            @RequestParam(name = "eventType", required = true) String eventType,
             @RequestParam Long eventId
     ) {
-        return studentService.getLearningEvent(teacherId, studentId, eventType, eventId);
+        return studentService.getLearningEvent(
+                teacherId,
+                studentId,
+                LearningEventType.fromApiValue(eventType),
+                eventId
+        );
     }
 
     @Operation(summary = "학생의 일별 읽기 속도 추이 조회")
