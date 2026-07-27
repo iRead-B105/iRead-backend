@@ -28,4 +28,12 @@ public interface StudentTestRepository extends JpaRepository<StudentTestEntity, 
     List<StudentTestEntity> findAllByTestCurriculumStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
             Long studentId, TestStatus status, LocalDateTime start, LocalDateTime end
     );
+
+    Optional<StudentTestEntity>
+    findFirstByTestCurriculumStudentIdAndStatusInOrderByTestCurriculumCreatedAtDescSequenceNoAscIdAsc(
+            Long studentId,
+            Collection<TestStatus> statuses
+    );
+
+    Optional<StudentTestEntity> findByIdAndTestCurriculumStudentId(Long id, Long studentId);
 }

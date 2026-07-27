@@ -53,4 +53,40 @@ public class StudentTestEntity {
     public StudentEntity getStudent() {
         return testCurriculum.getStudent();
     }
+
+    public void start(LocalDateTime startedAt) {
+        if (status != TestStatus.NOT_STARTED) {
+            throw new IllegalStateException("시작 가능한 검사가 아닙니다.");
+        }
+        this.status = TestStatus.IN_PROGRESS;
+        this.startedAt = startedAt;
+    }
+
+    public void updateResult(String result) {
+        if (status != TestStatus.IN_PROGRESS) {
+            throw new IllegalStateException("진행 중인 검사가 아닙니다.");
+        }
+        this.result = result;
+    }
+
+    public void complete(String result, BigDecimal accuracy, LocalDateTime finishedAt) {
+        if (status != TestStatus.IN_PROGRESS) {
+            throw new IllegalStateException("완료 가능한 검사가 아닙니다.");
+        }
+        this.status = TestStatus.COMPLETED;
+        this.result = result;
+        this.accuracy = accuracy;
+        this.finishedAt = finishedAt;
+    }
+
+    public void reset() {
+        if (status == TestStatus.COMPLETED) {
+            throw new IllegalStateException("완료된 검사는 초기화할 수 없습니다.");
+        }
+        this.status = TestStatus.NOT_STARTED;
+        this.result = null;
+        this.accuracy = null;
+        this.startedAt = null;
+        this.finishedAt = null;
+    }
 }

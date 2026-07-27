@@ -9,6 +9,12 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface WordAttemptLogRepository extends JpaRepository<WordAttemptLogEntity, Long> {
+    List<WordAttemptLogEntity> findAllByTestIdOrderByIdAsc(Long testId);
+
+    void deleteAllByTestId(Long testId);
+
+    void deleteAllByTrainingId(Long trainingId);
+
     @Query(value = """
             SELECT w.id AS wordId,
                    w.content AS wordName,

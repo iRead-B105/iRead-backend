@@ -9,6 +9,8 @@ import com.iread.backend.student.app.controller.AppStudentController;
 import com.iread.backend.student.app.service.GrowthService;
 import com.iread.backend.story.app.controller.StoryController;
 import com.iread.backend.story.app.service.StoryService;
+import com.iread.backend.test.app.controller.AppTestController;
+import com.iread.backend.test.app.service.AppTestService;
 import com.iread.backend.training.app.controller.AppTrainingController;
 import com.iread.backend.training.app.service.AppTrainingService;
 import org.junit.jupiter.api.Test;
@@ -38,6 +40,16 @@ class AppResourceAuthorizationTest {
         AppTrainingController controller = new AppTrainingController(service, policy);
 
         assertThatThrownBy(() -> controller.getIntro(1L, 20L, 21L, 30L))
+                .isInstanceOf(AccessDeniedException.class);
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void 검사조회에서다른학생경로접근을차단한다() {
+        AppTestService service = mock(AppTestService.class);
+        AppTestController controller = new AppTestController(service, policy);
+
+        assertThatThrownBy(() -> controller.getIntro(1L, 20L, 21L))
                 .isInstanceOf(AccessDeniedException.class);
         verifyNoInteractions(service);
     }

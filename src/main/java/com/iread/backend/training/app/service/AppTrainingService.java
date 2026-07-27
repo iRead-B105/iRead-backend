@@ -94,6 +94,7 @@ public class AppTrainingService {
     public TrainingResetResponse reset(Long teacherId, Long studentId, Long trainingId) {
         TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
         training.reset();
+        wordAttemptLogRepository.deleteAllByTrainingId(trainingId);
         return new TrainingResetResponse(trainingId, training.getStatus(), LocalDateTime.now());
     }
 

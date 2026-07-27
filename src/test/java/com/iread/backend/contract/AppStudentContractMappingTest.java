@@ -39,7 +39,15 @@ class AppStudentContractMappingTest {
                 new Route(RequestMethod.POST, "/api/app/training/{studentId}/{trainingId}/session-reset"),
                 new Route(RequestMethod.POST, "/api/app/training/{studentId}/{trainingId}/questions/{questionNumber}/recordings"),
                 new Route(RequestMethod.POST, "/api/app/training/{studentId}/{trainingId}/questions/{questionNumber}/responses"),
-                new Route(RequestMethod.POST, "/api/app/training/{studentId}/{trainingId}/complete")
+                new Route(RequestMethod.POST, "/api/app/training/{studentId}/{trainingId}/complete"),
+                new Route(RequestMethod.GET, "/api/app/test/{studentId}/intro"),
+                new Route(RequestMethod.GET, "/api/app/test/{studentId}/questions/{questionNumber}"),
+                new Route(RequestMethod.POST, "/api/app/test/{studentId}/start"),
+                new Route(RequestMethod.POST, "/api/app/test/{studentId}/session-reset"),
+                new Route(RequestMethod.POST, "/api/app/test/{studentId}/questions/{questionNumber}/recordings"),
+                new Route(RequestMethod.POST, "/api/app/test/{studentId}/questions/{questionNumber}/responses"),
+                new Route(RequestMethod.POST, "/api/app/test/{studentId}/questions/{questionNumber}/complete"),
+                new Route(RequestMethod.POST, "/api/app/test/{studentId}/complete")
         );
     }
 
