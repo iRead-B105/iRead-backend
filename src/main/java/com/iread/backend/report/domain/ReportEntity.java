@@ -50,4 +50,8 @@ public class ReportEntity {
     public void updateTeacherMemo(String teacherMemo) {
         this.teacherMemo = teacherMemo == null || teacherMemo.isBlank() ? null : teacherMemo.trim();
     }
+
+    public void updateSnapshotData(String snapshotData) {
+        this.snapshotData = snapshotData;
+    }
 }

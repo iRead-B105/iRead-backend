@@ -1,5 +1,8 @@
 package com.iread.backend.report.admin.service;
 
+import com.iread.backend.gaze.domain.GazeAnalysisResultEntity;
+import com.iread.backend.gaze.domain.GazeSessionEntity;
+import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.report.admin.dto.req.CreateReportRequest;
 import com.iread.backend.report.domain.ReportEntity;
 import com.iread.backend.report.repository.ReportRepository;
@@ -18,6 +21,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,13 +39,15 @@ class ReportServiceTest {
     @Mock TrainingRepository trainingRepository;
     @Mock StudentTestRepository testRepository;
     @Mock StudentWordStatRepository wordStatRepository;
+    @Mock GazeAnalysisResultRepository gazeAnalysisResultRepository;
 
     private ReportService reportService;
 
     @BeforeEach
     void setUp() {
         reportService = new ReportService(reportRepository, studentRepository, trainingRepository,
-                testRepository, wordStatRepository, JsonMapper.builder().build());
+                testRepository, wordStatRepository, gazeAnalysisResultRepository,
+                JsonMapper.builder().build());
     }
 
     @Test
@@ -53,9 +59,12 @@ class ReportServiceTest {
         when(testRepository.findAllByStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
                 any(), any(), any(), any())).thenReturn(List.of());
         when(wordStatRepository.findAllByStudentId(10L)).thenReturn(List.of());
-        when(reportRepository.save(any())).thenAnswer(invocation -> {
+        when(reportRepository.saveAndFlush(any())).thenAnswer(invocation -> {
             ReportEntity report = invocation.getArgument(0);
             ReflectionTestUtils.setField(report, "id", 25L);
+            ReflectionTestUtils.setField(
+                    report, "createdAt", LocalDateTime.of(2026, 7, 24, 12, 0)
+            );
             return report;
         });
 
@@ -63,8 +72,11 @@ class ReportServiceTest {
                 10L, LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31), "메모"));
 
         assertThat(response.reportId()).isEqualTo(25L);
+        assertThat(response.createdAt()).isEqualTo(
+                LocalDateTime.of(2026, 7, 24, 12, 0)
+        );
         ArgumentCaptor<ReportEntity> captor = ArgumentCaptor.forClass(ReportEntity.class);
-        verify(reportRepository).save(captor.capture());
+        verify(reportRepository).saveAndFlush(captor.capture());
         assertThat(captor.getValue().getSnapshotData())
                 .contains("\"learningDays\":0")
                 .contains("\"improvedPatterns\":[]");
@@ -108,6 +120,58 @@ class ReportServiceTest {
     }
 
     @Test
+    void 저장된_스냅샷을_계약_응답으로_평탄화한다() {
+        StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
+        ReportEntity report = report(student, 25L, "메모");
+        ReflectionTestUtils.setField(report, "snapshotData", snapshotJson());
+        ReflectionTestUtils.setField(
+                report, "createdAt", LocalDateTime.of(2026, 7, 24, 12, 0)
+        );
+        when(reportRepository.findByIdAndStudentTeacherId(25L, 1L))
+                .thenReturn(Optional.of(report));
+
+        var result = reportService.getReport(1L, 25L);
+
+        assertThat(result.learningDays()).isEqualTo(3);
+        assertThat(result.totalTrainingTime()).isEqualTo(45);
+        assertThat(result.achievementByDomain()).containsEntry(
+                "낱말 읽기", new java.math.BigDecimal("82.50")
+        );
+        assertThat(result.frequentErrorWords()).containsExactly("사과");
+        assertThat(result.teacherMemo()).isEqualTo("메모");
+    }
+
+    @Test
+    void 같은_아동의_시선_분석을_보고서_스냅샷에_반영한다() {
+        StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
+        when(student.getId()).thenReturn(10L);
+        ReportEntity report = report(student, 25L, null);
+        ReflectionTestUtils.setField(report, "snapshotData", snapshotJson());
+        GazeAnalysisResultEntity analysis = org.mockito.Mockito.mock(
+                GazeAnalysisResultEntity.class
+        );
+        GazeSessionEntity session = org.mockito.Mockito.mock(GazeSessionEntity.class);
+        when(analysis.getId()).thenReturn(50L);
+        when(analysis.getGazeSession()).thenReturn(session);
+        when(analysis.getTotalVisitedDuration()).thenReturn(1200);
+        when(analysis.getTotalVisitedCount()).thenReturn(8);
+        when(analysis.getReverseReadCount()).thenReturn(2);
+        when(analysis.getAvgVisitedDuration()).thenReturn(150);
+        when(session.getStudent()).thenReturn(student);
+        when(reportRepository.findByIdAndStudentTeacherId(25L, 1L))
+                .thenReturn(Optional.of(report));
+        when(gazeAnalysisResultRepository.findByIdAndGazeSessionStudentTeacherId(50L, 1L))
+                .thenReturn(Optional.of(analysis));
+
+        var result = reportService.applyGazeAnalysis(1L, 25L, 50L);
+
+        assertThat(result.reportId()).isEqualTo(25L);
+        assertThat(report.getSnapshotData())
+                .contains("\"gazeAnalysisResultId\":50")
+                .contains("\"regressionCount\":2");
+    }
+
+    @Test
     void 소유한_리포트를_삭제한다() {
         StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
         ReportEntity report = report(student, 25L, null);
@@ -137,5 +201,33 @@ class ReportServiceTest {
         );
         ReflectionTestUtils.setField(report, "id", id);
         return report;
+    }
+
+    private String snapshotJson() {
+        return """
+                {
+                  "learningDays": 3,
+                  "totalTrainingTimeMinutes": 45,
+                  "completedTrainingCount": 5,
+                  "averageAccuracy": 80.00,
+                  "averageReadingSpeed": 72.00,
+                  "readingSpeedUnit": "CPM",
+                  "growthHistory": [],
+                  "areaAchievements": [{
+                    "area": "낱말 읽기",
+                    "achievement": 82.50
+                  }],
+                  "frequentlyIncorrectWords": [{
+                    "wordId": 1,
+                    "wordName": "사과",
+                    "attemptCount": 5,
+                    "incorrectCount": 2,
+                    "incorrectRate": 40.00
+                  }],
+                  "improvedPatterns": [],
+                  "persistentDifficultyPatterns": [],
+                  "gazeAnalysis": null
+                }
+                """;
     }
 }

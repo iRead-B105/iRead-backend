@@ -1,5 +1,7 @@
 package com.iread.backend.report.admin.service;
 
+import com.iread.backend.gaze.domain.GazeAnalysisResultEntity;
+import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.report.admin.dto.req.CreateReportRequest;
 import com.iread.backend.report.admin.dto.res.*;
 import com.iread.backend.report.domain.ReportEntity;
@@ -37,6 +39,7 @@ public class ReportService {
     private final TrainingRepository trainingRepository;
     private final StudentTestRepository testRepository;
     private final StudentWordStatRepository wordStatRepository;
+    private final GazeAnalysisResultRepository gazeAnalysisResultRepository;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -57,15 +60,41 @@ public class ReportService {
                         request.studentId(), TestStatus.COMPLETED, start, endExclusive);
 
         ReportSnapshot snapshot = buildSnapshot(request.studentId(), trainings, tests);
-        ReportEntity report = reportRepository.save(new ReportEntity(
+        ReportEntity report = reportRepository.saveAndFlush(new ReportEntity(
                 student, request.startDate(), request.endDate(), writeJson(snapshot), request.teacherMemo()));
-        return new CreateReportResponse(report.getId());
+        return new CreateReportResponse(report.getId(), report.getCreatedAt());
     }
 
     public ReportResponse getReport(Long teacherId, Long reportId) {
         ReportEntity report = findOwnedReport(teacherId, reportId);
-        return new ReportResponse(report.getId(), report.getStudent().getId(), report.getStartDate(),
-                report.getEndDate(), readSnapshot(report.getSnapshotData()), report.getTeacherMemo());
+        ReportSnapshot snapshot = readSnapshot(report.getSnapshotData());
+        Map<String, BigDecimal> achievementByDomain = snapshot.areaAchievements().stream()
+                .collect(Collectors.toMap(
+                        ReportSnapshot.AreaAchievement::area,
+                        ReportSnapshot.AreaAchievement::achievement,
+                        (first, ignored) -> first,
+                        LinkedHashMap::new
+                ));
+        return new ReportResponse(
+                report.getId(),
+                report.getStartDate(),
+                report.getEndDate(),
+                report.getCreatedAt(),
+                snapshot.learningDays(),
+                snapshot.totalTrainingTimeMinutes(),
+                snapshot.completedTrainingCount(),
+                snapshot.averageAccuracy(),
+                snapshot.averageReadingSpeed(),
+                snapshot.growthHistory(),
+                achievementByDomain,
+                snapshot.frequentlyIncorrectWords().stream()
+                        .map(ReportSnapshot.IncorrectWord::wordName)
+                        .toList(),
+                snapshot.improvedPatterns(),
+                snapshot.persistentDifficultyPatterns(),
+                snapshot.gazeAnalysis(),
+                report.getTeacherMemo()
+        );
     }
 
     public List<ReportListResponse> getReports(Long teacherId, Long studentId) {
@@ -90,6 +119,45 @@ public class ReportService {
                 report.getTeacherMemo(),
                 report.getCreatedAt()
         );
+    }
+
+    @Transactional
+    public ApplyReportGazeAnalysisResponse applyGazeAnalysis(
+            Long teacherId,
+            Long reportId,
+            Long gazeAnalysisResultId
+    ) {
+        ReportEntity report = findOwnedReport(teacherId, reportId);
+        GazeAnalysisResultEntity result = gazeAnalysisResultRepository
+                .findByIdAndGazeSessionStudentTeacherId(gazeAnalysisResultId, teacherId)
+                .filter(candidate -> candidate.getGazeSession().getStudent().getId()
+                        .equals(report.getStudent().getId()))
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "보고서 아동의 시선 분석 결과를 찾을 수 없습니다."
+                ));
+        ReportSnapshot snapshot = readSnapshot(report.getSnapshotData());
+        ReportSnapshot updated = new ReportSnapshot(
+                snapshot.learningDays(),
+                snapshot.totalTrainingTimeMinutes(),
+                snapshot.completedTrainingCount(),
+                snapshot.averageAccuracy(),
+                snapshot.averageReadingSpeed(),
+                snapshot.readingSpeedUnit(),
+                snapshot.growthHistory(),
+                snapshot.areaAchievements(),
+                snapshot.frequentlyIncorrectWords(),
+                snapshot.improvedPatterns(),
+                snapshot.persistentDifficultyPatterns(),
+                new ReportSnapshot.GazeAnalysis(
+                        result.getId(),
+                        result.getTotalVisitedDuration(),
+                        result.getTotalVisitedCount(),
+                        result.getReverseReadCount(),
+                        result.getAvgVisitedDuration()
+                )
+        );
+        report.updateSnapshotData(writeJson(updated));
+        return new ApplyReportGazeAnalysisResponse(report.getId());
     }
 
     @Transactional
@@ -154,7 +222,8 @@ public class ReportService {
                 .toList();
 
         return new ReportSnapshot(learningDays, totalMinutes, trainings.size(), averageAccuracy,
-                averageReadingSpeed, "CPM", growth, achievements, incorrectWords, List.of(), List.of());
+                averageReadingSpeed, "CPM", growth, achievements, incorrectWords,
+                List.of(), List.of(), null);
     }
 
     private ReportSnapshot.IncorrectWord toIncorrectWord(StudentWordStatEntity stat) {
