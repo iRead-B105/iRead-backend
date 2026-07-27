@@ -3,6 +3,7 @@ package com.iread.backend.auth.service;
 import com.iread.backend.auth.config.AuthSettings;
 import com.iread.backend.auth.domain.AuthAudience;
 import com.iread.backend.auth.domain.AuthRefreshSessionEntity;
+import com.iread.backend.auth.dto.req.FindIdRequest;
 import com.iread.backend.auth.dto.req.LoginRequest;
 import com.iread.backend.auth.dto.req.ResetPasswordRequest;
 import com.iread.backend.auth.dto.req.SignUpRequest;
@@ -41,7 +42,6 @@ class AuthServiceTest {
     @Mock PasswordEncoder passwordEncoder;
     @Mock JwtTokenService jwtTokenService;
     @Mock RefreshTokenService refreshTokenService;
-    @Mock AccessTokenRevocationService accessTokenRevocationService;
     @Mock LoginAttemptService loginAttemptService;
 
     private AuthService authService;
@@ -63,12 +63,10 @@ class AuthServiceTest {
                 passwordEncoder,
                 jwtTokenService,
                 refreshTokenService,
-                accessTokenRevocationService,
                 loginAttemptService,
                 settings
         );
         teacher = new TeacherEntity(
-                "teacher01",
                 "teacher@example.com",
                 "encoded-password",
                 "교사",
@@ -80,9 +78,8 @@ class AuthServiceTest {
     }
 
     @Test
-    void signsUpWithSeparateLoginIdAndHashedPassword() {
+    void signsUpWithUniqueEmailAndHashedPassword() {
         SignUpRequest request = new SignUpRequest(
-                "teacher02",
                 "teacher02@example.com",
                 "password123",
                 "새교사",
@@ -99,17 +96,15 @@ class AuthServiceTest {
         var response = authService.signUp(request);
 
         assertThat(response.teacherId()).isEqualTo("20");
-        assertThat(response.loginId()).isEqualTo("teacher02");
         assertThat(response.email()).isEqualTo("teacher02@example.com");
-        verify(teacherRepository).existsByLoginId("teacher02");
         verify(teacherRepository).existsByEmail("teacher02@example.com");
         verify(passwordEncoder).encode("password123");
     }
 
     @Test
     void adminLoginIssuesAudienceTokenAndRefreshSession() {
-        LoginRequest request = new LoginRequest("teacher01", "password123");
-        when(teacherRepository.findByLoginId("teacher01")).thenReturn(Optional.of(teacher));
+        LoginRequest request = new LoginRequest("teacher@example.com", "password123");
+        when(teacherRepository.findByEmail("teacher@example.com")).thenReturn(Optional.of(teacher));
         when(passwordEncoder.matches("password123", "encoded-password")).thenReturn(true);
         when(jwtTokenService.issueAdminAccessToken(10L))
                 .thenReturn(new JwtTokenService.IssuedToken("access-token", 900));
@@ -127,7 +122,7 @@ class AuthServiceTest {
 
         assertThat(result.refreshToken()).isEqualTo("refresh-token");
         assertThat(result.response()).extracting("accessToken").isEqualTo("access-token");
-        verify(loginAttemptService).clear("teacher01");
+        verify(loginAttemptService).clear("teacher@example.com");
     }
 
     @Test
@@ -152,7 +147,6 @@ class AuthServiceTest {
     @Test
     void passwordResetRejectsWrongDemoCode() {
         ResetPasswordRequest request = new ResetPasswordRequest(
-                "teacher01",
                 "teacher@example.com",
                 "wrong-code",
                 "new-password"
@@ -162,18 +156,17 @@ class AuthServiceTest {
                 .isInstanceOf(AuthException.class)
                 .extracting("code")
                 .isEqualTo("INVALID_VERIFICATION_CODE");
-        verify(teacherRepository, never()).findByLoginIdAndEmail(any(), any());
+        verify(teacherRepository, never()).findByEmail(any());
     }
 
     @Test
     void passwordResetUpdatesHashAndRevokesAllSessions() {
         ResetPasswordRequest request = new ResetPasswordRequest(
-                "teacher01",
                 "teacher@example.com",
                 "123456",
                 "new-password"
         );
-        when(teacherRepository.findByLoginIdAndEmail("teacher01", "teacher@example.com"))
+        when(teacherRepository.findByEmail("teacher@example.com"))
                 .thenReturn(Optional.of(teacher));
         when(passwordEncoder.encode("new-password")).thenReturn("new-encoded-password");
 
@@ -182,5 +175,49 @@ class AuthServiceTest {
         assertThat(response.resetStatus()).isEqualTo("COMPLETED");
         assertThat(teacher.getPassword()).isEqualTo("new-encoded-password");
         verify(refreshTokenService).revokeAll(10L);
+    }
+
+    @Test
+    void findIdReturnsMaskedLoginEmail() {
+        when(teacherRepository.findByNameAndEmail("교사", "teacher@example.com"))
+                .thenReturn(Optional.of(teacher));
+
+        var response = authService.findId(
+                new FindIdRequest("교사", "teacher@example.com")
+        );
+
+        assertThat(response.maskedEmail()).isEqualTo("tea****@example.com");
+    }
+
+    @Test
+    void adminLogoutRevokesRefreshSession() {
+        AuthPrincipal principal = new AuthPrincipal(
+                10L,
+                null,
+                AuthRole.TEACHER,
+                JwtTokenService.ADMIN_AUDIENCE,
+                "token-id",
+                Instant.now().plusSeconds(60)
+        );
+
+        authService.logoutAdmin(principal, "refresh-token");
+
+        verify(refreshTokenService).revoke("refresh-token", AuthAudience.ADMIN);
+    }
+
+    @Test
+    void learningLogoutRevokesRefreshSession() {
+        AuthPrincipal principal = new AuthPrincipal(
+                10L,
+                20L,
+                AuthRole.STUDENT,
+                JwtTokenService.LEARNING_AUDIENCE,
+                "token-id",
+                Instant.now().plusSeconds(60)
+        );
+
+        authService.logoutLearning(principal, "refresh-token");
+
+        verify(refreshTokenService).revoke("refresh-token", AuthAudience.LEARNING);
     }
 }

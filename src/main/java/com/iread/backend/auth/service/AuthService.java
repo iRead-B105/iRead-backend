@@ -39,7 +39,6 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenService jwtTokenService;
     private final RefreshTokenService refreshTokenService;
-    private final AccessTokenRevocationService accessTokenRevocationService;
     private final LoginAttemptService loginAttemptService;
     private final AuthSettings settings;
 
@@ -49,7 +48,6 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtTokenService jwtTokenService,
             RefreshTokenService refreshTokenService,
-            AccessTokenRevocationService accessTokenRevocationService,
             LoginAttemptService loginAttemptService,
             AuthSettings settings
     ) {
@@ -58,22 +56,17 @@ public class AuthService {
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenService = jwtTokenService;
         this.refreshTokenService = refreshTokenService;
-        this.accessTokenRevocationService = accessTokenRevocationService;
         this.loginAttemptService = loginAttemptService;
         this.settings = settings;
     }
 
     @Transactional
     public SignUpResponse signUp(SignUpRequest request) {
-        if (teacherRepository.existsByLoginId(request.loginId())) {
-            throw new AuthException(HttpStatus.CONFLICT, "LOGIN_ID_ALREADY_EXISTS", "이미 사용 중인 로그인 아이디입니다.");
-        }
         if (teacherRepository.existsByEmail(request.email())) {
             throw new AuthException(HttpStatus.CONFLICT, "EMAIL_ALREADY_EXISTS", "이미 사용 중인 이메일입니다.");
         }
 
         TeacherEntity teacher = new TeacherEntity(
-                request.loginId().trim(),
                 request.email().trim(),
                 passwordEncoder.encode(request.password()),
                 request.name().trim(),
@@ -86,18 +79,18 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public TeacherEntity authenticate(LoginRequest request) {
-        loginAttemptService.checkAllowed(request.loginId());
-        TeacherEntity teacher = teacherRepository.findByLoginId(request.loginId())
+        loginAttemptService.checkAllowed(request.email());
+        TeacherEntity teacher = teacherRepository.findByEmail(request.email())
                 .orElse(null);
         if (teacher == null || !passwordEncoder.matches(request.password(), teacher.getPassword())) {
-            loginAttemptService.recordFailure(request.loginId());
+            loginAttemptService.recordFailure(request.email());
             throw new AuthException(
                     HttpStatus.UNAUTHORIZED,
                     "INVALID_CREDENTIALS",
-                    "로그인 아이디 또는 비밀번호가 올바르지 않습니다."
+                    "이메일 또는 비밀번호가 올바르지 않습니다."
             );
         }
-        loginAttemptService.clear(request.loginId());
+        loginAttemptService.clear(request.email());
         return teacher;
     }
 
@@ -116,7 +109,7 @@ public class AuthService {
     @Transactional
     public PasswordResetResponse resetPassword(ResetPasswordRequest request) {
         validateDemoVerificationCode(request.verificationCode());
-        TeacherEntity teacher = teacherRepository.findByLoginIdAndEmail(request.loginId(), request.email())
+        TeacherEntity teacher = teacherRepository.findByEmail(request.email())
                 .orElseThrow(() -> new AuthException(
                         HttpStatus.NOT_FOUND,
                         "TEACHER_NOT_FOUND",
@@ -135,7 +128,7 @@ public class AuthService {
                         "TEACHER_NOT_FOUND",
                         "계정 정보를 확인할 수 없습니다."
                 ));
-        return FindIdResponse.completed(mask(teacher.getLoginId()));
+        return FindIdResponse.completed(mask(teacher.getEmail()));
     }
 
     @Transactional
@@ -219,7 +212,6 @@ public class AuthService {
     }
 
     public void logoutAdmin(AuthPrincipal principal, String rawRefreshToken) {
-        accessTokenRevocationService.revoke(principal);
         refreshTokenService.revoke(rawRefreshToken, AuthAudience.ADMIN);
     }
 
@@ -229,7 +221,6 @@ public class AuthService {
                 && !JwtTokenService.BOOTSTRAP_AUDIENCE.equals(principal.audience()))) {
             throw new AuthException(HttpStatus.FORBIDDEN, "INVALID_TOKEN_AUDIENCE", "학습 앱 로그아웃 권한이 없습니다.");
         }
-        accessTokenRevocationService.revoke(principal);
         refreshTokenService.revoke(rawRefreshToken, AuthAudience.LEARNING);
     }
 
@@ -254,16 +245,18 @@ public class AuthService {
         }
     }
 
-    private String mask(String loginId) {
-        if (loginId.length() <= 2) {
-            return loginId.charAt(0) + "*";
+    private String mask(String email) {
+        int atIndex = email.indexOf('@');
+        String localPart = atIndex > 0 ? email.substring(0, atIndex) : email;
+        String domain = atIndex > 0 ? email.substring(atIndex) : "";
+        if (localPart.length() <= 2) {
+            return localPart.charAt(0) + "*" + domain;
         }
-        int visiblePrefix = Math.min(3, loginId.length() - 1);
-        int visibleSuffix = loginId.length() >= 6 ? 2 : 1;
-        int maskLength = Math.max(1, loginId.length() - visiblePrefix - visibleSuffix);
-        return loginId.substring(0, visiblePrefix)
+        int visiblePrefix = Math.min(3, localPart.length() - 1);
+        int maskLength = Math.max(1, localPart.length() - visiblePrefix);
+        return localPart.substring(0, visiblePrefix)
                 + "*".repeat(maskLength)
-                + loginId.substring(loginId.length() - visibleSuffix);
+                + domain;
     }
 
     private String normalizeNullable(String value) {

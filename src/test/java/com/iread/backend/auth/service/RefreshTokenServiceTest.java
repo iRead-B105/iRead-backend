@@ -43,7 +43,6 @@ class RefreshTokenServiceTest {
         );
         service = new RefreshTokenService(repository, settings);
         teacher = new TeacherEntity(
-                "teacher01",
                 "teacher@example.com",
                 "encoded-password",
                 "교사",

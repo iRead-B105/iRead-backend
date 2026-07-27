@@ -10,14 +10,14 @@ import java.time.LocalDateTime;
 
 @Getter
 @Entity
-@Table(name = "training_contents")
+@Table(name = "training_datas")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class TrainingDataEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "training_id", nullable = false, unique = true)
+    @JoinColumn(name = "train_id", nullable = false, unique = true)
     private TrainingEntity training;
 
     @Column(name = "generated_data", columnDefinition = "json")

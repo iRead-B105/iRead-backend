@@ -3,7 +3,6 @@ package com.iread.backend.security;
 import com.iread.backend.auth.exception.AuthException;
 import com.iread.backend.auth.security.AuthPrincipal;
 import com.iread.backend.auth.security.JwtTokenService;
-import com.iread.backend.auth.service.AccessTokenRevocationService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,14 +23,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtTokenService jwtTokenService;
-    private final AccessTokenRevocationService accessTokenRevocationService;
 
-    public JwtAuthenticationFilter(
-            JwtTokenService jwtTokenService,
-            AccessTokenRevocationService accessTokenRevocationService
-    ) {
+    public JwtAuthenticationFilter(JwtTokenService jwtTokenService) {
         this.jwtTokenService = jwtTokenService;
-        this.accessTokenRevocationService = accessTokenRevocationService;
     }
 
     @Override
@@ -48,13 +42,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 AuthPrincipal principal = jwtTokenService.parseAndValidate(
                         authorization.substring(BEARER_PREFIX.length())
                 );
-                if (accessTokenRevocationService.isRevoked(principal.tokenId())) {
-                    throw new AuthException(
-                            org.springframework.http.HttpStatus.UNAUTHORIZED,
-                            "TOKEN_REVOKED",
-                            "폐기된 인증 토큰입니다."
-                    );
-                }
                 List<SimpleGrantedAuthority> authorities = new ArrayList<>();
                 authorities.add(new SimpleGrantedAuthority("ROLE_" + principal.role().name()));
                 authorities.add(new SimpleGrantedAuthority("AUD_" + principal.audience()));
