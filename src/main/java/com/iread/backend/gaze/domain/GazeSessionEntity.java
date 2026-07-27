@@ -46,6 +46,9 @@ public class GazeSessionEntity {
     @Column(name = "ended_at")
     private LocalDateTime endedAt;
 
+    @Column(columnDefinition = "json")
+    private String data;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private GazeSessionStatus status;

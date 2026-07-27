@@ -48,7 +48,8 @@ public class TrainingEntity {
     @Column(columnDefinition = "json")
     private String result;
 
-    @Column(precision = 5, scale = 2)
+    @Convert(converter = AccuracyIntegerConverter.class)
+    @Column(columnDefinition = "int")
     private BigDecimal accuracy;
 
     @OneToMany(mappedBy = "training", cascade = CascadeType.REMOVE)
