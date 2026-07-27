@@ -6,11 +6,11 @@ import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.report.admin.dto.req.CreateReportRequest;
 import com.iread.backend.report.domain.ReportEntity;
 import com.iread.backend.report.repository.ReportRepository;
-import com.iread.backend.report.repository.StudentWordStatRepository;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.test.repository.StudentTestRepository;
 import com.iread.backend.training.repository.TrainingRepository;
+import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,7 +38,7 @@ class ReportServiceTest {
     @Mock StudentRepository studentRepository;
     @Mock TrainingRepository trainingRepository;
     @Mock StudentTestRepository testRepository;
-    @Mock StudentWordStatRepository wordStatRepository;
+    @Mock WordAttemptLogRepository wordAttemptLogRepository;
     @Mock GazeAnalysisResultRepository gazeAnalysisResultRepository;
 
     private ReportService reportService;
@@ -46,7 +46,7 @@ class ReportServiceTest {
     @BeforeEach
     void setUp() {
         reportService = new ReportService(reportRepository, studentRepository, trainingRepository,
-                testRepository, wordStatRepository, gazeAnalysisResultRepository,
+                testRepository, wordAttemptLogRepository, gazeAnalysisResultRepository,
                 JsonMapper.builder().build());
     }
 
@@ -58,7 +58,8 @@ class ReportServiceTest {
                 any(), any(), any(), any())).thenReturn(List.of());
         when(testRepository.findAllByTestCurriculumStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
                 any(), any(), any(), any())).thenReturn(List.of());
-        when(wordStatRepository.findAllByStudentId(10L)).thenReturn(List.of());
+        when(wordAttemptLogRepository.findIncorrectWordStats(any(), any(), any()))
+                .thenReturn(List.of());
         when(reportRepository.saveAndFlush(any())).thenAnswer(invocation -> {
             ReportEntity report = invocation.getArgument(0);
             ReflectionTestUtils.setField(report, "id", 25L);

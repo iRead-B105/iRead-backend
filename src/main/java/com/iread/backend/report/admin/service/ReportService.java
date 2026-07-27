@@ -6,9 +6,7 @@ import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.report.admin.dto.req.CreateReportRequest;
 import com.iread.backend.report.admin.dto.res.*;
 import com.iread.backend.report.domain.ReportEntity;
-import com.iread.backend.report.domain.StudentWordStatEntity;
 import com.iread.backend.report.repository.ReportRepository;
-import com.iread.backend.report.repository.StudentWordStatRepository;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.test.domain.StudentTestEntity;
@@ -17,6 +15,7 @@ import com.iread.backend.test.repository.StudentTestRepository;
 import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.domain.TrainingStatus;
 import com.iread.backend.training.repository.TrainingRepository;
+import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,7 +38,7 @@ public class ReportService {
     private final StudentRepository studentRepository;
     private final TrainingRepository trainingRepository;
     private final StudentTestRepository testRepository;
-    private final StudentWordStatRepository wordStatRepository;
+    private final WordAttemptLogRepository wordAttemptLogRepository;
     private final GazeAnalysisResultRepository gazeAnalysisResultRepository;
     private final ObjectMapper objectMapper;
 
@@ -60,7 +59,8 @@ public class ReportService {
                 .findAllByTestCurriculumStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
                         request.studentId(), TestStatus.COMPLETED, start, endExclusive);
 
-        ReportSnapshot snapshot = buildSnapshot(request.studentId(), trainings, tests);
+        ReportSnapshot snapshot = buildSnapshot(
+                request.studentId(), start, endExclusive, trainings, tests);
         ReportEntity report = reportRepository.saveAndFlush(new ReportEntity(
                 student, request.startDate(), request.endDate(), writeJson(snapshot), request.teacherMemo()));
         return new CreateReportResponse(report.getId(), report.getCreatedAt());
@@ -185,7 +185,11 @@ public class ReportService {
         );
     }
 
-    private ReportSnapshot buildSnapshot(Long studentId, List<TrainingEntity> trainings,
+    private ReportSnapshot buildSnapshot(
+                                         Long studentId,
+                                         LocalDateTime start,
+                                         LocalDateTime endExclusive,
+                                         List<TrainingEntity> trainings,
                                          List<StudentTestEntity> tests) {
         long learningDays = trainings.stream().map(t -> t.getFinishedAt().toLocalDate()).distinct().count();
         long totalMinutes = trainings.stream()
@@ -216,7 +220,8 @@ public class ReportService {
                 .map(entry -> new ReportSnapshot.AreaAchievement(entry.getKey(), average(entry.getValue())))
                 .toList();
 
-        List<ReportSnapshot.IncorrectWord> incorrectWords = wordStatRepository.findAllByStudentId(studentId).stream()
+        List<ReportSnapshot.IncorrectWord> incorrectWords = wordAttemptLogRepository
+                .findIncorrectWordStats(studentId, start, endExclusive).stream()
                 .map(this::toIncorrectWord)
                 .sorted(Comparator.comparing(ReportSnapshot.IncorrectWord::incorrectRate,
                                 Comparator.nullsLast(Comparator.reverseOrder()))
@@ -229,13 +234,22 @@ public class ReportService {
                 List.of(), List.of(), null);
     }
 
-    private ReportSnapshot.IncorrectWord toIncorrectWord(StudentWordStatEntity stat) {
-        BigDecimal rate = stat.getAttemptCount() == null || stat.getAttemptCount() == 0
+    private ReportSnapshot.IncorrectWord toIncorrectWord(
+            WordAttemptLogRepository.IncorrectWordProjection stat
+    ) {
+        long attemptCount = stat.getAttemptCount() == null ? 0 : stat.getAttemptCount();
+        long incorrectCount = stat.getIncorrectCount() == null ? 0 : stat.getIncorrectCount();
+        BigDecimal rate = attemptCount == 0
                 ? BigDecimal.ZERO.setScale(2)
-                : BigDecimal.valueOf(stat.getFailedCount() * 100L)
-                        .divide(BigDecimal.valueOf(stat.getAttemptCount()), 2, RoundingMode.HALF_UP);
-        return new ReportSnapshot.IncorrectWord(stat.getWord().getId(), stat.getWord().getContent(),
-                stat.getAttemptCount(), stat.getFailedCount(), rate);
+                : BigDecimal.valueOf(incorrectCount * 100L)
+                        .divide(BigDecimal.valueOf(attemptCount), 2, RoundingMode.HALF_UP);
+        return new ReportSnapshot.IncorrectWord(
+                stat.getWordId(),
+                stat.getWordName(),
+                Math.toIntExact(attemptCount),
+                Math.toIntExact(incorrectCount),
+                rate
+        );
     }
 
     private BigDecimal average(List<BigDecimal> values) {

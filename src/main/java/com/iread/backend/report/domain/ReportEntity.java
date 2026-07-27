@@ -23,12 +23,12 @@ public class ReportEntity {
     private StudentEntity student;
 
     @Column(name = "start_date", nullable = false)
-    private LocalDate startDate;
+    private LocalDateTime startDate;
 
     @Column(name = "end_date", nullable = false)
-    private LocalDate endDate;
+    private LocalDateTime endDate;
 
-    @Column(name = "snapshot_data", nullable = false, columnDefinition = "json")
+    @Column(name = "snapshot_data", columnDefinition = "json")
     private String snapshotData;
 
     @Column(name = "teacher_memo", columnDefinition = "text")
@@ -41,10 +41,18 @@ public class ReportEntity {
     public ReportEntity(StudentEntity student, LocalDate startDate, LocalDate endDate,
                         String snapshotData, String teacherMemo) {
         this.student = student;
-        this.startDate = startDate;
-        this.endDate = endDate;
+        this.startDate = startDate.atStartOfDay();
+        this.endDate = endDate.plusDays(1).atStartOfDay().minusNanos(1);
         this.snapshotData = snapshotData;
         this.teacherMemo = teacherMemo;
+    }
+
+    public LocalDate getStartDate() {
+        return startDate.toLocalDate();
+    }
+
+    public LocalDate getEndDate() {
+        return endDate.toLocalDate();
     }
 
     public void updateTeacherMemo(String teacherMemo) {
