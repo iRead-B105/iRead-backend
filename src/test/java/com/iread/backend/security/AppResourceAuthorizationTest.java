@@ -5,8 +5,8 @@ import com.iread.backend.gaze.app.dto.req.StartGazeSessionRequest;
 import com.iread.backend.gaze.app.service.GazeService;
 import com.iread.backend.gaze.domain.GazeCalibrationStatus;
 import com.iread.backend.gaze.domain.GazeContentType;
-import com.iread.backend.mypage.app.controller.MypageController;
-import com.iread.backend.mypage.app.service.MypageService;
+import com.iread.backend.student.app.controller.AppStudentController;
+import com.iread.backend.student.app.service.GrowthService;
 import com.iread.backend.story.app.controller.StoryController;
 import com.iread.backend.story.app.service.StoryService;
 import org.junit.jupiter.api.Test;
@@ -21,11 +21,11 @@ class AppResourceAuthorizationTest {
     private final StudentResourceAccessPolicy policy = new StudentResourceAccessPolicy();
 
     @Test
-    void 마이페이지에서다른학생캐릭터접근을차단한다() {
-        MypageService service = mock(MypageService.class);
-        MypageController controller = new MypageController(service, policy);
+    void 성장조회에서다른학생경로접근을차단한다() {
+        GrowthService service = mock(GrowthService.class);
+        AppStudentController controller = new AppStudentController(service, policy);
 
-        assertThatThrownBy(() -> controller.getCharacters(1L, 20L, 21L))
+        assertThatThrownBy(() -> controller.getGrowth(1L, 20L, 21L))
                 .isInstanceOf(AccessDeniedException.class);
         verifyNoInteractions(service);
     }

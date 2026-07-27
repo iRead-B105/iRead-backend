@@ -23,11 +23,10 @@ class ResourceAuthorizationIntegrationTest {
     private JwtTokenService jwtTokenService;
 
     @Test
-    void 학습토큰으로다른학생의마이페이지에접근하면403을반환한다() throws Exception {
+    void 학습토큰으로다른학생의성장정보에접근하면403을반환한다() throws Exception {
         String token = jwtTokenService.issueLearningAccessToken(1L, 20L).value();
 
-        mockMvc.perform(get("/api/app/mypage/character")
-                        .queryParam("studentId", "21")
+        mockMvc.perform(get("/api/app/student/21/growth")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden());
     }
@@ -61,7 +60,6 @@ class ResourceAuthorizationIntegrationTest {
         String token = jwtTokenService.issueAdminAccessToken(1L).value();
 
         mockMvc.perform(get("/api/app/mypage/character")
-                        .queryParam("studentId", "20")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isForbidden());
     }
