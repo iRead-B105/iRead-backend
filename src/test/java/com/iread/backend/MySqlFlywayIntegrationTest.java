@@ -74,7 +74,7 @@ class MySqlFlywayIntegrationTest {
     void concurrentStoryChoiceAndGazeAnalysisWritesKeepSingleResult() throws Exception {
         long teacherId = insertAndReturnKey(
                 "INSERT INTO teachers(email, password, name, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
-                "concurrency-" + UUID.randomUUID() + "@example.com", "password", "교사"
+                "ci-" + UUID.randomUUID() + "@x.io", "password", "교사"
         );
         long studentId = insertAndReturnKey(
                 "INSERT INTO students(teacher_id, name, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
