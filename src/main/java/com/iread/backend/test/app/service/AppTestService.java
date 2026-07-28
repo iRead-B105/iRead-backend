@@ -77,7 +77,8 @@ public class AppTestService {
     @Transactional
     public TestStartResponse start(Long teacherId, Long studentId) {
         findOwnedStudent(teacherId, studentId);
-        StudentTestEntity test = findCurrentTest(studentId, Set.of(TestStatus.NOT_STARTED));
+        StudentTestEntity current = findCurrentTest(studentId, Set.of(TestStatus.NOT_STARTED));
+        StudentTestEntity test = findTestForUpdate(studentId, current.getId());
         LocalDateTime startedAt = LocalDateTime.now();
         test.start(startedAt);
         return new TestStartResponse(test.getId(), startedAt, test.getStatus());
@@ -85,7 +86,7 @@ public class AppTestService {
 
     @Transactional
     public TestResetResponse reset(Long teacherId, Long studentId, Long testId) {
-        StudentTestEntity test = findOwnedTest(teacherId, studentId, testId);
+        StudentTestEntity test = findOwnedTestForUpdate(teacherId, studentId, testId);
         test.reset();
         wordAttemptLogRepository.deleteAllByTestId(testId);
         return new TestResetResponse(testId, test.getStatus(), LocalDateTime.now());
@@ -99,7 +100,7 @@ public class AppTestService {
             TestRecordingRequest request
     ) {
         StudentEntity student = findOwnedStudent(teacherId, studentId);
-        StudentTestEntity test = findInProgressTest(studentId, request.testId());
+        StudentTestEntity test = findInProgressTestForUpdate(studentId, request.testId());
         validateQuestion(request.testId(), questionNumber);
         WordEntity word = findWord(request.wordId());
         WordAttemptLogEntity attempt = wordAttemptLogRepository.saveAndFlush(
@@ -133,7 +134,7 @@ public class AppTestService {
             TestSelectionRequest request
     ) {
         StudentEntity student = findOwnedStudent(teacherId, studentId);
-        StudentTestEntity test = findInProgressTest(studentId, request.testId());
+        StudentTestEntity test = findInProgressTestForUpdate(studentId, request.testId());
         validateQuestion(request.testId(), questionNumber);
         WordEntity word = findWord(request.wordId());
         WordAttemptLogEntity attempt = wordAttemptLogRepository.saveAndFlush(
@@ -167,7 +168,7 @@ public class AppTestService {
             TestQuestionCompleteRequest request
     ) {
         findOwnedStudent(teacherId, studentId);
-        StudentTestEntity test = findInProgressTest(studentId, request.testId());
+        StudentTestEntity test = findInProgressTestForUpdate(studentId, request.testId());
         validateQuestion(request.testId(), questionNumber);
         test.updateResult(writeJson(request.result()));
         return new TestQuestionCompleteResponse(
@@ -185,7 +186,7 @@ public class AppTestService {
             TestCompleteRequest request
     ) {
         findOwnedStudent(teacherId, studentId);
-        StudentTestEntity test = findInProgressTest(studentId, request.testId());
+        StudentTestEntity test = findInProgressTestForUpdate(studentId, request.testId());
         List<WordAttemptLogEntity> attempts =
                 wordAttemptLogRepository.findAllByTestIdOrderByIdAsc(test.getId());
         if (attempts.isEmpty()) {
@@ -220,6 +221,11 @@ public class AppTestService {
                 .orElseThrow(() -> new ResourceNotFoundException("검사를 찾을 수 없습니다."));
     }
 
+    private StudentTestEntity findOwnedTestForUpdate(Long teacherId, Long studentId, Long testId) {
+        findOwnedStudent(teacherId, studentId);
+        return findTestForUpdate(studentId, testId);
+    }
+
     private StudentTestEntity findCurrentTest(Long studentId, Set<TestStatus> statuses) {
         return testRepository
                 .findFirstByTestCurriculumStudentIdAndStatusInOrderByTestCurriculumCreatedAtDescSequenceNoAscIdAsc(
@@ -229,14 +235,17 @@ public class AppTestService {
                 .orElseThrow(() -> new ResourceNotFoundException("진행할 검사를 찾을 수 없습니다."));
     }
 
-    private StudentTestEntity findInProgressTest(Long studentId, Long testId) {
-        StudentTestEntity test = testRepository
-                .findByIdAndTestCurriculumStudentId(testId, studentId)
-                .orElseThrow(() -> new ResourceNotFoundException("검사를 찾을 수 없습니다."));
+    private StudentTestEntity findInProgressTestForUpdate(Long studentId, Long testId) {
+        StudentTestEntity test = findTestForUpdate(studentId, testId);
         if (test.getStatus() != TestStatus.IN_PROGRESS) {
             throw new ConflictException("진행 중인 검사가 아닙니다.");
         }
         return test;
+    }
+
+    private StudentTestEntity findTestForUpdate(Long studentId, Long testId) {
+        return testRepository.findByIdAndStudentIdForUpdate(testId, studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("검사를 찾을 수 없습니다."));
     }
 
     private WordEntity findWord(Long wordId) {

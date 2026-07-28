@@ -59,6 +59,24 @@ class ResourceAuthorizationIntegrationTest {
     }
 
     @Test
+    void 학습토큰으로다른학생의훈련에접근하면403을반환한다() throws Exception {
+        String token = jwtTokenService.issueLearningAccessToken(1L, 20L).value();
+
+        mockMvc.perform(get("/api/app/training/21/30/intro")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void 학습토큰으로다른학생의검사에접근하면403을반환한다() throws Exception {
+        String token = jwtTokenService.issueLearningAccessToken(1L, 20L).value();
+
+        mockMvc.perform(get("/api/app/test/21/intro")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void 학습토큰으로다른학생의생성음성에접근하면403을반환한다() throws Exception {
         String token = jwtTokenService.issueLearningAccessToken(1L, 20L).value();
 

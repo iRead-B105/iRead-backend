@@ -1,6 +1,7 @@
 package com.iread.backend.training.app.service;
 
 import com.iread.backend.student.domain.StudentEntity;
+import com.iread.backend.global.audio.AudioUploadPolicy;
 import com.iread.backend.pronunciation.PronunciationAnalysisAdapter;
 import com.iread.backend.pronunciation.DeterministicPronunciationAnalysisAdapter;
 import com.iread.backend.training.app.dto.req.TrainingRecordingRequest;
@@ -23,6 +24,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.util.unit.DataSize;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -30,9 +32,11 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,6 +47,7 @@ class AppTrainingServiceTest {
     @Mock WordRepository wordRepository;
     @Mock WordAttemptLogRepository wordAttemptLogRepository;
     @Mock PronunciationAnalysisAdapter pronunciationAnalysisAdapter;
+    @Mock AudioUploadPolicy audioUploadPolicy;
     @Mock TrainingService trainingService;
     @Mock ObjectMapper objectMapper;
     @InjectMocks AppTrainingService appTrainingService;
@@ -52,7 +57,7 @@ class AppTrainingServiceTest {
         StudentEntity student = mock(StudentEntity.class);
         TrainingEntity training = mock(TrainingEntity.class);
         when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
-        when(trainingRepository.findByIdAndDailyCurriculumStudentId(30L, 20L))
+        when(trainingRepository.findForUpdate(30L, 20L))
                 .thenReturn(Optional.of(training));
         when(training.getStatus())
                 .thenReturn(TrainingStatus.NOT_STARTED, TrainingStatus.IN_PROGRESS);
@@ -73,7 +78,7 @@ class AppTrainingServiceTest {
         WordAttemptLogEntity saved = mock(WordAttemptLogEntity.class);
         LocalDateTime createdAt = LocalDateTime.of(2026, 7, 27, 12, 0);
         when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
-        when(trainingRepository.findByIdAndDailyCurriculumStudentId(30L, 20L))
+        when(trainingRepository.findForUpdate(30L, 20L))
                 .thenReturn(Optional.of(training));
         when(training.getStatus()).thenReturn(TrainingStatus.IN_PROGRESS);
         when(wordRepository.findById(40L)).thenReturn(Optional.of(word));
@@ -133,6 +138,7 @@ class AppTrainingServiceTest {
                 wordRepository,
                 wordAttemptLogRepository,
                 pronunciationAnalysisAdapter,
+                audioUploadPolicy,
                 trainingService,
                 JsonMapper.builder().build()
         );
@@ -155,7 +161,7 @@ class AppTrainingServiceTest {
         WordAttemptLogEntity saved = mock(WordAttemptLogEntity.class);
         LocalDateTime createdAt = LocalDateTime.of(2026, 7, 28, 12, 0);
         when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
-        when(trainingRepository.findByIdAndDailyCurriculumStudentId(30L, 20L))
+        when(trainingRepository.findForUpdate(30L, 20L))
                 .thenReturn(Optional.of(training));
         when(training.getStatus()).thenReturn(TrainingStatus.IN_PROGRESS);
         when(training.getResult()).thenReturn(null);
@@ -188,6 +194,10 @@ class AppTrainingServiceTest {
                 wordRepository,
                 wordAttemptLogRepository,
                 new DeterministicPronunciationAnalysisAdapter(),
+                new AudioUploadPolicy(
+                        DataSize.ofMegabytes(20),
+                        "audio/webm,audio/wav,audio/mpeg,audio/mp4"
+                ),
                 trainingService,
                 JsonMapper.builder().build()
         );
@@ -220,5 +230,63 @@ class AppTrainingServiceTest {
                 .contains("\"wordAttemptLogId\":50")
                 .contains("\"isFinal\":true")
                 .contains("\"observedPronunciation\":\"먹는다\"");
+    }
+
+    @Test
+    void recordingRejectsMismatchedAudioBeforePronunciationAnalysis() {
+        StudentEntity student = mock(StudentEntity.class);
+        TrainingEntity training = mock(TrainingEntity.class);
+        TrainingDataEntity data = mock(TrainingDataEntity.class);
+        WordEntity word = mock(WordEntity.class);
+        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        when(trainingRepository.findForUpdate(30L, 20L)).thenReturn(Optional.of(training));
+        when(training.getStatus()).thenReturn(TrainingStatus.IN_PROGRESS);
+        when(trainingDataRepository.findByTrainingId(30L)).thenReturn(Optional.of(data));
+        when(data.getGeneratedData()).thenReturn("""
+                {
+                  "questions":[{
+                    "analysisTargets":[{
+                      "text":"먹는다",
+                      "expectedPronunciation":"멍는다"
+                    }]
+                  }]
+                }
+                """);
+        when(wordRepository.findById(40L)).thenReturn(Optional.of(word));
+        when(word.getContent()).thenReturn("먹는다");
+        AppTrainingService service = new AppTrainingService(
+                studentRepository,
+                trainingRepository,
+                trainingDataRepository,
+                wordRepository,
+                wordAttemptLogRepository,
+                pronunciationAnalysisAdapter,
+                new AudioUploadPolicy(
+                        DataSize.ofMegabytes(20),
+                        "audio/webm,audio/wav,audio/mpeg,audio/mp4"
+                ),
+                trainingService,
+                JsonMapper.builder().build()
+        );
+        TrainingRecordingRequest request = new TrainingRecordingRequest(
+                40L,
+                0,
+                null,
+                "먹는다",
+                "멍는다",
+                new MockMultipartFile(
+                        "audioFile",
+                        "voice.wav",
+                        "audio/mpeg",
+                        new byte[]{1, 2, 3}
+                ),
+                100,
+                900
+        );
+
+        assertThatThrownBy(() -> service.saveRecording(1L, 20L, 30L, 1, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("음성 파일 형식과 확장자가 일치하지 않습니다.");
+        verifyNoInteractions(pronunciationAnalysisAdapter);
     }
 }

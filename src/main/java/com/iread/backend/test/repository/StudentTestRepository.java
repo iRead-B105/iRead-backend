@@ -2,7 +2,11 @@ package com.iread.backend.test.repository;
 
 import com.iread.backend.test.domain.StudentTestEntity;
 import com.iread.backend.test.domain.TestStatus;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
@@ -36,4 +40,16 @@ public interface StudentTestRepository extends JpaRepository<StudentTestEntity, 
     );
 
     Optional<StudentTestEntity> findByIdAndTestCurriculumStudentId(Long id, Long studentId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT test
+            FROM StudentTestEntity test
+            WHERE test.id = :testId
+              AND test.testCurriculum.student.id = :studentId
+            """)
+    Optional<StudentTestEntity> findByIdAndStudentIdForUpdate(
+            @Param("testId") Long testId,
+            @Param("studentId") Long studentId
+    );
 }
