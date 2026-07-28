@@ -49,6 +49,8 @@ class AppTestServiceTest {
                         any()
                 ))
                 .thenReturn(Optional.of(test));
+        when(testRepository.findByIdAndStudentIdForUpdate(30L, 20L))
+                .thenReturn(Optional.of(test));
         when(test.getId()).thenReturn(30L);
         when(test.getStatus()).thenReturn(TestStatus.IN_PROGRESS);
 
@@ -68,7 +70,7 @@ class AppTestServiceTest {
         WordAttemptLogEntity second = mock(WordAttemptLogEntity.class);
         LocalDateTime completedAt = LocalDateTime.of(2026, 7, 27, 15, 0);
         when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
-        when(testRepository.findByIdAndTestCurriculumStudentId(30L, 20L))
+        when(testRepository.findByIdAndStudentIdForUpdate(30L, 20L))
                 .thenReturn(Optional.of(test));
         when(test.getId()).thenReturn(30L);
         when(test.getStatus()).thenReturn(TestStatus.IN_PROGRESS, TestStatus.COMPLETED);
