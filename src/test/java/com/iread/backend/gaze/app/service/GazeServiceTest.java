@@ -1,9 +1,12 @@
 package com.iread.backend.gaze.app.service;
 
+import com.iread.backend.exception.ConflictException;
+import com.iread.backend.gaze.app.dto.req.GazeAnalysisResultRequest;
 import com.iread.backend.gaze.domain.GazeAnalysisResultEntity;
 import com.iread.backend.gaze.domain.GazeCalibrationStatus;
 import com.iread.backend.gaze.domain.GazeContentType;
 import com.iread.backend.gaze.domain.GazeSessionEntity;
+import com.iread.backend.gaze.domain.GazeSessionStatus;
 import com.iread.backend.gaze.app.dto.req.StartGazeSessionRequest;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
@@ -26,6 +29,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -110,6 +115,59 @@ class GazeServiceTest {
         assertThatThrownBy(() -> gazeService.startSession(1L, request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("콘텐츠 식별자는 정확히 하나만 입력해야 합니다.");
+    }
+
+    @Test
+    void rejectsReferenceThatDoesNotMatchContentType() {
+        StudentEntity student = mock(StudentEntity.class);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        StartGazeSessionRequest request = new StartGazeSessionRequest(
+                10L, GazeContentType.TEST, null, 30L, null, GazeCalibrationStatus.SUCCESS
+        );
+
+        assertThatThrownBy(() -> gazeService.startSession(1L, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("contentType과 콘텐츠 식별자가 일치하지 않습니다.");
+    }
+
+    @Test
+    void rejectsDuplicateAnalysisForCompletedSession() {
+        StudentEntity student = mock(StudentEntity.class);
+        GazeSessionEntity session = mock(GazeSessionEntity.class);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(gazeSessionRepository.findByIdAndStudentId(30L, 10L)).thenReturn(Optional.of(session));
+        when(session.getStatus()).thenReturn(GazeSessionStatus.COMPLETED);
+        when(gazeAnalysisResultRepository.existsByGazeSessionId(30L)).thenReturn(true);
+
+        assertThatThrownBy(() -> gazeService.saveAnalysisResult(
+                1L, 30L, new GazeAnalysisResultRequest(10L, 1200, 8, 2, 150, null)
+        ))
+                .isInstanceOf(ConflictException.class)
+                .hasMessage("시선 세션의 분석 결과가 이미 저장되어 있습니다.");
+
+        verify(gazeAnalysisResultRepository, never()).saveAndFlush(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void rejectsSentenceMetricsForNonStorySession() {
+        StudentEntity student = mock(StudentEntity.class);
+        GazeSessionEntity session = mock(GazeSessionEntity.class);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(gazeSessionRepository.findByIdAndStudentId(30L, 10L)).thenReturn(Optional.of(session));
+        when(session.getStatus()).thenReturn(GazeSessionStatus.COMPLETED);
+        when(session.getContentType()).thenReturn(GazeContentType.TRAINING);
+
+        assertThatThrownBy(() -> gazeService.saveAnalysisResult(
+                1L, 30L,
+                new GazeAnalysisResultRequest(
+                        10L, 1200, 8, 2, 150,
+                        new JsonMapper().readTree("[{\"sentenceNo\":1}]")
+                )
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("문장별 시선 지표는 이야기 세션에서만 저장할 수 있습니다.");
+
+        verify(gazeAnalysisResultRepository, never()).saveAndFlush(org.mockito.ArgumentMatchers.any());
     }
 
     private GazeAnalysisResultEntity analysisResult() {
