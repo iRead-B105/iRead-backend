@@ -63,7 +63,7 @@ public class TrainingEntity {
     }
 
     public boolean isCompleted() { return status == TrainingStatus.COMPLETED; }
-    public boolean isEditable() { return status == TrainingStatus.NOT_READY || status == TrainingStatus.NOT_STARTED; }
+    public boolean isEditable() { return status == TrainingStatus.NOT_READY; }
     public boolean isCompletable() {
         return status == TrainingStatus.NOT_STARTED || status == TrainingStatus.IN_PROGRESS;
     }
@@ -84,6 +84,13 @@ public class TrainingEntity {
         result = null;
         accuracy = null;
         status = TrainingStatus.NOT_STARTED;
+    }
+
+    public void recordProgressResult(String result) {
+        if (status != TrainingStatus.IN_PROGRESS) {
+            throw new IllegalStateException("진행 중인 훈련에만 시도 결과를 연결할 수 있습니다.");
+        }
+        this.result = result;
     }
 
     public void complete(String result, BigDecimal accuracy, LocalDateTime finishedAt) {

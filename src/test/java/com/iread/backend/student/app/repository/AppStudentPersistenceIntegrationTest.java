@@ -32,7 +32,7 @@ class AppStudentPersistenceIntegrationTest {
                 VALUES (903, '낱말', 1)
                 """);
         jdbcTemplate.update("""
-                INSERT INTO training_templates (id, curriculum_unit_id, name, form, sequence_no)
+                INSERT INTO training_templates (id, curriculum_unit_id, name, prompt, sequence_no)
                 VALUES (904, 903, '낱말 읽기', '{}', 1)
                 """);
         jdbcTemplate.update("""

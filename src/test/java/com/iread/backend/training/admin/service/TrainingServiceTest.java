@@ -3,12 +3,16 @@ package com.iread.backend.training.admin.service;
 import com.iread.backend.ai.client.AiClient;
 import com.iread.backend.ai.dto.req.EvaluateTrainingRequest;
 import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
+import com.iread.backend.gaze.analysis.GazeWordAnalysisAdapter;
+import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.*;
+import com.iread.backend.training.curriculum.PersonalizedCurriculumPlanner;
 import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.repository.*;
+import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.domain.WordAttemptUseLocation;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
@@ -46,7 +50,11 @@ class TrainingServiceTest {
     @Mock TrainingDataRepository trainingDataRepository;
     @Mock WordRepository wordRepository;
     @Mock WordAttemptLogRepository wordAttemptLogRepository;
+    @Mock GazeWordAnalysisAdapter gazeWordAnalysisAdapter;
     @Mock AiClient aiClient;
+    @Mock PersonalizedTrainingGenerationService personalizedTrainingGenerationService;
+    @Mock StudentFeatureProfileService studentFeatureProfileService;
+    @Mock PersonalizedCurriculumPlanner personalizedCurriculumPlanner;
 
     private TrainingService trainingService;
 
@@ -63,7 +71,11 @@ class TrainingServiceTest {
                 new WordAttemptScoreCalculator(
                         new WordAttemptScoreProperties(100, 300, 200, 600, 250)
                 ),
+                gazeWordAnalysisAdapter,
                 aiClient,
+                personalizedTrainingGenerationService,
+                studentFeatureProfileService,
+                personalizedCurriculumPlanner,
                 JsonMapper.builder().build()
         );
     }
@@ -118,7 +130,7 @@ class TrainingServiceTest {
         ReflectionTestUtils.setField(training, "status", TrainingStatus.IN_PROGRESS);
         curriculum.getTrainings().add(training);
         allowStudent();
-        when(dailyCurriculumRepository.findByIdAndStudentId(100L, 10L)).thenReturn(Optional.of(curriculum));
+        when(dailyCurriculumRepository.findForUpdate(100L, 10L)).thenReturn(Optional.of(curriculum));
 
         assertThatThrownBy(() -> trainingService.updateDailyCurriculum(
                 1L, 10L, 100L, new UpdateCurriculumRequest(List.of(11L))))
@@ -251,7 +263,7 @@ class TrainingServiceTest {
     @Test
     void returnsOwnedTrainingDetailWithParsedJsonFields() {
         TrainingEntity training = ownedTraining(1L);
-        ReflectionTestUtils.setField(training.getTrainingTemplate(), "form", "{\"questionType\":\"WORD\"}");
+        ReflectionTestUtils.setField(training.getTrainingTemplate(), "prompt", "{\"questionType\":\"WORD\"}");
         ReflectionTestUtils.setField(training, "status", TrainingStatus.COMPLETED);
         ReflectionTestUtils.setField(training, "result", "{\"questions\":[]}");
         ReflectionTestUtils.setField(training, "accuracy", new BigDecimal("88.50"));
@@ -273,7 +285,7 @@ class TrainingServiceTest {
     @Test
     void exportsOwnedTrainingAsImmediateJsonFile() {
         TrainingEntity training = ownedTraining(1L);
-        ReflectionTestUtils.setField(training.getTrainingTemplate(), "form", "{}");
+        ReflectionTestUtils.setField(training.getTrainingTemplate(), "prompt", "{}");
         allowStudent();
         when(trainingRepository.findByIdAndDailyCurriculumStudentId(1L, 10L))
                 .thenReturn(Optional.of(training));
@@ -327,6 +339,7 @@ class TrainingServiceTest {
         verify(aiClient).evaluateTraining(captor.capture());
         assertThat(captor.getValue().requestId()).isEqualTo("training-evaluation-1");
         assertThat(captor.getValue().result()).isEqualTo(resultJson);
+        verify(personalizedCurriculumPlanner).createNextIfAbsent(any(StudentEntity.class));
     }
 
     @Test
@@ -342,6 +355,12 @@ class TrainingServiceTest {
                 ));
         when(wordRepository.findByContent("사과")).thenReturn(Optional.empty());
         when(wordRepository.save(any(WordEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(wordAttemptLogRepository.saveAllAndFlush(any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            List<WordAttemptLogEntity> logs = invocation.getArgument(0);
+            ReflectionTestUtils.setField(logs.getFirst(), "id", 501L);
+            return logs;
+        });
         var resultJson = JsonMapper.builder().build().readTree("""
                 {
                   "questions": [{"questionId": "q1", "isCorrect": true}],
@@ -374,7 +393,7 @@ class TrainingServiceTest {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Iterable<WordAttemptLogEntity>> captor =
                 ArgumentCaptor.forClass(Iterable.class);
-        verify(wordAttemptLogRepository).saveAll(captor.capture());
+        verify(wordAttemptLogRepository).saveAllAndFlush(captor.capture());
         List<WordAttemptLogEntity> logs = StreamSupport
                 .stream(captor.getValue().spliterator(), false)
                 .toList();
@@ -387,6 +406,8 @@ class TrainingServiceTest {
         assertThat(logs.getFirst().getRegressionCount()).isEqualTo(2);
         assertThat(logs.getFirst().getCorrect()).isTrue();
         assertThat(logs.getFirst().getTotalScore()).isEqualTo(800);
+        assertThat(training.getResult()).contains("\"wordAttemptLogId\":501");
+        assertThat(training.getResult()).contains("\"isFinal\":true");
     }
 
     @Test
