@@ -135,7 +135,7 @@ class GazeServiceTest {
         StudentEntity student = mock(StudentEntity.class);
         GazeSessionEntity session = mock(GazeSessionEntity.class);
         when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
-        when(gazeSessionRepository.findByIdAndStudentId(30L, 10L)).thenReturn(Optional.of(session));
+        when(gazeSessionRepository.findByIdAndStudentIdForUpdate(30L, 10L)).thenReturn(Optional.of(session));
         when(session.getStatus()).thenReturn(GazeSessionStatus.COMPLETED);
         when(gazeAnalysisResultRepository.existsByGazeSessionId(30L)).thenReturn(true);
 
@@ -153,7 +153,7 @@ class GazeServiceTest {
         StudentEntity student = mock(StudentEntity.class);
         GazeSessionEntity session = mock(GazeSessionEntity.class);
         when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
-        when(gazeSessionRepository.findByIdAndStudentId(30L, 10L)).thenReturn(Optional.of(session));
+        when(gazeSessionRepository.findByIdAndStudentIdForUpdate(30L, 10L)).thenReturn(Optional.of(session));
         when(session.getStatus()).thenReturn(GazeSessionStatus.COMPLETED);
         when(session.getContentType()).thenReturn(GazeContentType.TRAINING);
 
