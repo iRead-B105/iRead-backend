@@ -84,7 +84,7 @@ public class GazeService {
     @Transactional
     public GazeSessionResponse failSession(Long teacherId, Long gazeSessionId, FailGazeSessionRequest request) {
         validateStudentOwner(teacherId, request.studentId());
-        GazeSessionEntity gazeSession = findOwnedGazeSession(gazeSessionId, request.studentId());
+        GazeSessionEntity gazeSession = findOwnedGazeSessionForUpdate(gazeSessionId, request.studentId());
         requireRunning(gazeSession);
         gazeSession.fail(LocalDateTime.now());
         return toSessionResponse(gazeSession);
@@ -97,7 +97,7 @@ public class GazeService {
                 && request.endStatus() != GazeSessionStatus.FAILED) {
             throw new IllegalArgumentException("종료 상태는 COMPLETED 또는 FAILED만 사용할 수 있습니다.");
         }
-        GazeSessionEntity gazeSession = findOwnedGazeSession(gazeSessionId, request.studentId());
+        GazeSessionEntity gazeSession = findOwnedGazeSessionForUpdate(gazeSessionId, request.studentId());
         requireRunning(gazeSession);
         gazeSession.end(
                 request.endStatus(),
@@ -111,7 +111,7 @@ public class GazeService {
     public GazeAnalysisResultResponse saveAnalysisResult(Long teacherId, Long gazeSessionId,
                                                          GazeAnalysisResultRequest request) {
         validateStudentOwner(teacherId, request.studentId());
-        GazeSessionEntity gazeSession = findOwnedGazeSession(gazeSessionId, request.studentId());
+        GazeSessionEntity gazeSession = findOwnedGazeSessionForUpdate(gazeSessionId, request.studentId());
         if (gazeSession.getStatus() != GazeSessionStatus.COMPLETED) {
             throw new ConflictException("완료된 시선 세션에만 분석 결과를 저장할 수 있습니다.");
         }
@@ -215,8 +215,8 @@ public class GazeService {
         );
     }
 
-    private GazeSessionEntity findOwnedGazeSession(Long gazeSessionId, Long studentId) {
-        return gazeSessionRepository.findByIdAndStudentId(gazeSessionId, studentId)
+    private GazeSessionEntity findOwnedGazeSessionForUpdate(Long gazeSessionId, Long studentId) {
+        return gazeSessionRepository.findByIdAndStudentIdForUpdate(gazeSessionId, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "시선 트래킹 세션을 찾을 수 없습니다."
                 ));
