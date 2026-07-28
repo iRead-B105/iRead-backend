@@ -8,6 +8,7 @@ import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.*;
+import com.iread.backend.training.curriculum.PersonalizedCurriculumPlanner;
 import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.repository.*;
@@ -53,6 +54,7 @@ class TrainingServiceTest {
     @Mock AiClient aiClient;
     @Mock PersonalizedTrainingGenerationService personalizedTrainingGenerationService;
     @Mock StudentFeatureProfileService studentFeatureProfileService;
+    @Mock PersonalizedCurriculumPlanner personalizedCurriculumPlanner;
 
     private TrainingService trainingService;
 
@@ -73,6 +75,7 @@ class TrainingServiceTest {
                 aiClient,
                 personalizedTrainingGenerationService,
                 studentFeatureProfileService,
+                personalizedCurriculumPlanner,
                 JsonMapper.builder().build()
         );
     }
@@ -127,7 +130,7 @@ class TrainingServiceTest {
         ReflectionTestUtils.setField(training, "status", TrainingStatus.IN_PROGRESS);
         curriculum.getTrainings().add(training);
         allowStudent();
-        when(dailyCurriculumRepository.findByIdAndStudentId(100L, 10L)).thenReturn(Optional.of(curriculum));
+        when(dailyCurriculumRepository.findForUpdate(100L, 10L)).thenReturn(Optional.of(curriculum));
 
         assertThatThrownBy(() -> trainingService.updateDailyCurriculum(
                 1L, 10L, 100L, new UpdateCurriculumRequest(List.of(11L))))
@@ -336,6 +339,7 @@ class TrainingServiceTest {
         verify(aiClient).evaluateTraining(captor.capture());
         assertThat(captor.getValue().requestId()).isEqualTo("training-evaluation-1");
         assertThat(captor.getValue().result()).isEqualTo(resultJson);
+        verify(personalizedCurriculumPlanner).createNextIfAbsent(any(StudentEntity.class));
     }
 
     @Test

@@ -16,6 +16,7 @@ import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.*;
+import com.iread.backend.training.curriculum.PersonalizedCurriculumPlanner;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
 import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
@@ -53,6 +54,7 @@ public class TrainingService {
     private final AiClient aiClient;
     private final PersonalizedTrainingGenerationService personalizedTrainingGenerationService;
     private final StudentFeatureProfileService studentFeatureProfileService;
+    private final PersonalizedCurriculumPlanner personalizedCurriculumPlanner;
     private final ObjectMapper objectMapper;
 
     public List<CurriculumLogResponse> getCurriculumLogs(Long teacherId, Long studentId) {
@@ -150,9 +152,13 @@ public class TrainingService {
 
     @Transactional
     public void updateDailyCurriculum(Long teacherId, Long studentId, Long curriculumId,
-                                      UpdateCurriculumRequest request) {
+        UpdateCurriculumRequest request) {
         validateStudentOwner(teacherId, studentId);
-        DailyCurriculumEntity curriculum = findCurriculum(studentId, curriculumId);
+        DailyCurriculumEntity curriculum = dailyCurriculumRepository
+                .findForUpdate(curriculumId, studentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "일일 커리큘럼을 찾을 수 없습니다."
+                ));
         if (curriculum.getTrainings().stream().anyMatch(training -> !training.isEditable())) {
             throw new ConflictException("시작했거나 완료된 커리큘럼은 수정할 수 없습니다.");
         }
@@ -279,6 +285,9 @@ public class TrainingService {
         saveWordAttemptLogs(student, training, finalResult.path("wordAttempts"));
         training.complete(writeJson(finalResult), accuracy, finishedAt);
         studentFeatureProfileService.recalculate(student);
+        if (training.getDailyCurriculum().getStatus() == DailyCurriculumStatus.COMPLETED) {
+            personalizedCurriculumPlanner.createNextIfAbsent(student);
+        }
         return accuracy;
     }
 
