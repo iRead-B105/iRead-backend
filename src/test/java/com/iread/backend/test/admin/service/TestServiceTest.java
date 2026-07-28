@@ -40,7 +40,7 @@ class TestServiceTest {
     void 완료된_테스트_목록만_최신순으로_반환한다() {
         allowStudent();
         StudentTestEntity test = test(10L, LocalDateTime.of(2026, 7, 21, 10, 0), "{}", "85.00");
-        when(testRepository.findAllByStudentIdAndStatusOrderByCreatedAtDesc(1L, TestStatus.COMPLETED))
+        when(testRepository.findAllByTestCurriculumStudentIdAndStatusOrderByCreatedAtDesc(1L, TestStatus.COMPLETED))
                 .thenReturn(List.of(test));
 
         var result = testService.getTestList(100L, 1L);
@@ -55,9 +55,9 @@ class TestServiceTest {
         allowStudent();
         StudentTestEntity current = test(10L, LocalDateTime.of(2026, 7, 21, 10, 0), resultJson(120, 180), "85.50");
         StudentTestEntity previous = test(9L, LocalDateTime.of(2026, 6, 21, 10, 0), resultJson(140, 200), "80.00");
-        when(testRepository.findByIdAndStudentIdAndStatus(10L, 1L, TestStatus.COMPLETED))
+        when(testRepository.findByIdAndTestCurriculumStudentIdAndStatus(10L, 1L, TestStatus.COMPLETED))
                 .thenReturn(Optional.of(current));
-        when(testRepository.findAllByIdInAndStudentIdAndStatus(List.of(9L), 1L, TestStatus.COMPLETED))
+        when(testRepository.findAllByIdInAndTestCurriculumStudentIdAndStatus(List.of(9L), 1L, TestStatus.COMPLETED))
                 .thenReturn(List.of(previous));
 
         var result = testService.compareTests(100L, 1L, 10L, List.of(9L));
@@ -69,12 +69,30 @@ class TestServiceTest {
     }
 
     @Test
+    void 비교_대상을_생략하면_기준_테스트만_반환한다() {
+        allowStudent();
+        StudentTestEntity current = test(
+                10L,
+                LocalDateTime.of(2026, 7, 21, 10, 0),
+                resultJson(120, 180),
+                "85.50"
+        );
+        when(testRepository.findByIdAndTestCurriculumStudentIdAndStatus(10L, 1L, TestStatus.COMPLETED))
+                .thenReturn(Optional.of(current));
+
+        var result = testService.compareTests(100L, 1L, 10L, null);
+
+        assertThat(result.currentTest().testId()).isEqualTo(10L);
+        assertThat(result.comparisonTests()).isEmpty();
+    }
+
+    @Test
     void 완료되지_않은_비교_테스트가_포함되면_오류가_발생한다() {
         allowStudent();
         StudentTestEntity current = test(10L, LocalDateTime.now(), "{}", "85.00");
-        when(testRepository.findByIdAndStudentIdAndStatus(10L, 1L, TestStatus.COMPLETED))
+        when(testRepository.findByIdAndTestCurriculumStudentIdAndStatus(10L, 1L, TestStatus.COMPLETED))
                 .thenReturn(Optional.of(current));
-        when(testRepository.findAllByIdInAndStudentIdAndStatus(List.of(9L), 1L, TestStatus.COMPLETED))
+        when(testRepository.findAllByIdInAndTestCurriculumStudentIdAndStatus(List.of(9L), 1L, TestStatus.COMPLETED))
                 .thenReturn(List.of());
 
         assertThatThrownBy(() -> testService.compareTests(100L, 1L, 10L, List.of(9L)))

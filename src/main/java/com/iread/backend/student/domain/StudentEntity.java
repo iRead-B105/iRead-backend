@@ -35,7 +35,7 @@ public class StudentEntity {
     @Column(length = 20)
     private String school;
 
-    @Column(length = 100)
+    @Column(length = 10)
     private String guardian;
 
     @Column(name = "guardian_contact", length = 20)

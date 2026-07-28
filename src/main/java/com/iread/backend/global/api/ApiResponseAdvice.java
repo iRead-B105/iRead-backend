@@ -28,6 +28,9 @@ public class ApiResponseAdvice implements ResponseBodyAdvice<Object> {
             ServerHttpRequest request,
             ServerHttpResponse response
     ) {
+        if (MediaType.APPLICATION_OCTET_STREAM.includes(selectedContentType)) {
+            return body;
+        }
         if (body instanceof ApiSuccessResponse || body instanceof ApiErrorResponse) {
             return body;
         }

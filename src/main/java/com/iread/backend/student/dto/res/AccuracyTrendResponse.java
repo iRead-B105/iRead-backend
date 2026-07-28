@@ -5,6 +5,6 @@ import java.time.LocalDate;
 
 public record AccuracyTrendResponse(
         LocalDate date,
-        BigDecimal accuracy
+        BigDecimal accuracyRate
 ) {
 }

@@ -48,7 +48,8 @@ public class TrainingEntity {
     @Column(columnDefinition = "json")
     private String result;
 
-    @Column(precision = 5, scale = 2)
+    @Convert(converter = AccuracyIntegerConverter.class)
+    @Column(columnDefinition = "int")
     private BigDecimal accuracy;
 
     @OneToMany(mappedBy = "training", cascade = CascadeType.REMOVE)
@@ -71,6 +72,17 @@ public class TrainingEntity {
     public void start(LocalDateTime startedAt) {
         this.startedAt = startedAt;
         this.status = TrainingStatus.IN_PROGRESS;
+    }
+
+    public void reset() {
+        if (status == TrainingStatus.COMPLETED) {
+            throw new IllegalStateException("완료된 훈련은 초기화할 수 없습니다.");
+        }
+        startedAt = null;
+        finishedAt = null;
+        result = null;
+        accuracy = null;
+        status = TrainingStatus.NOT_STARTED;
     }
 
     public void complete(String result, BigDecimal accuracy, LocalDateTime finishedAt) {

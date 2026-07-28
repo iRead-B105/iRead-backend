@@ -1,5 +1,7 @@
 package com.iread.backend.training.admin.service;
 
+import com.iread.backend.exception.ConflictException;
+import com.iread.backend.exception.ResourceNotFoundException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
@@ -25,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -61,7 +64,8 @@ public class TrainingService {
         return new TrainingLogResponse(curriculum.getTrainings().stream().map(training ->
                 new TrainingLogResponse.TrainingItem(
                         training.getId(), training.getTrainingTemplate().getName(), training.getStartedAt(),
-                        training.getFinishedAt(), training.getAccuracy(), parseQuestions(training.getResult())
+                        training.getFinishedAt(), parseQuestionResults(training.getResult()),
+                        training.getAccuracy(), parseIncorrectItems(training.getResult())
                 )).toList());
     }
 
@@ -110,7 +114,9 @@ public class TrainingService {
         validateStudentOwner(teacherId, studentId);
         DailyCurriculumEntity curriculum = dailyCurriculumRepository
                 .findByStudentIdAndStatus(studentId, DailyCurriculumStatus.NOT_STARTED)
-                .orElseThrow(() -> new IllegalArgumentException("수정 가능한 커리큘럼을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "수정 가능한 커리큘럼을 찾을 수 없습니다."
+                ));
         return getDailyCurriculum(teacherId, studentId, curriculum.getId());
     }
 
@@ -121,11 +127,11 @@ public class TrainingService {
             UpdateCurriculumRequest request
     ) {
         StudentEntity student = studentRepository.findByIdAndTeacherId(studentId, teacherId)
-                .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("학생을 찾을 수 없습니다."));
         if (dailyCurriculumRepository
                 .findByStudentIdAndStatus(studentId, DailyCurriculumStatus.NOT_STARTED)
                 .isPresent()) {
-            throw new IllegalStateException("수정 가능한 커리큘럼은 한 개만 생성할 수 있습니다.");
+            throw new ConflictException("수정 가능한 커리큘럼은 한 개만 생성할 수 있습니다.");
         }
 
         List<Long> ids = request.trainingTemplateIds();
@@ -142,7 +148,7 @@ public class TrainingService {
         validateStudentOwner(teacherId, studentId);
         DailyCurriculumEntity curriculum = findCurriculum(studentId, curriculumId);
         if (curriculum.getTrainings().stream().anyMatch(training -> !training.isEditable())) {
-            throw new IllegalStateException("시작했거나 완료된 커리큘럼은 수정할 수 없습니다.");
+            throw new ConflictException("시작했거나 완료된 커리큘럼은 수정할 수 없습니다.");
         }
         List<Long> ids = request.trainingTemplateIds();
         List<TrainingTemplateEntity> templates = resolveTemplates(ids);
@@ -162,11 +168,56 @@ public class TrainingService {
         return result;
     }
 
+    public TrainingDetailResponse getTrainingDetail(
+            Long teacherId,
+            Long studentId,
+            Long trainingId
+    ) {
+        TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
+        JsonNode generatedData = trainingDataRepository.findByTrainingId(trainingId)
+                .map(TrainingDataEntity::getGeneratedData)
+                .map(this::parseNullableObject)
+                .orElse(null);
+        return new TrainingDetailResponse(
+                training.getId(),
+                training.getTrainingTemplate().getId(),
+                training.getTrainingTemplate().getName(),
+                parseObject(training.getTrainingTemplate().getForm()),
+                generatedData,
+                training.getStatus().name().toLowerCase(Locale.ROOT),
+                training.getStartedAt(),
+                training.getFinishedAt(),
+                parseNullableObject(training.getResult()),
+                training.getAccuracy()
+        );
+    }
+
+    public TrainingExportFile exportTraining(
+            Long teacherId,
+            Long studentId,
+            Long trainingId,
+            String format
+    ) {
+        String normalizedFormat = format == null
+                ? "" : format.trim().toLowerCase(Locale.ROOT);
+        if (!Set.of("json", "csv").contains(normalizedFormat)) {
+            throw new IllegalArgumentException("내보내기 형식은 csv 또는 json이어야 합니다.");
+        }
+        TrainingDetailResponse detail = getTrainingDetail(teacherId, studentId, trainingId);
+        byte[] content = normalizedFormat.equals("json")
+                ? writeBytes(detail)
+                : toCsv(detail).getBytes(StandardCharsets.UTF_8);
+        return new TrainingExportFile(
+                "training-" + trainingId + "." + normalizedFormat,
+                content
+        );
+    }
+
     @Transactional
     public JsonNode generateTraining(Long teacherId, Long studentId, Long trainingId) {
         TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
         if (!training.isEditable()) {
-            throw new IllegalStateException("시작했거나 완료한 훈련은 다시 생성할 수 없습니다.");
+            throw new ConflictException("시작했거나 완료한 훈련은 다시 생성할 수 없습니다.");
         }
 
         TrainingDataEntity data = findOrCreateTrainingData(training);
@@ -200,7 +251,7 @@ public class TrainingService {
     ) {
         StudentEntity student = validateStudentOwner(teacherId, studentId);
         TrainingEntity training = trainingRepository.findForUpdate(trainingId, studentId)
-                .orElseThrow(() -> new IllegalArgumentException("훈련을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("훈련을 찾을 수 없습니다."));
 
         if (training.isCompleted()) {
             return training.getAccuracy();
@@ -253,7 +304,7 @@ public class TrainingService {
     public void deleteExpectedWord(Long teacherId, Long studentId, Long trainingId, Long wordId) {
         TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
         TrainingDataEntity data = trainingDataRepository.findByTrainingId(trainingId)
-                .orElseThrow(() -> new IllegalArgumentException("예정 단어를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("예정 단어를 찾을 수 없습니다."));
         ObjectNode root = parseObject(data.getGeneratedData());
         ArrayNode words = root.withArray("expectedWords");
         boolean removed = false;
@@ -263,14 +314,14 @@ public class TrainingService {
                 removed = true;
             }
         }
-        if (!removed) throw new IllegalArgumentException("예정 단어를 찾을 수 없습니다.");
+        if (!removed) throw new ResourceNotFoundException("예정 단어를 찾을 수 없습니다.");
         data.updateGeneratedData(writeJson(root));
         training.markNotReady();
     }
 
     private StudentEntity validateStudentOwner(Long teacherId, Long studentId) {
         return studentRepository.findByIdAndTeacherId(studentId, teacherId)
-                .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("학생을 찾을 수 없습니다."));
     }
 
     private void saveWordAttemptLogs(StudentEntity student, TrainingEntity training, JsonNode attempts) {
@@ -359,13 +410,15 @@ public class TrainingService {
 
     private DailyCurriculumEntity findCurriculum(Long studentId, Long curriculumId) {
         return dailyCurriculumRepository.findByIdAndStudentId(curriculumId, studentId)
-                .orElseThrow(() -> new IllegalArgumentException("일일 커리큘럼을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "일일 커리큘럼을 찾을 수 없습니다."
+                ));
     }
 
     private TrainingEntity findOwnedTraining(Long teacherId, Long studentId, Long trainingId) {
         validateStudentOwner(teacherId, studentId);
         return trainingRepository.findByIdAndDailyCurriculumStudentId(trainingId, studentId)
-                .orElseThrow(() -> new IllegalArgumentException("훈련을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("훈련을 찾을 수 없습니다."));
     }
 
     private List<TrainingTemplateEntity> resolveTemplates(List<Long> ids) {
@@ -373,7 +426,7 @@ public class TrainingService {
         Map<Long, TrainingTemplateEntity> templates = trainingTemplateRepository.findAllById(ids).stream()
                 .collect(Collectors.toMap(TrainingTemplateEntity::getId, Function.identity()));
         if (templates.size() != uniqueIds.size()) {
-            throw new IllegalArgumentException("존재하지 않는 훈련 템플릿이 있습니다.");
+            throw new ResourceNotFoundException("존재하지 않는 훈련 템플릿이 있습니다.");
         }
         return ids.stream().map(templates::get).toList();
     }
@@ -415,15 +468,34 @@ public class TrainingService {
         return training.getFinishedAt() == null ? null : training.getFinishedAt().toLocalDate();
     }
 
-    private List<TrainingLogResponse.QuestionResult> parseQuestions(String result) {
+    private List<TrainingLogResponse.QuestionResult> parseQuestionResults(String result) {
         if (result == null || result.isBlank()) return List.of();
         JsonNode questions = parseObject(result).path("questions");
         if (!questions.isArray()) return List.of();
         List<TrainingLogResponse.QuestionResult> response = new ArrayList<>();
         questions.forEach(q -> response.add(new TrainingLogResponse.QuestionResult(
-                q.path("questionNumber").asInt(), q.hasNonNull("wordId") ? q.path("wordId").asLong() : null,
-                q.path("question").asText(null), q.path("isCorrect").asBoolean(),
-                q.path("correctAnswer").asText(null), q.path("selectedAnswer").asText(null))));
+                q.path("questionNumber").asInt(),
+                q.path("isCorrect").asBoolean()
+        )));
+        return response;
+    }
+
+    private List<TrainingLogResponse.IncorrectItem> parseIncorrectItems(String result) {
+        if (result == null || result.isBlank()) return List.of();
+        JsonNode questions = parseObject(result).path("questions");
+        if (!questions.isArray()) return List.of();
+        List<TrainingLogResponse.IncorrectItem> response = new ArrayList<>();
+        questions.forEach(question -> {
+            if (question.path("isCorrect").asBoolean()) {
+                return;
+            }
+            response.add(new TrainingLogResponse.IncorrectItem(
+                    question.path("questionNumber").asInt(),
+                    question.path("question").asText(null),
+                    question.path("correctAnswer").asText(null),
+                    question.path("selectedAnswer").asText(null)
+            ));
+        });
         return response;
     }
 
@@ -436,7 +508,9 @@ public class TrainingService {
     private ObjectNode trainingDataRoot(TrainingEntity training, boolean required) {
         Optional<TrainingDataEntity> data = trainingDataRepository.findByTrainingId(training.getId());
         if (data.isEmpty()) {
-            if (required) throw new IllegalArgumentException("훈련 데이터를 찾을 수 없습니다.");
+            if (required) {
+                throw new ResourceNotFoundException("훈련 데이터를 찾을 수 없습니다.");
+            }
             return null;
         }
         return parseObject(data.get().getGeneratedData());
@@ -455,6 +529,54 @@ public class TrainingService {
         } catch (Exception exception) {
             throw new IllegalArgumentException("저장된 훈련 데이터 형식이 올바르지 않습니다.");
         }
+    }
+
+    private JsonNode parseNullableObject(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        return parseObject(json);
+    }
+
+    private byte[] writeBytes(Object value) {
+        try {
+            return objectMapper.writeValueAsBytes(value);
+        } catch (Exception exception) {
+            throw new IllegalStateException("훈련 결과 파일 생성에 실패했습니다.");
+        }
+    }
+
+    private String toCsv(TrainingDetailResponse detail) {
+        return String.join(",",
+                "trainingId",
+                "trainingTemplateId",
+                "name",
+                "status",
+                "startedAt",
+                "finishedAt",
+                "accuracy",
+                "result"
+        ) + System.lineSeparator() + String.join(",",
+                csv(detail.trainingId()),
+                csv(detail.trainingTemplateId()),
+                csv(detail.name()),
+                csv(detail.status()),
+                csv(detail.startedAt()),
+                csv(detail.finishedAt()),
+                csv(detail.accuracy()),
+                csv(detail.result())
+        ) + System.lineSeparator();
+    }
+
+    private String csv(Object value) {
+        if (value == null) {
+            return "";
+        }
+        String text = value.toString()
+                .replace("\r", " ")
+                .replace("\n", " ")
+                .replace("\"", "\"\"");
+        return "\"" + text + "\"";
     }
 
     private ObjectNode validateGeneratedData(JsonNode generatedData) {

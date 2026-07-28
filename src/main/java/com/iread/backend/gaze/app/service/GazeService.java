@@ -1,5 +1,6 @@
 package com.iread.backend.gaze.app.service;
 
+import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.gaze.app.dto.req.EndGazeSessionRequest;
 import com.iread.backend.gaze.app.dto.req.FailGazeSessionRequest;
 import com.iread.backend.gaze.app.dto.req.GazeAnalysisResultRequest;
@@ -119,7 +120,9 @@ public class GazeService {
         findOwnedTest(studentId, testId);
         GazeAnalysisResultEntity result = gazeAnalysisResultRepository
                 .findFirstByGazeSessionStudentIdAndGazeSessionTestIdOrderByCreatedAtDesc(studentId, testId)
-                .orElseThrow(() -> new IllegalArgumentException("시선 분석 결과를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "시선 분석 결과를 찾을 수 없습니다."
+                ));
         return toAnalysisDetailResponse(result);
     }
 
@@ -128,7 +131,9 @@ public class GazeService {
         findOwnedTraining(studentId, trainingId);
         GazeAnalysisResultEntity result = gazeAnalysisResultRepository
                 .findFirstByGazeSessionStudentIdAndGazeSessionTrainingIdOrderByCreatedAtDesc(studentId, trainingId)
-                .orElseThrow(() -> new IllegalArgumentException("시선 분석 결과를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "시선 분석 결과를 찾을 수 없습니다."
+                ));
         return toAnalysisDetailResponse(result);
     }
 
@@ -156,7 +161,9 @@ public class GazeService {
 
     private GazeSessionEntity findOwnedGazeSession(Long gazeSessionId, Long studentId) {
         return gazeSessionRepository.findByIdAndStudentId(gazeSessionId, studentId)
-                .orElseThrow(() -> new IllegalArgumentException("시선 트래킹 세션을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "시선 트래킹 세션을 찾을 수 없습니다."
+                ));
     }
 
     private StudentTestEntity findOwnedTest(Long studentId, Long testId) {
@@ -164,9 +171,9 @@ public class GazeService {
             throw new IllegalArgumentException("테스트 ID가 필요합니다.");
         }
         StudentTestEntity test = testRepository.findById(testId)
-                .orElseThrow(() -> new IllegalArgumentException("테스트를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("테스트를 찾을 수 없습니다."));
         if (!studentId.equals(test.getStudent().getId())) {
-            throw new IllegalArgumentException("테스트를 찾을 수 없습니다.");
+            throw new ResourceNotFoundException("테스트를 찾을 수 없습니다.");
         }
         return test;
     }
@@ -176,7 +183,7 @@ public class GazeService {
             throw new IllegalArgumentException("훈련 ID가 필요합니다.");
         }
         return trainingRepository.findByIdAndDailyCurriculumStudentId(trainingId, studentId)
-                .orElseThrow(() -> new IllegalArgumentException("훈련을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("훈련을 찾을 수 없습니다."));
     }
 
     private StoryEntity findOwnedStory(Long studentId, Long storyId) {
@@ -184,12 +191,12 @@ public class GazeService {
             throw new IllegalArgumentException("스토리 ID가 필요합니다.");
         }
         return storyRepository.findByIdAndStudentId(storyId, studentId)
-                .orElseThrow(() -> new IllegalArgumentException("스토리를 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("스토리를 찾을 수 없습니다."));
     }
 
     private StudentEntity findStudentOwner(Long teacherId, Long studentId) {
         return studentRepository.findByIdAndTeacherId(studentId, teacherId)
-                .orElseThrow(() -> new IllegalArgumentException("학생을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResourceNotFoundException("학생을 찾을 수 없습니다."));
     }
 
     private void validateStudentOwner(Long teacherId, Long studentId) {

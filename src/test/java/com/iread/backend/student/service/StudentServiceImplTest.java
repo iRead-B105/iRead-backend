@@ -3,6 +3,7 @@ package com.iread.backend.student.service;
 import com.iread.backend.global.storage.FileStorage;
 import com.iread.backend.global.storage.StoredFile;
 import com.iread.backend.student.domain.Gender;
+import com.iread.backend.student.domain.LearningEventType;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.dto.req.StudentRequest;
 import com.iread.backend.student.repository.StudentRepository;
@@ -138,6 +139,130 @@ class StudentServiceImplTest {
     }
 
     @Test
+    void filtersOwnedStudentsByKeywordAgeAndLearningPeriod() {
+        StudentEntity included = student(10L, "민준", LocalDate.now().minusYears(10));
+        StudentEntity excluded = student(11L, "서연", LocalDate.now().minusYears(8));
+        StudentRepository.StudentLearningSummaryProjection includedSummary =
+                learningSummary(10L, LocalDate.now().minusDays(2));
+        StudentRepository.StudentLearningSummaryProjection excludedSummary =
+                learningSummary(11L, LocalDate.now().minusDays(20));
+        when(teacherRepository.findById(1L)).thenReturn(Optional.of(teacher));
+        when(studentRepository.findAllByTeacherIdOrderByIdAsc(1L))
+                .thenReturn(List.of(included, excluded));
+        when(studentRepository.findLearningSummaries(1L))
+                .thenReturn(List.of(includedSummary, excludedSummary));
+
+        var result = studentService.getStudents(
+                1L,
+                "민",
+                9,
+                11,
+                LocalDate.now().minusDays(7),
+                LocalDate.now()
+        );
+
+        assertThat(result).extracting("id").containsExactly(10L);
+    }
+
+    @Test
+    void returnsStudentDashboardSummaryForCurrentTeacher() {
+        when(teacherRepository.findById(1L)).thenReturn(Optional.of(teacher));
+        when(studentRepository.countByTeacherId(1L)).thenReturn(7L);
+        when(studentRepository.countScheduledToday(1L)).thenReturn(3L);
+
+        var result = studentService.getStudentSummary(1L);
+
+        assertThat(result.totalStudents()).isEqualTo(7L);
+        assertThat(result.scheduledTodayCount()).isEqualTo(3L);
+    }
+
+    @Test
+    void appliesAttentionRulesToLearningSummary() {
+        StudentEntity student = student(10L, "민준", LocalDate.now().minusYears(10));
+        StudentRepository.LearningOverviewProjection overview =
+                org.mockito.Mockito.mock(StudentRepository.LearningOverviewProjection.class);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(studentRepository.findLearningOverview(10L)).thenReturn(overview);
+        when(overview.getCurrentStage()).thenReturn("문장 읽기");
+        when(overview.getLastLearningAt()).thenReturn(LocalDateTime.now().minusDays(15));
+        when(overview.getRecentCompletedCount()).thenReturn(3L);
+        when(overview.getRecentAverageAccuracy()).thenReturn(new BigDecimal("69.99"));
+        when(overview.getRecentGazeFailureCount()).thenReturn(1L);
+
+        var result = studentService.getLearningSummary(1L, 10L);
+
+        assertThat(result.currentStage()).isEqualTo("문장 읽기");
+        assertThat(result.attentionRequiredCount()).isEqualTo(3);
+        assertThat(result.attentionReasons())
+                .containsExactly("LOW_ACCURACY", "GAZE_ANALYSIS_FAILED", "INACTIVE");
+    }
+
+    @Test
+    void returnsLearningEventWithDeterministicRecommendation() {
+        StudentEntity student = student(10L, "민준", LocalDate.now().minusYears(10));
+        StudentRepository.LearningEventProjection event =
+                org.mockito.Mockito.mock(StudentRepository.LearningEventProjection.class);
+        StudentRepository.LearningOverviewProjection overview =
+                org.mockito.Mockito.mock(StudentRepository.LearningOverviewProjection.class);
+        StudentRepository.TrainingRecommendationProjection recommendation =
+                org.mockito.Mockito.mock(StudentRepository.TrainingRecommendationProjection.class);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(studentRepository.findLearningEvent(10L, 100L)).thenReturn(Optional.of(event));
+        when(studentRepository.findLearningOverview(10L)).thenReturn(overview);
+        when(studentRepository.findTrainingRecommendation(10L))
+                .thenReturn(Optional.of(recommendation));
+        when(event.getEventId()).thenReturn(100L);
+        when(event.getOccurredAt()).thenReturn(LocalDateTime.now().minusDays(1));
+        when(event.getAccuracy()).thenReturn(new BigDecimal("82.50"));
+        when(event.getRetryCount()).thenReturn(2L);
+        when(event.getProblemSegments()).thenReturn("사과|||바나나");
+        when(overview.getLastLearningAt()).thenReturn(LocalDateTime.now().minusDays(1));
+        when(overview.getRecentCompletedCount()).thenReturn(1L);
+        when(overview.getRecentGazeFailureCount()).thenReturn(0L);
+        when(recommendation.getTrainingTemplateId()).thenReturn(30L);
+        when(recommendation.getCurriculumUnitId()).thenReturn(3L);
+        when(recommendation.getCurriculumUnitName()).thenReturn("문장 읽기");
+        when(recommendation.getAverageAccuracy()).thenReturn(new BigDecimal("65.00"));
+
+        var result = studentService.getLearningEvent(
+                1L, 10L, LearningEventType.TRAINING, 100L);
+
+        assertThat(result.eventType()).isEqualTo("training");
+        assertThat(result.problemSegments()).containsExactly("사과", "바나나");
+        assertThat(result.recommendedTrainingTemplateId()).isEqualTo(30L);
+        assertThat(result.recommendedMinutes()).isEqualTo(10);
+        assertThat(result.recommendedRepeatCount()).isEqualTo(2);
+    }
+
+    @Test
+    void dispatchesLearningEventLookupByEventType() {
+        StudentEntity student = student(10L, "민준", LocalDate.now().minusYears(10));
+        StudentRepository.LearningEventProjection event =
+                org.mockito.Mockito.mock(StudentRepository.LearningEventProjection.class);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(studentRepository.findTestLearningEvent(10L, 100L)).thenReturn(Optional.of(event));
+        when(studentRepository.findLearningEvent(10L, 100L)).thenReturn(Optional.of(event));
+        when(studentRepository.findStoryLearningEvent(10L, 100L)).thenReturn(Optional.of(event));
+        when(studentRepository.findGazeLearningEvent(10L, 100L)).thenReturn(Optional.of(event));
+        when(studentRepository.findTrainingRecommendation(10L)).thenReturn(Optional.empty());
+        when(event.getEventId()).thenReturn(100L);
+        when(event.getOccurredAt()).thenReturn(LocalDateTime.of(2026, 7, 27, 12, 0));
+
+        assertThat(studentService.getLearningEvent(
+                1L, 10L, LearningEventType.TEST, 100L).eventType()).isEqualTo("test");
+        assertThat(studentService.getLearningEvent(
+                1L, 10L, LearningEventType.TRAINING, 100L).eventType()).isEqualTo("training");
+        assertThat(studentService.getLearningEvent(
+                1L, 10L, LearningEventType.STORY, 100L).eventType()).isEqualTo("story");
+        assertThat(studentService.getLearningEvent(
+                1L, 10L, LearningEventType.GAZE, 100L).eventType()).isEqualTo("gaze");
+        assertThatThrownBy(() -> studentService.getLearningEvent(
+                1L, 10L, null, 100L))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("eventType은 필수입니다.");
+    }
+
+    @Test
     void convertsAverageWordAttemptScoreToReadingAccuracyPercentage() {
         StudentEntity student = StudentEntity.builder()
                 .teacher(teacher).name("학생").build();
@@ -153,7 +278,7 @@ class StudentServiceImplTest {
 
         assertThat(result).hasSize(1);
         assertThat(result.getFirst().date()).isEqualTo(LocalDate.of(2026, 7, 23));
-        assertThat(result.getFirst().accuracy()).isEqualByComparingTo("84.56");
+        assertThat(result.getFirst().accuracyRate()).isEqualByComparingTo("84.56");
     }
 
     @Test
@@ -164,10 +289,13 @@ class StudentServiceImplTest {
         StudentRepository.TrainingHistoryProjection row =
                 org.mockito.Mockito.mock(StudentRepository.TrainingHistoryProjection.class);
         when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
-        when(studentRepository.findTrainingHistory(10L)).thenReturn(List.of(row));
+        LocalDate from = LocalDate.of(2026, 5, 1);
+        LocalDate to = LocalDate.of(2026, 7, 31);
+        when(studentRepository.findTrainingHistory(10L, from, to)).thenReturn(List.of(row));
         when(row.getTrainingId()).thenReturn(100L);
         when(row.getLearningDate()).thenReturn(LocalDate.of(2026, 7, 23));
         when(row.getLearningType()).thenReturn("소리 듣고 말하기");
+        when(row.getLearningCategory()).thenReturn("낱말 읽기");
         when(row.getStartedAt()).thenReturn(LocalDateTime.of(2026, 7, 23, 15, 30));
         when(row.getFinishedAt()).thenReturn(LocalDateTime.of(2026, 7, 23, 15, 30));
         when(row.getAchievement()).thenReturn(new BigDecimal("80.00"));
@@ -183,14 +311,33 @@ class StudentServiceImplTest {
                 }
                 """);
 
-        var result = studentService.getTrainingHistory(1L, 10L);
+        var result = studentService.getTrainingHistory(1L, 10L, from, to);
 
         assertThat(result.getFirst().trainingId()).isEqualTo(100L);
+        assertThat(result.getFirst().learningCategory()).isEqualTo("낱말 읽기");
         assertThat(result.getFirst().questions()).hasSize(1);
         assertThat(result.getFirst().questions().getFirst().question()).isEqualTo("사과를 읽어 보세요.");
         assertThat(result.getFirst().questions().getFirst().correct()).isFalse();
         assertThat(result.getFirst().questions().getFirst().selectedAnswer()).isEqualTo("사가");
         assertThat(result.getFirst().questions().getFirst().correctAnswer()).isEqualTo("사과");
+        verify(studentRepository).findTrainingHistory(10L, from, to);
+    }
+
+    @Test
+    void rejectsReversedTrainingHistoryDateRange() {
+        StudentEntity student = StudentEntity.builder()
+                .teacher(teacher).name("학생").build();
+        ReflectionTestUtils.setField(student, "id", 10L);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+
+        assertThatThrownBy(() -> studentService.getTrainingHistory(
+                1L,
+                10L,
+                LocalDate.of(2026, 7, 31),
+                LocalDate.of(2026, 5, 1)
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("조회 시작일은 종료일보다 늦을 수 없습니다.");
     }
 
     @Test
@@ -249,6 +396,30 @@ class StudentServiceImplTest {
                 "학생", LocalDate.of(2016, 3, 10), Gender.Boy,
                 "학교", "보호자", "010-0000-0000", "guardian@test.com", "주소", imageUrl, null
         );
+    }
+
+    private StudentEntity student(Long id, String name, LocalDate birthday) {
+        StudentEntity student = StudentEntity.builder()
+                .teacher(teacher)
+                .name(name)
+                .birthday(birthday)
+                .gender(Gender.Boy)
+                .build();
+        ReflectionTestUtils.setField(student, "id", id);
+        return student;
+    }
+
+    private StudentRepository.StudentLearningSummaryProjection learningSummary(
+            Long studentId,
+            LocalDate learningDate
+    ) {
+        StudentRepository.StudentLearningSummaryProjection row =
+                org.mockito.Mockito.mock(StudentRepository.StudentLearningSummaryProjection.class);
+        when(row.getStudentId()).thenReturn(studentId);
+        when(row.getRecentFinishedAt()).thenReturn(learningDate.atTime(10, 0));
+        when(row.getTotalLearningMinutes()).thenReturn(30L);
+        when(row.getRecentTrainingName()).thenReturn("문장 읽기");
+        return row;
     }
 
     private MockMultipartFile imageFile(String fileName) {

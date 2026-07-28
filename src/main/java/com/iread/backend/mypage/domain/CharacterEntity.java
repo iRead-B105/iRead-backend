@@ -1,6 +1,7 @@
 package com.iread.backend.mypage.domain;
 
 import com.iread.backend.student.domain.StudentEntity;
+import com.iread.backend.story.domain.StoryEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -25,8 +26,12 @@ public class CharacterEntity {
     @Column(name = "image_url", length = 255)
     private String imageUrl;
 
-    @Column(name = "is_representative", nullable = false)
-    private boolean representative;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "story_id", nullable = false)
+    private StoryEntity story;
+
+    @Column(length = 50)
+    private String name;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

@@ -40,4 +40,26 @@ public interface TrainingRepository extends JpaRepository<TrainingEntity, Long> 
     List<TrainingEntity> findAllByDailyCurriculumStudentIdAndStatusAndFinishedAtBetweenOrderByFinishedAtAsc(
             Long studentId, TrainingStatus status, LocalDateTime start, LocalDateTime end
     );
+
+    @Query(value = """
+            SELECT template.id AS trainingTemplateId,
+                   template.name AS trainingTemplateName,
+                   COUNT(training.id) AS completedCount
+              FROM trainings training
+              JOIN daily_curriculums curriculum
+                ON curriculum.id = training.daily_curriculum_id
+              JOIN training_templates template
+                ON template.id = training.training_template_id
+             WHERE curriculum.student_id = :studentId
+               AND training.status = 'COMPLETED'
+             GROUP BY template.id, template.name
+             ORDER BY template.id
+            """, nativeQuery = true)
+    List<TrainingProgressProjection> findCompletedTrainingProgress(@Param("studentId") Long studentId);
+
+    interface TrainingProgressProjection {
+        Long getTrainingTemplateId();
+        String getTrainingTemplateName();
+        Long getCompletedCount();
+    }
 }

@@ -14,7 +14,7 @@ public class WordEntity {
     private Long id;
     @Column(nullable = false, unique = true, length = 50)
     private String content;
-    @Column
+    @Column(nullable = false)
     private Integer length;
 
     public WordEntity(String content) {

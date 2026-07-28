@@ -2,8 +2,10 @@ package com.iread.backend.report.admin.controller;
 
 import com.iread.backend.auth.annotation.CurrentTeacherId;
 import com.iread.backend.report.admin.dto.req.CreateReportRequest;
+import com.iread.backend.report.admin.dto.req.ApplyReportGazeAnalysisRequest;
 import com.iread.backend.report.admin.dto.req.UpdateReportMemoRequest;
 import com.iread.backend.report.admin.dto.res.CreateReportResponse;
+import com.iread.backend.report.admin.dto.res.ApplyReportGazeAnalysisResponse;
 import com.iread.backend.report.admin.dto.res.ReportListResponse;
 import com.iread.backend.report.admin.dto.res.ReportResponse;
 import com.iread.backend.report.admin.dto.res.UpdateReportMemoResponse;
@@ -63,9 +65,21 @@ public class ReportController {
     public UpdateReportMemoResponse updateReportMemo(
             @CurrentTeacherId Long teacherId,
             @PathVariable Long reportId,
-            @RequestBody UpdateReportMemoRequest request
+            @Valid @RequestBody UpdateReportMemoRequest request
     ) {
         return reportService.updateReportMemo(teacherId, reportId, request.teacherMemo());
+    }
+
+    @Operation(summary = "시선 분석 결과를 보고서 스냅샷에 반영")
+    @PostMapping("/{reportId}/gaze-analysis")
+    public ApplyReportGazeAnalysisResponse applyGazeAnalysis(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long reportId,
+            @Valid @RequestBody ApplyReportGazeAnalysisRequest request
+    ) {
+        return reportService.applyGazeAnalysis(
+                teacherId, reportId, request.gazeAnalysisResultId()
+        );
     }
 
     @Operation(summary = "리포트 삭제")

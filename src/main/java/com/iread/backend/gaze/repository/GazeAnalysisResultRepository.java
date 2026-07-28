@@ -6,6 +6,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 
 public interface GazeAnalysisResultRepository extends JpaRepository<GazeAnalysisResultEntity, Long> {
+    Optional<GazeAnalysisResultEntity> findByIdAndGazeSessionStudentTeacherId(
+            Long id,
+            Long teacherId
+    );
     Optional<GazeAnalysisResultEntity> findFirstByGazeSessionStudentIdAndGazeSessionTestIdOrderByCreatedAtDesc(
             Long studentId, Long testId
     );
