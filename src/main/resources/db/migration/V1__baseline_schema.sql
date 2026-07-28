@@ -2,7 +2,7 @@ CREATE TABLE `training_templates` (
 	`id` bigint NOT NULL AUTO_INCREMENT,
 	`curriculum_unit_id` bigint NOT NULL,
 	`name` varchar(100) NOT NULL,
-	`form` json NOT NULL,
+	`prompt` text NOT NULL,
 	`sequence_no` int NOT NULL,
 	CONSTRAINT `PK_TRAINING_TEMPLATES` PRIMARY KEY (`id`)
 );
@@ -22,6 +22,37 @@ CREATE TABLE `students` (
 	`image_url` varchar(255) NULL,
 	`teacher_memo` text NULL,
 	CONSTRAINT `PK_STUDENTS` PRIMARY KEY (`id`)
+);
+
+CREATE TABLE `reading_features` (
+	`id` bigint NOT NULL,
+	`parent_feature_id` bigint NULL,
+	`feature_code` varchar(150) NOT NULL,
+	`feature_name` varchar(150) NOT NULL,
+	`category` varchar(30) NOT NULL COMMENT 'Enum: GRAPHEME, SYLLABLE, PHONOLOGY, MORPH, WORD, SENTENCE',
+	`scope` varchar(30) NOT NULL COMMENT 'Enum: CHARACTER, SYLLABLE, WORD, WORD_BOUNDARY, SENTENCE',
+	`created_at` timestamp NULL,
+	CONSTRAINT `PK_READING_FEATURES` PRIMARY KEY (`id`)
+);
+
+CREATE TABLE `student_feature_profiles` (
+	`id` bigint NOT NULL,
+	`student_id` bigint NOT NULL,
+	`reading_features_id` bigint NOT NULL,
+	`accuracy_rate` decimal(5,4) NULL COMMENT '0~1',
+	`avg_pronunciation_scor` int NULL COMMENT '0~1000',
+	`pronunciation_error_rate` decimal(8,2) NULL,
+	`avg_fixation_duration_ms` int NULL,
+	`avg_fixation_count` decimal(8,2) NULL,
+	`avg_regression_count` decimal(8,2) NULL,
+	`skip_rate` decimal(5,2) NULL COMMENT '0~1',
+	`avg_reading_time_ms` int NULL,
+	`weakness_score` int NULL COMMENT '0~1000',
+	`confidence` decimal(5,4) NOT NULL COMMENT '0~1',
+	`evidence_count` int NULL,
+	`last_evidence_at` timestamp NULL,
+	`analyzed_at` timestamp NULL,
+	CONSTRAINT `PK_STUDENT_FEATURE_PROFILES` PRIMARY KEY (`id`)
 );
 
 CREATE TABLE `auth_refresh_sessions` (
@@ -349,6 +380,16 @@ ALTER TABLE `reports`
 ALTER TABLE `students`
 	ADD CONSTRAINT `FK_STUDENTS_TEACHER`
 		FOREIGN KEY (`teacher_id`) REFERENCES `teachers` (`id`);
+
+ALTER TABLE `reading_features`
+	ADD CONSTRAINT `FK_READING_FEATURES_PARENT`
+		FOREIGN KEY (`parent_feature_id`) REFERENCES `reading_features` (`id`);
+
+ALTER TABLE `student_feature_profiles`
+	ADD CONSTRAINT `FK_STUDENT_FEATURE_PROFILES_STUDENT`
+		FOREIGN KEY (`student_id`) REFERENCES `students` (`id`),
+	ADD CONSTRAINT `FK_STUDENT_FEATURE_PROFILES_READING_FEATURE`
+		FOREIGN KEY (`reading_features_id`) REFERENCES `reading_features` (`id`);
 
 ALTER TABLE `auth_refresh_sessions`
 	ADD CONSTRAINT `FK_AUTH_REFRESH_SESSIONS_TEACHER`

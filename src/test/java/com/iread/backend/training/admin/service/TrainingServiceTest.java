@@ -251,7 +251,7 @@ class TrainingServiceTest {
     @Test
     void returnsOwnedTrainingDetailWithParsedJsonFields() {
         TrainingEntity training = ownedTraining(1L);
-        ReflectionTestUtils.setField(training.getTrainingTemplate(), "form", "{\"questionType\":\"WORD\"}");
+        ReflectionTestUtils.setField(training.getTrainingTemplate(), "prompt", "{\"questionType\":\"WORD\"}");
         ReflectionTestUtils.setField(training, "status", TrainingStatus.COMPLETED);
         ReflectionTestUtils.setField(training, "result", "{\"questions\":[]}");
         ReflectionTestUtils.setField(training, "accuracy", new BigDecimal("88.50"));
@@ -273,7 +273,7 @@ class TrainingServiceTest {
     @Test
     void exportsOwnedTrainingAsImmediateJsonFile() {
         TrainingEntity training = ownedTraining(1L);
-        ReflectionTestUtils.setField(training.getTrainingTemplate(), "form", "{}");
+        ReflectionTestUtils.setField(training.getTrainingTemplate(), "prompt", "{}");
         allowStudent();
         when(trainingRepository.findByIdAndDailyCurriculumStudentId(1L, 10L))
                 .thenReturn(Optional.of(training));

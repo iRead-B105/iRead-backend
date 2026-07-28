@@ -182,7 +182,7 @@ public class TrainingService {
                 training.getId(),
                 training.getTrainingTemplate().getId(),
                 training.getTrainingTemplate().getName(),
-                parseObject(training.getTrainingTemplate().getForm()),
+                parseObject(training.getTrainingTemplate().getPrompt()),
                 generatedData,
                 training.getStatus().name().toLowerCase(Locale.ROOT),
                 training.getStartedAt(),
@@ -225,7 +225,7 @@ public class TrainingService {
         ObjectNode inputData = objectMapper.createObjectNode();
         inputData.put("trainingTemplateId", training.getTrainingTemplate().getId());
         inputData.put("templateName", training.getTrainingTemplate().getName());
-        inputData.set("generationSpec", parseObject(training.getTrainingTemplate().getForm()));
+        inputData.set("generationSpec", parseObject(training.getTrainingTemplate().getPrompt()));
         inputData.set("expectedWords", currentData.withArray("expectedWords").deepCopy());
 
         String requestId = "training-" + trainingId + "-" + UUID.randomUUID();

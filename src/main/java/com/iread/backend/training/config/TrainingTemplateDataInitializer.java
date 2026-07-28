@@ -112,31 +112,9 @@ public class TrainingTemplateDataInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        ensureFormJsonColumn();
         upsertCurriculumUnit(PHONOLOGY_UNIT_ID, "음운 인식 및 파닉스", 1);
         upsertCurriculumUnit(FLUENCY_UNIT_ID, "짧은 글 및 유창성", 2);
         TEMPLATES.forEach(this::upsertTemplate);
-    }
-
-    private void ensureFormJsonColumn() {
-        String dataType = jdbcTemplate.queryForObject("""
-                SELECT DATA_TYPE
-                FROM information_schema.columns
-                WHERE table_schema = DATABASE()
-                  AND table_name = 'training_templates'
-                  AND column_name = 'form'
-                """, String.class);
-        if ("json".equalsIgnoreCase(dataType)) {
-            return;
-        }
-
-        jdbcTemplate.execute("ALTER TABLE training_templates MODIFY COLUMN form LONGTEXT NOT NULL");
-        jdbcTemplate.execute("""
-                UPDATE training_templates
-                SET form = JSON_OBJECT('questionType', form)
-                WHERE JSON_VALID(form) = 0
-                """);
-        jdbcTemplate.execute("ALTER TABLE training_templates MODIFY COLUMN form JSON NOT NULL");
     }
 
     private void upsertCurriculumUnit(long id, String name, int sequenceNo) {
@@ -148,10 +126,10 @@ public class TrainingTemplateDataInitializer implements ApplicationRunner {
 
     private void upsertTemplate(TemplateSeed seed) {
         jdbcTemplate.update("""
-                INSERT INTO training_templates (id, curriculum_unit_id, name, form, sequence_no)
+                INSERT INTO training_templates (id, curriculum_unit_id, name, prompt, sequence_no)
                 VALUES (?, ?, ?, ?, ?)
                 ON DUPLICATE KEY UPDATE curriculum_unit_id = VALUES(curriculum_unit_id), name = VALUES(name),
-                    form = VALUES(form), sequence_no = VALUES(sequence_no)
+                    prompt = VALUES(prompt), sequence_no = VALUES(sequence_no)
                 """, seed.id(), seed.curriculumUnitId(), seed.name(), toJson(seed), seed.sequenceNo());
     }
 
@@ -174,7 +152,7 @@ public class TrainingTemplateDataInitializer implements ApplicationRunner {
         try {
             return objectMapper.writeValueAsString(root);
         } catch (Exception exception) {
-            throw new IllegalStateException("훈련 템플릿 form JSON 생성에 실패했습니다.", exception);
+            throw new IllegalStateException("훈련 템플릿 prompt JSON 생성에 실패했습니다.", exception);
         }
     }
 
