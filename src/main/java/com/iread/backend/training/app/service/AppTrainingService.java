@@ -122,8 +122,7 @@ public class AppTrainingService {
                 questionNumber,
                 request.targetIndex(),
                 request.tokenIndex(),
-                request.expectedText(),
-                request.expectedPronunciation()
+                request.expectedText()
         );
         if (!word.getContent().equals(request.expectedText())) {
             throw new IllegalArgumentException("wordId와 expectedText가 일치하지 않습니다.");
@@ -134,7 +133,6 @@ public class AppTrainingService {
                         "training-recording-" + trainingId + "-" + questionNumber
                                 + "-" + request.targetIndex() + "-" + System.nanoTime(),
                         request.expectedText(),
-                        request.expectedPronunciation(),
                         request.audioFile().getOriginalFilename(),
                         audioBytes(request)
                 )
@@ -273,8 +271,7 @@ public class AppTrainingService {
             int questionNumber,
             int targetIndex,
             Integer tokenIndex,
-            String expectedText,
-            String expectedPronunciation
+            String expectedText
     ) {
         JsonNode generated = trainingDataRepository.findByTrainingId(trainingId)
                 .map(TrainingDataEntity::getGeneratedData)
@@ -294,8 +291,7 @@ public class AppTrainingService {
         String storedText = tokenIndex == null
                 ? expected.path("text").asText()
                 : expected.path("surface").asText();
-        if (!expectedText.equals(storedText)
-                || !expectedPronunciation.equals(expected.path("expectedPronunciation").asText())) {
+        if (!expectedText.equals(storedText)) {
             throw new IllegalArgumentException("요청한 텍스트가 생성된 훈련 문항과 일치하지 않습니다.");
         }
     }
@@ -325,7 +321,6 @@ public class AppTrainingService {
         else link.put("tokenIndex", request.tokenIndex());
         link.put("isFinal", true);
         link.put("expectedText", request.expectedText());
-        link.put("expectedPronunciation", request.expectedPronunciation());
         link.put("observedPronunciation", analysis.observedPronunciation());
         link.put("pronunciationScore", analysis.pronunciationScore());
         link.put("pronunciationConfidence", analysis.confidence());

@@ -49,7 +49,6 @@ public class TrainingQuestionAssembler {
             ObjectNode node = analysisTargets.addObject();
             node.put("path", target.path());
             node.put("text", target.text());
-            node.put("expectedPronunciation", analysis.expectedPronunciation());
             ArrayNode featureCodes = node.putArray("featureCodes");
             analysis.words().stream().flatMap(word -> word.featureCodes().stream())
                     .distinct()
@@ -77,7 +76,6 @@ public class TrainingQuestionAssembler {
             String primaryText = primaryText(type, candidate);
             KoreanTextAnalysis primary = analyzer.analyze(primaryText);
             question.put("text", primaryText);
-            question.put("expectedPronunciation", primary.expectedPronunciation());
             question.set("words", words(primary.words()));
             primary.words().forEach(word -> allFeatureCodes.addAll(word.featureCodes()));
             analyses.add(primary);
@@ -203,7 +201,6 @@ public class TrainingQuestionAssembler {
             ObjectNode node = result.addObject();
             node.put("wordIndex", word.wordIndex());
             node.put("surface", word.surface());
-            node.put("expectedPronunciation", word.expectedPronunciation());
             ArrayNode codes = node.putArray("featureCodes");
             word.featureCodes().forEach(codes::add);
             ArrayNode occurrences = node.putArray("featureOccurrences");

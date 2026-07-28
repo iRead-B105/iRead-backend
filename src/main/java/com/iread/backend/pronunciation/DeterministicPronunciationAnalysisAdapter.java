@@ -14,19 +14,11 @@ public class DeterministicPronunciationAnalysisAdapter implements PronunciationA
         String filename = request.originalFilename() == null
                 ? "" : request.originalFilename().toLowerCase(Locale.ROOT);
         boolean forceError = filename.contains("error") || filename.contains("fail");
-        String observed = forceError
-                ? request.expectedText()
-                : request.expectedPronunciation();
-        boolean changedPronunciation = !request.expectedText()
-                .equals(request.expectedPronunciation());
-        String errorType = forceError
-                ? changedPronunciation ? "PHONOLOGICAL_RULE_NOT_APPLIED" : "PRONUNCIATION_MISMATCH"
-                : "NONE";
+        String errorType = forceError ? "PRONUNCIATION_MISMATCH" : "NONE";
         return new PronunciationAnalysisResult(
                 request.requestId(),
                 request.expectedText(),
-                request.expectedPronunciation(),
-                observed,
+                request.expectedText(),
                 forceError ? 54.2 : 95.0,
                 forceError ? 0.82 : 0.96,
                 errorType,

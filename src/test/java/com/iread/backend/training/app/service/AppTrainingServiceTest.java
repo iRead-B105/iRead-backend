@@ -122,8 +122,7 @@ class AppTrainingServiceTest {
                     "answer":{"expectedText":"아기는 사과를 먹는다."},
                     "analysisTargets":[{"text":"아기는 사과를 먹는다."}],
                     "targetFeatureCodes":["PHONOLOGY.NASALIZATION"],
-                    "text":"아기는 사과를 먹는다.",
-                    "expectedPronunciation":"아기는 사과를 멍는다."
+                    "text":"아기는 사과를 먹는다."
                   }]
                 }
                 """);
@@ -145,7 +144,6 @@ class AppTrainingServiceTest {
         assertThat(result.question().has("answer")).isFalse();
         assertThat(result.question().has("analysisTargets")).isFalse();
         assertThat(result.question().has("targetFeatureCodes")).isFalse();
-        assertThat(result.question().has("expectedPronunciation")).isFalse();
     }
 
     @Test
@@ -166,13 +164,11 @@ class AppTrainingServiceTest {
                 {
                   "questions":[{
                     "analysisTargets":[{
-                      "text":"먹는다",
-                      "expectedPronunciation":"멍는다"
+                      "text":"먹는다"
                     }],
                     "words":[{
                       "wordIndex":0,
-                      "surface":"먹는다",
-                      "expectedPronunciation":"멍는다"
+                      "surface":"먹는다"
                     }]
                   }]
                 }
@@ -200,7 +196,6 @@ class AppTrainingServiceTest {
                 0,
                 0,
                 "먹는다",
-                "멍는다",
                 new MockMultipartFile(
                         "audioFile",
                         "nasalization-error.wav",
@@ -216,7 +211,7 @@ class AppTrainingServiceTest {
         assertThat(result.attemptId()).isEqualTo(50L);
         assertThat(result.observedPronunciation()).isEqualTo("먹는다");
         assertThat(result.pronunciationScore()).isEqualTo(54.2);
-        assertThat(result.pronunciationErrorType()).isEqualTo("PHONOLOGICAL_RULE_NOT_APPLIED");
+        assertThat(result.pronunciationErrorType()).isEqualTo("PRONUNCIATION_MISMATCH");
         ArgumentCaptor<String> resultCaptor = ArgumentCaptor.forClass(String.class);
         verify(training).recordProgressResult(resultCaptor.capture());
         assertThat(resultCaptor.getValue())
