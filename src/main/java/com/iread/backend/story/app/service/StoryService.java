@@ -7,6 +7,7 @@ import com.iread.backend.ai.dto.res.GeneratedStoryLine;
 import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.exception.ResourceNotFoundException;
+import com.iread.backend.exception.ConflictException;
 import com.iread.backend.story.app.dto.req.StoryTtsRequest;
 import com.iread.backend.story.app.dto.res.*;
 import com.iread.backend.story.domain.*;
@@ -128,18 +129,18 @@ public class StoryService {
             return replayChoice(story, selectedLine, existingChoice.get());
         }
         if (!story.isInProgress()) {
-            throw new IllegalStateException("진행 중인 스토리에서만 분기 입력을 제출할 수 있습니다.");
+            throw new ConflictException("진행 중인 스토리에서만 분기 입력을 제출할 수 있습니다.");
         }
         StoryLineEntity lastLine = storyLineRepository.findFirstByStoryIdOrderBySequenceNoDesc(story.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("스토리 대사를 찾을 수 없습니다."));
         if (!Objects.equals(selectedLine.getId(), lastLine.getId())) {
-            throw new IllegalStateException("현재 마지막 분기 장면에만 답할 수 있습니다.");
+            throw new ConflictException("현재 마지막 분기 장면에만 답할 수 있습니다.");
         }
         if (!selectedLine.isRequiresBranchInput()) {
-            throw new IllegalStateException("분기 입력이 필요한 장면이 아닙니다.");
+            throw new ConflictException("분기 입력이 필요한 장면이 아닙니다.");
         }
         if (selectedLine.getReadAt() == null) {
-            throw new IllegalStateException("장면을 읽은 후 선택지를 제출할 수 있습니다.");
+            throw new ConflictException("장면을 읽은 후 선택지를 제출할 수 있습니다.");
         }
         List<StoryLineEntity> historyLines = storyLineRepository
                 .findAllByStoryIdOrderBySequenceNoAsc(story.getId());

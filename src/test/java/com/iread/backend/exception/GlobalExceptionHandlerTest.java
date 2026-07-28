@@ -54,4 +54,15 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody().error().code()).isEqualTo("AI_UPSTREAM_ERROR");
         assertThat(response.getBody().error().message()).doesNotContain("secret");
     }
+
+    @Test
+    void mapsInternalStateFailureToSanitizedServerError() {
+        var response = handler.handleInvalidState(
+                new IllegalStateException("audio-path=C:/private/student")
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(response.getBody().error().code()).isEqualTo("INTERNAL_ERROR");
+        assertThat(response.getBody().error().message()).doesNotContain("private");
+    }
 }

@@ -1,6 +1,7 @@
 package com.iread.backend.test.app.service;
 
 import com.iread.backend.exception.ResourceNotFoundException;
+import com.iread.backend.exception.ConflictException;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.test.app.dto.req.*;
@@ -188,7 +189,7 @@ public class AppTestService {
         List<WordAttemptLogEntity> attempts =
                 wordAttemptLogRepository.findAllByTestIdOrderByIdAsc(test.getId());
         if (attempts.isEmpty()) {
-            throw new IllegalStateException("저장된 검사 응답이 없습니다.");
+            throw new ConflictException("저장된 검사 응답이 없습니다.");
         }
         long scoreSum = attempts.stream()
                 .map(WordAttemptLogEntity::getTotalScore)
@@ -233,7 +234,7 @@ public class AppTestService {
                 .findByIdAndTestCurriculumStudentId(testId, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("검사를 찾을 수 없습니다."));
         if (test.getStatus() != TestStatus.IN_PROGRESS) {
-            throw new IllegalStateException("진행 중인 검사가 아닙니다.");
+            throw new ConflictException("진행 중인 검사가 아닙니다.");
         }
         return test;
     }

@@ -1,6 +1,7 @@
 package com.iread.backend.gaze.app.service;
 
 import com.iread.backend.exception.ResourceNotFoundException;
+import com.iread.backend.exception.ConflictException;
 import com.iread.backend.gaze.app.dto.req.EndGazeSessionRequest;
 import com.iread.backend.gaze.app.dto.req.FailGazeSessionRequest;
 import com.iread.backend.gaze.app.dto.req.GazeAnalysisResultRequest;
@@ -84,6 +85,7 @@ public class GazeService {
     public GazeSessionResponse failSession(Long teacherId, Long gazeSessionId, FailGazeSessionRequest request) {
         validateStudentOwner(teacherId, request.studentId());
         GazeSessionEntity gazeSession = findOwnedGazeSession(gazeSessionId, request.studentId());
+        requireRunning(gazeSession);
         gazeSession.fail(LocalDateTime.now());
         return toSessionResponse(gazeSession);
     }
@@ -96,6 +98,7 @@ public class GazeService {
             throw new IllegalArgumentException("종료 상태는 COMPLETED 또는 FAILED만 사용할 수 있습니다.");
         }
         GazeSessionEntity gazeSession = findOwnedGazeSession(gazeSessionId, request.studentId());
+        requireRunning(gazeSession);
         gazeSession.end(
                 request.endStatus(),
                 LocalDateTime.now(),
@@ -110,10 +113,10 @@ public class GazeService {
         validateStudentOwner(teacherId, request.studentId());
         GazeSessionEntity gazeSession = findOwnedGazeSession(gazeSessionId, request.studentId());
         if (gazeSession.getStatus() != GazeSessionStatus.COMPLETED) {
-            throw new IllegalStateException("완료된 시선 세션에만 분석 결과를 저장할 수 있습니다.");
+            throw new ConflictException("완료된 시선 세션에만 분석 결과를 저장할 수 있습니다.");
         }
         if (gazeAnalysisResultRepository.existsByGazeSessionId(gazeSessionId)) {
-            throw new IllegalStateException("시선 세션의 분석 결과가 이미 저장되어 있습니다.");
+            throw new ConflictException("시선 세션의 분석 결과가 이미 저장되어 있습니다.");
         }
         saveSentenceMetrics(gazeSession, request);
 
@@ -192,6 +195,12 @@ public class GazeService {
         };
         if (!matchingReference) {
             throw new IllegalArgumentException("contentType과 콘텐츠 식별자가 일치하지 않습니다.");
+        }
+    }
+
+    private void requireRunning(GazeSessionEntity gazeSession) {
+        if (gazeSession.getStatus() != GazeSessionStatus.RUNNING) {
+            throw new ConflictException("실행 중인 시선 세션만 종료할 수 있습니다.");
         }
     }
 

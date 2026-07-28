@@ -1,6 +1,7 @@
 package com.iread.backend.training.app.service;
 
 import com.iread.backend.exception.ResourceNotFoundException;
+import com.iread.backend.exception.ConflictException;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.admin.dto.req.CompleteTrainingRequest;
@@ -83,7 +84,7 @@ public class AppTrainingService {
     public TrainingStartResponse start(Long teacherId, Long studentId, Long trainingId) {
         TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
         if (training.getStatus() != TrainingStatus.NOT_STARTED) {
-            throw new IllegalStateException("시작 가능한 훈련이 아닙니다.");
+            throw new ConflictException("시작 가능한 훈련이 아닙니다.");
         }
         LocalDateTime startedAt = LocalDateTime.now();
         training.start(startedAt);
@@ -219,7 +220,7 @@ public class AppTrainingService {
                 .findByIdAndDailyCurriculumStudentId(trainingId, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("훈련을 찾을 수 없습니다."));
         if (training.getStatus() != TrainingStatus.IN_PROGRESS) {
-            throw new IllegalStateException("진행 중인 훈련이 아닙니다.");
+            throw new ConflictException("진행 중인 훈련이 아닙니다.");
         }
         return training;
     }
