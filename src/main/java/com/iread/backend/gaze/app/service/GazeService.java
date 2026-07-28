@@ -1,6 +1,7 @@
 package com.iread.backend.gaze.app.service;
 
 import com.iread.backend.exception.ResourceNotFoundException;
+import com.iread.backend.exception.ConflictException;
 import com.iread.backend.gaze.app.dto.req.EndGazeSessionRequest;
 import com.iread.backend.gaze.app.dto.req.FailGazeSessionRequest;
 import com.iread.backend.gaze.app.dto.req.GazeAnalysisResultRequest;
@@ -20,6 +21,7 @@ import com.iread.backend.training.repository.TrainingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 
@@ -33,6 +35,7 @@ public class GazeService {
     private final StoryRepository storyRepository;
     private final GazeSessionRepository gazeSessionRepository;
     private final GazeAnalysisResultRepository gazeAnalysisResultRepository;
+    private final ObjectMapper objectMapper;
 
     public GazeDeviceStatusResponse getDeviceStatus(Long teacherId, Long studentId) {
         validateStudentOwner(teacherId, studentId);
@@ -55,6 +58,7 @@ public class GazeService {
     @Transactional
     public GazeSessionResponse startSession(Long teacherId, StartGazeSessionRequest request) {
         StudentEntity student = findStudentOwner(teacherId, request.studentId());
+        validateContentReference(request);
         StudentTestEntity test = null;
         TrainingEntity training = null;
         StoryEntity story = null;
@@ -80,7 +84,8 @@ public class GazeService {
     @Transactional
     public GazeSessionResponse failSession(Long teacherId, Long gazeSessionId, FailGazeSessionRequest request) {
         validateStudentOwner(teacherId, request.studentId());
-        GazeSessionEntity gazeSession = findOwnedGazeSession(gazeSessionId, request.studentId());
+        GazeSessionEntity gazeSession = findOwnedGazeSessionForUpdate(gazeSessionId, request.studentId());
+        requireRunning(gazeSession);
         gazeSession.fail(LocalDateTime.now());
         return toSessionResponse(gazeSession);
     }
@@ -88,11 +93,17 @@ public class GazeService {
     @Transactional
     public GazeSessionResponse endSession(Long teacherId, Long gazeSessionId, EndGazeSessionRequest request) {
         validateStudentOwner(teacherId, request.studentId());
-        if (request.status() != GazeSessionStatus.COMPLETED && request.status() != GazeSessionStatus.FAILED) {
+        if (request.endStatus() != GazeSessionStatus.COMPLETED
+                && request.endStatus() != GazeSessionStatus.FAILED) {
             throw new IllegalArgumentException("종료 상태는 COMPLETED 또는 FAILED만 사용할 수 있습니다.");
         }
-        GazeSessionEntity gazeSession = findOwnedGazeSession(gazeSessionId, request.studentId());
-        gazeSession.end(request.status(), LocalDateTime.now());
+        GazeSessionEntity gazeSession = findOwnedGazeSessionForUpdate(gazeSessionId, request.studentId());
+        requireRunning(gazeSession);
+        gazeSession.end(
+                request.endStatus(),
+                LocalDateTime.now(),
+                request.data() == null ? null : request.data().toString()
+        );
         return toSessionResponse(gazeSession);
     }
 
@@ -100,7 +111,14 @@ public class GazeService {
     public GazeAnalysisResultResponse saveAnalysisResult(Long teacherId, Long gazeSessionId,
                                                          GazeAnalysisResultRequest request) {
         validateStudentOwner(teacherId, request.studentId());
-        GazeSessionEntity gazeSession = findOwnedGazeSession(gazeSessionId, request.studentId());
+        GazeSessionEntity gazeSession = findOwnedGazeSessionForUpdate(gazeSessionId, request.studentId());
+        if (gazeSession.getStatus() != GazeSessionStatus.COMPLETED) {
+            throw new ConflictException("완료된 시선 세션에만 분석 결과를 저장할 수 있습니다.");
+        }
+        if (gazeAnalysisResultRepository.existsByGazeSessionId(gazeSessionId)) {
+            throw new ConflictException("시선 세션의 분석 결과가 이미 저장되어 있습니다.");
+        }
+        saveSentenceMetrics(gazeSession, request);
 
         GazeAnalysisResultEntity result = gazeAnalysisResultRepository.saveAndFlush(
                 new GazeAnalysisResultEntity(
@@ -148,6 +166,44 @@ public class GazeService {
         );
     }
 
+    private void saveSentenceMetrics(GazeSessionEntity gazeSession, GazeAnalysisResultRequest request) {
+        if (request.sentenceMetrics() == null) {
+            return;
+        }
+        if (gazeSession.getContentType() != GazeContentType.STORY) {
+            throw new IllegalArgumentException("문장별 시선 지표는 이야기 세션에서만 저장할 수 있습니다.");
+        }
+        var combinedData = objectMapper.createObjectNode();
+        if (gazeSession.getData() != null && !gazeSession.getData().isBlank()) {
+            combinedData.set("rawData", objectMapper.readTree(gazeSession.getData()));
+        }
+        combinedData.set("sentenceMetrics", request.sentenceMetrics());
+        gazeSession.updateData(combinedData.toString());
+    }
+
+    private void validateContentReference(StartGazeSessionRequest request) {
+        int referenceCount = (request.testId() == null ? 0 : 1)
+                + (request.trainingId() == null ? 0 : 1)
+                + (request.storyId() == null ? 0 : 1);
+        if (referenceCount != 1) {
+            throw new IllegalArgumentException("콘텐츠 식별자는 정확히 하나만 입력해야 합니다.");
+        }
+        boolean matchingReference = switch (request.contentType()) {
+            case TEST -> request.testId() != null;
+            case TRAINING -> request.trainingId() != null;
+            case STORY -> request.storyId() != null;
+        };
+        if (!matchingReference) {
+            throw new IllegalArgumentException("contentType과 콘텐츠 식별자가 일치하지 않습니다.");
+        }
+    }
+
+    private void requireRunning(GazeSessionEntity gazeSession) {
+        if (gazeSession.getStatus() != GazeSessionStatus.RUNNING) {
+            throw new ConflictException("실행 중인 시선 세션만 종료할 수 있습니다.");
+        }
+    }
+
     private GazeAnalysisDetailResponse toAnalysisDetailResponse(GazeAnalysisResultEntity result) {
         return new GazeAnalysisDetailResponse(
                 result.getGazeSession().getId(),
@@ -159,8 +215,8 @@ public class GazeService {
         );
     }
 
-    private GazeSessionEntity findOwnedGazeSession(Long gazeSessionId, Long studentId) {
-        return gazeSessionRepository.findByIdAndStudentId(gazeSessionId, studentId)
+    private GazeSessionEntity findOwnedGazeSessionForUpdate(Long gazeSessionId, Long studentId) {
+        return gazeSessionRepository.findByIdAndStudentIdForUpdate(gazeSessionId, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "시선 트래킹 세션을 찾을 수 없습니다."
                 ));

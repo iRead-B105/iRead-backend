@@ -6,19 +6,27 @@ import com.iread.backend.ai.dto.req.GenerateStoryRequest;
 import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
 import com.iread.backend.ai.dto.req.StoryHistoryLine;
 import com.iread.backend.ai.dto.req.StoryTemplateData;
+import com.iread.backend.ai.dto.req.SpeechSynthesisRequest;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.ai.config.AiClientProperties;
+import com.iread.backend.global.audio.AudioUploadPolicy;
+import com.iread.backend.global.audio.TemporaryAudioStorage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.util.unit.DataSize;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,6 +43,9 @@ class HttpAiClientTest {
 
     private final JsonMapper objectMapper = new JsonMapper();
 
+    @TempDir
+    Path tempDir;
+
     private MockRestServiceServer server;
     private HttpAiClient aiClient;
 
@@ -50,10 +61,20 @@ class HttpAiClientTest {
                         Duration.ofSeconds(1),
                         "",
                         false,
+                        false,
                         false
                 ),
                 new MockTrainingGenerator(objectMapper),
-                new MockTrainingEvaluator()
+                new MockTrainingEvaluator(),
+                new MockStoryGenerator(),
+                new MockSpeechProcessor(),
+                new TemporaryAudioStorage(
+                        tempDir.resolve("audio").toString(),
+                        new AudioUploadPolicy(
+                                DataSize.ofMegabytes(20),
+                                "audio/webm,audio/wav,audio/mpeg,audio/mp4"
+                        )
+                )
         );
     }
 
@@ -217,6 +238,96 @@ class HttpAiClientTest {
 
         assertThat(response.completed()).isTrue();
         assertThat(response.lines().getFirst().content()).isEqualTo("친구를 만나 집으로 돌아왔어요.");
+        server.verify();
+    }
+
+    @Test
+    void sendsMultipartSpeechAndReturnsTranscription() throws Exception {
+        server.expect(requestTo("http://localhost:8081/api/v1/speech/transcribe"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Idempotency-Key", "speech-request-1"))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.MULTIPART_FORM_DATA))
+                .andRespond(withSuccess("""
+                        {
+                          "requestId": "speech-request-1",
+                          "transcript": "책을 읽어요",
+                          "confidence": 0.95,
+                          "durationMs": 1200
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var response = aiClient.transcribeSpeech(
+                "speech-request-1",
+                20L,
+                "책을 읽어요",
+                new MockMultipartFile(
+                        "audioFile", "reading.webm", "audio/webm", new byte[]{1, 2, 3}
+                )
+        );
+
+        assertThat(response.transcript()).isEqualTo("책을 읽어요");
+        assertThat(response.confidence()).isEqualTo(0.95);
+        try (var files = Files.list(tempDir.resolve("audio"))) {
+            assertThat(files.toList()).isEmpty();
+        }
+        server.verify();
+    }
+
+    @Test
+    void 잘못된_JSON_응답은_통신_예외로_변환하고_재시도하지_않는다() throws Exception {
+        server.expect(once(), requestTo("http://localhost:8081/api/v1/trainings/generate"))
+                .andRespond(withSuccess("{invalid-json", MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> aiClient.generateTraining(request("malformed-response")))
+                .isInstanceOf(AiClientException.class)
+                .hasMessage("AI 서버와 통신하는 데 실패했습니다.");
+
+        server.verify();
+    }
+
+    @Test
+    void 음성_인식이_실패해도_임시_파일을_삭제하고_재시도하지_않는다() throws Exception {
+        server.expect(once(), requestTo("http://localhost:8081/api/v1/speech/transcribe"))
+                .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
+
+        assertThatThrownBy(() -> aiClient.transcribeSpeech(
+                "speech-failure",
+                20L,
+                "책을 읽어요",
+                new MockMultipartFile(
+                        "audioFile", "reading.webm", "audio/webm", new byte[]{1, 2, 3}
+                )
+        ))
+                .isInstanceOf(AiClientException.class)
+                .hasMessage("AI 서버가 음성 인식 오류를 반환했습니다.");
+
+        try (var files = Files.list(tempDir.resolve("audio"))) {
+            assertThat(files.toList()).isEmpty();
+        }
+        server.verify();
+    }
+
+    @Test
+    void sendsTtsRequestAndReturnsAudioWithDurationHeader() {
+        byte[] audio = new byte[]{'I', 'D', '3'};
+        server.expect(requestTo("http://localhost:8081/api/v1/speech/synthesize"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Idempotency-Key", "tts-request-1"))
+                .andExpect(content().json("""
+                        {"requestId":"tts-request-1","text":"책을 읽어요","voice":null}
+                        """))
+                .andRespond(withSuccess()
+                        .body(audio)
+                        .contentType(MediaType.parseMediaType("audio/mpeg"))
+                        .header("X-Request-Id", "tts-request-1")
+                        .header("X-Audio-Duration-Ms", "1500"));
+
+        var response = aiClient.synthesizeSpeech(
+                new SpeechSynthesisRequest("tts-request-1", "책을 읽어요", null)
+        );
+
+        assertThat(response.audio()).isEqualTo(audio);
+        assertThat(response.durationMs()).isEqualTo(1500);
         server.verify();
     }
 

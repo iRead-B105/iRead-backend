@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 
 public record GazeAnalysisResultResponse(
         @Schema(description = "시선 트래킹 분석 ID", example = "1")
-        Long gazeAnalysisResultId,
+        Long gazeAnalysisId,
 
         @Schema(description = "생성 일시")
         LocalDateTime createdAt

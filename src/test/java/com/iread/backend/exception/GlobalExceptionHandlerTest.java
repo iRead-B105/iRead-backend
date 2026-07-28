@@ -1,5 +1,6 @@
 package com.iread.backend.exception;
 
+import com.iread.backend.ai.exception.AiClientException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 
@@ -41,5 +42,27 @@ class GlobalExceptionHandlerTest {
                 .isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.getBody().error().code()).isEqualTo("INTERNAL_ERROR");
         assertThat(response.getBody().error().message()).doesNotContain("secret");
+    }
+
+    @Test
+    void mapsAiFailureToBadGatewayWithoutExposingUpstreamDetails() {
+        var response = handler.handleAiClient(
+                new AiClientException("upstream api-key=secret", 500)
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+        assertThat(response.getBody().error().code()).isEqualTo("AI_UPSTREAM_ERROR");
+        assertThat(response.getBody().error().message()).doesNotContain("secret");
+    }
+
+    @Test
+    void mapsInternalStateFailureToSanitizedServerError() {
+        var response = handler.handleInvalidState(
+                new IllegalStateException("audio-path=C:/private/student")
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+        assertThat(response.getBody().error().code()).isEqualTo("INTERNAL_ERROR");
+        assertThat(response.getBody().error().message()).doesNotContain("private");
     }
 }

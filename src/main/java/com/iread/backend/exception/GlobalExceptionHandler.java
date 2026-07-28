@@ -1,7 +1,9 @@
 package com.iread.backend.exception;
 
 import com.iread.backend.auth.exception.AuthException;
+import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.global.api.ApiErrorResponse;
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -9,6 +11,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -37,6 +42,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleConflict(ConflictException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(
                 ApiErrorResponse.of("CONFLICT", exception.getMessage())
+        );
+    }
+
+    @ExceptionHandler(AiClientException.class)
+    public ResponseEntity<ApiErrorResponse> handleAiClient(AiClientException exception) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
+                ApiErrorResponse.of("AI_UPSTREAM_ERROR", "AI 처리 중 오류가 발생했습니다.")
         );
     }
 
@@ -69,6 +81,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({
             MissingServletRequestParameterException.class,
+            MissingServletRequestPartException.class,
+            MaxUploadSizeExceededException.class,
+            HandlerMethodValidationException.class,
+            ConstraintViolationException.class,
             MethodArgumentTypeMismatchException.class,
             HttpMessageNotReadableException.class
     })
@@ -99,8 +115,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ApiErrorResponse> handleInvalidState(IllegalStateException exception) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(
-                ApiErrorResponse.of("CONFLICT", exception.getMessage())
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                ApiErrorResponse.of("INTERNAL_ERROR", "서버 처리 중 오류가 발생했습니다.")
         );
     }
 

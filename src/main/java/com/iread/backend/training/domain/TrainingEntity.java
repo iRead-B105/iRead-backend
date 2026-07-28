@@ -1,5 +1,6 @@
 package com.iread.backend.training.domain;
 
+import com.iread.backend.exception.ConflictException;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -76,7 +77,7 @@ public class TrainingEntity {
 
     public void reset() {
         if (status == TrainingStatus.COMPLETED) {
-            throw new IllegalStateException("완료된 훈련은 초기화할 수 없습니다.");
+            throw new ConflictException("완료된 훈련은 초기화할 수 없습니다.");
         }
         startedAt = null;
         finishedAt = null;

@@ -3,13 +3,15 @@ package com.iread.backend.story.app.dto.res;
 import java.time.LocalDateTime;
 
 public record StoryLineResponse(
-        Long storyLineId,
-        Long previousStoryLineId,
+        Long lineId,
+        Long previousLineId,
+        Long sceneId,
         Long storyId,
         String imageUrl,
         boolean requiresBranchInput,
-        String content,
-        Integer sequenceNo,
+        String lineText,
+        Integer sceneOrder,
+        Integer lineOrder,
         LocalDateTime createdAt,
         LocalDateTime readAt
 ) {

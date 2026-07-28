@@ -17,7 +17,7 @@ import java.io.IOException;
 @Component
 @Order(20)
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "iread.training-template-seed.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "iread.training-template-seed.enabled", havingValue = "true")
 public class TrainingTemplateDataInitializer implements ApplicationRunner {
 
     private static final String SEED_RESOURCE = "training-templates.json";
