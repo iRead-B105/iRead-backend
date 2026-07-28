@@ -246,8 +246,7 @@ class AppTrainingServiceTest {
                 {
                   "questions":[{
                     "analysisTargets":[{
-                      "text":"먹는다",
-                      "expectedPronunciation":"멍는다"
+                      "text":"먹는다"
                     }]
                   }]
                 }
@@ -273,7 +272,6 @@ class AppTrainingServiceTest {
                 0,
                 null,
                 "먹는다",
-                "멍는다",
                 new MockMultipartFile(
                         "audioFile",
                         "voice.wav",
