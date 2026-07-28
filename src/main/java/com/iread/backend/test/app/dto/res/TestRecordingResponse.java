@@ -6,7 +6,8 @@ public record TestRecordingResponse(
         Long attemptId,
         Long testId,
         Long wordId,
-        String recognizedText,
+        Double pronunciationAccuracyScore,
+        String pronunciationErrorType,
         Integer totalScore,
         LocalDateTime createdAt
 ) {

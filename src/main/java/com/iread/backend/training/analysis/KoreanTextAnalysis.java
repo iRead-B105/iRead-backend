@@ -4,7 +4,6 @@ import java.util.List;
 
 public record KoreanTextAnalysis(
         String text,
-        String expectedPronunciation,
         List<String> sentenceFeatureCodes,
         List<AnalyzedWord> words,
         List<MorphemeAnalysis> morphemes,

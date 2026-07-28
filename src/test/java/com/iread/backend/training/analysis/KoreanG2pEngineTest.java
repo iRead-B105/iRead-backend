@@ -20,7 +20,7 @@ class KoreanG2pEngineTest {
     }
 
     @Test
-    void producesExpectedPronunciationFromProductExample() {
+    void producesRuleAppliedPronunciationFromProductExample() {
         KoreanG2pEngine.G2pResult result = engine.convert("아기는 국물을 먹는다.");
 
         assertThat(result.pronunciation()).isEqualTo("아기는 궁무를 멍는다.");

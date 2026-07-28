@@ -2,6 +2,10 @@ package com.iread.backend.test.app.service;
 
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.exception.ConflictException;
+import com.iread.backend.global.audio.AudioUploadPolicy;
+import com.iread.backend.pronunciation.PronunciationAnalysisAdapter;
+import com.iread.backend.pronunciation.PronunciationAnalysisRequest;
+import com.iread.backend.pronunciation.PronunciationAnalysisResult;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.test.app.dto.req.*;
@@ -15,12 +19,14 @@ import com.iread.backend.training.domain.WordEntity;
 import com.iread.backend.training.repository.WordRepository;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
+import com.iread.backend.wordattempt.service.WordAttemptScoreCalculator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -37,6 +43,9 @@ public class AppTestService {
     private final TestDataRepository testDataRepository;
     private final WordRepository wordRepository;
     private final WordAttemptLogRepository wordAttemptLogRepository;
+    private final PronunciationAnalysisAdapter pronunciationAnalysisAdapter;
+    private final AudioUploadPolicy audioUploadPolicy;
+    private final WordAttemptScoreCalculator wordAttemptScoreCalculator;
     private final ObjectMapper objectMapper;
 
     public TestIntroResponse getIntro(Long teacherId, Long studentId) {
@@ -103,24 +112,49 @@ public class AppTestService {
         StudentTestEntity test = findInProgressTestForUpdate(studentId, request.testId());
         validateQuestion(request.testId(), questionNumber);
         WordEntity word = findWord(request.wordId());
+        validateSpeechOffsets(request.speechStartOffsetMs(), request.speechEndOffsetMs());
+        audioUploadPolicy.validate(request.audioFile());
+        PronunciationAnalysisResult analysis = pronunciationAnalysisAdapter.analyze(
+                new PronunciationAnalysisRequest(
+                        "test-recording-" + request.testId() + "-" + questionNumber
+                                + "-" + System.nanoTime(),
+                        word.getContent(),
+                        request.audioFile().getOriginalFilename(),
+                        audioBytes(request)
+                )
+        );
+        int pronunciationAccuracyScore =
+                (int) Math.round(analysis.pronunciationAccuracyScore() * 10);
+        boolean correct = analysis.pronunciationAccuracyScore() >= 70
+                && "NONE".equals(analysis.errorType());
+        int totalScore = wordAttemptScoreCalculator.calculate(
+                pronunciationAccuracyScore,
+                true,
+                false,
+                0,
+                correct
+        );
+        markPreviousAttemptNotFinal(test.getId(), questionNumber);
         WordAttemptLogEntity attempt = wordAttemptLogRepository.saveAndFlush(
                 WordAttemptLogEntity.forTest(
                         student,
                         word,
                         test,
                         true,
-                        request.recognizedText(),
+                        pronunciationAccuracyScore,
                         request.speechStartOffsetMs(),
                         request.speechEndOffsetMs(),
-                        request.isCorrect(),
-                        request.totalScore()
+                        correct,
+                        totalScore,
+                        questionNumber
                 )
         );
         return new TestRecordingResponse(
                 attempt.getId(),
                 test.getId(),
                 word.getId(),
-                attempt.getRecognizedText(),
+                analysis.pronunciationAccuracyScore(),
+                analysis.errorType(),
                 attempt.getTotalScore(),
                 attempt.getCreatedAt()
         );
@@ -137,6 +171,7 @@ public class AppTestService {
         StudentTestEntity test = findInProgressTestForUpdate(studentId, request.testId());
         validateQuestion(request.testId(), questionNumber);
         WordEntity word = findWord(request.wordId());
+        markPreviousAttemptNotFinal(test.getId(), questionNumber);
         WordAttemptLogEntity attempt = wordAttemptLogRepository.saveAndFlush(
                 WordAttemptLogEntity.forTest(
                         student,
@@ -147,7 +182,8 @@ public class AppTestService {
                         null,
                         null,
                         request.isCorrect(),
-                        request.totalScore()
+                        request.totalScore(),
+                        questionNumber
                 )
         );
         return new TestSelectionResponse(
@@ -188,7 +224,9 @@ public class AppTestService {
         findOwnedStudent(teacherId, studentId);
         StudentTestEntity test = findInProgressTestForUpdate(studentId, request.testId());
         List<WordAttemptLogEntity> attempts =
-                wordAttemptLogRepository.findAllByTestIdOrderByIdAsc(test.getId());
+                wordAttemptLogRepository.findAllByTestIdAndFinalAttemptTrueOrderByIdAsc(
+                        test.getId()
+                );
         if (attempts.isEmpty()) {
             throw new ConflictException("저장된 검사 응답이 없습니다.");
         }
@@ -271,6 +309,29 @@ public class AppTestService {
             throw new IllegalStateException("저장된 검사 문항 형식이 올바르지 않습니다.");
         }
         return questions;
+    }
+
+    private byte[] audioBytes(TestRecordingRequest request) {
+        try {
+            if (request.audioFile().isEmpty()) {
+                throw new IllegalArgumentException("audioFile은 비어 있을 수 없습니다.");
+            }
+            return request.audioFile().getBytes();
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("audioFile을 읽을 수 없습니다.", exception);
+        }
+    }
+
+    private void validateSpeechOffsets(Integer start, Integer end) {
+        if (start != null && end != null && end <= start) {
+            throw new IllegalArgumentException("speechEndOffsetMs는 시작 시점보다 커야 합니다.");
+        }
+    }
+
+    private void markPreviousAttemptNotFinal(Long testId, int questionNumber) {
+        wordAttemptLogRepository
+                .findAllByTestIdAndQuestionNoAndFinalAttemptTrue(testId, questionNumber)
+                .forEach(WordAttemptLogEntity::markNotFinal);
     }
 
     private JsonNode readJson(String value) {

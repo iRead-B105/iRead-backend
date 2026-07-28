@@ -60,9 +60,6 @@ public class WordAttemptLogEntity {
     @Column(name = "surface_text", length = 50)
     private String surfaceText;
 
-    @Column(name = "has_gaze_data", nullable = false)
-    private boolean hasGazeData;
-
     @Column(name = "has_audio_data", nullable = false)
     private boolean hasAudioData;
 
@@ -84,8 +81,8 @@ public class WordAttemptLogEntity {
     @Column(name = "regression_count")
     private Integer regressionCount;
 
-    @Column(name = "recognized_text", length = 255)
-    private String recognizedText;
+    @Column(name = "pronunciation_accuracy_score")
+    private Integer pronunciationAccuracyScore;
 
     @Column(name = "speech_start_offset_ms")
     private Integer speechStartOffsetMs;
@@ -99,6 +96,18 @@ public class WordAttemptLogEntity {
     @Column(name = "total_score")
     private Integer totalScore;
 
+    @Column(name = "question_no")
+    private Integer questionNo;
+
+    @Column(name = "target_index")
+    private Integer targetIndex;
+
+    @Column(name = "token_index")
+    private Integer tokenIndex;
+
+    @Column(name = "is_final", nullable = false)
+    private boolean finalAttempt;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -108,7 +117,6 @@ public class WordAttemptLogEntity {
             WordEntity word,
             TrainingEntity training,
             String surfaceText,
-            boolean hasGazeData,
             boolean hasAudioData,
             Integer fixationDurationMs,
             Integer fixationCount,
@@ -116,21 +124,24 @@ public class WordAttemptLogEntity {
             Integer gazeEndOffsetMs,
             Boolean skipped,
             Integer regressionCount,
-            String recognizedText,
+            Integer pronunciationAccuracyScore,
             Integer speechStartOffsetMs,
             Integer speechEndOffsetMs,
             Boolean correct,
-            Integer totalScore
+            Integer totalScore,
+            Integer questionNo,
+            Integer targetIndex,
+            Integer tokenIndex,
+            boolean finalAttempt
     ) {
-        if (totalScore == null || totalScore < 0 || totalScore > 1000) {
-            throw new IllegalArgumentException("단어 정확도 점수는 0점 이상 1000점 이하여야 합니다.");
-        }
+        validateScore(pronunciationAccuracyScore, "단어 발음 정확도 점수");
+        validateScore(totalScore, "단어 종합 점수");
+        validatePosition(questionNo, targetIndex, tokenIndex);
         this.student = student;
         this.word = word;
         this.training = training;
         this.useLocation = WordAttemptUseLocation.TRAINING;
         this.surfaceText = surfaceText;
-        this.hasGazeData = hasGazeData;
         this.hasAudioData = hasAudioData;
         this.fixationDurationMs = fixationDurationMs;
         this.fixationCount = fixationCount;
@@ -138,11 +149,15 @@ public class WordAttemptLogEntity {
         this.gazeEndOffsetMs = gazeEndOffsetMs;
         this.skipped = skipped;
         this.regressionCount = regressionCount;
-        this.recognizedText = recognizedText;
+        this.pronunciationAccuracyScore = pronunciationAccuracyScore;
         this.speechStartOffsetMs = speechStartOffsetMs;
         this.speechEndOffsetMs = speechEndOffsetMs;
         this.correct = correct;
         this.totalScore = totalScore;
+        this.questionNo = questionNo;
+        this.targetIndex = targetIndex;
+        this.tokenIndex = tokenIndex;
+        this.finalAttempt = finalAttempt;
     }
 
     public static WordAttemptLogEntity forTest(
@@ -150,34 +165,58 @@ public class WordAttemptLogEntity {
             WordEntity word,
             StudentTestEntity test,
             boolean hasAudioData,
-            String recognizedText,
+            Integer pronunciationAccuracyScore,
             Integer speechStartOffsetMs,
             Integer speechEndOffsetMs,
             Boolean correct,
-            Integer totalScore
+            Integer totalScore,
+            Integer questionNo
     ) {
-        validateTotalScore(totalScore);
+        validateScore(pronunciationAccuracyScore, "단어 발음 정확도 점수");
+        validateScore(totalScore, "단어 종합 점수");
+        validatePosition(questionNo, null, null);
         WordAttemptLogEntity attempt = new WordAttemptLogEntity();
         attempt.student = student;
         attempt.word = word;
         attempt.test = test;
         attempt.useLocation = WordAttemptUseLocation.TEST;
         attempt.surfaceText = word.getContent();
-        attempt.hasGazeData = false;
         attempt.hasAudioData = hasAudioData;
         attempt.skipped = false;
         attempt.regressionCount = 0;
-        attempt.recognizedText = recognizedText;
+        attempt.pronunciationAccuracyScore = pronunciationAccuracyScore;
         attempt.speechStartOffsetMs = speechStartOffsetMs;
         attempt.speechEndOffsetMs = speechEndOffsetMs;
         attempt.correct = correct;
         attempt.totalScore = totalScore;
+        attempt.questionNo = questionNo;
+        attempt.finalAttempt = true;
         return attempt;
     }
 
-    private static void validateTotalScore(Integer totalScore) {
-        if (totalScore == null || totalScore < 0 || totalScore > 1000) {
-            throw new IllegalArgumentException("단어 정확도 점수는 0점 이상 1000점 이하여야 합니다.");
+    public void markNotFinal() {
+        this.finalAttempt = false;
+    }
+
+    private static void validateScore(Integer score, String label) {
+        if (score != null && (score < 0 || score > 1000)) {
+            throw new IllegalArgumentException(label + "는 0점 이상 1000점 이하여야 합니다.");
+        }
+    }
+
+    private static void validatePosition(
+            Integer questionNo,
+            Integer targetIndex,
+            Integer tokenIndex
+    ) {
+        if (questionNo != null && questionNo < 1) {
+            throw new IllegalArgumentException("문항 번호는 1 이상이어야 합니다.");
+        }
+        if (targetIndex != null && targetIndex < 0) {
+            throw new IllegalArgumentException("분석 대상 위치는 0 이상이어야 합니다.");
+        }
+        if (tokenIndex != null && tokenIndex < 0) {
+            throw new IllegalArgumentException("토큰 위치는 0 이상이어야 합니다.");
         }
     }
 }

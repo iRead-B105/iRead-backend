@@ -69,7 +69,7 @@ class TrainingServiceTest {
                 wordRepository,
                 wordAttemptLogRepository,
                 new WordAttemptScoreCalculator(
-                        new WordAttemptScoreProperties(100, 300, 200, 600, 250)
+                        new WordAttemptScoreProperties(100, 300, 700, 200, 600, 250)
                 ),
                 gazeWordAnalysisAdapter,
                 aiClient,
@@ -374,7 +374,7 @@ class TrainingServiceTest {
                     "gazeEndOffsetMs": 500,
                     "isSkipped": false,
                     "retryCount": 2,
-                    "recognizedText": "사과",
+                    "pronunciationAccuracyScore": 900,
                     "speechStartOffsetMs": 180,
                     "speechEndOffsetMs": 620,
                     "isCorrect": true

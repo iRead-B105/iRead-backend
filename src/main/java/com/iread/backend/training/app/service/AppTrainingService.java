@@ -22,6 +22,7 @@ import com.iread.backend.training.repository.TrainingRepository;
 import com.iread.backend.training.repository.WordRepository;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
+import com.iread.backend.wordattempt.service.WordAttemptScoreCalculator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +45,7 @@ public class AppTrainingService {
     private final WordAttemptLogRepository wordAttemptLogRepository;
     private final PronunciationAnalysisAdapter pronunciationAnalysisAdapter;
     private final AudioUploadPolicy audioUploadPolicy;
+    private final WordAttemptScoreCalculator wordAttemptScoreCalculator;
     private final TrainingService trainingService;
     private final ObjectMapper objectMapper;
 
@@ -124,8 +126,7 @@ public class AppTrainingService {
                 questionNumber,
                 request.targetIndex(),
                 request.tokenIndex(),
-                request.expectedText(),
-                request.expectedPronunciation()
+                request.expectedText()
         );
         if (!word.getContent().equals(request.expectedText())) {
             throw new IllegalArgumentException("wordId와 expectedText가 일치하지 않습니다.");
@@ -137,21 +138,33 @@ public class AppTrainingService {
                         "training-recording-" + trainingId + "-" + questionNumber
                                 + "-" + request.targetIndex() + "-" + System.nanoTime(),
                         request.expectedText(),
-                        request.expectedPronunciation(),
                         request.audioFile().getOriginalFilename(),
                         audioBytes(request)
                 )
         );
-        int totalScore = (int) Math.round(analysis.pronunciationScore() * 10);
-        boolean correct = analysis.pronunciationScore() >= 70
+        int pronunciationAccuracyScore =
+                (int) Math.round(analysis.pronunciationAccuracyScore() * 10);
+        boolean correct = analysis.pronunciationAccuracyScore() >= 70
                 && "NONE".equals(analysis.errorType());
+        int totalScore = wordAttemptScoreCalculator.calculate(
+                pronunciationAccuracyScore,
+                true,
+                false,
+                0,
+                correct
+        );
+        markPreviousAttemptsNotFinal(
+                trainingId,
+                questionNumber,
+                request.targetIndex(),
+                request.tokenIndex()
+        );
         WordAttemptLogEntity attempt = wordAttemptLogRepository.saveAndFlush(
                 new WordAttemptLogEntity(
                         student,
                         word,
                         training,
                         word.getContent(),
-                        false,
                         true,
                         null,
                         null,
@@ -159,11 +172,15 @@ public class AppTrainingService {
                         null,
                         false,
                         0,
-                        analysis.recognizedText(),
+                        pronunciationAccuracyScore,
                         request.speechStartOffsetMs(),
                         request.speechEndOffsetMs(),
                         correct,
-                        totalScore
+                        totalScore,
+                        questionNumber,
+                        request.targetIndex(),
+                        request.tokenIndex(),
+                        true
                 )
         );
         recordAttemptLink(training, questionNumber, request, attempt, analysis);
@@ -171,9 +188,7 @@ public class AppTrainingService {
                 attempt.getId(),
                 trainingId,
                 word.getId(),
-                analysis.recognizedText(),
-                analysis.observedPronunciation(),
-                analysis.pronunciationScore(),
+                analysis.pronunciationAccuracyScore(),
                 analysis.confidence(),
                 analysis.errorType(),
                 attempt.getTotalScore(),
@@ -186,18 +201,19 @@ public class AppTrainingService {
             Long teacherId,
             Long studentId,
             Long trainingId,
+            int questionNumber,
             TrainingSelectionRequest request
     ) {
         StudentEntity student = findOwnedStudent(teacherId, studentId);
         TrainingEntity training = findInProgressTrainingForUpdate(studentId, trainingId);
         WordEntity word = findWord(request.wordId());
+        markPreviousSelectionNotFinal(trainingId, questionNumber);
         WordAttemptLogEntity attempt = wordAttemptLogRepository.saveAndFlush(
                 new WordAttemptLogEntity(
                         student,
                         word,
                         training,
                         word.getContent(),
-                        false,
                         false,
                         null,
                         null,
@@ -209,7 +225,11 @@ public class AppTrainingService {
                         null,
                         null,
                         request.isCorrect(),
-                        request.totalScore()
+                        request.totalScore(),
+                        questionNumber,
+                        null,
+                        null,
+                        true
                 )
         );
         return new TrainingSelectionResponse(
@@ -281,8 +301,7 @@ public class AppTrainingService {
             int questionNumber,
             int targetIndex,
             Integer tokenIndex,
-            String expectedText,
-            String expectedPronunciation
+            String expectedText
     ) {
         JsonNode generated = trainingDataRepository.findByTrainingId(trainingId)
                 .map(TrainingDataEntity::getGeneratedData)
@@ -302,8 +321,7 @@ public class AppTrainingService {
         String storedText = tokenIndex == null
                 ? expected.path("text").asText()
                 : expected.path("surface").asText();
-        if (!expectedText.equals(storedText)
-                || !expectedPronunciation.equals(expected.path("expectedPronunciation").asText())) {
+        if (!expectedText.equals(storedText)) {
             throw new IllegalArgumentException("요청한 텍스트가 생성된 훈련 문항과 일치하지 않습니다.");
         }
     }
@@ -333,9 +351,7 @@ public class AppTrainingService {
         else link.put("tokenIndex", request.tokenIndex());
         link.put("isFinal", true);
         link.put("expectedText", request.expectedText());
-        link.put("expectedPronunciation", request.expectedPronunciation());
-        link.put("observedPronunciation", analysis.observedPronunciation());
-        link.put("pronunciationScore", analysis.pronunciationScore());
+        link.put("pronunciationAccuracyScore", analysis.pronunciationAccuracyScore());
         link.put("pronunciationConfidence", analysis.confidence());
         link.put("pronunciationErrorType", analysis.errorType());
         link.put("pronunciationAnalysisVersion", analysis.analysisVersion());
@@ -346,6 +362,35 @@ public class AppTrainingService {
             link.putNull("wordReadTimeMs");
         }
         training.recordProgressResult(writeJson(result));
+    }
+
+    private void markPreviousAttemptsNotFinal(
+            Long trainingId,
+            int questionNumber,
+            int targetIndex,
+            Integer tokenIndex
+    ) {
+        wordAttemptLogRepository
+                .findAllByTrainingIdAndQuestionNoAndTargetIndexAndFinalAttemptTrue(
+                        trainingId,
+                        questionNumber,
+                        targetIndex
+                )
+                .stream()
+                .filter(attempt -> java.util.Objects.equals(attempt.getTokenIndex(), tokenIndex))
+                .forEach(WordAttemptLogEntity::markNotFinal);
+    }
+
+    private void markPreviousSelectionNotFinal(Long trainingId, int questionNumber) {
+        wordAttemptLogRepository
+                .findAllByTrainingIdAndQuestionNoAndFinalAttemptTrue(
+                        trainingId,
+                        questionNumber
+                )
+                .stream()
+                .filter(attempt -> attempt.getTargetIndex() == null
+                        && attempt.getTokenIndex() == null)
+                .forEach(WordAttemptLogEntity::markNotFinal);
     }
 
     private Integer nullableInt(JsonNode node, String field) {

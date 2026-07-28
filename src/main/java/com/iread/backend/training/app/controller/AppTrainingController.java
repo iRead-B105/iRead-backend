@@ -100,7 +100,13 @@ public class AppTrainingController {
             @Valid @RequestBody TrainingSelectionRequest request
     ) {
         requireSameStudent(authenticatedStudentId, studentId);
-        return trainingService.saveSelection(teacherId, studentId, trainingId, request);
+        return trainingService.saveSelection(
+                teacherId,
+                studentId,
+                trainingId,
+                questionNumber,
+                request
+        );
     }
 
     @PostMapping("/complete")

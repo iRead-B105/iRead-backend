@@ -68,7 +68,6 @@ class PersonalizedTrainingGenerationServiceTest {
             assertThat(question.path("answer").isObject()).isTrue();
             assertThat(question.path("analysisTargets").isArray()).isTrue();
             assertThat(question.path("words").isArray()).isTrue();
-            assertThat(question.path("expectedPronunciation").asText()).isNotBlank();
         }
         assertThat(generated.path("validationResult").path("passed").asBoolean()).isTrue();
         assertThat(generated.toString())

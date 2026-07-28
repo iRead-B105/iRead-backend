@@ -10,7 +10,6 @@ public record TrainingRecordingRequest(
         @NotNull @Min(0) Integer targetIndex,
         @Min(0) Integer tokenIndex,
         @NotBlank String expectedText,
-        @NotBlank String expectedPronunciation,
         @NotNull MultipartFile audioFile,
         @Min(0) Integer speechStartOffsetMs,
         @Min(0) Integer speechEndOffsetMs

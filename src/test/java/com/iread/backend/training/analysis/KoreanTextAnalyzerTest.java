@@ -15,7 +15,6 @@ class KoreanTextAnalyzerTest {
     void createsWordFeaturesOccurrencesAndVersionedAnalysis() {
         KoreanTextAnalysis result = analyzer.analyze("아기는 국물을 먹는다.");
 
-        assertThat(result.expectedPronunciation()).isEqualTo("아기는 궁무를 멍는다.");
         assertThat(result.words()).hasSize(3);
         assertThat(result.morphemes()).isNotEmpty();
         assertThat(result.analyzerVersion()).isEqualTo("KOREAN_ANALYZER_V1");
@@ -25,7 +24,6 @@ class KoreanTextAnalyzerTest {
         AnalyzedWord target = result.words().get(2);
         assertThat(target.wordIndex()).isEqualTo(2);
         assertThat(target.surface()).isEqualTo("먹는다");
-        assertThat(target.expectedPronunciation()).isEqualTo("멍는다");
         assertThat(target.featureCodes()).contains(
                 "GRAPHEME.CODA.SIMPLE.ㄱ",
                 "SYLLABLE.CVC",

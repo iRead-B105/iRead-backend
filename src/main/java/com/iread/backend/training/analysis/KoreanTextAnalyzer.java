@@ -50,7 +50,6 @@ public class KoreanTextAnalyzer {
         List<AnalyzedWord> words = analyzeWords(text, g2p);
         return new KoreanTextAnalysis(
                 text,
-                g2p.pronunciation(),
                 words.stream().anyMatch(word -> word.surface().chars()
                         .anyMatch(value -> HangulSyllable.isHangulSyllable((char) value)))
                         ? List.of("SENTENCE.SIMPLE")
@@ -106,7 +105,6 @@ public class KoreanTextAnalyzer {
             words.add(new AnalyzedWord(
                     wordIndex++,
                     surface,
-                    pronunciation,
                     List.copyOf(featureCodes),
                     occurrences
             ));

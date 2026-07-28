@@ -195,7 +195,6 @@ CREATE TABLE `word_attempt_logs` (
 	`test_id` bigint NULL,
 	`use_location` varchar(10) NOT NULL COMMENT 'Enum: TEST, TRAINING, STORY',
 	`surface_text` varchar(50) NULL COMMENT '문장 안에서 사용된 단어 형태',
-	`has_gaze_data` boolean NOT NULL,
 	`has_audio_data` boolean NOT NULL,
 	`fixation_duration_ms` int NULL,
 	`fixation_count` int NULL,
@@ -203,15 +202,28 @@ CREATE TABLE `word_attempt_logs` (
 	`gaze_end_offset_ms` int NULL,
 	`is_skipped` boolean NULL,
 	`regression_count` int NULL,
-	`recognized_text` varchar(255) NULL COMMENT 'STT 인식 결과',
+	`pronunciation_accuracy_score` int NULL COMMENT 'Azure 단어별 AccuracyScore x 10 (0~1000)',
 	`speech_start_offset_ms` int NULL,
 	`speech_end_offset_ms` int NULL,
 	`is_correct` boolean NULL,
 	`created_at` timestamp NULL,
-	`total_score` int NULL COMMENT '단어 점수 0~1000',
+	`total_score` int NULL COMMENT '발음·시선·읽기 수행 종합 단어 점수 0~1000',
+	`question_no` int NULL COMMENT '1부터 시작',
+	`target_index` int NULL COMMENT '0부터 시작',
+	`token_index` int NULL COMMENT '0부터 시작',
+	`is_final` boolean NOT NULL DEFAULT true COMMENT '같은 문항·대상·토큰 위치의 최종 시도',
 	CONSTRAINT `PK_WORD_ATTEMPT_LOGS` PRIMARY KEY (`id`),
+	CONSTRAINT `CHK_WORD_ATTEMPT_LOGS_PRONUNCIATION_ACCURACY_SCORE`
+		CHECK (`pronunciation_accuracy_score` IS NULL
+			OR `pronunciation_accuracy_score` BETWEEN 0 AND 1000),
 	CONSTRAINT `CHK_WORD_ATTEMPT_LOGS_TOTAL_SCORE`
-		CHECK (`total_score` BETWEEN 0 AND 1000)
+		CHECK (`total_score` BETWEEN 0 AND 1000),
+	CONSTRAINT `CHK_WORD_ATTEMPT_LOGS_QUESTION_NO`
+		CHECK (`question_no` IS NULL OR `question_no` >= 1),
+	CONSTRAINT `CHK_WORD_ATTEMPT_LOGS_TARGET_INDEX`
+		CHECK (`target_index` IS NULL OR `target_index` >= 0),
+	CONSTRAINT `CHK_WORD_ATTEMPT_LOGS_TOKEN_INDEX`
+		CHECK (`token_index` IS NULL OR `token_index` >= 0)
 );
 
 CREATE TABLE `character` (
