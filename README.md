@@ -87,12 +87,27 @@ spring.datasource.username=<DB_USERNAME>
 spring.datasource.password=<DB_PASSWORD>
 spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
 
-spring.jpa.hibernate.ddl-auto=update
+spring.jpa.hibernate.ddl-auto=validate
 spring.jpa.properties.hibernate.format_sql=true
 
 spring.data.redis.host=localhost
 spring.data.redis.port=6379
+
+# 음성 업로드
+spring.servlet.multipart.max-file-size=20MB
+spring.servlet.multipart.max-request-size=21MB
+app.audio-upload.max-size=20MB
+app.audio-upload.allowed-content-types=audio/webm,audio/wav,audio/mpeg,audio/mp4
+app.audio-upload.temp-dir=${java.io.tmpdir}/iread-audio
+
+# AI 서버
+ai.base-url=http://localhost:8081
+ai.connect-timeout=3s
+ai.read-timeout=30s
 ```
+
+음성 파일은 MIME과 확장자가 일치해야 하며 STT 전송용 임시 파일은 성공·실패 후 즉시 삭제됩니다.
+AI의 이야기·훈련 생성, 평가, STT와 TTS 요청은 상태 변경 요청으로 취급해 자동 재시도하지 않습니다.
 
 애플리케이션 실행:
 
@@ -117,3 +132,7 @@ Windows PowerShell:
 ```powershell
 .\gradlew.bat test
 ```
+
+Pull Request와 `develop` push에서는 `Backend Validation` 워크플로가 전체 테스트와
+MySQL 8.4 Flyway·JPA 검증을 각각 실행합니다. 실패한 전체 테스트의 HTML 리포트는
+Actions 실행 화면의 `backend-test-reports` artifact에서 7일 동안 확인할 수 있습니다.
