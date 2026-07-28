@@ -5,6 +5,7 @@ import com.iread.backend.ai.dto.req.ContinueStoryRequest;
 import com.iread.backend.ai.dto.res.GenerateStoryResponse;
 import com.iread.backend.ai.dto.res.GeneratedStoryLine;
 import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
+import com.iread.backend.exception.ConflictException;
 import com.iread.backend.story.domain.*;
 import com.iread.backend.story.repository.*;
 import com.iread.backend.student.domain.StudentEntity;
@@ -26,6 +27,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -212,6 +214,51 @@ class StoryServiceTest {
         assertThat(response.choiceId()).isEqualTo(300L);
         assertThat(response.nextLineId()).isEqualTo(1002L);
         assertThat(response.replayed()).isTrue();
+        verifyNoInteractions(aiClient, storyAudioStorage);
+    }
+
+    @Test
+    void 마지막_대사가_아닌_분기에는_답할_수_없다() {
+        StoryEntity story = story(100L);
+        StoryLineEntity oldChoiceLine = line(1001L, story, null, true, "예전 선택", 1,
+                LocalDateTime.of(2026, 7, 22, 10, 10));
+        StoryLineEntity currentChoiceLine = line(1002L, story, oldChoiceLine, true, "현재 선택", 2,
+                LocalDateTime.of(2026, 7, 22, 10, 11));
+        ownedStory(story);
+        when(storyLineRepository.findByIdAndStoryIdForUpdate(1001L, 100L))
+                .thenReturn(Optional.of(oldChoiceLine));
+        when(storyChoiceRepository.findByStoryLineId(1001L)).thenReturn(Optional.empty());
+        when(storyLineRepository.findFirstByStoryIdOrderBySequenceNoDesc(100L))
+                .thenReturn(Optional.of(currentChoiceLine));
+
+        assertThatThrownBy(() -> storyService.chooseStoryDirection(
+                1L, 20L, 100L, 1001L,
+                new MockMultipartFile("audioFile", "answer.webm", "audio/webm", new byte[]{1})
+        ))
+                .isInstanceOf(ConflictException.class)
+                .hasMessage("현재 마지막 분기 장면에만 답할 수 있습니다.");
+
+        verifyNoInteractions(aiClient, storyAudioStorage);
+    }
+
+    @Test
+    void 읽지_않은_분기에는_답할_수_없다() {
+        StoryEntity story = story(100L);
+        StoryLineEntity unreadChoiceLine = line(1001L, story, null, true, "어떻게 할까요?", 1, null);
+        ownedStory(story);
+        when(storyLineRepository.findByIdAndStoryIdForUpdate(1001L, 100L))
+                .thenReturn(Optional.of(unreadChoiceLine));
+        when(storyChoiceRepository.findByStoryLineId(1001L)).thenReturn(Optional.empty());
+        when(storyLineRepository.findFirstByStoryIdOrderBySequenceNoDesc(100L))
+                .thenReturn(Optional.of(unreadChoiceLine));
+
+        assertThatThrownBy(() -> storyService.chooseStoryDirection(
+                1L, 20L, 100L, 1001L,
+                new MockMultipartFile("audioFile", "answer.webm", "audio/webm", new byte[]{1})
+        ))
+                .isInstanceOf(ConflictException.class)
+                .hasMessage("장면을 읽은 후 선택지를 제출할 수 있습니다.");
+
         verifyNoInteractions(aiClient, storyAudioStorage);
     }
 

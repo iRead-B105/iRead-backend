@@ -1,0 +1,50 @@
+name: MySQL Integration
+
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  mysql-integration:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: iread_auth_contract_test
+          MYSQL_USER: ssafy
+          MYSQL_PASSWORD: ssafy
+          MYSQL_ROOT_PASSWORD: root1234
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot1234"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Run Flyway and JPA validation against MySQL
+        env:
+          IREAD_MYSQL_TEST_ENABLED: "true"
+          TEST_MYSQL_URL: jdbc:mysql://127.0.0.1:3306/iread_auth_contract_test?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+          TEST_MYSQL_USERNAME: ssafy
+          TEST_MYSQL_PASSWORD: ssafy
+        run: |
+          chmod +x gradlew
+          ./gradlew test --tests com.iread.backend.MySqlFlywayIntegrationTest
