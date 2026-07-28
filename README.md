@@ -134,5 +134,6 @@ Windows PowerShell:
 ```
 
 Pull Request와 `develop` push에서는 `Backend Validation` 워크플로가 전체 테스트와
-MySQL 8.4 Flyway·JPA 검증을 각각 실행합니다. 실패한 전체 테스트의 HTML 리포트는
-Actions 실행 화면의 `backend-test-reports` artifact에서 7일 동안 확인할 수 있습니다.
+MySQL 8.4 Flyway·JPA·동시성·데모 seed 검증을 각각 실행합니다. 실패한 전체 테스트와
+MySQL 테스트의 HTML 리포트는 Actions 실행 화면의 `backend-test-reports`,
+`backend-mysql-test-reports` artifact에서 7일 동안 확인할 수 있습니다.

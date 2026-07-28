@@ -1,5 +1,7 @@
 package com.iread.backend;
 
+import com.iread.backend.test.repository.StudentTestRepository;
+import com.iread.backend.training.repository.TrainingRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,6 +34,12 @@ class MySqlFlywayIntegrationTest {
 
     @Autowired
     private PlatformTransactionManager transactionManager;
+
+    @Autowired
+    private TrainingRepository trainingRepository;
+
+    @Autowired
+    private StudentTestRepository studentTestRepository;
 
     @Test
     void appliesAllMigrationsAndValidatesJpaMappings() {
@@ -157,6 +165,81 @@ class MySqlFlywayIntegrationTest {
         )).isEqualTo(1);
     }
 
+    @Test
+    void trainingAndTestRowLocksPreventConcurrentResultLoss() throws Exception {
+        long teacherId = insertAndReturnKey(
+                "INSERT INTO teachers(email, password, name, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+                "lock-" + UUID.randomUUID() + "@x.io", "password", "교사"
+        );
+        long studentId = insertAndReturnKey(
+                "INSERT INTO students(teacher_id, name, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+                teacherId, "학생"
+        );
+        long curriculumUnitId = insertAndReturnKey(
+                "INSERT INTO curriculum_units(unit_name, sequence_no) VALUES (?, ?)",
+                "동시성 단원", 1
+        );
+        long templateId = insertAndReturnKey(
+                """
+                INSERT INTO training_templates(curriculum_unit_id, name, prompt, sequence_no)
+                VALUES (?, ?, JSON_OBJECT('trainingType', 'VOWEL_TRACE'), 1)
+                """,
+                curriculumUnitId, "동시성 훈련"
+        );
+        long dailyCurriculumId = insertAndReturnKey(
+                """
+                INSERT INTO daily_curriculums(student_id, status, created_at)
+                VALUES (?, 'IN_PROGRESS', CURRENT_TIMESTAMP)
+                """,
+                studentId
+        );
+        long trainingId = insertAndReturnKey(
+                """
+                INSERT INTO trainings(
+                    training_template_id, daily_curriculum_id, sequence_no,
+                    created_at, status, result
+                )
+                VALUES (?, ?, 1, CURRENT_TIMESTAMP, 'IN_PROGRESS', JSON_OBJECT('count', 0))
+                """,
+                templateId, dailyCurriculumId
+        );
+        long testCurriculumId =
+                9_000_000_000L + Integer.toUnsignedLong(UUID.randomUUID().hashCode());
+        jdbcTemplate.update(
+                """
+                INSERT INTO test_curriculums(id, student_id, status, created_at)
+                VALUES (?, ?, 'IN_PROGRESS', CURRENT_TIMESTAMP)
+                """,
+                testCurriculumId, studentId
+        );
+        long testId = insertAndReturnKey(
+                """
+                INSERT INTO tests(
+                    test_curriculum_id, training_template_id, status, result,
+                    created_at, sequence_no
+                )
+                VALUES (?, ?, 'IN_PROGRESS', JSON_OBJECT('count', 0), CURRENT_TIMESTAMP, 1)
+                """,
+                testCurriculumId, templateId
+        );
+
+        runTwiceConcurrently(() -> {
+            var training = trainingRepository.findForUpdate(trainingId, studentId).orElseThrow();
+            int count = jsonCount(training.getResult());
+            pauseInsideLock();
+            training.recordProgressResult("{\"count\":" + (count + 1) + "}");
+        });
+        runTwiceConcurrently(() -> {
+            var test = studentTestRepository.findByIdAndStudentIdForUpdate(testId, studentId).orElseThrow();
+            int count = jsonCount(test.getResult());
+            pauseInsideLock();
+            test.updateResult("{\"count\":" + (count + 1) + "}");
+        });
+
+        assertThat(storedJsonCount("trainings", trainingId)).isEqualTo(2);
+        assertThat(storedJsonCount("tests", testId)).isEqualTo(2);
+    }
+
     private int applicationTableCount() {
         Integer count = jdbcTemplate.queryForObject(
                 """
@@ -271,6 +354,51 @@ class MySqlFlywayIntegrationTest {
             return new ConcurrentResult(successes.get(), conflicts.get());
         } finally {
             executor.shutdownNow();
+        }
+    }
+
+    private void runTwiceConcurrently(Runnable mutation) throws Exception {
+        CyclicBarrier barrier = new CyclicBarrier(2);
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Callable<Void> task = () -> {
+                transactionTemplate.executeWithoutResult(status -> {
+                    await(barrier);
+                    mutation.run();
+                });
+                return null;
+            };
+            var first = executor.submit(task);
+            var second = executor.submit(task);
+            first.get();
+            second.get();
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private int storedJsonCount(String tableName, long id) {
+        return jdbcTemplate.queryForObject(
+                "SELECT CAST(JSON_UNQUOTE(JSON_EXTRACT(result, '$.count')) AS SIGNED)"
+                        + " FROM " + tableName + " WHERE id = ?",
+                Integer.class,
+                id
+        );
+    }
+
+    private int jsonCount(String json) {
+        int colon = json.indexOf(':');
+        int end = json.indexOf('}', colon);
+        return Integer.parseInt(json.substring(colon + 1, end).trim());
+    }
+
+    private void pauseInsideLock() {
+        try {
+            Thread.sleep(100);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("동시성 검증이 중단되었습니다.", exception);
         }
     }
 
