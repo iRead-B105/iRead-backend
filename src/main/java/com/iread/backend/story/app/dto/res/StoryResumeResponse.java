@@ -1,10 +1,11 @@
 package com.iread.backend.story.app.dto.res;
 
 import com.iread.backend.story.domain.StoryStatus;
+import java.util.List;
 
 public record StoryResumeResponse(
         Long storyId,
-        StoryStatus status,
-        StoryLineResponse storyLine
+        StoryStatus storyStatus,
+        List<StoryLineResponse> storyLines
 ) {
 }

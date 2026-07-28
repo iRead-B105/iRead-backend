@@ -1,6 +1,7 @@
 package com.iread.backend.exception;
 
 import com.iread.backend.auth.exception.AuthException;
+import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.global.api.ApiErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,6 +38,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleConflict(ConflictException exception) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(
                 ApiErrorResponse.of("CONFLICT", exception.getMessage())
+        );
+    }
+
+    @ExceptionHandler(AiClientException.class)
+    public ResponseEntity<ApiErrorResponse> handleAiClient(AiClientException exception) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
+                ApiErrorResponse.of("AI_UPSTREAM_ERROR", "AI 처리 중 오류가 발생했습니다.")
         );
     }
 

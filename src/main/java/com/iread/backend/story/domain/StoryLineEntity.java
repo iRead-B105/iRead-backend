@@ -27,12 +27,6 @@ public class StoryLineEntity {
     @JoinColumn(name = "scene_id", nullable = false)
     private StorySceneEntity scene;
 
-    @Transient
-    private StoryEntity story;
-
-    @Transient
-    private String imageUrl;
-
     @Column(name = "has_choices", nullable = false)
     private boolean requiresBranchInput;
 
@@ -49,11 +43,10 @@ public class StoryLineEntity {
     @Column(name = "read_at")
     private LocalDateTime readAt;
 
-    public StoryLineEntity(StoryLineEntity previousStoryLine, StoryEntity story, String imageUrl,
+    public StoryLineEntity(StoryLineEntity previousStoryLine, StorySceneEntity scene,
                            boolean requiresBranchInput, String content, Integer sequenceNo) {
         this.previousStoryLine = previousStoryLine;
-        this.story = story;
-        this.imageUrl = imageUrl;
+        this.scene = scene;
         this.requiresBranchInput = requiresBranchInput;
         this.content = content;
         this.sequenceNo = sequenceNo;
@@ -66,10 +59,10 @@ public class StoryLineEntity {
     }
 
     public StoryEntity getStory() {
-        return scene == null ? story : scene.getStory();
+        return scene.getStory();
     }
 
     public String getImageUrl() {
-        return scene == null ? imageUrl : scene.getImageUrl();
+        return scene.getImageUrl();
     }
 }

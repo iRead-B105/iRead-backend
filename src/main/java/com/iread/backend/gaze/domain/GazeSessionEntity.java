@@ -74,12 +74,20 @@ public class GazeSessionEntity {
         this.status = GazeSessionStatus.RUNNING;
     }
 
-    public void end(GazeSessionStatus status, LocalDateTime endedAt) {
+    public void end(GazeSessionStatus status, LocalDateTime endedAt, String data) {
+        if (this.status != GazeSessionStatus.RUNNING) {
+            throw new IllegalStateException("실행 중인 시선 세션만 종료할 수 있습니다.");
+        }
         this.status = status;
         this.endedAt = endedAt;
+        this.data = data;
     }
 
     public void fail(LocalDateTime endedAt) {
-        end(GazeSessionStatus.FAILED, endedAt);
+        end(GazeSessionStatus.FAILED, endedAt, data);
+    }
+
+    public void updateData(String data) {
+        this.data = data;
     }
 }

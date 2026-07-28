@@ -6,6 +6,7 @@ import com.iread.backend.ai.dto.req.GenerateStoryRequest;
 import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
 import com.iread.backend.ai.dto.req.StoryHistoryLine;
 import com.iread.backend.ai.dto.req.StoryTemplateData;
+import com.iread.backend.ai.dto.req.SpeechSynthesisRequest;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.ai.config.AiClientProperties;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +15,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -50,10 +52,13 @@ class HttpAiClientTest {
                         Duration.ofSeconds(1),
                         "",
                         false,
+                        false,
                         false
                 ),
                 new MockTrainingGenerator(objectMapper),
-                new MockTrainingEvaluator()
+                new MockTrainingEvaluator(),
+                new MockStoryGenerator(),
+                new MockSpeechProcessor()
         );
     }
 
@@ -217,6 +222,59 @@ class HttpAiClientTest {
 
         assertThat(response.completed()).isTrue();
         assertThat(response.lines().getFirst().content()).isEqualTo("친구를 만나 집으로 돌아왔어요.");
+        server.verify();
+    }
+
+    @Test
+    void sendsMultipartSpeechAndReturnsTranscription() {
+        server.expect(requestTo("http://localhost:8081/api/v1/speech/transcribe"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Idempotency-Key", "speech-request-1"))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.MULTIPART_FORM_DATA))
+                .andRespond(withSuccess("""
+                        {
+                          "requestId": "speech-request-1",
+                          "transcript": "책을 읽어요",
+                          "confidence": 0.95,
+                          "durationMs": 1200
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var response = aiClient.transcribeSpeech(
+                "speech-request-1",
+                20L,
+                "책을 읽어요",
+                new MockMultipartFile(
+                        "audioFile", "reading.webm", "audio/webm", new byte[]{1, 2, 3}
+                )
+        );
+
+        assertThat(response.transcript()).isEqualTo("책을 읽어요");
+        assertThat(response.confidence()).isEqualTo(0.95);
+        server.verify();
+    }
+
+    @Test
+    void sendsTtsRequestAndReturnsAudioWithDurationHeader() {
+        byte[] audio = new byte[]{'I', 'D', '3'};
+        server.expect(requestTo("http://localhost:8081/api/v1/speech/synthesize"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Idempotency-Key", "tts-request-1"))
+                .andExpect(content().json("""
+                        {"requestId":"tts-request-1","text":"책을 읽어요","voice":null}
+                        """))
+                .andRespond(withSuccess()
+                        .body(audio)
+                        .contentType(MediaType.parseMediaType("audio/mpeg"))
+                        .header("X-Request-Id", "tts-request-1")
+                        .header("X-Audio-Duration-Ms", "1500"));
+
+        var response = aiClient.synthesizeSpeech(
+                new SpeechSynthesisRequest("tts-request-1", "책을 읽어요", null)
+        );
+
+        assertThat(response.audio()).isEqualTo(audio);
+        assertThat(response.durationMs()).isEqualTo(1500);
         server.verify();
     }
 
