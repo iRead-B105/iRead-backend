@@ -345,7 +345,6 @@ public class TrainingService {
                 continue;
             }
             String surfaceText = requiredSurfaceText(attempt);
-            String recognizedText = nullableText(attempt, "recognizedText", 255);
             boolean hasAudioData = attempt.path("hasAudioData").asBoolean(false);
             boolean hasGazeData = attempt.path("hasGazeData").asBoolean(false);
             Boolean skipped = nullableBoolean(attempt, "isSkipped");
@@ -385,12 +384,18 @@ public class TrainingService {
             if (regressionCount == null) {
                 regressionCount = retryCount;
             }
+            Integer pronunciationAccuracyScore =
+                    nullableInteger(attempt, "pronunciationAccuracyScore");
+            if (pronunciationAccuracyScore == null
+                    && attempt.hasNonNull("pronunciationScore")) {
+                pronunciationAccuracyScore =
+                        (int) Math.round(attempt.path("pronunciationScore").asDouble() * 10);
+            }
             if (retryCount != null && retryCount < 0) {
                 throw new IllegalArgumentException("단어 재응시 횟수는 0 이상이어야 합니다.");
             }
             int totalScore = wordAttemptScoreCalculator.calculate(
-                    surfaceText,
-                    recognizedText,
+                    pronunciationAccuracyScore,
                     hasAudioData,
                     skipped,
                     retryCount,
@@ -404,7 +409,6 @@ public class TrainingService {
                     word,
                     training,
                     surfaceText,
-                    hasGazeData,
                     hasAudioData,
                     fixationDurationMs,
                     fixationCount,
@@ -412,11 +416,15 @@ public class TrainingService {
                     gazeEndOffsetMs,
                     skipped,
                     regressionCount,
-                    recognizedText,
+                    pronunciationAccuracyScore,
                     nullableInteger(attempt, "speechStartOffsetMs"),
                     nullableInteger(attempt, "speechEndOffsetMs"),
                     correct,
-                    totalScore
+                    totalScore,
+                    nullableInteger(attempt, "questionNo"),
+                    nullableInteger(attempt, "targetIndex"),
+                    nullableInteger(attempt, "tokenIndex"),
+                    attempt.path("isFinal").asBoolean(true)
             );
             if (attempt instanceof ObjectNode objectAttempt) {
                 if (!objectAttempt.has("isFinal")) {

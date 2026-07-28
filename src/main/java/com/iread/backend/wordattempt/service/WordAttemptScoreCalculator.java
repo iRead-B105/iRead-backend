@@ -4,9 +4,6 @@ import com.iread.backend.wordattempt.config.WordAttemptScoreProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.text.Normalizer;
-import java.util.Locale;
-
 @Component
 @RequiredArgsConstructor
 public class WordAttemptScoreCalculator {
@@ -17,8 +14,7 @@ public class WordAttemptScoreCalculator {
     private final WordAttemptScoreProperties properties;
 
     public int calculate(
-            String surfaceText,
-            String recognizedText,
+            Integer pronunciationAccuracyScore,
             boolean hasAudioData,
             Boolean skipped,
             Integer retryCount,
@@ -35,21 +31,12 @@ public class WordAttemptScoreCalculator {
             deduction += properties.incorrectPenalty();
         }
 
-        if (!hasAudioData || recognizedText == null || recognizedText.isBlank()) {
+        if (!hasAudioData || pronunciationAccuracyScore == null) {
             deduction += properties.missingAudioPenalty();
-        } else if (!normalize(surfaceText).equals(normalize(recognizedText))) {
-            deduction += properties.sttMismatchPenalty();
+        } else if (pronunciationAccuracyScore < properties.pronunciationThreshold()) {
+            deduction += properties.lowPronunciationPenalty();
         }
 
         return (int) Math.max(MINIMUM_SCORE, INITIAL_SCORE - deduction);
-    }
-
-    private String normalize(String value) {
-        if (value == null) {
-            return "";
-        }
-        return Normalizer.normalize(value, Normalizer.Form.NFKC)
-                .replaceAll("[\\s\\p{P}]", "")
-                .toLowerCase(Locale.ROOT);
     }
 }

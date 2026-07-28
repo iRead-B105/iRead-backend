@@ -9,7 +9,24 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface WordAttemptLogRepository extends JpaRepository<WordAttemptLogEntity, Long> {
-    List<WordAttemptLogEntity> findAllByTestIdOrderByIdAsc(Long testId);
+    List<WordAttemptLogEntity> findAllByTestIdAndFinalAttemptTrueOrderByIdAsc(Long testId);
+
+    List<WordAttemptLogEntity>
+    findAllByTrainingIdAndQuestionNoAndTargetIndexAndFinalAttemptTrue(
+            Long trainingId,
+            Integer questionNo,
+            Integer targetIndex
+    );
+
+    List<WordAttemptLogEntity> findAllByTrainingIdAndQuestionNoAndFinalAttemptTrue(
+            Long trainingId,
+            Integer questionNo
+    );
+
+    List<WordAttemptLogEntity> findAllByTestIdAndQuestionNoAndFinalAttemptTrue(
+            Long testId,
+            Integer questionNo
+    );
 
     void deleteAllByTestId(Long testId);
 

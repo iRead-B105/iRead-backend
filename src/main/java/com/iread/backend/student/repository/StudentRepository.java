@@ -317,8 +317,7 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
                    ) AS voiceDurationMs,
                    SUM(
                        CASE
-                           WHEN wal.has_gaze_data = TRUE
-                            AND wal.gaze_start_offset_ms IS NOT NULL
+                           WHEN wal.gaze_start_offset_ms IS NOT NULL
                             AND wal.gaze_end_offset_ms IS NOT NULL
                             AND wal.gaze_end_offset_ms > wal.gaze_start_offset_ms
                             AND COALESCE(wal.is_skipped, FALSE) = FALSE
@@ -327,16 +326,14 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
                    ) AS gazeWordCount,
                    MAX(
                        CASE
-                           WHEN wal.has_gaze_data = TRUE
-                            AND wal.gaze_start_offset_ms IS NOT NULL
+                           WHEN wal.gaze_start_offset_ms IS NOT NULL
                             AND wal.gaze_end_offset_ms IS NOT NULL
                             AND wal.gaze_end_offset_ms > wal.gaze_start_offset_ms
                            THEN wal.gaze_end_offset_ms
                        END
                    ) - MIN(
                        CASE
-                           WHEN wal.has_gaze_data = TRUE
-                            AND wal.gaze_start_offset_ms IS NOT NULL
+                           WHEN wal.gaze_start_offset_ms IS NOT NULL
                             AND wal.gaze_end_offset_ms IS NOT NULL
                             AND wal.gaze_end_offset_ms > wal.gaze_start_offset_ms
                            THEN wal.gaze_start_offset_ms

@@ -71,7 +71,7 @@ class StudentFeatureProfileServiceTest {
                       "questionNo": 1,
                       "targetIndex": 0,
                       "isFinal": true,
-                      "pronunciationScore": 50.0,
+                      "pronunciationAccuracyScore": 50.0,
                       "pronunciationConfidence": 0.5,
                       "pronunciationErrorType": "NASALIZATION_NOT_APPLIED",
                       "wordReadTimeMs": 2500
@@ -81,7 +81,7 @@ class StudentFeatureProfileServiceTest {
                       "questionNo": 1,
                       "targetIndex": 0,
                       "isFinal": false,
-                      "pronunciationScore": 0.0,
+                      "pronunciationAccuracyScore": 0.0,
                       "pronunciationConfidence": 1.0
                     }
                   ]
@@ -101,9 +101,9 @@ class StudentFeatureProfileServiceTest {
         WordEntity word = mock(WordEntity.class);
         WordAttemptLogEntity log = new WordAttemptLogEntity(
                 student, word, training, "먹는다",
-                true, true, 1200, 3, 100, 2600,
-                false, 2, "먹는다", 100, 2600,
-                false, 500
+                true, 1200, 3, 100, 2600,
+                false, 2, 500, 100, 2600,
+                false, 500, 1, 0, null, true
         );
         ReflectionTestUtils.setField(log, "id", 99L);
         ReflectionTestUtils.setField(log, "createdAt", LocalDateTime.of(2026, 7, 28, 14, 0));

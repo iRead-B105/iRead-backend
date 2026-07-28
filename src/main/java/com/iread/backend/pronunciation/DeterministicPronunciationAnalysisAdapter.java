@@ -17,8 +17,6 @@ public class DeterministicPronunciationAnalysisAdapter implements PronunciationA
         String errorType = forceError ? "PRONUNCIATION_MISMATCH" : "NONE";
         return new PronunciationAnalysisResult(
                 request.requestId(),
-                request.expectedText(),
-                request.expectedText(),
                 forceError ? 54.2 : 95.0,
                 forceError ? 0.82 : 0.96,
                 errorType,

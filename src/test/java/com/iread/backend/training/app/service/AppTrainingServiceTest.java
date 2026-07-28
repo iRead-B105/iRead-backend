@@ -17,6 +17,8 @@ import com.iread.backend.training.repository.TrainingRepository;
 import com.iread.backend.training.repository.WordRepository;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
+import com.iread.backend.wordattempt.config.WordAttemptScoreProperties;
+import com.iread.backend.wordattempt.service.WordAttemptScoreCalculator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -48,6 +50,7 @@ class AppTrainingServiceTest {
     @Mock WordAttemptLogRepository wordAttemptLogRepository;
     @Mock PronunciationAnalysisAdapter pronunciationAnalysisAdapter;
     @Mock AudioUploadPolicy audioUploadPolicy;
+    @Mock WordAttemptScoreCalculator wordAttemptScoreCalculator;
     @Mock TrainingService trainingService;
     @Mock ObjectMapper objectMapper;
     @InjectMocks AppTrainingService appTrainingService;
@@ -95,6 +98,7 @@ class AppTrainingServiceTest {
                 1L,
                 20L,
                 30L,
+                1,
                 new TrainingSelectionRequest(40L, true, 900)
         );
 
@@ -139,6 +143,7 @@ class AppTrainingServiceTest {
                 wordAttemptLogRepository,
                 pronunciationAnalysisAdapter,
                 audioUploadPolicy,
+                wordAttemptScoreCalculator,
                 trainingService,
                 JsonMapper.builder().build()
         );
@@ -198,6 +203,7 @@ class AppTrainingServiceTest {
                         DataSize.ofMegabytes(20),
                         "audio/webm,audio/wav,audio/mpeg,audio/mp4"
                 ),
+                scoreCalculator(),
                 trainingService,
                 JsonMapper.builder().build()
         );
@@ -219,8 +225,7 @@ class AppTrainingServiceTest {
         var result = service.saveRecording(1L, 20L, 30L, 1, request);
 
         assertThat(result.attemptId()).isEqualTo(50L);
-        assertThat(result.observedPronunciation()).isEqualTo("먹는다");
-        assertThat(result.pronunciationScore()).isEqualTo(54.2);
+        assertThat(result.pronunciationAccuracyScore()).isEqualTo(54.2);
         assertThat(result.pronunciationErrorType()).isEqualTo("PRONUNCIATION_MISMATCH");
         ArgumentCaptor<String> resultCaptor = ArgumentCaptor.forClass(String.class);
         verify(training).recordProgressResult(resultCaptor.capture());
@@ -229,7 +234,7 @@ class AppTrainingServiceTest {
                 .contains("\"tokenIndex\":0")
                 .contains("\"wordAttemptLogId\":50")
                 .contains("\"isFinal\":true")
-                .contains("\"observedPronunciation\":\"먹는다\"");
+                .contains("\"pronunciationAccuracyScore\":54.2");
     }
 
     @Test
@@ -264,6 +269,7 @@ class AppTrainingServiceTest {
                         DataSize.ofMegabytes(20),
                         "audio/webm,audio/wav,audio/mpeg,audio/mp4"
                 ),
+                scoreCalculator(),
                 trainingService,
                 JsonMapper.builder().build()
         );
@@ -286,5 +292,11 @@ class AppTrainingServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("음성 파일 형식과 확장자가 일치하지 않습니다.");
         verifyNoInteractions(pronunciationAnalysisAdapter);
+    }
+
+    private WordAttemptScoreCalculator scoreCalculator() {
+        return new WordAttemptScoreCalculator(
+                new WordAttemptScoreProperties(100, 300, 700, 200, 600, 250)
+        );
     }
 }

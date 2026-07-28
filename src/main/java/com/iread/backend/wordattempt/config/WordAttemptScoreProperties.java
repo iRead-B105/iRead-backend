@@ -5,14 +5,20 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "word-attempt.score")
 public record WordAttemptScoreProperties(
         int retryPenalty,
-        int sttMismatchPenalty,
+        int lowPronunciationPenalty,
+        int pronunciationThreshold,
         int incorrectPenalty,
         int skippedPenalty,
         int missingAudioPenalty
 ) {
     public WordAttemptScoreProperties {
         requireNonNegative(retryPenalty, "retry-penalty");
-        requireNonNegative(sttMismatchPenalty, "stt-mismatch-penalty");
+        requireNonNegative(lowPronunciationPenalty, "low-pronunciation-penalty");
+        if (pronunciationThreshold < 0 || pronunciationThreshold > 1000) {
+            throw new IllegalArgumentException(
+                    "word-attempt.score.pronunciation-threshold는 0~1000이어야 합니다."
+            );
+        }
         requireNonNegative(incorrectPenalty, "incorrect-penalty");
         requireNonNegative(skippedPenalty, "skipped-penalty");
         requireNonNegative(missingAudioPenalty, "missing-audio-penalty");

@@ -202,10 +202,13 @@ public class StudentFeatureProfileService {
         BigDecimal accuracyRate = decimal(average(evidence, item -> item.correct() ? 1 : 0), 4);
 
         List<Evidence> pronunciation = evidence.stream()
-                .filter(item -> item.pronunciationScore() != null)
+                .filter(item -> item.pronunciationAccuracyScore() != null)
                 .toList();
         Integer avgPronunciationScore = pronunciation.isEmpty() ? null
-                : (int) Math.round(average(pronunciation, item -> item.pronunciationScore() * 10.0));
+                : (int) Math.round(average(
+                        pronunciation,
+                        Evidence::pronunciationAccuracyScore
+                ));
         BigDecimal pronunciationErrorRate = pronunciation.isEmpty() ? null
                 : decimal(average(pronunciation, item -> item.pronunciationError() ? 1 : 0), 2);
 
@@ -221,7 +224,8 @@ public class StudentFeatureProfileService {
         double accuracyError = 1 - accuracyRate.doubleValue();
         double pronunciationError = pronunciation.isEmpty() ? 0
                 : average(pronunciation, item ->
-                (1 - item.pronunciationScore() / 100.0) * item.analysisConfidence());
+                (1 - item.pronunciationAccuracyScore() / 1000.0)
+                        * item.analysisConfidence());
         double gazeBurden = gaze.isEmpty() ? 0 : average(gaze, this::gazeBurden);
         double delayOrSkip = average(evidence, item -> {
             double delay = item.readingTimeMs() == null ? 0
@@ -353,7 +357,7 @@ public class StudentFeatureProfileService {
     private record Evidence(
             boolean correct,
             boolean pronunciationError,
-            Double pronunciationScore,
+            Integer pronunciationAccuracyScore,
             double analysisConfidence,
             Integer fixationDurationMs,
             Integer fixationCount,
@@ -363,14 +367,12 @@ public class StudentFeatureProfileService {
             LocalDateTime createdAt
     ) {
         static Evidence from(WordAttemptLogEntity log, JsonNode attempt) {
-            Double pronunciationScore = attempt.hasNonNull("pronunciationScore")
-                    ? attempt.path("pronunciationScore").asDouble() : null;
             double confidence = attempt.hasNonNull("pronunciationConfidence")
                     ? attempt.path("pronunciationConfidence").asDouble() : 1.0;
             return new Evidence(
                     Boolean.TRUE.equals(log.getCorrect()),
                     !"NONE".equals(attempt.path("pronunciationErrorType").asText("NONE")),
-                    pronunciationScore,
+                    log.getPronunciationAccuracyScore(),
                     Math.max(0, Math.min(1, confidence)),
                     log.getFixationDurationMs(),
                     log.getFixationCount(),

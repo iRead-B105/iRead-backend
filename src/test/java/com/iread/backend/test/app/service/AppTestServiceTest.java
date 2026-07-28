@@ -1,5 +1,7 @@
 package com.iread.backend.test.app.service;
 
+import com.iread.backend.global.audio.AudioUploadPolicy;
+import com.iread.backend.pronunciation.PronunciationAnalysisAdapter;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.test.app.dto.req.TestCompleteRequest;
@@ -10,6 +12,7 @@ import com.iread.backend.test.repository.TestDataRepository;
 import com.iread.backend.training.repository.WordRepository;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
+import com.iread.backend.wordattempt.service.WordAttemptScoreCalculator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -35,6 +38,9 @@ class AppTestServiceTest {
     @Mock TestDataRepository testDataRepository;
     @Mock WordRepository wordRepository;
     @Mock WordAttemptLogRepository wordAttemptLogRepository;
+    @Mock PronunciationAnalysisAdapter pronunciationAnalysisAdapter;
+    @Mock AudioUploadPolicy audioUploadPolicy;
+    @Mock WordAttemptScoreCalculator wordAttemptScoreCalculator;
     @Mock ObjectMapper objectMapper;
     @InjectMocks AppTestService appTestService;
 
@@ -77,7 +83,7 @@ class AppTestServiceTest {
         when(test.getResult()).thenReturn(null);
         when(first.getTotalScore()).thenReturn(900);
         when(second.getTotalScore()).thenReturn(800);
-        when(wordAttemptLogRepository.findAllByTestIdOrderByIdAsc(30L))
+        when(wordAttemptLogRepository.findAllByTestIdAndFinalAttemptTrueOrderByIdAsc(30L))
                 .thenReturn(List.of(first, second));
         when(objectMapper.writeValueAsString(any())).thenReturn("{\"attemptCount\":2}");
         when(test.getAccuracy()).thenReturn(new BigDecimal("85.00"));

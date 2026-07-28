@@ -9,6 +9,7 @@ import com.iread.backend.test.app.service.AppTestService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -61,14 +62,17 @@ public class AppTestController {
         return testService.reset(teacherId, studentId, request.testId());
     }
 
-    @PostMapping("/questions/{questionNumber}/recordings")
+    @PostMapping(
+            value = "/questions/{questionNumber}/recordings",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
     @ResponseStatus(HttpStatus.CREATED)
     public TestRecordingResponse saveRecording(
             @CurrentTeacherId Long teacherId,
             @CurrentStudentId Long authenticatedStudentId,
             @PathVariable Long studentId,
             @PathVariable int questionNumber,
-            @Valid @RequestBody TestRecordingRequest request
+            @Valid @ModelAttribute TestRecordingRequest request
     ) {
         requireSameStudent(authenticatedStudentId, studentId);
         return testService.saveRecording(teacherId, studentId, questionNumber, request);

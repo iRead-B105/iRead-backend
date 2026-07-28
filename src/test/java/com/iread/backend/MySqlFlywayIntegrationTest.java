@@ -46,7 +46,7 @@ class MySqlFlywayIntegrationTest {
         assertThat(applicationTableCount()).isEqualTo(25);
         assertThat(constraintCount("FOREIGN KEY")).isEqualTo(34);
         assertThat(constraintCount("UNIQUE")).isEqualTo(11);
-        assertThat(constraintCount("CHECK")).isEqualTo(7);
+        assertThat(constraintCount("CHECK")).isEqualTo(11);
 
         assertThat(tableExists("training_datas")).isTrue();
         assertThat(columnExists("training_datas", "train_id")).isTrue();
@@ -56,6 +56,13 @@ class MySqlFlywayIntegrationTest {
         assertThat(tableExists("student_feature_profiles")).isTrue();
         assertThat(columnExists("student_feature_profiles", "reading_features_id")).isTrue();
         assertThat(columnExists("student_feature_profiles", "avg_pronunciation_scor")).isTrue();
+        assertThat(columnExists("word_attempt_logs", "pronunciation_accuracy_score")).isTrue();
+        assertThat(columnExists("word_attempt_logs", "question_no")).isTrue();
+        assertThat(columnExists("word_attempt_logs", "target_index")).isTrue();
+        assertThat(columnExists("word_attempt_logs", "token_index")).isTrue();
+        assertThat(columnExists("word_attempt_logs", "is_final")).isTrue();
+        assertThat(columnExists("word_attempt_logs", "recognized_text")).isFalse();
+        assertThat(columnExists("word_attempt_logs", "has_gaze_data")).isFalse();
         assertThat(tableExists("test_datas")).isTrue();
         assertThat(tableExists("auth_refresh_sessions")).isTrue();
         assertThat(constraintExists(
