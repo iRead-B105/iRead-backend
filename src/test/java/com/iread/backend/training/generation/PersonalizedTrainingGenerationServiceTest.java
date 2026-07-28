@@ -13,6 +13,7 @@ import com.iread.backend.training.domain.DailyCurriculumEntity;
 import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.domain.TrainingTemplateEntity;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -44,10 +45,12 @@ class PersonalizedTrainingGenerationServiceTest {
                         ReadingFeatureCategory.SENTENCE,
                         ReadingFeatureScope.SENTENCE
                 )));
-        PersonalizedTrainingGenerationService service = service(
-                new DeterministicTrainingCandidateProvider(objectMapper),
-                profiles
-        );
+        DeterministicTrainingCandidateProvider delegate =
+                new DeterministicTrainingCandidateProvider(objectMapper);
+        TrainingCandidateProvider provider = mock(TrainingCandidateProvider.class);
+        when(provider.generate(any())).thenAnswer(invocation ->
+                delegate.generate(invocation.getArgument(0)));
+        PersonalizedTrainingGenerationService service = service(provider, profiles);
 
         JsonNode generated = service.generate(training);
 
@@ -71,6 +74,14 @@ class PersonalizedTrainingGenerationServiceTest {
         assertThat(generated.toString())
                 .doesNotContain("\"studentId\"")
                 .doesNotContain("학습자");
+        ArgumentCaptor<TrainingCandidateRequest> requestCaptor =
+                ArgumentCaptor.forClass(TrainingCandidateRequest.class);
+        verify(provider).generate(requestCaptor.capture());
+        assertThat(objectMapper.writeValueAsString(requestCaptor.getValue()))
+                .doesNotContain("\"studentId\"")
+                .doesNotContain("\"studentName\"")
+                .doesNotContain("\"birthday\"")
+                .doesNotContain("\"guardianContact\"");
     }
 
     @Test
