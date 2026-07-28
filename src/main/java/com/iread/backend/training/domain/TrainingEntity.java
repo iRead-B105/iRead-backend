@@ -85,6 +85,13 @@ public class TrainingEntity {
         status = TrainingStatus.NOT_STARTED;
     }
 
+    public void recordProgressResult(String result) {
+        if (status != TrainingStatus.IN_PROGRESS) {
+            throw new IllegalStateException("진행 중인 훈련에만 시도 결과를 연결할 수 있습니다.");
+        }
+        this.result = result;
+    }
+
     public void complete(String result, BigDecimal accuracy, LocalDateTime finishedAt) {
         this.result = result;
         this.accuracy = accuracy;

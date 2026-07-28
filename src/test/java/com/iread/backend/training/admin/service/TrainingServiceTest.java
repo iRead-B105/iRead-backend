@@ -3,6 +3,8 @@ package com.iread.backend.training.admin.service;
 import com.iread.backend.ai.client.AiClient;
 import com.iread.backend.ai.dto.req.EvaluateTrainingRequest;
 import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
+import com.iread.backend.gaze.analysis.GazeWordAnalysisAdapter;
+import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.*;
@@ -47,8 +49,10 @@ class TrainingServiceTest {
     @Mock TrainingDataRepository trainingDataRepository;
     @Mock WordRepository wordRepository;
     @Mock WordAttemptLogRepository wordAttemptLogRepository;
+    @Mock GazeWordAnalysisAdapter gazeWordAnalysisAdapter;
     @Mock AiClient aiClient;
     @Mock PersonalizedTrainingGenerationService personalizedTrainingGenerationService;
+    @Mock StudentFeatureProfileService studentFeatureProfileService;
 
     private TrainingService trainingService;
 
@@ -65,8 +69,10 @@ class TrainingServiceTest {
                 new WordAttemptScoreCalculator(
                         new WordAttemptScoreProperties(100, 300, 200, 600, 250)
                 ),
+                gazeWordAnalysisAdapter,
                 aiClient,
                 personalizedTrainingGenerationService,
+                studentFeatureProfileService,
                 JsonMapper.builder().build()
         );
     }
@@ -345,6 +351,12 @@ class TrainingServiceTest {
                 ));
         when(wordRepository.findByContent("사과")).thenReturn(Optional.empty());
         when(wordRepository.save(any(WordEntity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(wordAttemptLogRepository.saveAllAndFlush(any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            List<WordAttemptLogEntity> logs = invocation.getArgument(0);
+            ReflectionTestUtils.setField(logs.getFirst(), "id", 501L);
+            return logs;
+        });
         var resultJson = JsonMapper.builder().build().readTree("""
                 {
                   "questions": [{"questionId": "q1", "isCorrect": true}],
@@ -377,7 +389,7 @@ class TrainingServiceTest {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Iterable<WordAttemptLogEntity>> captor =
                 ArgumentCaptor.forClass(Iterable.class);
-        verify(wordAttemptLogRepository).saveAll(captor.capture());
+        verify(wordAttemptLogRepository).saveAllAndFlush(captor.capture());
         List<WordAttemptLogEntity> logs = StreamSupport
                 .stream(captor.getValue().spliterator(), false)
                 .toList();
@@ -390,6 +402,8 @@ class TrainingServiceTest {
         assertThat(logs.getFirst().getRegressionCount()).isEqualTo(2);
         assertThat(logs.getFirst().getCorrect()).isTrue();
         assertThat(logs.getFirst().getTotalScore()).isEqualTo(800);
+        assertThat(training.getResult()).contains("\"wordAttemptLogId\":501");
+        assertThat(training.getResult()).contains("\"isFinal\":true");
     }
 
     @Test

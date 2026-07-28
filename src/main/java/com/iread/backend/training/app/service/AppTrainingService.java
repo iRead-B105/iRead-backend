@@ -1,6 +1,9 @@
 package com.iread.backend.training.app.service;
 
 import com.iread.backend.exception.ResourceNotFoundException;
+import com.iread.backend.pronunciation.PronunciationAnalysisAdapter;
+import com.iread.backend.pronunciation.PronunciationAnalysisRequest;
+import com.iread.backend.pronunciation.PronunciationAnalysisResult;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.admin.dto.req.CompleteTrainingRequest;
@@ -25,6 +28,7 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 
 @Service
@@ -36,6 +40,7 @@ public class AppTrainingService {
     private final TrainingDataRepository trainingDataRepository;
     private final WordRepository wordRepository;
     private final WordAttemptLogRepository wordAttemptLogRepository;
+    private final PronunciationAnalysisAdapter pronunciationAnalysisAdapter;
     private final TrainingService trainingService;
     private final ObjectMapper objectMapper;
 
@@ -105,11 +110,37 @@ public class AppTrainingService {
             Long teacherId,
             Long studentId,
             Long trainingId,
+            int questionNumber,
             TrainingRecordingRequest request
     ) {
         StudentEntity student = findOwnedStudent(teacherId, studentId);
         TrainingEntity training = findInProgressTraining(studentId, trainingId);
         WordEntity word = findWord(request.wordId());
+        validateRecordingTarget(
+                trainingId,
+                questionNumber,
+                request.targetIndex(),
+                request.tokenIndex(),
+                request.expectedText(),
+                request.expectedPronunciation()
+        );
+        if (!word.getContent().equals(request.expectedText())) {
+            throw new IllegalArgumentException("wordId와 expectedText가 일치하지 않습니다.");
+        }
+        validateSpeechOffsets(request.speechStartOffsetMs(), request.speechEndOffsetMs());
+        PronunciationAnalysisResult analysis = pronunciationAnalysisAdapter.analyze(
+                new PronunciationAnalysisRequest(
+                        "training-recording-" + trainingId + "-" + questionNumber
+                                + "-" + request.targetIndex() + "-" + System.nanoTime(),
+                        request.expectedText(),
+                        request.expectedPronunciation(),
+                        request.audioFile().getOriginalFilename(),
+                        audioBytes(request)
+                )
+        );
+        int totalScore = (int) Math.round(analysis.pronunciationScore() * 10);
+        boolean correct = analysis.pronunciationScore() >= 70
+                && "NONE".equals(analysis.errorType());
         WordAttemptLogEntity attempt = wordAttemptLogRepository.saveAndFlush(
                 new WordAttemptLogEntity(
                         student,
@@ -124,18 +155,23 @@ public class AppTrainingService {
                         null,
                         false,
                         0,
-                        request.recognizedText(),
+                        analysis.recognizedText(),
                         request.speechStartOffsetMs(),
                         request.speechEndOffsetMs(),
-                        request.isCorrect(),
-                        request.totalScore()
+                        correct,
+                        totalScore
                 )
         );
+        recordAttemptLink(training, questionNumber, request, attempt, analysis);
         return new TrainingRecordingResponse(
                 attempt.getId(),
                 trainingId,
                 word.getId(),
-                attempt.getRecognizedText(),
+                analysis.recognizedText(),
+                analysis.observedPronunciation(),
+                analysis.pronunciationScore(),
+                analysis.confidence(),
+                analysis.errorType(),
                 attempt.getTotalScore(),
                 attempt.getCreatedAt()
         );
@@ -231,11 +267,123 @@ public class AppTrainingService {
                 .orElseThrow(() -> new ResourceNotFoundException("단어를 찾을 수 없습니다."));
     }
 
+    private void validateRecordingTarget(
+            Long trainingId,
+            int questionNumber,
+            int targetIndex,
+            Integer tokenIndex,
+            String expectedText,
+            String expectedPronunciation
+    ) {
+        JsonNode generated = trainingDataRepository.findByTrainingId(trainingId)
+                .map(TrainingDataEntity::getGeneratedData)
+                .map(this::readJson)
+                .orElseThrow(() -> new ResourceNotFoundException("훈련 문항을 찾을 수 없습니다."));
+        JsonNode questions = generated.path("questions");
+        if (!questions.isArray() || questionNumber < 1 || questionNumber > questions.size()) {
+            throw new ResourceNotFoundException("훈련 문항을 찾을 수 없습니다.");
+        }
+        JsonNode question = questions.get(questionNumber - 1);
+        JsonNode expected = tokenIndex == null
+                ? question.path("analysisTargets").path(targetIndex)
+                : question.path("words").path(tokenIndex);
+        if (!expected.isObject()) {
+            throw new IllegalArgumentException("요청한 분석 대상 위치가 올바르지 않습니다.");
+        }
+        String storedText = tokenIndex == null
+                ? expected.path("text").asText()
+                : expected.path("surface").asText();
+        if (!expectedText.equals(storedText)
+                || !expectedPronunciation.equals(expected.path("expectedPronunciation").asText())) {
+            throw new IllegalArgumentException("요청한 텍스트가 생성된 훈련 문항과 일치하지 않습니다.");
+        }
+    }
+
+    private void recordAttemptLink(
+            TrainingEntity training,
+            int questionNumber,
+            TrainingRecordingRequest request,
+            WordAttemptLogEntity attempt,
+            PronunciationAnalysisResult analysis
+    ) {
+        ObjectNode result = readObjectOrNew(training.getResult());
+        result.put("schemaVersion", 2);
+        ArrayNode attempts = result.withArray("wordAttempts");
+        attempts.forEach(existing -> {
+            if (existing.path("questionNo").asInt() == questionNumber
+                    && existing.path("targetIndex").asInt() == request.targetIndex()
+                    && java.util.Objects.equals(nullableInt(existing, "tokenIndex"), request.tokenIndex())) {
+                ((ObjectNode) existing).put("isFinal", false);
+            }
+        });
+        ObjectNode link = attempts.addObject();
+        link.put("wordAttemptLogId", attempt.getId());
+        link.put("questionNo", questionNumber);
+        link.put("targetIndex", request.targetIndex());
+        if (request.tokenIndex() == null) link.putNull("tokenIndex");
+        else link.put("tokenIndex", request.tokenIndex());
+        link.put("isFinal", true);
+        link.put("expectedText", request.expectedText());
+        link.put("expectedPronunciation", request.expectedPronunciation());
+        link.put("observedPronunciation", analysis.observedPronunciation());
+        link.put("pronunciationScore", analysis.pronunciationScore());
+        link.put("pronunciationConfidence", analysis.confidence());
+        link.put("pronunciationErrorType", analysis.errorType());
+        link.put("pronunciationAnalysisVersion", analysis.analysisVersion());
+        if (request.speechStartOffsetMs() != null && request.speechEndOffsetMs() != null) {
+            link.put("wordReadTimeMs",
+                    request.speechEndOffsetMs() - request.speechStartOffsetMs());
+        } else {
+            link.putNull("wordReadTimeMs");
+        }
+        training.recordProgressResult(writeJson(result));
+    }
+
+    private Integer nullableInt(JsonNode node, String field) {
+        return node.hasNonNull(field) ? node.path(field).asInt() : null;
+    }
+
+    private ObjectNode readObjectOrNew(String value) {
+        if (value == null || value.isBlank()) {
+            return objectMapper.createObjectNode();
+        }
+        JsonNode parsed = readJson(value);
+        if (parsed instanceof ObjectNode object) {
+            return object.deepCopy();
+        }
+        throw new IllegalStateException("저장된 훈련 수행 결과가 JSON 객체가 아닙니다.");
+    }
+
+    private byte[] audioBytes(TrainingRecordingRequest request) {
+        try {
+            if (request.audioFile().isEmpty()) {
+                throw new IllegalArgumentException("audioFile은 비어 있을 수 없습니다.");
+            }
+            return request.audioFile().getBytes();
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("audioFile을 읽을 수 없습니다.", exception);
+        }
+    }
+
+    private void validateSpeechOffsets(Integer start, Integer end) {
+        if (start != null && end != null && end <= start) {
+            throw new IllegalArgumentException("speechEndOffsetMs는 시작 시점보다 커야 합니다.");
+        }
+    }
+
     private JsonNode readJson(String value) {
         try {
             return objectMapper.readTree(value);
         } catch (Exception exception) {
             throw new IllegalStateException("저장된 훈련 문항을 읽을 수 없습니다.", exception);
+        }
+    }
+
+    private String writeJson(JsonNode value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception exception) {
+            throw new IllegalStateException("훈련 수행 결과를 저장할 수 없습니다.", exception);
         }
     }
 
