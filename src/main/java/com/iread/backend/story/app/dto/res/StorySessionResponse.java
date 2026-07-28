@@ -6,9 +6,9 @@ import java.time.LocalDateTime;
 
 public record StorySessionResponse(
         Long storyId,
-        Long studentId,
+        Long teacherId,
         Long storyTemplateId,
         LocalDateTime createdAt,
-        StoryStatus status
+        StoryStatus storyStatus
 ) {
 }

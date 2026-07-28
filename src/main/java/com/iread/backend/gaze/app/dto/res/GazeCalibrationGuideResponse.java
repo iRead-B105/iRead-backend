@@ -7,6 +7,6 @@ public record GazeCalibrationGuideResponse(
         boolean calibrationRequired,
 
         @Schema(description = "보정 안내 문구", example = "화면 중앙의 점을 바라보며 보정을 진행해 주세요.")
-        String guideMessage
+        String calibrationGuide
 ) {
 }

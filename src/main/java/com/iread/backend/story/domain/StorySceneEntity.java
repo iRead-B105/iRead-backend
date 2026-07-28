@@ -39,4 +39,10 @@ public class StorySceneEntity {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    public StorySceneEntity(StoryEntity story, String imageUrl, Integer sequenceNo) {
+        this.story = story;
+        this.imageUrl = imageUrl;
+        this.sequenceNo = sequenceNo;
+    }
 }

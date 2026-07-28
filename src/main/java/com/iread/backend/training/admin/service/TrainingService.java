@@ -257,7 +257,7 @@ public class TrainingService {
             return training.getAccuracy();
         }
         if (!training.isCompletable()) {
-            throw new IllegalStateException("준비되지 않은 훈련은 완료할 수 없습니다.");
+            throw new ConflictException("준비되지 않은 훈련은 완료할 수 없습니다.");
         }
         if (result == null || !result.isObject()) {
             throw new IllegalArgumentException("훈련 결과는 JSON 객체여야 합니다.");

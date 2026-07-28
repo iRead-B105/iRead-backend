@@ -1,7 +1,10 @@
 package com.iread.backend.gaze.app.service;
 
 import com.iread.backend.gaze.domain.GazeAnalysisResultEntity;
+import com.iread.backend.gaze.domain.GazeCalibrationStatus;
+import com.iread.backend.gaze.domain.GazeContentType;
 import com.iread.backend.gaze.domain.GazeSessionEntity;
+import com.iread.backend.gaze.app.dto.req.StartGazeSessionRequest;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
 import com.iread.backend.story.repository.StoryRepository;
@@ -16,10 +19,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -42,7 +47,8 @@ class GazeServiceTest {
                 trainingRepository,
                 storyRepository,
                 gazeSessionRepository,
-                gazeAnalysisResultRepository
+                gazeAnalysisResultRepository,
+                new JsonMapper()
         );
     }
 
@@ -91,6 +97,19 @@ class GazeServiceTest {
 
         assertThat(response.gazeAnalysisId()).isEqualTo(40L);
         assertThat(response.regressionCount()).isEqualTo(2);
+    }
+
+    @Test
+    void rejectsMultipleContentReferences() {
+        StudentEntity student = mock(StudentEntity.class);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        StartGazeSessionRequest request = new StartGazeSessionRequest(
+                10L, GazeContentType.TEST, 20L, 30L, null, GazeCalibrationStatus.SUCCESS
+        );
+
+        assertThatThrownBy(() -> gazeService.startSession(1L, request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("콘텐츠 식별자는 정확히 하나만 입력해야 합니다.");
     }
 
     private GazeAnalysisResultEntity analysisResult() {

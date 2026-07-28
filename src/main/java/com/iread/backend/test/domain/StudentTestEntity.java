@@ -1,5 +1,6 @@
 package com.iread.backend.test.domain;
 
+import com.iread.backend.exception.ConflictException;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.training.domain.TrainingTemplateEntity;
 import jakarta.persistence.*;
@@ -56,7 +57,7 @@ public class StudentTestEntity {
 
     public void start(LocalDateTime startedAt) {
         if (status != TestStatus.NOT_STARTED) {
-            throw new IllegalStateException("시작 가능한 검사가 아닙니다.");
+            throw new ConflictException("시작 가능한 검사가 아닙니다.");
         }
         this.status = TestStatus.IN_PROGRESS;
         this.startedAt = startedAt;
@@ -64,14 +65,14 @@ public class StudentTestEntity {
 
     public void updateResult(String result) {
         if (status != TestStatus.IN_PROGRESS) {
-            throw new IllegalStateException("진행 중인 검사가 아닙니다.");
+            throw new ConflictException("진행 중인 검사가 아닙니다.");
         }
         this.result = result;
     }
 
     public void complete(String result, BigDecimal accuracy, LocalDateTime finishedAt) {
         if (status != TestStatus.IN_PROGRESS) {
-            throw new IllegalStateException("완료 가능한 검사가 아닙니다.");
+            throw new ConflictException("완료 가능한 검사가 아닙니다.");
         }
         this.status = TestStatus.COMPLETED;
         this.result = result;
@@ -81,7 +82,7 @@ public class StudentTestEntity {
 
     public void reset() {
         if (status == TestStatus.COMPLETED) {
-            throw new IllegalStateException("완료된 검사는 초기화할 수 없습니다.");
+            throw new ConflictException("완료된 검사는 초기화할 수 없습니다.");
         }
         this.status = TestStatus.NOT_STARTED;
         this.result = null;

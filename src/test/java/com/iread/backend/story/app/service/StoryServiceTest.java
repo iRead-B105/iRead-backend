@@ -4,7 +4,7 @@ import com.iread.backend.ai.client.AiClient;
 import com.iread.backend.ai.dto.req.ContinueStoryRequest;
 import com.iread.backend.ai.dto.res.GenerateStoryResponse;
 import com.iread.backend.ai.dto.res.GeneratedStoryLine;
-import com.iread.backend.story.app.dto.req.StoryChoiceRequest;
+import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
 import com.iread.backend.story.domain.*;
 import com.iread.backend.story.repository.*;
 import com.iread.backend.student.domain.StudentEntity;
@@ -17,6 +17,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.mock.web.MockMultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -34,8 +35,11 @@ class StoryServiceTest {
     @Mock StudentRepository studentRepository;
     @Mock StoryTemplateRepository storyTemplateRepository;
     @Mock StoryRepository storyRepository;
+    @Mock StorySceneRepository storySceneRepository;
     @Mock StoryLineRepository storyLineRepository;
+    @Mock StoryChoiceRepository storyChoiceRepository;
     @Mock AiClient aiClient;
+    @Mock StoryAudioStorage storyAudioStorage;
     @InjectMocks StoryService storyService;
 
     private StudentEntity student;
@@ -87,12 +91,13 @@ class StoryServiceTest {
                         new GeneratedStoryLine("어디로 갈까요?", true)
                 )
         ));
+        mockSceneSave(200L);
         mockLineSave(1000L);
 
         var response = storyService.startStory(1L, 20L, 30L);
 
         assertThat(response.storyId()).isEqualTo(100L);
-        assertThat(response.status()).isEqualTo(StoryStatus.IN_PROGRESS);
+        assertThat(response.storyStatus()).isEqualTo(StoryStatus.IN_PROGRESS);
         ArgumentCaptor<List<StoryLineEntity>> linesCaptor = listCaptor();
         verify(storyLineRepository).saveAllAndFlush(linesCaptor.capture());
         List<StoryLineEntity> lines = linesCaptor.getValue();
@@ -122,13 +127,11 @@ class StoryServiceTest {
         StoryLineEntity choiceLine = line(1001L, story, null, true, "어떻게 할까요?", 2,
                 LocalDateTime.of(2026, 7, 22, 10, 10));
         ownedStory(story);
-        when(storyLineRepository.findFirstByStoryIdAndReadAtIsNullOrderBySequenceNoAsc(100L))
-                .thenReturn(Optional.empty());
-        when(storyLineRepository.findFirstByStoryIdOrderBySequenceNoDesc(100L))
-                .thenReturn(Optional.of(choiceLine));
+        when(storyLineRepository.findAllByStoryIdOrderBySequenceNoAsc(100L))
+                .thenReturn(List.of(choiceLine));
         var response = storyService.resumeStory(1L, 20L, 100L);
 
-        assertThat(response.storyLine().storyLineId()).isEqualTo(1001L);
+        assertThat(response.storyLines().getFirst().lineId()).isEqualTo(1001L);
     }
 
     @Test
@@ -139,7 +142,8 @@ class StoryServiceTest {
         StoryLineEntity choiceLine = line(1001L, story, firstLine, true, "어떻게 할까요?", 2,
                 LocalDateTime.of(2026, 7, 22, 10, 10));
         ownedStory(story);
-        when(storyLineRepository.findByIdAndStoryId(1001L, 100L)).thenReturn(Optional.of(choiceLine));
+        when(storyLineRepository.findByIdAndStoryIdForUpdate(1001L, 100L)).thenReturn(Optional.of(choiceLine));
+        when(storyChoiceRepository.findByStoryLineId(1001L)).thenReturn(Optional.empty());
         when(storyLineRepository.findFirstByStoryIdOrderBySequenceNoDesc(100L))
                 .thenReturn(Optional.of(choiceLine));
         when(storyLineRepository.findAllByStoryIdOrderBySequenceNoAsc(100L))
@@ -151,21 +155,64 @@ class StoryServiceTest {
                 true,
                 List.of(new GeneratedStoryLine("모두와 인사하고 집으로 돌아왔어요.", false))
         ));
+        when(aiClient.transcribeSpeech(anyString(), eq(20L), isNull(), any()))
+                .thenReturn(new SpeechTranscriptionResponse(
+                        "ignored-by-service-mock",
+                        "이야기를 끝내고 집으로 간다",
+                        1.0,
+                        1_000
+                ));
+        mockSceneSave(201L);
         mockLineSave(1002L);
+        when(storyChoiceRepository.saveAndFlush(any())).thenAnswer(invocation -> {
+            StoryChoiceEntity saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 300L);
+            return saved;
+        });
 
         var response = storyService.chooseStoryDirection(
-                1L, 20L, 100L, 1001L, new StoryChoiceRequest("이야기를 끝내고 집으로 간다")
+                1L, 20L, 100L, 1001L,
+                new MockMultipartFile("audioFile", "answer.webm", "audio/webm", new byte[]{1})
         );
 
-        assertThat(response.storyLineId()).isEqualTo(1001L);
-        assertThat(response.status()).isEqualTo(StoryStatus.COMPLETED);
-        assertThat(response.generatedLines()).hasSize(1);
-        assertThat(response.generatedLines().getFirst().previousStoryLineId()).isEqualTo(1001L);
+        assertThat(response.choiceId()).isEqualTo(300L);
+        assertThat(response.transcript()).isEqualTo("이야기를 끝내고 집으로 간다");
+        assertThat(response.nextSceneId()).isEqualTo(201L);
+        assertThat(response.nextLineId()).isEqualTo(1002L);
+        assertThat(response.status()).isEqualTo("completed");
+        assertThat(response.replayed()).isFalse();
 
         ArgumentCaptor<ContinueStoryRequest> requestCaptor = ArgumentCaptor.forClass(ContinueStoryRequest.class);
         verify(aiClient).continueStory(requestCaptor.capture());
         assertThat(requestCaptor.getValue().branchIntent()).isEqualTo("이야기를 끝내고 집으로 간다");
         assertThat(requestCaptor.getValue().currentStoryLineId()).isEqualTo(1001L);
+    }
+
+    @Test
+    void 저장된_분기를_재요청하면_음성과_AI를_다시_처리하지_않는다() {
+        StoryEntity story = story(100L);
+        StoryLineEntity choiceLine = line(1001L, story, null, true, "어떻게 할까요?", 2,
+                LocalDateTime.of(2026, 7, 22, 10, 10));
+        StoryLineEntity nextLine = line(1002L, story, choiceLine, false, "친구를 만났어요.", 1,
+                null);
+        StoryChoiceEntity choice = new StoryChoiceEntity(choiceLine, "친구를 따라간다");
+        ReflectionTestUtils.setField(choice, "id", 300L);
+        ownedStory(story);
+        when(storyLineRepository.findByIdAndStoryIdForUpdate(1001L, 100L))
+                .thenReturn(Optional.of(choiceLine));
+        when(storyChoiceRepository.findByStoryLineId(1001L)).thenReturn(Optional.of(choice));
+        when(storyLineRepository.findAllByStoryIdOrderBySequenceNoAsc(100L))
+                .thenReturn(List.of(choiceLine, nextLine));
+
+        var response = storyService.chooseStoryDirection(
+                1L, 20L, 100L, 1001L,
+                new MockMultipartFile("audioFile", "answer.webm", "audio/webm", new byte[]{1})
+        );
+
+        assertThat(response.choiceId()).isEqualTo(300L);
+        assertThat(response.nextLineId()).isEqualTo(1002L);
+        assertThat(response.replayed()).isTrue();
+        verifyNoInteractions(aiClient, storyAudioStorage);
     }
 
     private void ownedStory(StoryEntity story) {
@@ -182,8 +229,10 @@ class StoryServiceTest {
 
     private StoryLineEntity line(Long id, StoryEntity story, StoryLineEntity previous, boolean requiresBranchInput,
                                  String content, int sequenceNo, LocalDateTime readAt) {
+        StorySceneEntity scene = new StorySceneEntity(story, null, 1);
+        ReflectionTestUtils.setField(scene, "id", 200L);
         StoryLineEntity line = new StoryLineEntity(
-                previous, story, null, requiresBranchInput, content, sequenceNo
+                previous, scene, requiresBranchInput, content, sequenceNo
         );
         ReflectionTestUtils.setField(line, "id", id);
         ReflectionTestUtils.setField(line, "createdAt", LocalDateTime.of(2026, 7, 22, 10, sequenceNo));
@@ -200,6 +249,15 @@ class StoryServiceTest {
                 ReflectionTestUtils.setField(line, "createdAt", LocalDateTime.of(2026, 7, 22, 11, line.getSequenceNo()));
             });
             return lines;
+        });
+    }
+
+    private void mockSceneSave(long id) {
+        when(storySceneRepository.countByStoryId(anyLong())).thenReturn(id == 200L ? 0L : 1L);
+        when(storySceneRepository.saveAndFlush(any())).thenAnswer(invocation -> {
+            StorySceneEntity scene = invocation.getArgument(0);
+            ReflectionTestUtils.setField(scene, "id", id);
+            return scene;
         });
     }
 

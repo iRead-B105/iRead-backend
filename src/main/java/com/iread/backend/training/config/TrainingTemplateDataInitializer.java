@@ -16,7 +16,7 @@ import java.util.List;
 /** 프론트와 AI 서버가 공통으로 사용하는 고정 템플릿과 AI 생성 명세를 준비한다. */
 @Component
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "iread.training-template-seed.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "iread.training-template-seed.enabled", havingValue = "true")
 public class TrainingTemplateDataInitializer implements ApplicationRunner {
 
     private static final long PHONOLOGY_UNIT_ID = 1L;
