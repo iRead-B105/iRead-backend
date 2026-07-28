@@ -11,6 +11,7 @@ import com.iread.backend.training.app.service.AppTrainingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -65,7 +66,10 @@ public class AppTrainingController {
         return trainingService.reset(teacherId, studentId, trainingId);
     }
 
-    @PostMapping("/questions/{questionNumber}/recordings")
+    @PostMapping(
+            value = "/questions/{questionNumber}/recordings",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
     @ResponseStatus(HttpStatus.CREATED)
     public TrainingRecordingResponse saveRecording(
             @CurrentTeacherId Long teacherId,
@@ -73,10 +77,16 @@ public class AppTrainingController {
             @PathVariable Long studentId,
             @PathVariable Long trainingId,
             @PathVariable int questionNumber,
-            @Valid @RequestBody TrainingRecordingRequest request
+            @Valid @ModelAttribute TrainingRecordingRequest request
     ) {
         requireSameStudent(authenticatedStudentId, studentId);
-        return trainingService.saveRecording(teacherId, studentId, trainingId, request);
+        return trainingService.saveRecording(
+                teacherId,
+                studentId,
+                trainingId,
+                questionNumber,
+                request
+        );
     }
 
     @PostMapping("/questions/{questionNumber}/responses")

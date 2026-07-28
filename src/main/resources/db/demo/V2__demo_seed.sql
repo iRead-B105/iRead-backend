@@ -3,10 +3,14 @@ INSERT INTO `curriculum_units` (`id`, `unit_name`, `sequence_no`) VALUES
     (2, '읽기 유창성', 2);
 
 INSERT INTO `training_templates`
-    (`id`, `curriculum_unit_id`, `name`, `form`, `sequence_no`)
+    (`id`, `curriculum_unit_id`, `name`, `prompt`, `sequence_no`)
 VALUES
-    (1, 1, '글자 따라 보기', '{"questionType":"LETTER_GAZE_TRACE","objective":"글자 모양 익히기"}', 1),
-    (15, 2, '단어·비단어 읽기', '{"questionType":"WORD_GRID_READING","objective":"단어 읽기 연습"}', 1);
+    (1, 1, '글자 따라 보기',
+     '{"trainingType":"VOWEL_TRACE","additionalPrompt":"데모 모음 따라 보기","outputTemplate":{"type":"VOWEL_TRACE","data":[{"vowelType":"<string>","target":"<string>","soundText":"<string>","traceAssetKey":"<string>"}]},"supportedFeatureCategories":["GRAPHEME"],"supportedScopes":["CHARACTER"]}',
+     1),
+    (15, 2, '음절 합쳐 낱말 만들기',
+     '{"trainingType":"SYLLABLE_BLEND","additionalPrompt":"데모 음절 합치기","outputTemplate":{"type":"SYLLABLE_BLEND","data":[{"audioParts":["<string>"],"cards":["<string>"],"answerOrder":["<integer>"],"result":"<string>"}]},"supportedFeatureCategories":["SYLLABLE","WORD"],"supportedScopes":["SYLLABLE","WORD"]}',
+     1);
 
 INSERT INTO `story_templates` (`id`, `title`, `content`, `image_url`) VALUES
     (1, '별빛 숲의 친구', '별빛이 비치는 숲에서 동물 친구와 함께 길을 찾는 따뜻한 모험', NULL),

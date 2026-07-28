@@ -2,18 +2,22 @@ package com.iread.backend.training.admin.service;
 
 import com.iread.backend.exception.ConflictException;
 import com.iread.backend.exception.ResourceNotFoundException;
+import com.iread.backend.gaze.analysis.GazeWordAnalysisAdapter;
+import com.iread.backend.gaze.analysis.GazeWordAnalysisRequest;
+import com.iread.backend.gaze.analysis.GazeWordAnalysisResult;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 import com.iread.backend.ai.client.AiClient;
 import com.iread.backend.ai.dto.req.EvaluateTrainingRequest;
-import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
 import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
-import com.iread.backend.ai.dto.res.GenerateTrainingResponse;
+import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.*;
+import com.iread.backend.training.curriculum.PersonalizedCurriculumPlanner;
+import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
 import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.admin.dto.res.*;
@@ -46,7 +50,11 @@ public class TrainingService {
     private final WordRepository wordRepository;
     private final WordAttemptLogRepository wordAttemptLogRepository;
     private final WordAttemptScoreCalculator wordAttemptScoreCalculator;
+    private final GazeWordAnalysisAdapter gazeWordAnalysisAdapter;
     private final AiClient aiClient;
+    private final PersonalizedTrainingGenerationService personalizedTrainingGenerationService;
+    private final StudentFeatureProfileService studentFeatureProfileService;
+    private final PersonalizedCurriculumPlanner personalizedCurriculumPlanner;
     private final ObjectMapper objectMapper;
 
     public List<CurriculumLogResponse> getCurriculumLogs(Long teacherId, Long studentId) {
@@ -144,9 +152,13 @@ public class TrainingService {
 
     @Transactional
     public void updateDailyCurriculum(Long teacherId, Long studentId, Long curriculumId,
-                                      UpdateCurriculumRequest request) {
+        UpdateCurriculumRequest request) {
         validateStudentOwner(teacherId, studentId);
-        DailyCurriculumEntity curriculum = findCurriculum(studentId, curriculumId);
+        DailyCurriculumEntity curriculum = dailyCurriculumRepository
+                .findForUpdate(curriculumId, studentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "일일 커리큘럼을 찾을 수 없습니다."
+                ));
         if (curriculum.getTrainings().stream().anyMatch(training -> !training.isEditable())) {
             throw new ConflictException("시작했거나 완료된 커리큘럼은 수정할 수 없습니다.");
         }
@@ -182,7 +194,7 @@ public class TrainingService {
                 training.getId(),
                 training.getTrainingTemplate().getId(),
                 training.getTrainingTemplate().getName(),
-                parseObject(training.getTrainingTemplate().getForm()),
+                parseObject(training.getTrainingTemplate().getPrompt()),
                 generatedData,
                 training.getStatus().name().toLowerCase(Locale.ROOT),
                 training.getStartedAt(),
@@ -221,21 +233,7 @@ public class TrainingService {
         }
 
         TrainingDataEntity data = findOrCreateTrainingData(training);
-        ObjectNode currentData = parseObject(data.getGeneratedData());
-        ObjectNode inputData = objectMapper.createObjectNode();
-        inputData.put("trainingTemplateId", training.getTrainingTemplate().getId());
-        inputData.put("templateName", training.getTrainingTemplate().getName());
-        inputData.set("generationSpec", parseObject(training.getTrainingTemplate().getForm()));
-        inputData.set("expectedWords", currentData.withArray("expectedWords").deepCopy());
-
-        String requestId = "training-" + trainingId + "-" + UUID.randomUUID();
-        GenerateTrainingResponse response = aiClient.generateTraining(new GenerateTrainingRequest(
-                requestId, trainingId, studentId, training.getTrainingTemplate().getId(), 1, inputData
-        ));
-
-        ObjectNode generatedData = validateGeneratedData(response.generatedData());
-        generatedData.put("trainingTemplateId", training.getTrainingTemplate().getId());
-        generatedData.set("expectedWords", currentData.withArray("expectedWords").deepCopy());
+        ObjectNode generatedData = personalizedTrainingGenerationService.generate(training);
         data.updateGeneratedData(writeJson(generatedData));
         training.markReady();
         return generatedData;
@@ -262,6 +260,13 @@ public class TrainingService {
         if (result == null || !result.isObject()) {
             throw new IllegalArgumentException("훈련 결과는 JSON 객체여야 합니다.");
         }
+        ObjectNode finalResult = (ObjectNode) result.deepCopy();
+        if (training.getResult() != null && !training.getResult().isBlank()) {
+            JsonNode progressAttempts = parseObject(training.getResult()).path("wordAttempts");
+            if (progressAttempts.isArray()) {
+                finalResult.set("wordAttempts", progressAttempts.deepCopy());
+            }
+        }
 
         String requestId = "training-evaluation-" + trainingId;
         EvaluateTrainingResponse response = aiClient.evaluateTraining(new EvaluateTrainingRequest(
@@ -270,15 +275,19 @@ public class TrainingService {
                 studentId,
                 training.getTrainingTemplate().getId(),
                 1,
-                result
+                finalResult
         ));
         BigDecimal accuracy = response.accuracy().setScale(2, RoundingMode.HALF_UP);
         LocalDateTime finishedAt = completedAt == null ? LocalDateTime.now() : completedAt;
         if (training.getStartedAt() == null) {
             training.start(finishedAt);
         }
-        saveWordAttemptLogs(student, training, result.path("wordAttempts"));
-        training.complete(writeJson(result), accuracy, finishedAt);
+        saveWordAttemptLogs(student, training, finalResult.path("wordAttempts"));
+        training.complete(writeJson(finalResult), accuracy, finishedAt);
+        studentFeatureProfileService.recalculate(student);
+        if (training.getDailyCurriculum().getStatus() == DailyCurriculumStatus.COMPLETED) {
+            personalizedCurriculumPlanner.createNextIfAbsent(student);
+        }
         return accuracy;
     }
 
@@ -330,16 +339,51 @@ public class TrainingService {
         }
 
         Map<String, WordEntity> words = new HashMap<>();
-        List<WordAttemptLogEntity> logs = new ArrayList<>();
+        List<PendingAttemptLog> pendingLogs = new ArrayList<>();
         for (JsonNode attempt : attempts) {
+            if (attempt.hasNonNull("wordAttemptLogId")) {
+                continue;
+            }
             String surfaceText = requiredSurfaceText(attempt);
             String recognizedText = nullableText(attempt, "recognizedText", 255);
             boolean hasAudioData = attempt.path("hasAudioData").asBoolean(false);
+            boolean hasGazeData = attempt.path("hasGazeData").asBoolean(false);
             Boolean skipped = nullableBoolean(attempt, "isSkipped");
             Boolean correct = nullableBoolean(attempt, "isCorrect");
+            Integer fixationDurationMs = nullableInteger(attempt, "fixationDurationMs");
+            Integer fixationCount = nullableInteger(attempt, "fixationCount");
+            Integer gazeStartOffsetMs = nullableInteger(attempt, "gazeStartOffsetMs");
+            Integer gazeEndOffsetMs = nullableInteger(attempt, "gazeEndOffsetMs");
+            Integer regressionCount = nullableInteger(attempt, "regressionCount");
+            if (hasGazeData && fixationDurationMs == null
+                    && fixationCount == null && regressionCount == null) {
+                GazeWordAnalysisResult gaze = gazeWordAnalysisAdapter.analyze(
+                        new GazeWordAnalysisRequest(
+                                "training-gaze-" + training.getId() + "-" + pendingLogs.size(),
+                                surfaceText,
+                                gazeStartOffsetMs,
+                                gazeEndOffsetMs
+                        )
+                );
+                fixationDurationMs = gaze.fixationDurationMs();
+                fixationCount = gaze.fixationCount();
+                regressionCount = gaze.regressionCount();
+                skipped = gaze.skipped();
+                if (attempt instanceof ObjectNode objectAttempt) {
+                    objectAttempt.put("fixationDurationMs", fixationDurationMs);
+                    objectAttempt.put("fixationCount", fixationCount);
+                    objectAttempt.put("regressionCount", regressionCount);
+                    objectAttempt.put("isSkipped", skipped);
+                    objectAttempt.put("gazeAnalysisConfidence", gaze.confidence());
+                    objectAttempt.put("gazeAnalysisVersion", gaze.analysisVersion());
+                }
+            }
             Integer retryCount = nullableInteger(attempt, "retryCount");
             if (retryCount == null) {
-                retryCount = nullableInteger(attempt, "regressionCount");
+                retryCount = regressionCount;
+            }
+            if (regressionCount == null) {
+                regressionCount = retryCount;
             }
             if (retryCount != null && retryCount < 0) {
                 throw new IllegalArgumentException("단어 재응시 횟수는 0 이상이어야 합니다.");
@@ -355,27 +399,44 @@ public class TrainingService {
             WordEntity word = words.computeIfAbsent(surfaceText, text ->
                     wordRepository.findByContent(text)
                             .orElseGet(() -> wordRepository.save(new WordEntity(text))));
-            logs.add(new WordAttemptLogEntity(
+            WordAttemptLogEntity log = new WordAttemptLogEntity(
                     student,
                     word,
                     training,
                     surfaceText,
-                    attempt.path("hasGazeData").asBoolean(false),
+                    hasGazeData,
                     hasAudioData,
-                    nullableInteger(attempt, "fixationDurationMs"),
-                    nullableInteger(attempt, "fixationCount"),
-                    nullableInteger(attempt, "gazeStartOffsetMs"),
-                    nullableInteger(attempt, "gazeEndOffsetMs"),
+                    fixationDurationMs,
+                    fixationCount,
+                    gazeStartOffsetMs,
+                    gazeEndOffsetMs,
                     skipped,
-                    retryCount,
+                    regressionCount,
                     recognizedText,
                     nullableInteger(attempt, "speechStartOffsetMs"),
                     nullableInteger(attempt, "speechEndOffsetMs"),
                     correct,
                     totalScore
-            ));
+            );
+            if (attempt instanceof ObjectNode objectAttempt) {
+                if (!objectAttempt.has("isFinal")) {
+                    objectAttempt.put("isFinal", true);
+                }
+                pendingLogs.add(new PendingAttemptLog(objectAttempt, log));
+            }
         }
-        wordAttemptLogRepository.saveAll(logs);
+        if (pendingLogs.isEmpty()) {
+            return;
+        }
+        List<WordAttemptLogEntity> saved = wordAttemptLogRepository.saveAllAndFlush(
+                pendingLogs.stream().map(PendingAttemptLog::log).toList()
+        );
+        for (int index = 0; index < saved.size(); index++) {
+            pendingLogs.get(index).attempt().put("wordAttemptLogId", saved.get(index).getId());
+        }
+    }
+
+    private record PendingAttemptLog(ObjectNode attempt, WordAttemptLogEntity log) {
     }
 
     private String requiredSurfaceText(JsonNode attempt) {

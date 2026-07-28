@@ -351,7 +351,7 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
                AND t.status = 'COMPLETED'
                AND t.finished_at >= :fromDateTime
                AND t.finished_at < :toDateTimeExclusive
-               AND JSON_UNQUOTE(JSON_EXTRACT(tt.form, '$.questionType')) IN (
+               AND JSON_UNQUOTE(JSON_EXTRACT(tt.prompt, '$.questionType')) IN (
                    'WORD_GRID_READING',
                    'SENTENCE_READING',
                    'PASSAGE_READING'
