@@ -40,6 +40,13 @@ class AudioUploadPolicyTest {
     }
 
     @Test
+    void 원본_파일명의_경로_요소를_제거한다() {
+        var validated = policy.validate(audio("../../private/voice.webm", "audio/webm"));
+
+        assertThat(validated.originalFilename()).isEqualTo("voice.webm");
+    }
+
+    @Test
     void 이십_메가바이트를_초과하면_거부한다() {
         MultipartFile audio = mock(MultipartFile.class);
         when(audio.isEmpty()).thenReturn(false);

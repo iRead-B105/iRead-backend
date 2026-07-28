@@ -3,6 +3,7 @@ package com.iread.backend.exception;
 import com.iread.backend.ai.exception.AiClientException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -64,5 +65,16 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
         assertThat(response.getBody().error().code()).isEqualTo("INTERNAL_ERROR");
         assertThat(response.getBody().error().message()).doesNotContain("private");
+    }
+
+    @Test
+    void mapsOversizedMultipartToInvalidRequestEnvelope() {
+        var response = handler.handleMalformedRequest(
+                new MaxUploadSizeExceededException(20L * 1024 * 1024)
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().error().code()).isEqualTo("INVALID_REQUEST");
+        assertThat(response.getBody().error().message()).doesNotContain("20971520");
     }
 }
