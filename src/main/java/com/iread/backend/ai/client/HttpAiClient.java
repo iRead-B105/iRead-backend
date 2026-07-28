@@ -12,17 +12,17 @@ import com.iread.backend.ai.dto.res.SpeechSynthesisResponse;
 import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
 import com.iread.backend.ai.config.AiClientProperties;
 import com.iread.backend.ai.exception.AiClientException;
+import com.iread.backend.global.audio.TemporaryAudioStorage;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
-import org.springframework.core.io.ByteArrayResource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Objects;
 
@@ -42,6 +42,7 @@ public class HttpAiClient implements AiClient {
     private final MockTrainingEvaluator mockTrainingEvaluator;
     private final MockStoryGenerator mockStoryGenerator;
     private final MockSpeechProcessor mockSpeechProcessor;
+    private final TemporaryAudioStorage temporaryAudioStorage;
 
     public HttpAiClient(
             @Qualifier("aiRestClient") RestClient restClient,
@@ -49,7 +50,8 @@ public class HttpAiClient implements AiClient {
             MockTrainingGenerator mockTrainingGenerator,
             MockTrainingEvaluator mockTrainingEvaluator,
             MockStoryGenerator mockStoryGenerator,
-            MockSpeechProcessor mockSpeechProcessor
+            MockSpeechProcessor mockSpeechProcessor,
+            TemporaryAudioStorage temporaryAudioStorage
     ) {
         this.restClient = restClient;
         this.properties = properties;
@@ -57,6 +59,7 @@ public class HttpAiClient implements AiClient {
         this.mockTrainingEvaluator = mockTrainingEvaluator;
         this.mockStoryGenerator = mockStoryGenerator;
         this.mockSpeechProcessor = mockSpeechProcessor;
+        this.temporaryAudioStorage = temporaryAudioStorage;
     }
 
     @Override
@@ -154,21 +157,20 @@ public class HttpAiClient implements AiClient {
         if (properties.mockSpeech()) {
             return mockSpeechProcessor.transcribe(requestId, expectedText);
         }
-        try {
+        try (TemporaryAudioStorage.StagedAudio stagedAudio = temporaryAudioStorage.stage(audioFile)) {
             MultipartBodyBuilder body = new MultipartBodyBuilder();
             body.part("requestId", requestId);
             body.part("studentId", studentId.toString());
             if (expectedText != null && !expectedText.isBlank()) {
                 body.part("expectedText", expectedText);
             }
-            byte[] audio = audioFile.getBytes();
-            body.part("audioFile", new ByteArrayResource(audio) {
+            body.part("audioFile", new FileSystemResource(stagedAudio.path()) {
                 @Override
                 public String getFilename() {
-                    return audioFile.getOriginalFilename();
+                    return stagedAudio.originalFilename();
                 }
             }).contentType(MediaType.parseMediaType(
-                    Objects.requireNonNullElse(audioFile.getContentType(), "application/octet-stream")
+                    stagedAudio.contentType()
             ));
 
             SpeechTranscriptionResponse response = restClient.post()
@@ -195,7 +197,7 @@ public class HttpAiClient implements AiClient {
             return response;
         } catch (AiClientException exception) {
             throw exception;
-        } catch (IOException | RestClientException exception) {
+        } catch (RestClientException exception) {
             throw new AiClientException("AI 서버와 음성 인식 통신 중 실패했습니다.", exception);
         }
     }

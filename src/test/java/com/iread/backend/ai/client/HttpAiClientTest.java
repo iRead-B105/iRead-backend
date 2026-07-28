@@ -9,18 +9,24 @@ import com.iread.backend.ai.dto.req.StoryTemplateData;
 import com.iread.backend.ai.dto.req.SpeechSynthesisRequest;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.ai.config.AiClientProperties;
+import com.iread.backend.global.audio.AudioUploadPolicy;
+import com.iread.backend.global.audio.TemporaryAudioStorage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.util.unit.DataSize;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -36,6 +42,9 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 class HttpAiClientTest {
 
     private final JsonMapper objectMapper = new JsonMapper();
+
+    @TempDir
+    Path tempDir;
 
     private MockRestServiceServer server;
     private HttpAiClient aiClient;
@@ -58,7 +67,14 @@ class HttpAiClientTest {
                 new MockTrainingGenerator(objectMapper),
                 new MockTrainingEvaluator(),
                 new MockStoryGenerator(),
-                new MockSpeechProcessor()
+                new MockSpeechProcessor(),
+                new TemporaryAudioStorage(
+                        tempDir.resolve("audio").toString(),
+                        new AudioUploadPolicy(
+                                DataSize.ofMegabytes(20),
+                                "audio/webm,audio/wav,audio/mpeg,audio/mp4"
+                        )
+                )
         );
     }
 
@@ -226,7 +242,7 @@ class HttpAiClientTest {
     }
 
     @Test
-    void sendsMultipartSpeechAndReturnsTranscription() {
+    void sendsMultipartSpeechAndReturnsTranscription() throws Exception {
         server.expect(requestTo("http://localhost:8081/api/v1/speech/transcribe"))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(header("Idempotency-Key", "speech-request-1"))
@@ -251,6 +267,43 @@ class HttpAiClientTest {
 
         assertThat(response.transcript()).isEqualTo("책을 읽어요");
         assertThat(response.confidence()).isEqualTo(0.95);
+        try (var files = Files.list(tempDir.resolve("audio"))) {
+            assertThat(files.toList()).isEmpty();
+        }
+        server.verify();
+    }
+
+    @Test
+    void 잘못된_JSON_응답은_통신_예외로_변환하고_재시도하지_않는다() throws Exception {
+        server.expect(once(), requestTo("http://localhost:8081/api/v1/trainings/generate"))
+                .andRespond(withSuccess("{invalid-json", MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> aiClient.generateTraining(request("malformed-response")))
+                .isInstanceOf(AiClientException.class)
+                .hasMessage("AI 서버와 통신하는 데 실패했습니다.");
+
+        server.verify();
+    }
+
+    @Test
+    void 음성_인식이_실패해도_임시_파일을_삭제하고_재시도하지_않는다() throws Exception {
+        server.expect(once(), requestTo("http://localhost:8081/api/v1/speech/transcribe"))
+                .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
+
+        assertThatThrownBy(() -> aiClient.transcribeSpeech(
+                "speech-failure",
+                20L,
+                "책을 읽어요",
+                new MockMultipartFile(
+                        "audioFile", "reading.webm", "audio/webm", new byte[]{1, 2, 3}
+                )
+        ))
+                .isInstanceOf(AiClientException.class)
+                .hasMessage("AI 서버가 음성 인식 오류를 반환했습니다.");
+
+        try (var files = Files.list(tempDir.resolve("audio"))) {
+            assertThat(files.toList()).isEmpty();
+        }
         server.verify();
     }
 
