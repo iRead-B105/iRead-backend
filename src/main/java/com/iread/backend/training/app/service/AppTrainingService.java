@@ -22,6 +22,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.time.LocalDateTime;
 
@@ -50,7 +52,7 @@ public class AppTrainingService {
                 training.getSequenceNo(),
                 training.getStatus(),
                 training.getTrainingTemplate().getName(),
-                generatedData,
+                studentGeneratedData(generatedData),
                 training.getStartedAt(),
                 training.getFinishedAt()
         );
@@ -75,7 +77,7 @@ public class AppTrainingService {
                 trainingId,
                 questionNumber,
                 questions.size(),
-                questions.get(questionNumber - 1)
+                studentQuestion(questions.get(questionNumber - 1))
         );
     }
 
@@ -235,5 +237,29 @@ public class AppTrainingService {
         } catch (Exception exception) {
             throw new IllegalStateException("저장된 훈련 문항을 읽을 수 없습니다.", exception);
         }
+    }
+
+    private JsonNode studentGeneratedData(JsonNode generatedData) {
+        if (!(generatedData instanceof ObjectNode root)) {
+            return generatedData;
+        }
+        ObjectNode result = objectMapper.createObjectNode();
+        result.set("schemaVersion", root.path("schemaVersion").deepCopy());
+        ArrayNode questions = result.putArray("questions");
+        root.path("questions").forEach(question -> questions.add(studentQuestion(question)));
+        return result;
+    }
+
+    private JsonNode studentQuestion(JsonNode question) {
+        if (!(question instanceof ObjectNode)) {
+            return question.deepCopy();
+        }
+        ObjectNode result = objectMapper.createObjectNode();
+        for (String field : java.util.List.of("questionNo", "type", "content", "text")) {
+            if (question.has(field)) {
+                result.set(field, question.get(field).deepCopy());
+            }
+        }
+        return result;
     }
 }

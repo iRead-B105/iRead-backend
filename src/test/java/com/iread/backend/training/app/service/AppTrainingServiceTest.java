@@ -19,6 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -92,5 +93,51 @@ class AppTrainingServiceTest {
         assertThat(result.isCorrect()).isTrue();
         assertThat(result.totalScore()).isEqualTo(900);
         assertThat(result.createdAt()).isEqualTo(createdAt);
+    }
+
+    @Test
+    void studentQuestionDoesNotExposeAnswerProfileOrInternalValidation() throws Exception {
+        StudentEntity student = mock(StudentEntity.class);
+        TrainingEntity training = mock(TrainingEntity.class);
+        TrainingDataEntity data = mock(TrainingDataEntity.class);
+        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        when(trainingRepository.findByIdAndDailyCurriculumStudentId(30L, 20L))
+                .thenReturn(Optional.of(training));
+        when(trainingDataRepository.findByTrainingId(30L)).thenReturn(Optional.of(data));
+        when(data.getGeneratedData()).thenReturn("""
+                {
+                  "schemaVersion":2,
+                  "profileSnapshot":{"features":[{"featureCode":"SECRET"}]},
+                  "validationResult":{"passed":true},
+                  "questions":[{
+                    "questionNo":1,
+                    "type":"SENTENCE_READING",
+                    "content":{"sentence":"아기는 사과를 먹는다."},
+                    "answer":{"expectedText":"아기는 사과를 먹는다."},
+                    "analysisTargets":[{"text":"아기는 사과를 먹는다."}],
+                    "targetFeatureCodes":["PHONOLOGY.NASALIZATION"],
+                    "text":"아기는 사과를 먹는다.",
+                    "expectedPronunciation":"아기는 사과를 멍는다."
+                  }]
+                }
+                """);
+        AppTrainingService service = new AppTrainingService(
+                studentRepository,
+                trainingRepository,
+                trainingDataRepository,
+                wordRepository,
+                wordAttemptLogRepository,
+                trainingService,
+                JsonMapper.builder().build()
+        );
+
+        var result = service.getQuestion(1L, 20L, 30L, 1);
+
+        assertThat(result.question().path("content").path("sentence").asText())
+                .isEqualTo("아기는 사과를 먹는다.");
+        assertThat(result.question().has("answer")).isFalse();
+        assertThat(result.question().has("analysisTargets")).isFalse();
+        assertThat(result.question().has("targetFeatureCodes")).isFalse();
+        assertThat(result.question().has("expectedPronunciation")).isFalse();
     }
 }

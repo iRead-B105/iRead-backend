@@ -8,12 +8,11 @@ import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 import com.iread.backend.ai.client.AiClient;
 import com.iread.backend.ai.dto.req.EvaluateTrainingRequest;
-import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
 import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
-import com.iread.backend.ai.dto.res.GenerateTrainingResponse;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.*;
+import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
 import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.admin.dto.res.*;
@@ -47,6 +46,7 @@ public class TrainingService {
     private final WordAttemptLogRepository wordAttemptLogRepository;
     private final WordAttemptScoreCalculator wordAttemptScoreCalculator;
     private final AiClient aiClient;
+    private final PersonalizedTrainingGenerationService personalizedTrainingGenerationService;
     private final ObjectMapper objectMapper;
 
     public List<CurriculumLogResponse> getCurriculumLogs(Long teacherId, Long studentId) {
@@ -221,21 +221,7 @@ public class TrainingService {
         }
 
         TrainingDataEntity data = findOrCreateTrainingData(training);
-        ObjectNode currentData = parseObject(data.getGeneratedData());
-        ObjectNode inputData = objectMapper.createObjectNode();
-        inputData.put("trainingTemplateId", training.getTrainingTemplate().getId());
-        inputData.put("templateName", training.getTrainingTemplate().getName());
-        inputData.set("generationSpec", parseObject(training.getTrainingTemplate().getPrompt()));
-        inputData.set("expectedWords", currentData.withArray("expectedWords").deepCopy());
-
-        String requestId = "training-" + trainingId + "-" + UUID.randomUUID();
-        GenerateTrainingResponse response = aiClient.generateTraining(new GenerateTrainingRequest(
-                requestId, trainingId, studentId, training.getTrainingTemplate().getId(), 1, inputData
-        ));
-
-        ObjectNode generatedData = validateGeneratedData(response.generatedData());
-        generatedData.put("trainingTemplateId", training.getTrainingTemplate().getId());
-        generatedData.set("expectedWords", currentData.withArray("expectedWords").deepCopy());
+        ObjectNode generatedData = personalizedTrainingGenerationService.generate(training);
         data.updateGeneratedData(writeJson(generatedData));
         training.markReady();
         return generatedData;

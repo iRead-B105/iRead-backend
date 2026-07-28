@@ -9,6 +9,7 @@ import com.iread.backend.training.domain.*;
 import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.repository.*;
+import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.domain.WordAttemptUseLocation;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
@@ -47,6 +48,7 @@ class TrainingServiceTest {
     @Mock WordRepository wordRepository;
     @Mock WordAttemptLogRepository wordAttemptLogRepository;
     @Mock AiClient aiClient;
+    @Mock PersonalizedTrainingGenerationService personalizedTrainingGenerationService;
 
     private TrainingService trainingService;
 
@@ -64,6 +66,7 @@ class TrainingServiceTest {
                         new WordAttemptScoreProperties(100, 300, 200, 600, 250)
                 ),
                 aiClient,
+                personalizedTrainingGenerationService,
                 JsonMapper.builder().build()
         );
     }

@@ -15,7 +15,15 @@ import java.util.regex.Pattern;
 public class KoreanTextAnalyzer {
 
     public static final String ANALYZER_VERSION = "KOREAN_ANALYZER_V1";
-    private static final Pattern WORD_PATTERN = Pattern.compile("[가-힣]+");
+    private static final Pattern WORD_PATTERN = Pattern.compile("[가-힣ㄱ-ㅎㅏ-ㅣ]+");
+    private static final Set<String> ALL_ONSETS = Set.of(
+            "ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ",
+            "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"
+    );
+    private static final Set<String> SIMPLE_CODAS = Set.of(
+            "ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄹ", "ㅁ", "ㅂ", "ㅅ", "ㅆ", "ㅇ", "ㅈ",
+            "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"
+    );
     private static final Set<String> BASIC_VOWELS = Set.of(
             "ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅗ", "ㅛ",
             "ㅜ", "ㅠ", "ㅡ", "ㅣ"
@@ -35,12 +43,18 @@ public class KoreanTextAnalyzer {
         }
 
         KoreanG2pEngine.G2pResult g2p = g2pEngine.convert(text);
-        List<MorphemeAnalysis> morphemes = morphAnalyzer.analyze(text);
+        List<MorphemeAnalysis> morphemes = text.chars()
+                .anyMatch(value -> HangulSyllable.isHangulSyllable((char) value))
+                ? morphAnalyzer.analyze(text)
+                : List.of();
         List<AnalyzedWord> words = analyzeWords(text, g2p);
         return new KoreanTextAnalysis(
                 text,
                 g2p.pronunciation(),
-                List.of("SENTENCE.SIMPLE"),
+                words.stream().anyMatch(word -> word.surface().chars()
+                        .anyMatch(value -> HangulSyllable.isHangulSyllable((char) value)))
+                        ? List.of("SENTENCE.SIMPLE")
+                        : List.of(),
                 words,
                 morphemes,
                 ANALYZER_VERSION,
@@ -58,16 +72,25 @@ public class KoreanTextAnalyzer {
             String surface = matcher.group();
             String pronunciation = g2p.pronunciation().substring(matcher.start(), matcher.end());
             LinkedHashSet<String> featureCodes = new LinkedHashSet<>();
+            int hangulSyllableCount = 0;
             for (int index = 0; index < surface.length(); index++) {
-                addSyllableFeatures(HangulSyllable.decompose(surface.charAt(index)), featureCodes);
+                char value = surface.charAt(index);
+                if (HangulSyllable.isHangulSyllable(value)) {
+                    addSyllableFeatures(HangulSyllable.decompose(value), featureCodes);
+                    hangulSyllableCount++;
+                } else {
+                    addStandaloneJamoFeatures(String.valueOf(value), featureCodes);
+                }
             }
-            featureCodes.add("WORD.SYLLABLE_COUNT." + Math.min(surface.length(), 5));
+            if (hangulSyllableCount > 0) {
+                featureCodes.add("WORD.SYLLABLE_COUNT." + Math.min(hangulSyllableCount, 5));
+            }
             if (!surface.equals(pronunciation)) {
                 featureCodes.add("WORD.PHONOLOGICALLY_CHANGED");
             }
 
             int wordSyllableStart = globalSyllableStart;
-            int wordSyllableEnd = wordSyllableStart + surface.length() - 1;
+            int wordSyllableEnd = wordSyllableStart + hangulSyllableCount - 1;
             List<FeatureOccurrence> occurrences = g2p.occurrences().stream()
                     .filter(value -> value.startSyllableIndex() >= wordSyllableStart
                             && value.endSyllableIndex() <= wordSyllableEnd)
@@ -87,12 +110,13 @@ public class KoreanTextAnalyzer {
                     List.copyOf(featureCodes),
                     occurrences
             ));
-            globalSyllableStart += surface.length();
+            globalSyllableStart += hangulSyllableCount;
         }
         return words;
     }
 
     private void addSyllableFeatures(HangulSyllable syllable, Set<String> features) {
+        features.add("GRAPHEME");
         String onsetKind = TENSE_ONSETS.contains(syllable.onset())
                 ? "TENSE"
                 : ASPIRATED_ONSETS.contains(syllable.onset()) ? "ASPIRATED" : "BASIC";
@@ -116,6 +140,27 @@ public class KoreanTextAnalyzer {
         }
         if (syllable.coda() != null && COMPLEX_CODAS.contains(syllable.coda())) {
             features.add("SYLLABLE.COMPLEX_CODA");
+        }
+    }
+
+    private void addStandaloneJamoFeatures(String jamo, Set<String> features) {
+        features.add("GRAPHEME");
+        if (BASIC_VOWELS.contains(jamo) || Set.of("ㅘ", "ㅙ", "ㅚ", "ㅝ", "ㅞ", "ㅟ", "ㅢ").contains(jamo)) {
+            features.add("GRAPHEME.VOWEL."
+                    + (BASIC_VOWELS.contains(jamo) ? "BASIC." : "COMPOUND.")
+                    + jamo);
+            return;
+        }
+        if (ALL_ONSETS.contains(jamo)) {
+            String onsetKind = TENSE_ONSETS.contains(jamo)
+                    ? "TENSE"
+                    : ASPIRATED_ONSETS.contains(jamo) ? "ASPIRATED" : "BASIC";
+            features.add("GRAPHEME.ONSET." + onsetKind + "." + jamo);
+        }
+        if (SIMPLE_CODAS.contains(jamo)) {
+            features.add("GRAPHEME.CODA.SIMPLE." + jamo);
+        } else if (COMPLEX_CODAS.contains(jamo)) {
+            features.add("GRAPHEME.CODA.COMPLEX." + jamo);
         }
     }
 }
