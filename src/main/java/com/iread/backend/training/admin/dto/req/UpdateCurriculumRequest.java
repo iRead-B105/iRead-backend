@@ -6,6 +6,6 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 
 public record UpdateCurriculumRequest(
-        @NotEmpty @Size(max = 100) List<@NotNull Long> trainingTemplateIds
+        @NotEmpty @Size(min = 5, max = 5) List<@NotNull Long> trainingTemplateIds
 ) {
 }

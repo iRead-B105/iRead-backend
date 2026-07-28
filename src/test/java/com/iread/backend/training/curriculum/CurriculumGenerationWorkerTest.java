@@ -42,12 +42,15 @@ class CurriculumGenerationWorkerTest {
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         fixture.worker().generate(100L);
+        fixture.worker().generate(100L);
 
         assertThat(fixture.curriculum().getTrainings())
                 .allMatch(training -> training.getStatus() == TrainingStatus.NOT_STARTED);
         verify(fixture.trainingDataRepository(), org.mockito.Mockito.times(5))
                 .save(any(TrainingDataEntity.class));
         verify(fixture.trainingDataRepository()).flush();
+        verify(fixture.generationService(), org.mockito.Mockito.times(5))
+                .generate(any(TrainingEntity.class));
     }
 
     @Test
