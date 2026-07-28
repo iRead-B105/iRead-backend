@@ -2,6 +2,7 @@ package com.iread.backend.training.app.service;
 
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.exception.ConflictException;
+import com.iread.backend.global.audio.AudioUploadPolicy;
 import com.iread.backend.pronunciation.PronunciationAnalysisAdapter;
 import com.iread.backend.pronunciation.PronunciationAnalysisRequest;
 import com.iread.backend.pronunciation.PronunciationAnalysisResult;
@@ -42,6 +43,7 @@ public class AppTrainingService {
     private final WordRepository wordRepository;
     private final WordAttemptLogRepository wordAttemptLogRepository;
     private final PronunciationAnalysisAdapter pronunciationAnalysisAdapter;
+    private final AudioUploadPolicy audioUploadPolicy;
     private final TrainingService trainingService;
     private final ObjectMapper objectMapper;
 
@@ -89,7 +91,7 @@ public class AppTrainingService {
 
     @Transactional
     public TrainingStartResponse start(Long teacherId, Long studentId, Long trainingId) {
-        TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
+        TrainingEntity training = findOwnedTrainingForUpdate(teacherId, studentId, trainingId);
         if (training.getStatus() != TrainingStatus.NOT_STARTED) {
             throw new ConflictException("시작 가능한 훈련이 아닙니다.");
         }
@@ -100,7 +102,7 @@ public class AppTrainingService {
 
     @Transactional
     public TrainingResetResponse reset(Long teacherId, Long studentId, Long trainingId) {
-        TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
+        TrainingEntity training = findOwnedTrainingForUpdate(teacherId, studentId, trainingId);
         training.reset();
         wordAttemptLogRepository.deleteAllByTrainingId(trainingId);
         return new TrainingResetResponse(trainingId, training.getStatus(), LocalDateTime.now());
@@ -115,7 +117,7 @@ public class AppTrainingService {
             TrainingRecordingRequest request
     ) {
         StudentEntity student = findOwnedStudent(teacherId, studentId);
-        TrainingEntity training = findInProgressTraining(studentId, trainingId);
+        TrainingEntity training = findInProgressTrainingForUpdate(studentId, trainingId);
         WordEntity word = findWord(request.wordId());
         validateRecordingTarget(
                 trainingId,
@@ -129,6 +131,7 @@ public class AppTrainingService {
             throw new IllegalArgumentException("wordId와 expectedText가 일치하지 않습니다.");
         }
         validateSpeechOffsets(request.speechStartOffsetMs(), request.speechEndOffsetMs());
+        audioUploadPolicy.validate(request.audioFile());
         PronunciationAnalysisResult analysis = pronunciationAnalysisAdapter.analyze(
                 new PronunciationAnalysisRequest(
                         "training-recording-" + trainingId + "-" + questionNumber
@@ -186,7 +189,7 @@ public class AppTrainingService {
             TrainingSelectionRequest request
     ) {
         StudentEntity student = findOwnedStudent(teacherId, studentId);
-        TrainingEntity training = findInProgressTraining(studentId, trainingId);
+        TrainingEntity training = findInProgressTrainingForUpdate(studentId, trainingId);
         WordEntity word = findWord(request.wordId());
         WordAttemptLogEntity attempt = wordAttemptLogRepository.saveAndFlush(
                 new WordAttemptLogEntity(
@@ -253,9 +256,14 @@ public class AppTrainingService {
                 .orElseThrow(() -> new ResourceNotFoundException("훈련을 찾을 수 없습니다."));
     }
 
-    private TrainingEntity findInProgressTraining(Long studentId, Long trainingId) {
-        TrainingEntity training = trainingRepository
-                .findByIdAndDailyCurriculumStudentId(trainingId, studentId)
+    private TrainingEntity findOwnedTrainingForUpdate(Long teacherId, Long studentId, Long trainingId) {
+        findOwnedStudent(teacherId, studentId);
+        return trainingRepository.findForUpdate(trainingId, studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("훈련을 찾을 수 없습니다."));
+    }
+
+    private TrainingEntity findInProgressTrainingForUpdate(Long studentId, Long trainingId) {
+        TrainingEntity training = trainingRepository.findForUpdate(trainingId, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("훈련을 찾을 수 없습니다."));
         if (training.getStatus() != TrainingStatus.IN_PROGRESS) {
             throw new ConflictException("진행 중인 훈련이 아닙니다.");
