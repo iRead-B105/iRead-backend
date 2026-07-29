@@ -19,7 +19,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles("demo")
 @Sql({
         "/db/demo/V2__demo_seed.sql",
-        "/db/demo/V3__fix_demo_student_gender.sql"
+        "/db/demo/V3__fix_demo_student_gender.sql",
+        "/db/demo/V4__complete_demo_training_questions.sql",
+        "/db/demo/V5__add_second_demo_student.sql"
 })
 class DemoSeedIntegrationTest {
 
@@ -42,6 +44,46 @@ class DemoSeedIntegrationTest {
         assertThat(count("stories", 6001L)).isEqualTo(1);
         assertThat(count("trainings", 4001L)).isEqualTo(1);
         assertThat(count("tests", 5101L)).isEqualTo(1);
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT name FROM students WHERE id = 2002 AND teacher_id = 1001",
+                String.class
+        )).isEqualTo("한결");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT gender FROM students WHERE id = 2002",
+                String.class
+        )).isEqualTo("Boy");
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM trainings training
+                  JOIN daily_curriculums curriculum
+                    ON curriculum.id = training.daily_curriculum_id
+                 WHERE curriculum.student_id = 2002
+                """,
+                Integer.class
+        )).isEqualTo(2);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM training_datas data
+                  JOIN trainings training
+                    ON training.id = data.train_id
+                  JOIN daily_curriculums curriculum
+                    ON curriculum.id = training.daily_curriculum_id
+                 WHERE curriculum.student_id = 2002
+                """,
+                Integer.class
+        )).isEqualTo(2);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM stories WHERE student_id = 2002",
+                Integer.class
+        )).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM character WHERE student_id = 2002",
+                Integer.class
+        )).isEqualTo(1);
+        assertThat(count("tests", 5102L)).isEqualTo(1);
     }
 
     private Integer count(String table, Long id) {
