@@ -31,6 +31,31 @@ docker compose up -d
 - MySQL: `localhost:3306`
 - Redis: `localhost:6379`
 
+### 데모 Backend까지 한 번에 실행
+
+`.env.example`을 `.env`로 복사하고 `AUTH_JWT_SECRET`에 32바이트 이상의
+로컬 전용 임의 문자열을 지정합니다. `.env`는 Git에 포함되지 않습니다.
+
+```powershell
+Copy-Item .env.example .env
+```
+
+그다음 `demo` 프로필을 사용하면 MySQL, Redis, AI Mock과 Spring Boot를 함께
+빌드하고 실행합니다.
+
+```powershell
+docker compose --profile demo up -d --build
+```
+
+- Spring Boot: `http://127.0.0.1:8080`
+- Swagger UI: `http://127.0.0.1:8080/swagger-ui.html`
+- MySQL: `127.0.0.1:3306`
+- Redis: `127.0.0.1:6379`
+- AI Mock: `http://127.0.0.1:8081`
+
+처음 실행하는 빈 `mysql-data` 볼륨에는 Flyway가 schema와 데모 데이터를
+자동으로 적재합니다. 데모 계정과 데이터 범위는 `DEMO.md`를 확인합니다.
+
 Spring Boot에서 사용할 데이터베이스 접속 정보는 로컬 환경 설정에서 관리합니다.
 
 JWT 인증을 사용하는 로컬 실행 환경에는 다음 환경변수가 필요합니다.
@@ -58,6 +83,7 @@ docker compose logs -f
 ```bash
 docker compose logs -f mysql
 docker compose logs -f redis
+docker compose logs -f backend
 ```
 
 ### 중지
