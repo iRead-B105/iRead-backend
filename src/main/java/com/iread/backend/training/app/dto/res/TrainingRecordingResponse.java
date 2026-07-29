@@ -12,6 +12,12 @@ public record TrainingRecordingResponse(
         Double pronScore,
         Double pronunciationConfidence,
         String analysisVersion,
+        int pronunciationThreshold,
+        int attemptNo,
+        int maxAttempts,
+        boolean passed,
+        boolean questionCompleted,
+        boolean canRetry,
         List<WordResult> words,
         LocalDateTime createdAt
 ) {

@@ -8,7 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class WordAttemptScoreCalculatorTest {
 
     private final WordAttemptScoreCalculator calculator = new WordAttemptScoreCalculator(
-            new WordAttemptScoreProperties(100, 300, 700, 200, 600, 250)
+            new WordAttemptScoreProperties(100, 300, 70, 200, 600, 250)
     );
 
     @Test

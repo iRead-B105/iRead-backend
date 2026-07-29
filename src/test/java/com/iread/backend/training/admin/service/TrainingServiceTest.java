@@ -72,7 +72,7 @@ class TrainingServiceTest {
                 wordRepository,
                 wordAttemptLogRepository,
                 new WordAttemptScoreCalculator(
-                        new WordAttemptScoreProperties(100, 300, 700, 200, 600, 250)
+                        new WordAttemptScoreProperties(100, 300, 70, 200, 600, 250)
                 ),
                 gazeWordAnalysisAdapter,
                 aiClient,

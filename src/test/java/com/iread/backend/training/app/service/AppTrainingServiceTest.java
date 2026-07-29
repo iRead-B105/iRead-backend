@@ -227,7 +227,7 @@ class AppTrainingServiceTest {
     }
 
     @Test
-    void revealsCorrectResponseAfterThirdIncorrectAttempt() {
+    void revealsCorrectResponseAfterSecondIncorrectAttempt() {
         StudentEntity student = mock(StudentEntity.class);
         TrainingEntity training = mock(TrainingEntity.class);
         TrainingDataEntity data = mock(TrainingDataEntity.class);
@@ -237,8 +237,7 @@ class AppTrainingServiceTest {
         when(training.getResult()).thenReturn("""
                 {
                   "submissions":[
-                    {"submissionId":"00000000-0000-0000-0000-000000000001","questionNo":1},
-                    {"submissionId":"00000000-0000-0000-0000-000000000002","questionNo":1}
+                    {"submissionId":"00000000-0000-0000-0000-000000000001","questionNo":1}
                   ]
                 }
                 """);
@@ -281,7 +280,7 @@ class AppTrainingServiceTest {
                 )
         );
 
-        assertThat(result.attemptNo()).isEqualTo(3);
+        assertThat(result.attemptNo()).isEqualTo(2);
         assertThat(result.questionCompleted()).isTrue();
         assertThat(result.canRetry()).isFalse();
         assertThat(result.correctResponse().path("response").path("selectedIndex").asInt())
@@ -289,7 +288,7 @@ class AppTrainingServiceTest {
     }
 
     @Test
-    void studentQuestionDoesNotExposeAnswerProfileOrInternalValidation() throws Exception {
+    void studentQuestionExposesAnswerButNotProfileOrInternalValidation() throws Exception {
         StudentEntity student = mock(StudentEntity.class);
         TrainingEntity training = mock(TrainingEntity.class);
         TrainingDataEntity data = mock(TrainingDataEntity.class);
@@ -342,7 +341,8 @@ class AppTrainingServiceTest {
         assertThat(result.question().path("requiredInputs"))
                 .extracting(JsonNode::asText)
                 .containsExactly("VOICE", "GAZE");
-        assertThat(result.question().has("answer")).isFalse();
+        assertThat(result.question().path("answer").path("expectedText").asText())
+                .isEqualTo("아기는 사과를 먹는다.");
         assertThat(result.question().has("analysisTargets")).isFalse();
         assertThat(result.question().has("targetFeatureCodes")).isFalse();
     }
@@ -633,7 +633,7 @@ class AppTrainingServiceTest {
 
     private WordAttemptScoreCalculator scoreCalculator() {
         return new WordAttemptScoreCalculator(
-                new WordAttemptScoreProperties(100, 300, 700, 200, 600, 250)
+                new WordAttemptScoreProperties(100, 300, 70, 200, 600, 250)
         );
     }
 }

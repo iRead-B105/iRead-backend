@@ -48,6 +48,8 @@ import java.util.regex.Pattern;
 public class AppTrainingService {
     private static final Pattern WORD_PATTERN =
             Pattern.compile("[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9]+");
+    private static final int MAX_SELECTION_ATTEMPTS = 2;
+    private static final int MAX_PRONUNCIATION_ATTEMPTS = 2;
 
     private final StudentRepository studentRepository;
     private final TrainingRepository trainingRepository;
@@ -162,6 +164,14 @@ public class AppTrainingService {
                 target.words(),
                 analysis.words()
         );
+        ObjectNode progressResult = readObjectOrNew(training.getResult());
+        int attemptNo = countQuestionPronunciationAnalyses(
+                progressResult,
+                questionNumber
+        ) + 1;
+        if (attemptNo > MAX_PRONUNCIATION_ATTEMPTS) {
+            throw new ConflictException("발음 문항의 최대 시도 횟수를 초과했습니다.");
+        }
         List<StoredPronunciationWord> storedWords = storePronunciationWords(
                 student,
                 training,
@@ -170,6 +180,12 @@ public class AppTrainingService {
                 target,
                 alignment
         );
+        boolean passed = wordAttemptScoreCalculator.meetsPronunciationThreshold(
+                analysis.pronunciationAccuracyScore()
+        ) && storedWords.stream().allMatch(value ->
+                Boolean.TRUE.equals(value.attempt().getCorrect()));
+        boolean questionCompleted = passed || attemptNo == MAX_PRONUNCIATION_ATTEMPTS;
+        boolean canRetry = !questionCompleted;
         recordAttemptLinks(
                 training,
                 questionNumber,
@@ -177,7 +193,10 @@ public class AppTrainingService {
                 target,
                 storedWords,
                 analysis,
-                alignment.insertionCount()
+                alignment.insertionCount(),
+                attemptNo,
+                passed,
+                questionCompleted
         );
         LocalDateTime createdAt = storedWords.stream()
                 .map(value -> value.attempt().getCreatedAt())
@@ -193,6 +212,12 @@ public class AppTrainingService {
                 analysis.pronScore(),
                 analysis.confidence(),
                 analysis.analysisVersion(),
+                wordAttemptScoreCalculator.pronunciationThreshold(),
+                attemptNo,
+                MAX_PRONUNCIATION_ATTEMPTS,
+                passed,
+                questionCompleted,
+                canRetry,
                 storedWords.stream().map(this::toRecordingWordResult).toList(),
                 createdAt
         );
@@ -225,23 +250,25 @@ public class AppTrainingService {
         }
 
         int attemptNo = countQuestionSubmissions(submissions, questionNumber) + 1;
-        if (attemptNo > 3) {
+        if (attemptNo > MAX_SELECTION_ATTEMPTS) {
             throw new ConflictException("훈련 문항의 최대 시도 횟수를 초과했습니다.");
         }
         AppLearningQuestionSupport.Evaluation evaluation =
                 learningQuestionSupport.evaluate(question, request);
-        boolean questionCompleted = evaluation.correct() || attemptNo == 3;
+        boolean questionCompleted =
+                evaluation.correct() || attemptNo == MAX_SELECTION_ATTEMPTS;
         boolean canRetry = !questionCompleted;
-        String hint = evaluation.correct() || attemptNo == 3 ? null : hint(attemptNo);
-        JsonNode correctResponse = !evaluation.correct() && attemptNo == 3
+        String hint = evaluation.correct() ? null : hint(attemptNo);
+        JsonNode correctResponse =
+                !evaluation.correct() && attemptNo == MAX_SELECTION_ATTEMPTS
                 ? evaluation.correctResponse()
                 : null;
         TrainingFeedbackResponse feedback = new TrainingFeedbackResponse(
                 "TRAINING_FEEDBACK",
                 request.submissionId(),
                 attemptNo,
-                3,
-                3 - attemptNo,
+                MAX_SELECTION_ATTEMPTS,
+                MAX_SELECTION_ATTEMPTS - attemptNo,
                 evaluation.correct(),
                 questionCompleted,
                 canRetry,
@@ -484,7 +511,8 @@ public class AppTrainingService {
             );
             int pronunciationAccuracyScore =
                     (int) Math.round(analyzed.scoreOrZero() * 10);
-            boolean correct = pronunciationAccuracyScore >= 700
+            boolean correct = wordAttemptScoreCalculator
+                    .meetsPronunciationThreshold(pronunciationAccuracyScore)
                     && "NONE".equalsIgnoreCase(analyzed.errorType());
             int totalScore = wordAttemptScoreCalculator.calculate(
                     pronunciationAccuracyScore,
@@ -559,7 +587,10 @@ public class AppTrainingService {
             RecordingTarget target,
             List<StoredPronunciationWord> storedWords,
             PronunciationAnalysisResult analysis,
-            int insertionCount
+            int insertionCount,
+            int attemptNo,
+            boolean passed,
+            boolean questionCompleted
     ) {
         ObjectNode result = readObjectOrNew(training.getResult());
         result.put("schemaVersion", 2);
@@ -606,6 +637,9 @@ public class AppTrainingService {
         analysisLink.put("confidence", analysis.confidence());
         analysisLink.put("analysisVersion", analysis.analysisVersion());
         analysisLink.put("insertionCount", insertionCount);
+        analysisLink.put("attemptNo", attemptNo);
+        analysisLink.put("passed", passed);
+        analysisLink.put("questionCompleted", questionCompleted);
         training.recordProgressResult(writeJson(result));
     }
 
@@ -783,6 +817,19 @@ public class AppTrainingService {
         return count;
     }
 
+    private int countQuestionPronunciationAnalyses(
+            ObjectNode result,
+            int questionNumber
+    ) {
+        int count = 0;
+        for (JsonNode analysis : result.withArray("pronunciationAnalyses")) {
+            if (analysis.path("questionNo").asInt() == questionNumber) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     private boolean sameSubmission(
             JsonNode existing,
             int questionNumber,
@@ -829,9 +876,10 @@ public class AppTrainingService {
                 completed.add(question.path("questionNo").asInt());
             }
         });
-        result.withArray("wordAttempts").forEach(attempt -> {
-            if (attempt.path("isFinal").asBoolean(true) && attempt.path("questionNo").asInt() > 0) {
-                completed.add(attempt.path("questionNo").asInt());
+        result.withArray("pronunciationAnalyses").forEach(analysis -> {
+            if (analysis.path("questionCompleted").asBoolean(false)
+                    && analysis.path("questionNo").asInt() > 0) {
+                completed.add(analysis.path("questionNo").asInt());
             }
         });
         return completed;

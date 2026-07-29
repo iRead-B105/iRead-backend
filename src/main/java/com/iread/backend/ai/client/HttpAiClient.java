@@ -4,10 +4,12 @@ import com.iread.backend.ai.dto.req.ContinueStoryRequest;
 import com.iread.backend.ai.dto.req.EvaluateTrainingRequest;
 import com.iread.backend.ai.dto.req.GenerateStoryRequest;
 import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
+import com.iread.backend.ai.dto.req.GenerateImageRequest;
 import com.iread.backend.ai.dto.req.SpeechSynthesisRequest;
 import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
 import com.iread.backend.ai.dto.res.GenerateStoryResponse;
 import com.iread.backend.ai.dto.res.GenerateTrainingResponse;
+import com.iread.backend.ai.dto.res.GenerateImageResponse;
 import com.iread.backend.ai.dto.res.SpeechSynthesisResponse;
 import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
 import com.iread.backend.ai.config.AiClientProperties;
@@ -41,6 +43,7 @@ public class HttpAiClient implements AiClient {
     static final String TRANSCRIBE_SPEECH_PATH = "/api/v1/speech/transcribe";
     static final String ANALYZE_PRONUNCIATION_PATH = "/api/v1/speech/pronunciation/analyze";
     static final String SYNTHESIZE_SPEECH_PATH = "/api/v1/speech/synthesize";
+    static final String GENERATE_IMAGE_PATH = "/api/v1/images/generate";
 
     private final RestClient restClient;
     private final AiClientProperties properties;
@@ -156,6 +159,43 @@ public class HttpAiClient implements AiClient {
                 request.schemaVersion(),
                 request.currentProgress()
         );
+    }
+
+    @Override
+    public GenerateImageResponse generateImage(GenerateImageRequest request) {
+        try {
+            GenerateImageResponse response = restClient.post()
+                    .uri(GENERATE_IMAGE_PATH)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .header("Idempotency-Key", request.requestId())
+                    .body(request)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (httpRequest, httpResponse) -> {
+                        throw new AiClientException(
+                                "AI 서버가 이미지 생성 오류를 반환했습니다.",
+                                httpResponse.getStatusCode().value()
+                        );
+                    })
+                    .requiredBody(GenerateImageResponse.class);
+            if (!Objects.equals(request.requestId(), response.requestId())
+                    || response.imageUrl() == null
+                    || response.imageUrl().isBlank()) {
+                throw new AiClientException("AI 이미지 생성 응답 값이 유효하지 않습니다.");
+            }
+            String publicImageUrl = properties.baseUrl()
+                    .resolve(response.imageUrl())
+                    .toString();
+            return new GenerateImageResponse(
+                    response.requestId(),
+                    publicImageUrl,
+                    response.provider()
+            );
+        } catch (AiClientException exception) {
+            throw exception;
+        } catch (RestClientException exception) {
+            throw new AiClientException("AI 서버와 이미지 생성 통신 중 실패했습니다.", exception);
+        }
     }
 
     @Override

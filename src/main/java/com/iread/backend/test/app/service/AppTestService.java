@@ -140,7 +140,8 @@ public class AppTestService {
                 ));
         int pronunciationAccuracyScore =
                 (int) Math.round(wordResult.scoreOrZero() * 10);
-        boolean correct = pronunciationAccuracyScore >= 700
+        boolean correct = wordAttemptScoreCalculator
+                .meetsPronunciationThreshold(pronunciationAccuracyScore)
                 && "NONE".equalsIgnoreCase(wordResult.errorType());
         int totalScore = wordAttemptScoreCalculator.calculate(
                 pronunciationAccuracyScore,

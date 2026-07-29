@@ -14,9 +14,9 @@ public record WordAttemptScoreProperties(
     public WordAttemptScoreProperties {
         requireNonNegative(retryPenalty, "retry-penalty");
         requireNonNegative(lowPronunciationPenalty, "low-pronunciation-penalty");
-        if (pronunciationThreshold < 0 || pronunciationThreshold > 1000) {
+        if (pronunciationThreshold < 0 || pronunciationThreshold > 100) {
             throw new IllegalArgumentException(
-                    "word-attempt.score.pronunciation-threshold는 0~1000이어야 합니다."
+                    "word-attempt.score.pronunciation-threshold는 0~100이어야 합니다."
             );
         }
         requireNonNegative(incorrectPenalty, "incorrect-penalty");

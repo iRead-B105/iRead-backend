@@ -33,10 +33,22 @@ public class WordAttemptScoreCalculator {
 
         if (!hasAudioData || pronunciationAccuracyScore == null) {
             deduction += properties.missingAudioPenalty();
-        } else if (pronunciationAccuracyScore < properties.pronunciationThreshold()) {
+        } else if (!meetsPronunciationThreshold(pronunciationAccuracyScore)) {
             deduction += properties.lowPronunciationPenalty();
         }
 
         return (int) Math.max(MINIMUM_SCORE, INITIAL_SCORE - deduction);
+    }
+
+    public boolean meetsPronunciationThreshold(int scaledAccuracyScore) {
+        return scaledAccuracyScore >= properties.pronunciationThreshold() * 10;
+    }
+
+    public boolean meetsPronunciationThreshold(double accuracyScore) {
+        return accuracyScore >= properties.pronunciationThreshold();
+    }
+
+    public int pronunciationThreshold() {
+        return properties.pronunciationThreshold();
     }
 }
