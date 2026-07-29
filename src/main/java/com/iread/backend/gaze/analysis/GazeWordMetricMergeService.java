@@ -120,6 +120,14 @@ public class GazeWordMetricMergeService {
                             metric.questionNo()
                     )
                     .stream()
+                    .filter(attempt -> java.util.Objects.equals(
+                            attempt.getTargetIndex(),
+                            metric.targetIndex()
+                    ))
+                    .filter(attempt -> java.util.Objects.equals(
+                            attempt.getTokenIndex(),
+                            metric.tokenIndex()
+                    ))
                     .filter(attempt -> sameText(
                             metric.text(),
                             attempt.getSurfaceText()

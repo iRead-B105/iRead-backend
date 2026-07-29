@@ -24,6 +24,10 @@ auth.jwt.secret=<32-byte-or-longer-local-secret>
 `샛별`, `한결`이다.
 `demo` 프로필은 Story·훈련 생성, 훈련 평가, STT와 TTS를 외부 AI 서버 없이 재현한다.
 
+학습자 App에서 실력도전을 처음 열면 기존 데모 검사 커리큘럼을 분류별 3문항, 총 9문항으로
+보충한다. 각 문항의 훈련 템플릿은 분류 안에서 한 번만 무작위 선택하고, Mock AI가 생성한
+문항을 `test_datas`에 저장하므로 새로 고치거나 재접속해도 다시 추첨하지 않는다.
+
 ## 초기화
 
 데모 데이터베이스를 비운 뒤 다시 실행하면 Flyway의 기본 스키마와 demo seed migration들이

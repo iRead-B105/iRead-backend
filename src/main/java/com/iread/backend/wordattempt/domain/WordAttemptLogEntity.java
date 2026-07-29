@@ -164,6 +164,7 @@ public class WordAttemptLogEntity {
             StudentEntity student,
             WordEntity word,
             StudentTestEntity test,
+            String surfaceText,
             boolean hasAudioData,
             Integer pronunciationAccuracyScore,
             Integer speechStartOffsetMs,
@@ -171,17 +172,19 @@ public class WordAttemptLogEntity {
             Boolean skipped,
             Boolean correct,
             Integer totalScore,
-            Integer questionNo
+            Integer questionNo,
+            Integer targetIndex,
+            Integer tokenIndex
     ) {
         validateScore(pronunciationAccuracyScore, "단어 발음 정확도 점수");
         validateScore(totalScore, "단어 종합 점수");
-        validatePosition(questionNo, null, null);
+        validatePosition(questionNo, targetIndex, tokenIndex);
         WordAttemptLogEntity attempt = new WordAttemptLogEntity();
         attempt.student = student;
         attempt.word = word;
         attempt.test = test;
         attempt.useLocation = WordAttemptUseLocation.TEST;
-        attempt.surfaceText = word.getContent();
+        attempt.surfaceText = surfaceText;
         attempt.hasAudioData = hasAudioData;
         attempt.skipped = skipped;
         attempt.regressionCount = 0;
@@ -191,6 +194,8 @@ public class WordAttemptLogEntity {
         attempt.correct = correct;
         attempt.totalScore = totalScore;
         attempt.questionNo = questionNo;
+        attempt.targetIndex = targetIndex;
+        attempt.tokenIndex = tokenIndex;
         attempt.finalAttempt = true;
         return attempt;
     }

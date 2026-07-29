@@ -17,8 +17,12 @@ import com.iread.backend.test.app.dto.req.TestSubmissionRequest;
 import com.iread.backend.test.domain.TestDataEntity;
 import com.iread.backend.test.domain.StudentTestEntity;
 import com.iread.backend.test.domain.TestStatus;
+import com.iread.backend.test.domain.TestCurriculumEntity;
 import com.iread.backend.test.repository.StudentTestRepository;
+import com.iread.backend.test.repository.TestCurriculumRepository;
 import com.iread.backend.test.repository.TestDataRepository;
+import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
+import com.iread.backend.training.repository.TrainingTemplateRepository;
 import com.iread.backend.training.repository.WordRepository;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
@@ -51,7 +55,10 @@ import static org.mockito.Mockito.when;
 class AppTestServiceTest {
     @Mock StudentRepository studentRepository;
     @Mock StudentTestRepository testRepository;
+    @Mock TestCurriculumRepository testCurriculumRepository;
     @Mock TestDataRepository testDataRepository;
+    @Mock TrainingTemplateRepository trainingTemplateRepository;
+    @Mock PersonalizedTrainingGenerationService trainingGenerationService;
     @Mock WordRepository wordRepository;
     @Mock WordAttemptLogRepository wordAttemptLogRepository;
     @Mock PronunciationAnalysisAdapter pronunciationAnalysisAdapter;
@@ -60,6 +67,41 @@ class AppTestServiceTest {
     @Mock WordAttemptScoreCalculator wordAttemptScoreCalculator;
     @Mock ObjectMapper objectMapper;
     @InjectMocks AppTestService appTestService;
+
+    @Test
+    void returnsThreeTracksWithThreePersistedQuestionsEach() {
+        StudentEntity student = mock(StudentEntity.class);
+        TestCurriculumEntity curriculum = mock(TestCurriculumEntity.class);
+        when(studentRepository.findByIdAndTeacherIdForUpdate(20L, 1L))
+                .thenReturn(Optional.of(student));
+        when(testCurriculumRepository
+                .findFirstByStudentIdOrderByCreatedAtDescIdDesc(20L))
+                .thenReturn(Optional.of(curriculum));
+        when(curriculum.getId()).thenReturn(50L);
+        List<StudentTestEntity> tests = java.util.stream.IntStream.rangeClosed(1, 9)
+                .mapToObj(sequence -> {
+                    StudentTestEntity test = mock(StudentTestEntity.class);
+                    when(test.getStatus()).thenReturn(
+                            sequence == 1 ? TestStatus.COMPLETED : TestStatus.NOT_STARTED
+                    );
+                    return test;
+                })
+                .toList();
+        when(tests.get(1).getId()).thenReturn(102L);
+        when(tests.get(3).getId()).thenReturn(104L);
+        when(tests.get(6).getId()).thenReturn(107L);
+        when(testRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(50L))
+                .thenReturn(tests);
+
+        var plan = appTestService.getChallengePlan(1L, 20L);
+
+        assertThat(plan.totalQuestions()).isEqualTo(9);
+        assertThat(plan.completedQuestions()).isEqualTo(1);
+        assertThat(plan.tracks()).hasSize(3);
+        assertThat(plan.tracks()).allSatisfy(track ->
+                assertThat(track.totalQuestions()).isEqualTo(3));
+        assertThat(plan.tracks().getFirst().nextTestId()).isEqualTo(102L);
+    }
 
     @Test
     void startsCurrentNotStartedTest() {
@@ -321,9 +363,11 @@ class AppTestServiceTest {
         assertThat(stored.getSpeechStartOffsetMs()).isEqualTo(120);
         assertThat(stored.getSpeechEndOffsetMs()).isEqualTo(460);
         assertThat(stored.getTotalScore()).isNull();
-        assertThat(response.pronunciationAccuracyScore()).isZero();
+        assertThat(response.pronunciationAccuracyScore()).isEqualTo(45.0);
         assertThat(response.totalScore()).isNull();
         assertThat(response.pronunciationErrorType()).isEqualTo("Omission");
+        assertThat(response.words()).singleElement()
+                .satisfies(result -> assertThat(result.pronunciationAccuracyScore()).isZero());
 
         ArgumentCaptor<String> resultCaptor = ArgumentCaptor.forClass(String.class);
         verify(test).updateResult(resultCaptor.capture());
