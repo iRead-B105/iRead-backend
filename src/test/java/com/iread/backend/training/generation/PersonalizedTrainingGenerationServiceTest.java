@@ -64,6 +64,10 @@ class PersonalizedTrainingGenerationServiceTest {
             JsonNode question = generated.path("questions").get(index);
             assertThat(question.path("questionNo").asInt()).isEqualTo(index + 1);
             assertThat(question.path("type").asText()).isEqualTo("SENTENCE_READING");
+            assertThat(question.path("requiredInputs")).containsExactly(
+                    objectMapper.getNodeFactory().textNode("VOICE"),
+                    objectMapper.getNodeFactory().textNode("GAZE")
+            );
             assertThat(question.path("content").isObject()).isTrue();
             assertThat(question.path("answer").isObject()).isTrue();
             assertThat(question.path("analysisTargets").isArray()).isTrue();

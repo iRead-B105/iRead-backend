@@ -20,6 +20,8 @@ import com.iread.backend.training.domain.WordEntity;
 import com.iread.backend.training.repository.TrainingDataRepository;
 import com.iread.backend.training.repository.TrainingRepository;
 import com.iread.backend.training.repository.WordRepository;
+import com.iread.backend.training.input.TrainingInputRequirementService;
+import com.iread.backend.training.input.TrainingInputType;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
 import com.iread.backend.wordattempt.service.WordAttemptScoreCalculator;
@@ -46,6 +48,7 @@ public class AppTrainingService {
     private final PronunciationAnalysisAdapter pronunciationAnalysisAdapter;
     private final AudioUploadPolicy audioUploadPolicy;
     private final WordAttemptScoreCalculator wordAttemptScoreCalculator;
+    private final TrainingInputRequirementService trainingInputRequirementService;
     private final TrainingService trainingService;
     private final ObjectMapper objectMapper;
 
@@ -120,6 +123,11 @@ public class AppTrainingService {
     ) {
         StudentEntity student = findOwnedStudent(teacherId, studentId);
         TrainingEntity training = findInProgressTrainingForUpdate(studentId, trainingId);
+        trainingInputRequirementService.requireQuestionInput(
+                trainingId,
+                questionNumber,
+                TrainingInputType.VOICE
+        );
         WordEntity word = findWord(request.wordId());
         validateRecordingTarget(
                 trainingId,
@@ -249,6 +257,7 @@ public class AppTrainingService {
             Long trainingId,
             CompleteTrainingRequest request
     ) {
+        findOwnedTraining(teacherId, studentId, trainingId);
         var accuracy = trainingService.completeTraining(
                 teacherId,
                 studentId,
@@ -457,7 +466,13 @@ public class AppTrainingService {
             return question.deepCopy();
         }
         ObjectNode result = objectMapper.createObjectNode();
-        for (String field : java.util.List.of("questionNo", "type", "content", "text")) {
+        for (String field : java.util.List.of(
+                "questionNo",
+                "type",
+                "requiredInputs",
+                "content",
+                "text"
+        )) {
             if (question.has(field)) {
                 result.set(field, question.get(field).deepCopy());
             }

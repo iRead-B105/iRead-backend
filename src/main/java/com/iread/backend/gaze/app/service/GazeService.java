@@ -18,6 +18,8 @@ import com.iread.backend.test.domain.StudentTestEntity;
 import com.iread.backend.test.repository.StudentTestRepository;
 import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.repository.TrainingRepository;
+import com.iread.backend.training.input.TrainingInputRequirementService;
+import com.iread.backend.training.input.TrainingInputType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +37,7 @@ public class GazeService {
     private final StoryRepository storyRepository;
     private final GazeSessionRepository gazeSessionRepository;
     private final GazeAnalysisResultRepository gazeAnalysisResultRepository;
+    private final TrainingInputRequirementService trainingInputRequirementService;
     private final ObjectMapper objectMapper;
 
     public GazeDeviceStatusResponse getDeviceStatus(Long teacherId, Long studentId) {
@@ -65,7 +68,13 @@ public class GazeService {
 
         switch (request.contentType()) {
             case TEST -> test = findOwnedTest(request.studentId(), request.testId());
-            case TRAINING -> training = findOwnedTraining(request.studentId(), request.trainingId());
+            case TRAINING -> {
+                training = findOwnedTraining(request.studentId(), request.trainingId());
+                trainingInputRequirementService.requireTrainingInput(
+                        training.getId(),
+                        TrainingInputType.GAZE
+                );
+            }
             case STORY -> story = findOwnedStory(request.studentId(), request.storyId());
         }
 
@@ -96,6 +105,14 @@ public class GazeService {
         if (request.endStatus() != GazeSessionStatus.COMPLETED
                 && request.endStatus() != GazeSessionStatus.FAILED) {
             throw new IllegalArgumentException("종료 상태는 COMPLETED 또는 FAILED만 사용할 수 있습니다.");
+        }
+        if (request.endStatus() == GazeSessionStatus.COMPLETED
+                && (request.data() == null
+                || !request.data().isArray()
+                || request.data().isEmpty())) {
+            throw new IllegalArgumentException(
+                    "완료된 시선 세션에는 한 건 이상의 원시 시선 데이터가 필요합니다."
+            );
         }
         GazeSessionEntity gazeSession = findOwnedGazeSessionForUpdate(gazeSessionId, request.studentId());
         requireRunning(gazeSession);

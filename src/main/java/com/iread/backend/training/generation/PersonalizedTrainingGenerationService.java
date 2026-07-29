@@ -5,6 +5,8 @@ import com.iread.backend.readingfeature.repository.StudentFeatureProfileReposito
 import com.iread.backend.training.analysis.KoreanG2pEngine;
 import com.iread.backend.training.analysis.KoreanTextAnalyzer;
 import com.iread.backend.training.domain.TrainingEntity;
+import com.iread.backend.training.input.TrainingInputPolicy;
+import com.iread.backend.training.input.TrainingInputType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
@@ -39,6 +41,10 @@ public class PersonalizedTrainingGenerationService {
     public ObjectNode generate(TrainingEntity training) {
         ObjectNode prompt = parsePrompt(training.getTrainingTemplate().getPrompt());
         TrainingType type = TrainingType.from(prompt.path("trainingType").asText());
+        Set<TrainingInputType> requiredInputs = TrainingInputPolicy.resolve(
+                type,
+                prompt.path("requiredInputs")
+        );
         List<StudentFeatureProfileEntity> profiles = compatibleWeakProfiles(
                 training.getDailyCurriculum().getStudent().getId(),
                 prompt
@@ -95,7 +101,8 @@ public class PersonalizedTrainingGenerationService {
                         accepted.size() + 1,
                         type,
                         candidate,
-                        targetCodes
+                        targetCodes,
+                        requiredInputs
                 );
                 List<CandidateValidationIssue> featureIssues = featureIssues(
                         index,

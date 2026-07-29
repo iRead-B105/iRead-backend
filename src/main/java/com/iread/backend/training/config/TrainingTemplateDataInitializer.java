@@ -1,6 +1,8 @@
 package com.iread.backend.training.config;
 
 import lombok.RequiredArgsConstructor;
+import com.iread.backend.training.generation.TrainingType;
+import com.iread.backend.training.input.TrainingInputPolicy;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
 
@@ -57,12 +60,15 @@ public class TrainingTemplateDataInitializer implements ApplicationRunner {
 
     private void insertTemplateWhenMissing(JsonNode seed) {
         long id = seed.path("id").asLong();
+        JsonNode prompt = seed.path("prompt").deepCopy();
+        TrainingType type = TrainingType.from(prompt.path("trainingType").asText());
+        TrainingInputPolicy.parseAndValidate(type, prompt.path("requiredInputs"));
+        ((tools.jackson.databind.node.ObjectNode) prompt).put("promptVersion", PROMPT_VERSION);
+        String serializedPrompt = writePrompt(prompt);
         if (exists("training_templates", id)) {
+            addInputContractToExistingPrompt(id, type, prompt);
             return;
         }
-
-        JsonNode prompt = seed.path("prompt").deepCopy();
-        ((tools.jackson.databind.node.ObjectNode) prompt).put("promptVersion", PROMPT_VERSION);
         jdbcTemplate.update("""
                 INSERT INTO training_templates (id, curriculum_unit_id, name, prompt, sequence_no)
                 VALUES (?, ?, ?, ?, ?)
@@ -70,8 +76,42 @@ public class TrainingTemplateDataInitializer implements ApplicationRunner {
                 id,
                 seed.path("curriculumUnitId").asLong(),
                 seed.path("name").asText(),
-                writePrompt(prompt),
+                serializedPrompt,
                 seed.path("sequenceNo").asInt()
+        );
+    }
+
+    private void addInputContractToExistingPrompt(
+            long id,
+            TrainingType expectedType,
+            JsonNode seedPrompt
+    ) {
+        String serialized = jdbcTemplate.queryForObject(
+                "SELECT prompt FROM training_templates WHERE id = ?",
+                String.class,
+                id
+        );
+        JsonNode current = readPrompt(serialized);
+        if (!(current instanceof ObjectNode currentPrompt)) {
+            throw new IllegalStateException("기존 훈련 템플릿 prompt는 JSON 객체여야 합니다.");
+        }
+        TrainingType currentType = TrainingType.from(
+                currentPrompt.path("trainingType").asText()
+        );
+        if (currentType != expectedType) {
+            throw new IllegalStateException(
+                    "기존 훈련 템플릿의 trainingType이 seed와 일치하지 않습니다: " + id
+            );
+        }
+        currentPrompt.set(
+                "requiredInputs",
+                seedPrompt.path("requiredInputs").deepCopy()
+        );
+        currentPrompt.put("promptVersion", PROMPT_VERSION);
+        jdbcTemplate.update(
+                "UPDATE training_templates SET prompt = ? WHERE id = ?",
+                writePrompt(currentPrompt),
+                id
         );
     }
 
@@ -89,6 +129,14 @@ public class TrainingTemplateDataInitializer implements ApplicationRunner {
             return objectMapper.writeValueAsString(prompt);
         } catch (Exception exception) {
             throw new IllegalStateException("훈련 템플릿 prompt JSON 생성에 실패했습니다.", exception);
+        }
+    }
+
+    private JsonNode readPrompt(String prompt) {
+        try {
+            return objectMapper.readTree(prompt);
+        } catch (Exception exception) {
+            throw new IllegalStateException("기존 훈련 템플릿 prompt JSON을 읽지 못했습니다.", exception);
         }
     }
 }
