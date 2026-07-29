@@ -4,6 +4,7 @@ import com.iread.backend.training.analysis.AnalyzedWord;
 import com.iread.backend.training.analysis.FeatureOccurrence;
 import com.iread.backend.training.analysis.KoreanTextAnalysis;
 import com.iread.backend.training.analysis.KoreanTextAnalyzer;
+import com.iread.backend.training.input.TrainingInputType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
@@ -30,7 +31,8 @@ public class TrainingQuestionAssembler {
             int questionNo,
             TrainingType type,
             JsonNode candidate,
-            List<String> targetFeatureCodes
+            List<String> targetFeatureCodes,
+            Set<TrainingInputType> requiredInputs
     ) {
         if (!candidate.isObject()) {
             throw new IllegalArgumentException("훈련 후보 문항은 JSON 객체여야 합니다.");
@@ -66,6 +68,11 @@ public class TrainingQuestionAssembler {
         ObjectNode question = objectMapper.createObjectNode();
         question.put("questionNo", questionNo);
         question.put("type", type.name());
+        ArrayNode inputArray = question.putArray("requiredInputs");
+        requiredInputs.stream()
+                .sorted()
+                .map(Enum::name)
+                .forEach(inputArray::add);
         question.set("content", content);
         question.set("answer", answer);
         question.set("analysisTargets", analysisTargets);

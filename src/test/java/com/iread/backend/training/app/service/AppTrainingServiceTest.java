@@ -15,6 +15,7 @@ import com.iread.backend.training.domain.WordEntity;
 import com.iread.backend.training.repository.TrainingDataRepository;
 import com.iread.backend.training.repository.TrainingRepository;
 import com.iread.backend.training.repository.WordRepository;
+import com.iread.backend.training.input.TrainingInputRequirementService;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
 import com.iread.backend.wordattempt.config.WordAttemptScoreProperties;
@@ -27,6 +28,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.util.unit.DataSize;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -51,6 +53,7 @@ class AppTrainingServiceTest {
     @Mock PronunciationAnalysisAdapter pronunciationAnalysisAdapter;
     @Mock AudioUploadPolicy audioUploadPolicy;
     @Mock WordAttemptScoreCalculator wordAttemptScoreCalculator;
+    @Mock TrainingInputRequirementService trainingInputRequirementService;
     @Mock TrainingService trainingService;
     @Mock ObjectMapper objectMapper;
     @InjectMocks AppTrainingService appTrainingService;
@@ -127,6 +130,7 @@ class AppTrainingServiceTest {
                   "questions":[{
                     "questionNo":1,
                     "type":"SENTENCE_READING",
+                    "requiredInputs":["VOICE","GAZE"],
                     "content":{"sentence":"아기는 사과를 먹는다."},
                     "answer":{"expectedText":"아기는 사과를 먹는다."},
                     "analysisTargets":[{"text":"아기는 사과를 먹는다."}],
@@ -144,6 +148,7 @@ class AppTrainingServiceTest {
                 pronunciationAnalysisAdapter,
                 audioUploadPolicy,
                 wordAttemptScoreCalculator,
+                trainingInputRequirementService,
                 trainingService,
                 JsonMapper.builder().build()
         );
@@ -152,6 +157,9 @@ class AppTrainingServiceTest {
 
         assertThat(result.question().path("content").path("sentence").asText())
                 .isEqualTo("아기는 사과를 먹는다.");
+        assertThat(result.question().path("requiredInputs"))
+                .extracting(JsonNode::asText)
+                .containsExactly("VOICE", "GAZE");
         assertThat(result.question().has("answer")).isFalse();
         assertThat(result.question().has("analysisTargets")).isFalse();
         assertThat(result.question().has("targetFeatureCodes")).isFalse();
@@ -204,6 +212,7 @@ class AppTrainingServiceTest {
                         "audio/webm,audio/wav,audio/mpeg,audio/mp4"
                 ),
                 scoreCalculator(),
+                trainingInputRequirementService,
                 trainingService,
                 JsonMapper.builder().build()
         );
@@ -224,6 +233,11 @@ class AppTrainingServiceTest {
 
         var result = service.saveRecording(1L, 20L, 30L, 1, request);
 
+        verify(trainingInputRequirementService).requireQuestionInput(
+                30L,
+                1,
+                com.iread.backend.training.input.TrainingInputType.VOICE
+        );
         assertThat(result.attemptId()).isEqualTo(50L);
         assertThat(result.pronunciationAccuracyScore()).isEqualTo(54.2);
         assertThat(result.pronunciationErrorType()).isEqualTo("PRONUNCIATION_MISMATCH");
@@ -270,6 +284,7 @@ class AppTrainingServiceTest {
                         "audio/webm,audio/wav,audio/mpeg,audio/mp4"
                 ),
                 scoreCalculator(),
+                trainingInputRequirementService,
                 trainingService,
                 JsonMapper.builder().build()
         );

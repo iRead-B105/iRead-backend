@@ -2,6 +2,7 @@ package com.iread.backend.gaze.app.service;
 
 import com.iread.backend.exception.ConflictException;
 import com.iread.backend.gaze.app.dto.req.GazeAnalysisResultRequest;
+import com.iread.backend.gaze.app.dto.req.EndGazeSessionRequest;
 import com.iread.backend.gaze.domain.GazeAnalysisResultEntity;
 import com.iread.backend.gaze.domain.GazeCalibrationStatus;
 import com.iread.backend.gaze.domain.GazeContentType;
@@ -17,6 +18,8 @@ import com.iread.backend.test.domain.StudentTestEntity;
 import com.iread.backend.test.repository.StudentTestRepository;
 import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.repository.TrainingRepository;
+import com.iread.backend.training.input.TrainingInputRequirementService;
+import com.iread.backend.training.input.TrainingInputType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -41,6 +45,7 @@ class GazeServiceTest {
     @Mock StoryRepository storyRepository;
     @Mock GazeSessionRepository gazeSessionRepository;
     @Mock GazeAnalysisResultRepository gazeAnalysisResultRepository;
+    @Mock TrainingInputRequirementService trainingInputRequirementService;
 
     private GazeService gazeService;
 
@@ -53,6 +58,7 @@ class GazeServiceTest {
                 storyRepository,
                 gazeSessionRepository,
                 gazeAnalysisResultRepository,
+                trainingInputRequirementService,
                 new JsonMapper()
         );
     }
@@ -128,6 +134,53 @@ class GazeServiceTest {
         assertThatThrownBy(() -> gazeService.startSession(1L, request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("contentType과 콘텐츠 식별자가 일치하지 않습니다.");
+    }
+
+    @Test
+    void rejectsTrainingGazeSessionWhenQuestionDoesNotRequireGaze() {
+        StudentEntity student = mock(StudentEntity.class);
+        TrainingEntity training = mock(TrainingEntity.class);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L))
+                .thenReturn(Optional.of(student));
+        when(trainingRepository.findByIdAndDailyCurriculumStudentId(50L, 10L))
+                .thenReturn(Optional.of(training));
+        when(training.getId()).thenReturn(50L);
+        doThrow(new ConflictException("이 훈련은 GAZE 입력을 사용하지 않습니다."))
+                .when(trainingInputRequirementService)
+                .requireTrainingInput(50L, TrainingInputType.GAZE);
+        StartGazeSessionRequest request = new StartGazeSessionRequest(
+                10L,
+                GazeContentType.TRAINING,
+                null,
+                50L,
+                null,
+                GazeCalibrationStatus.SUCCESS
+        );
+
+        assertThatThrownBy(() -> gazeService.startSession(1L, request))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("GAZE 입력을 사용하지 않습니다");
+
+        verify(gazeSessionRepository, never()).saveAndFlush(
+                org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    @Test
+    void rejectsCompletedGazeSessionWithoutRawInput() {
+        StudentEntity student = mock(StudentEntity.class);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L))
+                .thenReturn(Optional.of(student));
+
+        assertThatThrownBy(() -> gazeService.endSession(
+                1L,
+                30L,
+                new EndGazeSessionRequest(10L, GazeSessionStatus.COMPLETED, null)
+        )).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("원시 시선 데이터");
+
+        verify(gazeSessionRepository, never())
+                .findByIdAndStudentIdForUpdate(30L, 10L);
     }
 
     @Test

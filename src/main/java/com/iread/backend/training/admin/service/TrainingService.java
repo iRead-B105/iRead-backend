@@ -18,6 +18,7 @@ import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.*;
 import com.iread.backend.training.curriculum.PersonalizedCurriculumPlanner;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
+import com.iread.backend.training.input.TrainingInputRequirementService;
 import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.admin.dto.res.*;
@@ -55,6 +56,7 @@ public class TrainingService {
     private final PersonalizedTrainingGenerationService personalizedTrainingGenerationService;
     private final StudentFeatureProfileService studentFeatureProfileService;
     private final PersonalizedCurriculumPlanner personalizedCurriculumPlanner;
+    private final TrainingInputRequirementService trainingInputRequirementService;
     private final ObjectMapper objectMapper;
 
     public List<CurriculumLogResponse> getCurriculumLogs(Long teacherId, Long studentId) {
@@ -260,6 +262,7 @@ public class TrainingService {
         if (result == null || !result.isObject()) {
             throw new IllegalArgumentException("훈련 결과는 JSON 객체여야 합니다.");
         }
+        trainingInputRequirementService.validateCompletion(trainingId);
         ObjectNode finalResult = (ObjectNode) result.deepCopy();
         if (training.getResult() != null && !training.getResult().isBlank()) {
             JsonNode progressAttempts = parseObject(training.getResult()).path("wordAttempts");

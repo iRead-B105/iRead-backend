@@ -13,6 +13,7 @@ import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.repository.*;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
+import com.iread.backend.training.input.TrainingInputRequirementService;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.domain.WordAttemptUseLocation;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
@@ -55,6 +56,7 @@ class TrainingServiceTest {
     @Mock PersonalizedTrainingGenerationService personalizedTrainingGenerationService;
     @Mock StudentFeatureProfileService studentFeatureProfileService;
     @Mock PersonalizedCurriculumPlanner personalizedCurriculumPlanner;
+    @Mock TrainingInputRequirementService trainingInputRequirementService;
 
     private TrainingService trainingService;
 
@@ -76,6 +78,7 @@ class TrainingServiceTest {
                 personalizedTrainingGenerationService,
                 studentFeatureProfileService,
                 personalizedCurriculumPlanner,
+                trainingInputRequirementService,
                 JsonMapper.builder().build()
         );
     }
@@ -339,6 +342,7 @@ class TrainingServiceTest {
         verify(aiClient).evaluateTraining(captor.capture());
         assertThat(captor.getValue().requestId()).isEqualTo("training-evaluation-1");
         assertThat(captor.getValue().result()).isEqualTo(resultJson);
+        verify(trainingInputRequirementService).validateCompletion(1L);
         verify(personalizedCurriculumPlanner).createNextIfAbsent(any(StudentEntity.class));
     }
 

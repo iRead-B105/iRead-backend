@@ -41,6 +41,10 @@ class TrainingSeedInitializerTest {
         );
         var json = objectMapper.readTree(prompt);
         assertThat(json.path("trainingType").asText()).isEqualTo("SHORT_STORY_READING");
+        assertThat(json.path("requiredInputs")).containsExactly(
+                objectMapper.getNodeFactory().textNode("VOICE"),
+                objectMapper.getNodeFactory().textNode("GAZE")
+        );
         assertThat(json.path("promptVersion").asText()).isEqualTo("TRAINING_PROMPT_V1");
         assertThat(json.path("additionalPrompt").asText()).isNotBlank();
         assertThat(json.path("outputTemplate").path("type").asText())
@@ -53,6 +57,11 @@ class TrainingSeedInitializerTest {
     void rerunDoesNotOverwriteExistingRows() {
         jdbcTemplate.update("UPDATE reading_features SET feature_name = '교사 관리 이름' WHERE id = 1");
         jdbcTemplate.update("UPDATE training_templates SET name = '교사 관리 템플릿' WHERE id = 1");
+        jdbcTemplate.update("""
+                UPDATE training_templates
+                SET prompt = '{"trainingType":"VOWEL_TRACE","customSetting":"유지"}'
+                WHERE id = 1
+                """);
 
         readingFeatureDataInitializer.run(null);
         trainingTemplateDataInitializer.run(null);
@@ -65,6 +74,17 @@ class TrainingSeedInitializerTest {
                 "SELECT name FROM training_templates WHERE id = 1",
                 String.class
         )).isEqualTo("교사 관리 템플릿");
+        String prompt = jdbcTemplate.queryForObject(
+                "SELECT prompt FROM training_templates WHERE id = 1",
+                String.class
+        );
+        assertThat(prompt).isNotNull();
+        var promptJson = objectMapper.readTree(prompt);
+        assertThat(promptJson.path("customSetting").asText()).isEqualTo("유지");
+        assertThat(promptJson.path("requiredInputs")).containsExactly(
+                objectMapper.getNodeFactory().textNode("VOICE"),
+                objectMapper.getNodeFactory().textNode("GAZE")
+        );
         assertThat(count("reading_features")).isEqualTo(119);
         assertThat(count("training_templates")).isEqualTo(34);
     }

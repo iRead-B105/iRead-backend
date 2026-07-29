@@ -28,6 +28,12 @@ public interface WordAttemptLogRepository extends JpaRepository<WordAttemptLogEn
             Integer questionNo
     );
 
+    boolean
+    existsByTrainingIdAndQuestionNoAndFinalAttemptTrueAndHasAudioDataTrueAndPronunciationAccuracyScoreIsNotNull(
+            Long trainingId,
+            Integer questionNo
+    );
+
     void deleteAllByTestId(Long testId);
 
     void deleteAllByTrainingId(Long trainingId);
