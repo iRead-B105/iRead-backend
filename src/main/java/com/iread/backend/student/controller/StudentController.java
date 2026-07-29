@@ -6,6 +6,7 @@ import com.iread.backend.student.domain.LearningEventType;
 import com.iread.backend.student.dto.res.AccuracyTrendDataResponse;
 import com.iread.backend.student.dto.res.CreateStudentResponse;
 import com.iread.backend.student.dto.res.LearningEventResponse;
+import com.iread.backend.student.dto.res.LearningEventListResponse;
 import com.iread.backend.student.dto.res.LearningSummaryResponse;
 import com.iread.backend.student.dto.res.ReadingSpeedTrendResponse;
 import com.iread.backend.student.dto.res.StudentListDataResponse;
@@ -47,16 +48,14 @@ public class StudentController {
     public StudentListDataResponse getStudents(
             @CurrentTeacherId Long teacherId,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Integer minAge,
-            @RequestParam(required = false) Integer maxAge,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate learnedFrom,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate learnedTo
+            @RequestParam(required = false) Integer age,
+            @RequestParam(required = false) Integer recentDays,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
     ) {
-        return new StudentListDataResponse(studentService.getStudents(
-                teacherId, keyword, minAge, maxAge, learnedFrom, learnedTo
-        ));
+        return studentService.getStudents(
+                teacherId, keyword, age, recentDays, page, size
+        );
     }
 
     @Operation(summary = "담당 아동 수와 오늘 학습 예정 아동 수 조회")
@@ -155,6 +154,16 @@ public class StudentController {
             @PathVariable Long studentId
     ) {
         return studentService.getLearningSummary(teacherId, studentId);
+    }
+
+    @Operation(summary = "아동의 최근 학습 이벤트 목록 조회")
+    @GetMapping("/{studentId}/learning-events/recent")
+    public LearningEventListResponse getRecentLearningEvents(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @RequestParam(defaultValue = "3") int limit
+    ) {
+        return studentService.getRecentLearningEvents(teacherId, studentId, limit);
     }
 
     @Operation(summary = "아동 학습 이벤트 상세와 추천 훈련 조회")

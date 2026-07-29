@@ -7,7 +7,7 @@ public record AdminLoginResponse(
         String email,
         String name,
         String organization,
-        String profileImage,
+        String profileImageUrl,
         String accessToken,
         String tokenType,
         long expiresIn,

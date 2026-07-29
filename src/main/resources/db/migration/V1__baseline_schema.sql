@@ -67,6 +67,16 @@ CREATE TABLE `auth_refresh_sessions` (
 	CONSTRAINT `PK_AUTH_REFRESH_SESSIONS` PRIMARY KEY (`id`)
 );
 
+CREATE TABLE `password_reset_tokens` (
+	`id` bigint NOT NULL AUTO_INCREMENT,
+	`teacher_id` bigint NOT NULL,
+	`token_hash` char(64) NOT NULL COMMENT 'SHA-256 hex digest',
+	`expires_at` timestamp NOT NULL,
+	`used_at` timestamp NULL,
+	`created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	CONSTRAINT `PK_PASSWORD_RESET_TOKENS` PRIMARY KEY (`id`)
+);
+
 CREATE TABLE `curriculum_units` (
 	`id` bigint NOT NULL AUTO_INCREMENT,
 	`unit_name` varchar(50) NOT NULL COMMENT '파닉스, 단어 etc',
@@ -160,7 +170,8 @@ CREATE TABLE `reports` (
 	`snapshot_data` json NULL,
 	`teacher_memo` text NULL,
 	`created_at` timestamp NOT NULL COMMENT '생성일',
-	CONSTRAINT `PK_REPORTS` PRIMARY KEY (`id`)
+	CONSTRAINT `PK_REPORTS` PRIMARY KEY (`id`),
+	CONSTRAINT `UQ_REPORTS_STUDENT_PERIOD` UNIQUE (`student_id`, `start_date`, `end_date`)
 );
 
 CREATE TABLE `teachers` (
@@ -308,6 +319,10 @@ ALTER TABLE `auth_refresh_sessions`
 	ADD CONSTRAINT `UK_AUTH_REFRESH_SESSIONS_TOKEN_HASH`
 		UNIQUE (`token_hash`);
 
+ALTER TABLE `password_reset_tokens`
+	ADD CONSTRAINT `UK_PASSWORD_RESET_TOKENS_TOKEN_HASH`
+		UNIQUE (`token_hash`);
+
 ALTER TABLE `words`
 	ADD CONSTRAINT `UK_WORDS_CONTENT`
 		UNIQUE (`content`);
@@ -408,6 +423,10 @@ ALTER TABLE `auth_refresh_sessions`
 		FOREIGN KEY (`teacher_id`) REFERENCES `teachers` (`id`),
 	ADD CONSTRAINT `FK_AUTH_REFRESH_SESSIONS_STUDENT`
 		FOREIGN KEY (`student_id`) REFERENCES `students` (`id`);
+
+ALTER TABLE `password_reset_tokens`
+	ADD CONSTRAINT `FK_PASSWORD_RESET_TOKENS_TEACHER`
+		FOREIGN KEY (`teacher_id`) REFERENCES `teachers` (`id`);
 
 ALTER TABLE `training_templates`
 	ADD CONSTRAINT `FK_TRAINING_TEMPLATES_CURRICULUM_UNIT`

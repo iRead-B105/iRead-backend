@@ -2,6 +2,9 @@ package com.iread.backend.training.app.service;
 
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.global.audio.AudioUploadPolicy;
+import com.iread.backend.learning.app.dto.LearningResponseType;
+import com.iread.backend.learning.app.dto.LearningSubmission;
+import com.iread.backend.learning.app.service.AppLearningQuestionSupport;
 import com.iread.backend.pronunciation.PronunciationAnalysisAdapter;
 import com.iread.backend.pronunciation.DeterministicPronunciationAnalysisAdapter;
 import com.iread.backend.pronunciation.PronunciationWordAligner;
@@ -11,7 +14,6 @@ import com.iread.backend.pronunciation.PronunciationWordResult;
 import com.iread.backend.training.app.dto.req.TrainingRecordingRequest;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.admin.service.TrainingService;
-import com.iread.backend.training.app.dto.req.TrainingSelectionRequest;
 import com.iread.backend.training.app.dto.res.TrainingRecordingResponse;
 import com.iread.backend.training.domain.TrainingDataEntity;
 import com.iread.backend.training.domain.TrainingEntity;
@@ -41,11 +43,13 @@ import tools.jackson.databind.json.JsonMapper;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -84,40 +88,204 @@ class AppTrainingServiceTest {
     }
 
     @Test
-    void storesSelectionAsTrainingWordAttempt() {
+    void evaluatesRawSelectionAndStoresFeedbackInTrainingResult() {
         StudentEntity student = mock(StudentEntity.class);
         TrainingEntity training = mock(TrainingEntity.class);
-        WordEntity word = mock(WordEntity.class);
-        WordAttemptLogEntity saved = mock(WordAttemptLogEntity.class);
-        LocalDateTime createdAt = LocalDateTime.of(2026, 7, 27, 12, 0);
         when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(trainingRepository.findForUpdate(30L, 20L))
                 .thenReturn(Optional.of(training));
         when(training.getStatus()).thenReturn(TrainingStatus.IN_PROGRESS);
-        when(wordRepository.findById(40L)).thenReturn(Optional.of(word));
-        when(word.getId()).thenReturn(40L);
-        when(word.getContent()).thenReturn("사과");
-        when(saved.getId()).thenReturn(50L);
-        when(saved.getCorrect()).thenReturn(true);
-        when(saved.getTotalScore()).thenReturn(900);
-        when(saved.getCreatedAt()).thenReturn(createdAt);
-        when(wordAttemptLogRepository.saveAndFlush(any(WordAttemptLogEntity.class)))
-                .thenReturn(saved);
+        when(training.getResult()).thenReturn(null);
+        TrainingDataEntity data = mock(TrainingDataEntity.class);
+        when(trainingDataRepository.findByTrainingId(30L)).thenReturn(Optional.of(data));
+        when(data.getGeneratedData()).thenReturn("""
+                {
+                  "questions":[{
+                    "type":"CONSONANT_SOUND_CHOICE",
+                    "content":{"audioText":"ㄱ","choices":["ㄱ","ㄴ"]},
+                    "answer":{"answerIndex":0}
+                  }]
+                }
+                """);
+        ObjectMapper mapper = JsonMapper.builder().build();
+        AppTrainingService service = new AppTrainingService(
+                studentRepository,
+                trainingRepository,
+                trainingDataRepository,
+                wordRepository,
+                wordAttemptLogRepository,
+                pronunciationAnalysisAdapter,
+                audioUploadPolicy,
+                scoreCalculator(),
+                new PronunciationWordAligner(),
+                trainingInputRequirementService,
+                trainingService,
+                mapper,
+                new AppLearningQuestionSupport(mapper)
+        );
+        UUID submissionId = UUID.randomUUID();
+        var response = mapper.createObjectNode().put("selectedIndex", 0);
 
-        var result = appTrainingService.saveSelection(
+        var result = service.saveSelection(
                 1L,
                 20L,
                 30L,
                 1,
-                new TrainingSelectionRequest(40L, true, 900)
+                new LearningSubmission(
+                        submissionId,
+                        LearningResponseType.SINGLE_CHOICE,
+                        response
+                )
         );
 
-        assertThat(result.attemptId()).isEqualTo(50L);
-        assertThat(result.trainingId()).isEqualTo(30L);
-        assertThat(result.wordId()).isEqualTo(40L);
-        assertThat(result.isCorrect()).isTrue();
-        assertThat(result.totalScore()).isEqualTo(900);
-        assertThat(result.createdAt()).isEqualTo(createdAt);
+        assertThat(result.submissionId()).isEqualTo(submissionId);
+        assertThat(result.correct()).isTrue();
+        assertThat(result.attemptNo()).isEqualTo(1);
+        assertThat(result.questionCompleted()).isTrue();
+        ArgumentCaptor<String> resultCaptor = ArgumentCaptor.forClass(String.class);
+        verify(training).recordProgressResult(resultCaptor.capture());
+        assertThat(resultCaptor.getValue())
+                .contains("\"submissionId\":\"" + submissionId + "\"")
+                .contains("\"questionNo\":1")
+                .contains("\"isCorrect\":true");
+    }
+
+    @Test
+    void returnsStoredFeedbackForRetriedSubmissionIdWithoutAddingAttempt() {
+        StudentEntity student = mock(StudentEntity.class);
+        TrainingEntity training = mock(TrainingEntity.class);
+        TrainingDataEntity data = mock(TrainingDataEntity.class);
+        UUID submissionId = UUID.randomUUID();
+        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        when(trainingRepository.findForUpdate(30L, 20L)).thenReturn(Optional.of(training));
+        when(training.getStatus()).thenReturn(TrainingStatus.IN_PROGRESS);
+        when(training.getResult()).thenReturn("""
+                {
+                  "submissions":[{
+                    "submissionId":"%s",
+                    "questionNo":1,
+                    "responseType":"SINGLE_CHOICE",
+                    "response":{"selectedIndex":1},
+                    "feedback":{
+                      "feedbackType":"TRAINING_FEEDBACK",
+                      "submissionId":"%s",
+                      "attemptNo":1,
+                      "maxAttempts":3,
+                      "remainingAttempts":2,
+                      "correct":false,
+                      "questionCompleted":false,
+                      "canRetry":true,
+                      "errorLocations":[],
+                      "hint":"다시 살펴보세요.",
+                      "correctResponse":null
+                    }
+                  }]
+                }
+                """.formatted(submissionId, submissionId));
+        when(trainingDataRepository.findByTrainingId(30L)).thenReturn(Optional.of(data));
+        when(data.getGeneratedData()).thenReturn("""
+                {
+                  "questions":[{
+                    "type":"CONSONANT_SOUND_CHOICE",
+                    "content":{"audioText":"ㄱ","choices":["ㄱ","ㄴ"]},
+                    "answer":{"answerIndex":0}
+                  }]
+                }
+                """);
+        ObjectMapper mapper = JsonMapper.builder().build();
+        AppTrainingService service = new AppTrainingService(
+                studentRepository,
+                trainingRepository,
+                trainingDataRepository,
+                wordRepository,
+                wordAttemptLogRepository,
+                pronunciationAnalysisAdapter,
+                audioUploadPolicy,
+                scoreCalculator(),
+                new PronunciationWordAligner(),
+                trainingInputRequirementService,
+                trainingService,
+                mapper,
+                new AppLearningQuestionSupport(mapper)
+        );
+
+        var result = service.saveSelection(
+                1L,
+                20L,
+                30L,
+                1,
+                new LearningSubmission(
+                        submissionId,
+                        LearningResponseType.SINGLE_CHOICE,
+                        mapper.createObjectNode().put("selectedIndex", 1)
+                )
+        );
+
+        assertThat(result.attemptNo()).isEqualTo(1);
+        assertThat(result.canRetry()).isTrue();
+        verify(training, never()).recordProgressResult(any(String.class));
+    }
+
+    @Test
+    void revealsCorrectResponseAfterThirdIncorrectAttempt() {
+        StudentEntity student = mock(StudentEntity.class);
+        TrainingEntity training = mock(TrainingEntity.class);
+        TrainingDataEntity data = mock(TrainingDataEntity.class);
+        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        when(trainingRepository.findForUpdate(30L, 20L)).thenReturn(Optional.of(training));
+        when(training.getStatus()).thenReturn(TrainingStatus.IN_PROGRESS);
+        when(training.getResult()).thenReturn("""
+                {
+                  "submissions":[
+                    {"submissionId":"00000000-0000-0000-0000-000000000001","questionNo":1},
+                    {"submissionId":"00000000-0000-0000-0000-000000000002","questionNo":1}
+                  ]
+                }
+                """);
+        when(trainingDataRepository.findByTrainingId(30L)).thenReturn(Optional.of(data));
+        when(data.getGeneratedData()).thenReturn("""
+                {
+                  "questions":[{
+                    "type":"CONSONANT_SOUND_CHOICE",
+                    "content":{"audioText":"ㄱ","choices":["ㄱ","ㄴ"]},
+                    "answer":{"answerIndex":0}
+                  }]
+                }
+                """);
+        ObjectMapper mapper = JsonMapper.builder().build();
+        AppTrainingService service = new AppTrainingService(
+                studentRepository,
+                trainingRepository,
+                trainingDataRepository,
+                wordRepository,
+                wordAttemptLogRepository,
+                pronunciationAnalysisAdapter,
+                audioUploadPolicy,
+                scoreCalculator(),
+                new PronunciationWordAligner(),
+                trainingInputRequirementService,
+                trainingService,
+                mapper,
+                new AppLearningQuestionSupport(mapper)
+        );
+
+        var result = service.saveSelection(
+                1L,
+                20L,
+                30L,
+                1,
+                new LearningSubmission(
+                        UUID.randomUUID(),
+                        LearningResponseType.SINGLE_CHOICE,
+                        mapper.createObjectNode().put("selectedIndex", 1)
+                )
+        );
+
+        assertThat(result.attemptNo()).isEqualTo(3);
+        assertThat(result.questionCompleted()).isTrue();
+        assertThat(result.canRetry()).isFalse();
+        assertThat(result.correctResponse().path("response").path("selectedIndex").asInt())
+                .isZero();
     }
 
     @Test
@@ -146,6 +314,7 @@ class AppTrainingServiceTest {
                   }]
                 }
                 """);
+        ObjectMapper mapper = JsonMapper.builder().build();
         AppTrainingService service = new AppTrainingService(
                 studentRepository,
                 trainingRepository,
@@ -158,11 +327,16 @@ class AppTrainingServiceTest {
                 new PronunciationWordAligner(),
                 trainingInputRequirementService,
                 trainingService,
-                JsonMapper.builder().build()
+                mapper,
+                new AppLearningQuestionSupport(mapper)
         );
 
         var result = service.getQuestion(1L, 20L, 30L, 1);
 
+        assertThat(result.question().path("questionType").asText())
+                .isEqualTo("SENTENCE_READING");
+        assertThat(result.question().path("responseType").asText())
+                .isEqualTo("AUDIO");
         assertThat(result.question().path("content").path("sentence").asText())
                 .isEqualTo("아기는 사과를 먹는다.");
         assertThat(result.question().path("requiredInputs"))
@@ -209,6 +383,7 @@ class AppTrainingServiceTest {
         when(saved.getWord()).thenReturn(word);
         when(saved.getTotalScore()).thenReturn(542);
         when(saved.getCreatedAt()).thenReturn(createdAt);
+        ObjectMapper mapper = JsonMapper.builder().build();
         AppTrainingService service = new AppTrainingService(
                 studentRepository,
                 trainingRepository,
@@ -224,7 +399,8 @@ class AppTrainingServiceTest {
                 new PronunciationWordAligner(),
                 trainingInputRequirementService,
                 trainingService,
-                JsonMapper.builder().build()
+                mapper,
+                new AppLearningQuestionSupport(mapper)
         );
         TrainingRecordingRequest request = new TrainingRecordingRequest(
                 40L,
@@ -282,6 +458,7 @@ class AppTrainingServiceTest {
                   }]
                 }
                 """);
+        ObjectMapper mapper = JsonMapper.builder().build();
         AppTrainingService service = new AppTrainingService(
                 studentRepository,
                 trainingRepository,
@@ -297,7 +474,8 @@ class AppTrainingServiceTest {
                 new PronunciationWordAligner(),
                 trainingInputRequirementService,
                 trainingService,
-                JsonMapper.builder().build()
+                mapper,
+                new AppLearningQuestionSupport(mapper)
         );
         TrainingRecordingRequest request = new TrainingRecordingRequest(
                 40L,
@@ -404,7 +582,8 @@ class AppTrainingServiceTest {
                 new PronunciationWordAligner(),
                 trainingInputRequirementService,
                 trainingService,
-                JsonMapper.builder().build()
+                JsonMapper.builder().build(),
+                new AppLearningQuestionSupport(JsonMapper.builder().build())
         );
         TrainingRecordingRequest request = new TrainingRecordingRequest(
                 null,

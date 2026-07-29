@@ -76,8 +76,7 @@ class JwtTokenServiceTest {
                 accessTtl,
                 Duration.ofMinutes(5),
                 Duration.ofDays(14),
-                false,
-                "123456"
+                false
         );
         return new JwtTokenService(JsonMapper.builder().build(), settings);
     }

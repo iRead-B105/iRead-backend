@@ -12,7 +12,13 @@ import java.time.LocalDateTime;
 
 @Getter
 @Entity
-@Table(name = "reports")
+@Table(
+        name = "reports",
+        uniqueConstraints = @UniqueConstraint(
+                name = "UQ_REPORTS_STUDENT_PERIOD",
+                columnNames = {"student_id", "start_date", "end_date"}
+        )
+)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ReportEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -148,4 +148,58 @@ class StudentFeatureProfileServiceTest {
         assertThat(saved.getAvgPronunciationScore()).isEqualTo(500);
         assertThat(saved.getEvidenceCount()).isEqualTo(1);
     }
+
+    @Test
+    void nonAudioQuestionResultContributesFeatureAccuracyEvidence() {
+        StudentEntity student = mock(StudentEntity.class);
+        when(student.getId()).thenReturn(15L);
+        TrainingEntity training = mock(TrainingEntity.class);
+        when(training.getId()).thenReturn(120L);
+        when(training.getFinishedAt())
+                .thenReturn(LocalDateTime.of(2026, 7, 28, 15, 0));
+        when(training.getResult()).thenReturn("""
+                {
+                  "questions":[{
+                    "questionNo":1,
+                    "isCorrect":false,
+                    "totalScore":0
+                  }]
+                }
+                """);
+        TrainingDataEntity trainingData = new TrainingDataEntity(training, """
+                {
+                  "questions":[{
+                    "questionNo":1,
+                    "type":"CONSONANT_SOUND_CHOICE",
+                    "targetFeatureCodes":["GRAPHEME.CONSONANT.ㄱ"]
+                  }]
+                }
+                """);
+        ReadingFeatureEntity feature = new ReadingFeatureEntity(
+                10L,
+                null,
+                "GRAPHEME.CONSONANT.ㄱ",
+                "기역",
+                ReadingFeatureCategory.GRAPHEME,
+                ReadingFeatureScope.CHARACTER
+        );
+        when(trainingRepository.findAllByDailyCurriculumStudentIdAndStatus(
+                15L, TrainingStatus.COMPLETED
+        )).thenReturn(List.of(training));
+        when(trainingDataRepository.findByTrainingId(120L)).thenReturn(Optional.of(trainingData));
+        when(readingFeatureRepository.findAllByFeatureCodeIn(any()))
+                .thenReturn(List.of(feature));
+        when(profileRepository.findMaxId()).thenReturn(40L);
+        when(profileRepository.findByStudentIdAndReadingFeatureId(15L, 10L))
+                .thenReturn(Optional.empty());
+
+        var result = service.recalculate(student);
+
+        assertThat(result).singleElement().satisfies(profile -> {
+            assertThat(profile.featureCode()).isEqualTo("GRAPHEME.CONSONANT.ㄱ");
+            assertThat(profile.accuracyRate()).isZero();
+            assertThat(profile.weaknessScore()).isEqualTo(0.4);
+            assertThat(profile.evidenceCount()).isEqualTo(1);
+        });
+    }
 }

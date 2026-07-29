@@ -3,13 +3,14 @@ package com.iread.backend.training.app.service;
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.exception.ConflictException;
 import com.iread.backend.global.audio.AudioUploadPolicy;
+import com.iread.backend.learning.app.dto.LearningErrorLocation;
+import com.iread.backend.learning.app.dto.LearningSubmission;
+import com.iread.backend.learning.app.service.AppLearningQuestionSupport;
 import com.iread.backend.pronunciation.*;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
-import com.iread.backend.training.admin.dto.req.CompleteTrainingRequest;
 import com.iread.backend.training.admin.service.TrainingService;
 import com.iread.backend.training.app.dto.req.TrainingRecordingRequest;
-import com.iread.backend.training.app.dto.req.TrainingSelectionRequest;
 import com.iread.backend.training.app.dto.res.*;
 import com.iread.backend.training.domain.TrainingDataEntity;
 import com.iread.backend.training.domain.TrainingEntity;
@@ -34,7 +35,10 @@ import tools.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -57,6 +61,7 @@ public class AppTrainingService {
     private final TrainingInputRequirementService trainingInputRequirementService;
     private final TrainingService trainingService;
     private final ObjectMapper objectMapper;
+    private final AppLearningQuestionSupport learningQuestionSupport;
 
     public TrainingIntroResponse getIntro(Long teacherId, Long studentId, Long trainingId) {
         TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
@@ -96,7 +101,7 @@ public class AppTrainingService {
                 trainingId,
                 questionNumber,
                 questions.size(),
-                studentQuestion(questions.get(questionNumber - 1))
+                learningQuestionSupport.toStudentQuestion(questions.get(questionNumber - 1))
         );
     }
 
@@ -194,72 +199,116 @@ public class AppTrainingService {
     }
 
     @Transactional
-    public TrainingSelectionResponse saveSelection(
+    public TrainingFeedbackResponse saveSelection(
             Long teacherId,
             Long studentId,
             Long trainingId,
             int questionNumber,
-            TrainingSelectionRequest request
+            LearningSubmission request
     ) {
-        StudentEntity student = findOwnedStudent(teacherId, studentId);
+        findOwnedStudent(teacherId, studentId);
         TrainingEntity training = findInProgressTrainingForUpdate(studentId, trainingId);
-        WordEntity word = findWord(request.wordId());
-        markPreviousSelectionNotFinal(trainingId, questionNumber);
-        WordAttemptLogEntity attempt = wordAttemptLogRepository.saveAndFlush(
-                new WordAttemptLogEntity(
-                        student,
-                        word,
-                        training,
-                        word.getContent(),
-                        false,
-                        null,
-                        null,
-                        null,
-                        null,
-                        false,
-                        0,
-                        null,
-                        null,
-                        null,
-                        request.isCorrect(),
-                        request.totalScore(),
-                        questionNumber,
-                        null,
-                        null,
-                        true
-                )
+        JsonNode question = findQuestion(trainingId, questionNumber);
+        ObjectNode result = readObjectOrNew(training.getResult());
+        result.put("schemaVersion", 2);
+        ArrayNode submissions = result.withArray("submissions");
+
+        JsonNode existing = findSubmission(submissions, request.submissionId());
+        if (existing != null) {
+            if (!sameSubmission(existing, questionNumber, request)) {
+                throw new ConflictException("같은 submissionId를 다른 제출에 재사용할 수 없습니다.");
+            }
+            return readFeedback(existing.path("feedback"));
+        }
+        if (isQuestionCompleted(result, questionNumber)) {
+            throw new ConflictException("이미 완료된 훈련 문항입니다.");
+        }
+
+        int attemptNo = countQuestionSubmissions(submissions, questionNumber) + 1;
+        if (attemptNo > 3) {
+            throw new ConflictException("훈련 문항의 최대 시도 횟수를 초과했습니다.");
+        }
+        AppLearningQuestionSupport.Evaluation evaluation =
+                learningQuestionSupport.evaluate(question, request);
+        boolean questionCompleted = evaluation.correct() || attemptNo == 3;
+        boolean canRetry = !questionCompleted;
+        String hint = evaluation.correct() || attemptNo == 3 ? null : hint(attemptNo);
+        JsonNode correctResponse = !evaluation.correct() && attemptNo == 3
+                ? evaluation.correctResponse()
+                : null;
+        TrainingFeedbackResponse feedback = new TrainingFeedbackResponse(
+                "TRAINING_FEEDBACK",
+                request.submissionId(),
+                attemptNo,
+                3,
+                3 - attemptNo,
+                evaluation.correct(),
+                questionCompleted,
+                canRetry,
+                evaluation.errorLocations(),
+                hint,
+                correctResponse
         );
-        return new TrainingSelectionResponse(
-                attempt.getId(),
-                trainingId,
-                word.getId(),
-                attempt.getCorrect(),
-                attempt.getTotalScore(),
-                attempt.getCreatedAt()
-        );
+
+        ObjectNode submission = submissions.addObject();
+        submission.put("submissionId", request.submissionId().toString());
+        submission.put("questionNo", questionNumber);
+        submission.put("responseType", request.responseType().name());
+        submission.set("response", request.response().deepCopy());
+        submission.put("attemptNo", attemptNo);
+        submission.put("correct", evaluation.correct());
+        submission.put("totalScore", evaluation.totalScore());
+        submission.put("questionCompleted", questionCompleted);
+        submission.put("submittedAt", LocalDateTime.now().toString());
+        submission.set("feedback", writeFeedback(feedback));
+
+        if (questionCompleted) {
+            upsertQuestionResult(
+                    result,
+                    questionNumber,
+                    evaluation.correct(),
+                    evaluation.totalScore(),
+                    request.submissionId()
+            );
+        }
+        training.recordProgressResult(writeJson(result));
+        return feedback;
     }
 
     @Transactional
     public TrainingCompleteResponse complete(
             Long teacherId,
             Long studentId,
-            Long trainingId,
-            CompleteTrainingRequest request
+            Long trainingId
     ) {
-        findOwnedTraining(teacherId, studentId, trainingId);
-        var accuracy = trainingService.completeTraining(
+        TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
+        if (training.getStatus() == TrainingStatus.COMPLETED) {
+            return completionResponse(training);
+        }
+        ObjectNode result = readObjectOrNew(training.getResult());
+        int totalQuestions = questionCount(trainingId);
+        if (completedQuestionNumbers(result).size() != totalQuestions) {
+            throw new ConflictException("모든 훈련 문항을 완료한 후 훈련을 종료할 수 있습니다.");
+        }
+        trainingService.completeTraining(
                 teacherId,
                 studentId,
                 trainingId,
-                request.result(),
-                request.completedAt()
+                result,
+                LocalDateTime.now()
         );
-        TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
+        training = findOwnedTraining(teacherId, studentId, trainingId);
+        return completionResponse(training);
+    }
+
+    private TrainingCompleteResponse completionResponse(TrainingEntity training) {
         return new TrainingCompleteResponse(
-                trainingId,
+                "TRAINING_COMPLETED",
+                training.getId(),
                 training.getStatus(),
-                accuracy.movePointRight(1).intValue(),
-                training.getFinishedAt()
+                training.getFinishedAt(),
+                "TRAINING_COMPLETE_GREAT_JOB",
+                "RETURN_TO_CURRICULUM"
         );
     }
 
@@ -688,21 +737,159 @@ public class AppTrainingService {
     }
 
     private JsonNode studentQuestion(JsonNode question) {
-        if (!(question instanceof ObjectNode)) {
-            return question.deepCopy();
+        return learningQuestionSupport.toStudentQuestion(question);
+    }
+
+    private JsonNode findQuestion(Long trainingId, int questionNumber) {
+        JsonNode generated = trainingDataRepository.findByTrainingId(trainingId)
+                .map(TrainingDataEntity::getGeneratedData)
+                .map(this::readJson)
+                .orElseThrow(() -> new ResourceNotFoundException("훈련 문항을 찾을 수 없습니다."));
+        JsonNode questions = generated.path("questions");
+        if (!questions.isArray() || questionNumber < 1 || questionNumber > questions.size()) {
+            throw new ResourceNotFoundException("훈련 문항을 찾을 수 없습니다.");
         }
-        ObjectNode result = objectMapper.createObjectNode();
-        for (String field : java.util.List.of(
-                "questionNo",
-                "type",
-                "requiredInputs",
-                "content",
-                "text"
-        )) {
-            if (question.has(field)) {
-                result.set(field, question.get(field).deepCopy());
+        return questions.get(questionNumber - 1);
+    }
+
+    private int questionCount(Long trainingId) {
+        JsonNode generated = trainingDataRepository.findByTrainingId(trainingId)
+                .map(TrainingDataEntity::getGeneratedData)
+                .map(this::readJson)
+                .orElseThrow(() -> new ResourceNotFoundException("훈련 문항을 찾을 수 없습니다."));
+        JsonNode questions = generated.path("questions");
+        if (!questions.isArray() || questions.isEmpty()) {
+            throw new ResourceNotFoundException("훈련 문항을 찾을 수 없습니다.");
+        }
+        return questions.size();
+    }
+
+    private JsonNode findSubmission(ArrayNode submissions, UUID submissionId) {
+        for (JsonNode submission : submissions) {
+            if (submissionId.toString().equals(submission.path("submissionId").asText())) {
+                return submission;
             }
         }
-        return result;
+        return null;
+    }
+
+    private int countQuestionSubmissions(ArrayNode submissions, int questionNumber) {
+        int count = 0;
+        for (JsonNode submission : submissions) {
+            if (submission.path("questionNo").asInt() == questionNumber) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private boolean sameSubmission(
+            JsonNode existing,
+            int questionNumber,
+            LearningSubmission request
+    ) {
+        return existing.path("questionNo").asInt() == questionNumber
+                && existing.path("responseType").asText().equals(request.responseType().name())
+                && existing.path("response").equals(request.response());
+    }
+
+    private boolean isQuestionCompleted(ObjectNode result, int questionNumber) {
+        for (JsonNode question : result.withArray("questions")) {
+            if (question.path("questionNo").asInt() == questionNumber) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void upsertQuestionResult(
+            ObjectNode result,
+            int questionNumber,
+            boolean correct,
+            int totalScore,
+            UUID submissionId
+    ) {
+        ArrayNode questions = result.withArray("questions");
+        for (int index = questions.size() - 1; index >= 0; index--) {
+            if (questions.get(index).path("questionNo").asInt() == questionNumber) {
+                questions.remove(index);
+            }
+        }
+        ObjectNode question = questions.addObject();
+        question.put("questionNo", questionNumber);
+        question.put("isCorrect", correct);
+        question.put("totalScore", totalScore);
+        question.put("submissionId", submissionId.toString());
+    }
+
+    private Set<Integer> completedQuestionNumbers(ObjectNode result) {
+        Set<Integer> completed = new HashSet<>();
+        result.withArray("questions").forEach(question -> {
+            if (question.path("questionNo").asInt() > 0) {
+                completed.add(question.path("questionNo").asInt());
+            }
+        });
+        result.withArray("wordAttempts").forEach(attempt -> {
+            if (attempt.path("isFinal").asBoolean(true) && attempt.path("questionNo").asInt() > 0) {
+                completed.add(attempt.path("questionNo").asInt());
+            }
+        });
+        return completed;
+    }
+
+    private String hint(int attemptNo) {
+        return attemptNo == 1
+                ? "문항을 천천히 다시 살펴보세요."
+                : "선택지의 소리와 순서를 하나씩 비교해 보세요.";
+    }
+
+    private ObjectNode writeFeedback(TrainingFeedbackResponse feedback) {
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("feedbackType", feedback.feedbackType());
+        node.put("submissionId", feedback.submissionId().toString());
+        node.put("attemptNo", feedback.attemptNo());
+        node.put("maxAttempts", feedback.maxAttempts());
+        node.put("remainingAttempts", feedback.remainingAttempts());
+        node.put("correct", feedback.correct());
+        node.put("questionCompleted", feedback.questionCompleted());
+        node.put("canRetry", feedback.canRetry());
+        ArrayNode locations = node.putArray("errorLocations");
+        for (LearningErrorLocation location : feedback.errorLocations()) {
+            ObjectNode item = locations.addObject();
+            if (location.targetIndex() == null) item.putNull("targetIndex");
+            else item.put("targetIndex", location.targetIndex());
+            if (location.tokenIndex() == null) item.putNull("tokenIndex");
+            else item.put("tokenIndex", location.tokenIndex());
+            item.put("errorCode", location.errorCode());
+        }
+        if (feedback.hint() == null) node.putNull("hint");
+        else node.put("hint", feedback.hint());
+        if (feedback.correctResponse() == null) node.putNull("correctResponse");
+        else node.set("correctResponse", feedback.correctResponse().deepCopy());
+        return node;
+    }
+
+    private TrainingFeedbackResponse readFeedback(JsonNode node) {
+        List<LearningErrorLocation> locations = new ArrayList<>();
+        node.path("errorLocations").forEach(location -> locations.add(new LearningErrorLocation(
+                nullableInt(location, "targetIndex"),
+                nullableInt(location, "tokenIndex"),
+                location.path("errorCode").asText()
+        )));
+        return new TrainingFeedbackResponse(
+                node.path("feedbackType").asText(),
+                UUID.fromString(node.path("submissionId").asText()),
+                node.path("attemptNo").asInt(),
+                node.path("maxAttempts").asInt(),
+                node.path("remainingAttempts").asInt(),
+                node.path("correct").asBoolean(),
+                node.path("questionCompleted").asBoolean(),
+                node.path("canRetry").asBoolean(),
+                List.copyOf(locations),
+                node.path("hint").isNull() ? null : node.path("hint").asText(),
+                node.path("correctResponse").isNull()
+                        ? null
+                        : node.path("correctResponse").deepCopy()
+        );
     }
 }

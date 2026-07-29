@@ -1,6 +1,7 @@
 INSERT INTO `curriculum_units` (`id`, `unit_name`, `sequence_no`) VALUES
     (1, '음운 인식', 1),
-    (2, '읽기 유창성', 2);
+    (2, '소리 듣고 고르기', 2),
+    (3, '글자 만들기', 3);
 
 INSERT INTO `training_templates`
     (`id`, `curriculum_unit_id`, `name`, `prompt`, `sequence_no`)
@@ -8,9 +9,9 @@ VALUES
     (1, 1, '글자 따라 보기',
      '{"trainingType":"VOWEL_TRACE","requiredInputs":["VOICE","GAZE"],"additionalPrompt":"데모 모음 따라 보기","outputTemplate":{"type":"VOWEL_TRACE","data":[{"vowelType":"<string>","target":"<string>","soundText":"<string>","traceAssetKey":"<string>"}]},"supportedFeatureCategories":["GRAPHEME"],"supportedScopes":["CHARACTER"]}',
      1),
-    (15, 2, '음절 합쳐 낱말 만들기',
+    (15, 3, '음절 합쳐 낱말 만들기',
      '{"trainingType":"SYLLABLE_BLEND","requiredInputs":["VOICE"],"additionalPrompt":"데모 음절 합치기","outputTemplate":{"type":"SYLLABLE_BLEND","data":[{"audioParts":["<string>"],"cards":["<string>"],"answerOrder":["<integer>"],"result":"<string>"}]},"supportedFeatureCategories":["SYLLABLE","WORD"],"supportedScopes":["SYLLABLE","WORD"]}',
-     1);
+     2);
 
 INSERT INTO `story_templates` (`id`, `title`, `content`, `image_url`) VALUES
     (1, '별빛 숲의 친구', '별빛이 비치는 숲에서 동물 친구와 함께 길을 찾는 따뜻한 모험', NULL),

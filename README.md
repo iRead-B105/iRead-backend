@@ -18,7 +18,7 @@ iRead 서비스의 백엔드 애플리케이션입니다.
 
 ## Docker Compose 사용법
 
-Docker Compose는 로컬 개발용 MySQL, Redis 컨테이너를 실행합니다.
+Docker Compose는 로컬 개발용 MySQL, Redis, AI Mock과 Mailpit 컨테이너를 실행합니다.
 
 ### 실행
 
@@ -30,16 +30,26 @@ docker compose up -d
 
 - MySQL: `localhost:3306`
 - Redis: `localhost:6379`
+- AI Mock: `localhost:8081`
+- Mailpit SMTP: `localhost:1025`
+- Mailpit 웹 메일함: `http://localhost:8025`
 
 Spring Boot에서 사용할 데이터베이스 접속 정보는 로컬 환경 설정에서 관리합니다.
 
 JWT 인증을 사용하는 로컬 실행 환경에는 다음 환경변수가 필요합니다.
 
 - `AUTH_JWT_SECRET`: 32바이트 이상의 임의 문자열
-- `AUTH_DEMO_VERIFICATION_CODE`: MVP 데모 비밀번호 재설정 코드
 - `AUTH_COOKIE_SECURE`: 로컬 HTTP에서는 `false`, HTTPS에서는 `true`
+- `AUTH_PASSWORD_RESET_FRONTEND_URL`: 이메일 링크가 이동할 Frontend 주소
+- `AUTH_PASSWORD_RESET_FROM`: 비밀번호 재설정 메일 발신 주소
 
-비밀값과 데모 인증 코드는 채팅, 저장소, 로그에 기록하지 않습니다.
+외부 배포에서는 `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`,
+`SMTP_AUTH`, `SMTP_STARTTLS`를 배포 환경변수로 설정합니다. SMTP 자격 증명,
+비밀번호와 재설정 토큰은 채팅, 저장소, 로그에 기록하지 않습니다.
+
+비밀번호 재설정 요청 후 로컬 데모 메일은 `http://localhost:8025`에서 확인합니다.
+링크는 10분 동안 한 번만 사용할 수 있으며 새 링크를 요청하면 이전 링크는
+무효화됩니다.
 
 ### 상태 확인
 
@@ -58,6 +68,7 @@ docker compose logs -f
 ```bash
 docker compose logs -f mysql
 docker compose logs -f redis
+docker compose logs -f mailpit
 ```
 
 ### 중지

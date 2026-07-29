@@ -1,13 +1,13 @@
 package com.iread.backend.auth.controller;
 
-import com.iread.backend.auth.dto.req.FindIdRequest;
+import com.iread.backend.auth.dto.req.ConfirmPasswordResetRequest;
 import com.iread.backend.auth.dto.req.LoginRequest;
-import com.iread.backend.auth.dto.req.ResetPasswordRequest;
+import com.iread.backend.auth.dto.req.PasswordResetLinkRequest;
 import com.iread.backend.auth.dto.req.SignUpRequest;
 import com.iread.backend.auth.dto.req.StudentLoginRequest;
 import com.iread.backend.auth.dto.res.AdminLoginResponse;
 import com.iread.backend.auth.dto.res.AppTeacherLoginResponse;
-import com.iread.backend.auth.dto.res.FindIdResponse;
+import com.iread.backend.auth.dto.res.PasswordResetLinkResponse;
 import com.iread.backend.auth.dto.res.PasswordResetResponse;
 import com.iread.backend.auth.dto.res.SignUpResponse;
 import com.iread.backend.auth.dto.res.StudentLoginResponse;
@@ -15,9 +15,11 @@ import com.iread.backend.auth.dto.res.TokenRefreshResponse;
 import com.iread.backend.auth.security.AuthPrincipal;
 import com.iread.backend.auth.service.AuthCookieService;
 import com.iread.backend.auth.service.AuthService;
+import com.iread.backend.auth.service.PasswordResetService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,16 +37,16 @@ public class AuthController {
 
     private final AuthService authService;
     private final AuthCookieService cookieService;
+    private final PasswordResetService passwordResetService;
 
-    public AuthController(AuthService authService, AuthCookieService cookieService) {
+    public AuthController(
+            AuthService authService,
+            AuthCookieService cookieService,
+            PasswordResetService passwordResetService
+    ) {
         this.authService = authService;
         this.cookieService = cookieService;
-    }
-
-    @Operation(summary = "교수자 로그인 이메일 확인")
-    @PostMapping("/admin/find-id")
-    public FindIdResponse findId(@Valid @RequestBody FindIdRequest request) {
-        return authService.findId(request);
+        this.passwordResetService = passwordResetService;
     }
 
     @Operation(summary = "관리자 앱 로그인")
@@ -68,10 +70,31 @@ public class AuthController {
                 .build();
     }
 
-    @Operation(summary = "교수자 비밀번호 재설정")
-    @PostMapping("/admin/password-reset")
-    public PasswordResetResponse resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
-        return authService.resetPassword(request);
+    @Operation(summary = "교수자 비밀번호 재설정 링크 요청")
+    @PostMapping("/admin/password-reset/request")
+    public ResponseEntity<PasswordResetLinkResponse> requestPasswordReset(
+            @Valid @RequestBody PasswordResetLinkRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        return ResponseEntity.accepted().body(
+                passwordResetService.requestReset(
+                        request.email(),
+                        servletRequest.getRemoteAddr()
+                )
+        );
+    }
+
+    @Operation(summary = "교수자 비밀번호 재설정 확정")
+    @PostMapping("/admin/password-reset/confirm")
+    public PasswordResetResponse confirmPasswordReset(
+            @Valid @RequestBody ConfirmPasswordResetRequest request,
+            HttpServletRequest servletRequest
+    ) {
+        return passwordResetService.confirmReset(
+                request.token(),
+                request.newPassword(),
+                servletRequest.getRemoteAddr()
+        );
     }
 
     @Operation(summary = "관리자 앱 토큰 갱신")
