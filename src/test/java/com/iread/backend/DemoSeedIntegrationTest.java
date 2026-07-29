@@ -21,7 +21,8 @@ import static org.assertj.core.api.Assertions.assertThat;
         "/db/demo/V2__demo_seed.sql",
         "/db/demo/V3__fix_demo_student_gender.sql",
         "/db/demo/V4__complete_demo_training_questions.sql",
-        "/db/demo/V5__add_second_demo_student.sql"
+        "/db/demo/V5__add_second_demo_student.sql",
+        "/db/demo/V6__expand_demo_daily_curriculums.sql"
 })
 class DemoSeedIntegrationTest {
 
@@ -44,6 +45,23 @@ class DemoSeedIntegrationTest {
         assertThat(count("stories", 6001L)).isEqualTo(1);
         assertThat(count("trainings", 4001L)).isEqualTo(1);
         assertThat(count("tests", 5101L)).isEqualTo(1);
+        assertThat(trainingCount(2001L)).isEqualTo(5);
+        assertThat(trainingDataCount(2001L)).isEqualTo(5);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT training.training_template_id
+                  FROM trainings training
+                 WHERE training.daily_curriculum_id = 3001
+                 ORDER BY training.sequence_no
+                 LIMIT 1
+                """,
+                Long.class
+        )).isEqualTo(29L);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT generated_data FROM training_datas WHERE train_id = 4001",
+                String.class
+        )).contains("IMAGE_SENTENCE_MATCH")
+                .contains("imagePrompt");
 
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT name FROM students WHERE id = 2002 AND teacher_id = 1001",
@@ -53,28 +71,8 @@ class DemoSeedIntegrationTest {
                 "SELECT gender FROM students WHERE id = 2002",
                 String.class
         )).isEqualTo("Boy");
-        assertThat(jdbcTemplate.queryForObject(
-                """
-                SELECT COUNT(*)
-                  FROM trainings training
-                  JOIN daily_curriculums curriculum
-                    ON curriculum.id = training.daily_curriculum_id
-                 WHERE curriculum.student_id = 2002
-                """,
-                Integer.class
-        )).isEqualTo(2);
-        assertThat(jdbcTemplate.queryForObject(
-                """
-                SELECT COUNT(*)
-                  FROM training_datas data
-                  JOIN trainings training
-                    ON training.id = data.train_id
-                  JOIN daily_curriculums curriculum
-                    ON curriculum.id = training.daily_curriculum_id
-                 WHERE curriculum.student_id = 2002
-                """,
-                Integer.class
-        )).isEqualTo(2);
+        assertThat(trainingCount(2002L)).isEqualTo(5);
+        assertThat(trainingDataCount(2002L)).isEqualTo(5);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM stories WHERE student_id = 2002",
                 Integer.class
@@ -91,6 +89,36 @@ class DemoSeedIntegrationTest {
                 "SELECT COUNT(*) FROM " + table + " WHERE id = ?",
                 Integer.class,
                 id
+        );
+    }
+
+    private Integer trainingCount(Long studentId) {
+        return jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM trainings training
+                  JOIN daily_curriculums curriculum
+                    ON curriculum.id = training.daily_curriculum_id
+                 WHERE curriculum.student_id = ?
+                """,
+                Integer.class,
+                studentId
+        );
+    }
+
+    private Integer trainingDataCount(Long studentId) {
+        return jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM training_datas data
+                  JOIN trainings training
+                    ON training.id = data.train_id
+                  JOIN daily_curriculums curriculum
+                    ON curriculum.id = training.daily_curriculum_id
+                 WHERE curriculum.student_id = ?
+                """,
+                Integer.class,
+                studentId
         );
     }
 }

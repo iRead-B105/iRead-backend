@@ -34,6 +34,12 @@ class MySqlDemoSeedIntegrationTest {
         assertThat(count("trainings", 4001L)).isEqualTo(1);
         assertThat(count("tests", 5101L)).isEqualTo(1);
         assertThat(tableCount("training_templates")).isEqualTo(34);
+        assertThat(trainingCount(2001L)).isEqualTo(5);
+        assertThat(trainingCount(2002L)).isEqualTo(5);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT training_template_id FROM trainings WHERE id = 4001",
+                Long.class
+        )).isEqualTo(29L);
     }
 
     private Integer count(String table, Long id) {
@@ -48,6 +54,20 @@ class MySqlDemoSeedIntegrationTest {
         return jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM " + table,
                 Integer.class
+        );
+    }
+
+    private Integer trainingCount(Long studentId) {
+        return jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM trainings training
+                  JOIN daily_curriculums curriculum
+                    ON curriculum.id = training.daily_curriculum_id
+                 WHERE curriculum.student_id = ?
+                """,
+                Integer.class,
+                studentId
         );
     }
 }
