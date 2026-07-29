@@ -48,7 +48,7 @@ public class GlobalExceptionHandler {
             ResourceNotFoundException exception
     ) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(
-                ApiErrorResponse.of("RESOURCE_NOT_FOUND", exception.getMessage())
+                ApiErrorResponse.of(exception.code(), exception.getMessage())
         );
     }
 

@@ -33,7 +33,41 @@ class MySqlDemoSeedIntegrationTest {
         assertThat(count("stories", 6001L)).isEqualTo(1);
         assertThat(count("trainings", 4001L)).isEqualTo(1);
         assertThat(count("tests", 5101L)).isEqualTo(1);
+        assertThat(count("students", 2101L)).isEqualTo(1);
+        assertThat(count("daily_curriculums", 3203L)).isEqualTo(1);
+        assertThat(count("trainings", 4203L)).isEqualTo(1);
+        assertThat(count("tests", 5503L)).isEqualTo(1);
+        assertThat(count("gaze_analysis_results", 7302L)).isEqualTo(1);
+        assertThat(count("reports", 9101L)).isEqualTo(1);
+        assertThat(tableCount("students")).isEqualTo(12);
         assertThat(tableCount("training_templates")).isEqualTo(34);
+        assertThat(count("reports", 170121L)).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM (
+                    SELECT student_id
+                    FROM daily_curriculums
+                    WHERE id BETWEEN 120000 AND 120999
+                    GROUP BY student_id
+                    HAVING COUNT(*) >= 3
+                ) persona_students
+                """,
+                Integer.class
+        )).isEqualTo(12);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM (
+                    SELECT student_id
+                    FROM reports
+                    WHERE id BETWEEN 170000 AND 170999
+                    GROUP BY student_id
+                    HAVING COUNT(*) >= 2
+                ) persona_students
+                """,
+                Integer.class
+        )).isEqualTo(12);
     }
 
     private Integer count(String table, Long id) {

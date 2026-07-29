@@ -239,7 +239,13 @@ public class StudentServiceImpl implements StudentService {
                         row.getLearningCategory(),
                         row.getStartedAt(),
                         row.getFinishedAt(),
-                        row.getAchievement(),
+                        row.getAchievement() == null
+                                ? null
+                                : row.getAchievement().divide(
+                                        BigDecimal.TEN,
+                                        2,
+                                        RoundingMode.HALF_UP
+                                ),
                         parseTrainingQuestions(row.getResult())
                 ))
                 .toList();

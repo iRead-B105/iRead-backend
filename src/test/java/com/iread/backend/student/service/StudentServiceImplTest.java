@@ -384,7 +384,7 @@ class StudentServiceImplTest {
         when(row.getLearningCategory()).thenReturn("낱말 읽기");
         when(row.getStartedAt()).thenReturn(LocalDateTime.of(2026, 7, 23, 15, 30));
         when(row.getFinishedAt()).thenReturn(LocalDateTime.of(2026, 7, 23, 15, 30));
-        when(row.getAchievement()).thenReturn(new BigDecimal("80.00"));
+        when(row.getAchievement()).thenReturn(new BigDecimal("800"));
         when(row.getResult()).thenReturn("""
                 {
                   "questions": [{
@@ -401,6 +401,7 @@ class StudentServiceImplTest {
 
         assertThat(result.getFirst().trainingId()).isEqualTo(100L);
         assertThat(result.getFirst().learningCategory()).isEqualTo("낱말 읽기");
+        assertThat(result.getFirst().accuracyRate()).isEqualByComparingTo("80.00");
         assertThat(result.getFirst().questions()).hasSize(1);
         assertThat(result.getFirst().questions().getFirst().question()).isEqualTo("사과를 읽어 보세요.");
         assertThat(result.getFirst().questions().getFirst().correct()).isFalse();
