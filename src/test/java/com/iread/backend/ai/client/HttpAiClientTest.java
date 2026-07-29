@@ -11,6 +11,7 @@ import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.ai.config.AiClientProperties;
 import com.iread.backend.global.audio.AudioUploadPolicy;
 import com.iread.backend.global.audio.TemporaryAudioStorage;
+import com.iread.backend.pronunciation.PronunciationAnalysisRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -270,6 +271,62 @@ class HttpAiClientTest {
         try (var files = Files.list(tempDir.resolve("audio"))) {
             assertThat(files.toList()).isEmpty();
         }
+        server.verify();
+    }
+
+    @Test
+    void sendsSentenceAudioAndReturnsWordPronunciationScores() {
+        server.expect(requestTo(
+                        "http://localhost:8081/api/v1/speech/pronunciation/analyze"
+                ))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Idempotency-Key", "pronunciation-request-1"))
+                .andExpect(content().contentTypeCompatibleWith(
+                        MediaType.MULTIPART_FORM_DATA
+                ))
+                .andRespond(withSuccess("""
+                        {
+                          "requestId": "pronunciation-request-1",
+                          "pronunciationAccuracyScore": 88.0,
+                          "fluencyScore": 81.0,
+                          "completenessScore": 100.0,
+                          "pronScore": 86.0,
+                          "confidence": 0.95,
+                          "analysisVersion": "AZURE_SPEECH_V1",
+                          "words": [
+                            {
+                              "resultIndex": 0,
+                              "word": "아기는",
+                              "accuracyScore": 91.0,
+                              "errorType": "None",
+                              "offsetMs": 100,
+                              "durationMs": 500
+                            },
+                            {
+                              "resultIndex": 1,
+                              "word": "사과를",
+                              "accuracyScore": 85.0,
+                              "errorType": "None",
+                              "offsetMs": 650,
+                              "durationMs": 600
+                            }
+                          ]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var response = aiClient.analyzePronunciation(
+                new PronunciationAnalysisRequest(
+                        "pronunciation-request-1",
+                        "아기는 사과를",
+                        "sentence.wav",
+                        "audio/wav",
+                        new byte[]{1, 2, 3}
+                )
+        );
+
+        assertThat(response.words()).hasSize(2);
+        assertThat(response.words().get(1).word()).isEqualTo("사과를");
+        assertThat(response.words().get(1).accuracyScore()).isEqualTo(85.0);
         server.verify();
     }
 

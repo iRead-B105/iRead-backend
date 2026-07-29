@@ -6,6 +6,7 @@ import com.iread.backend.global.audio.AudioUploadPolicy;
 import com.iread.backend.pronunciation.PronunciationAnalysisAdapter;
 import com.iread.backend.pronunciation.PronunciationAnalysisRequest;
 import com.iread.backend.pronunciation.PronunciationAnalysisResult;
+import com.iread.backend.pronunciation.PronunciationWordResult;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.test.app.dto.req.*;
@@ -120,13 +121,21 @@ public class AppTestService {
                                 + "-" + System.nanoTime(),
                         word.getContent(),
                         request.audioFile().getOriginalFilename(),
+                        request.audioFile().getContentType(),
                         audioBytes(request)
                 )
         );
+        PronunciationWordResult wordResult = analysis.words().stream()
+                .filter(result -> !result.isInsertion())
+                .filter(result -> word.getContent().equals(result.word()))
+                .findFirst()
+                .orElseThrow(() -> new ConflictException(
+                        "발음 분석 결과를 검사 단어와 정렬할 수 없습니다."
+                ));
         int pronunciationAccuracyScore =
-                (int) Math.round(analysis.pronunciationAccuracyScore() * 10);
-        boolean correct = analysis.pronunciationAccuracyScore() >= 70
-                && "NONE".equals(analysis.errorType());
+                (int) Math.round(wordResult.scoreOrZero() * 10);
+        boolean correct = pronunciationAccuracyScore >= 700
+                && "NONE".equalsIgnoreCase(wordResult.errorType());
         int totalScore = wordAttemptScoreCalculator.calculate(
                 pronunciationAccuracyScore,
                 true,
@@ -153,8 +162,8 @@ public class AppTestService {
                 attempt.getId(),
                 test.getId(),
                 word.getId(),
-                analysis.pronunciationAccuracyScore(),
-                analysis.errorType(),
+                wordResult.scoreOrZero(),
+                wordResult.errorType(),
                 attempt.getTotalScore(),
                 attempt.getCreatedAt()
         );

@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import jakarta.persistence.LockModeType;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,6 +22,12 @@ public interface DailyCurriculumRepository extends JpaRepository<DailyCurriculum
 
     @EntityGraph(attributePaths = {"trainings", "trainings.trainingTemplate", "trainings.trainingTemplate.curriculumUnit"})
     Optional<DailyCurriculumEntity> findByStudentIdAndStatus(Long studentId, DailyCurriculumStatus status);
+
+    @EntityGraph(attributePaths = {"trainings", "trainings.trainingTemplate", "trainings.trainingTemplate.curriculumUnit"})
+    Optional<DailyCurriculumEntity> findFirstByStudentIdAndStatusInOrderByCreatedAtDesc(
+            Long studentId,
+            Collection<DailyCurriculumStatus> statuses
+    );
 
     @EntityGraph(attributePaths = {"student", "trainings", "trainings.trainingTemplate", "trainings.trainingTemplate.curriculumUnit"})
     List<DailyCurriculumEntity> findAllByStatus(DailyCurriculumStatus status);

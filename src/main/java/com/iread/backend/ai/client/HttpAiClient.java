@@ -13,8 +13,13 @@ import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
 import com.iread.backend.ai.config.AiClientProperties;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.global.audio.TemporaryAudioStorage;
+import com.iread.backend.pronunciation.DeterministicPronunciationAnalysisAdapter;
+import com.iread.backend.pronunciation.PronunciationAnalysisRequest;
+import com.iread.backend.pronunciation.PronunciationAnalysisResult;
+import com.iread.backend.pronunciation.PronunciationWordResult;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
@@ -34,6 +39,7 @@ public class HttpAiClient implements AiClient {
     static final String GENERATE_STORY_PATH = "/api/v1/story/generate";
     static final String CONTINUE_STORY_PATH = "/api/v1/story/continue";
     static final String TRANSCRIBE_SPEECH_PATH = "/api/v1/speech/transcribe";
+    static final String ANALYZE_PRONUNCIATION_PATH = "/api/v1/speech/pronunciation/analyze";
     static final String SYNTHESIZE_SPEECH_PATH = "/api/v1/speech/synthesize";
 
     private final RestClient restClient;
@@ -43,6 +49,8 @@ public class HttpAiClient implements AiClient {
     private final MockStoryGenerator mockStoryGenerator;
     private final MockSpeechProcessor mockSpeechProcessor;
     private final TemporaryAudioStorage temporaryAudioStorage;
+    private final DeterministicPronunciationAnalysisAdapter mockPronunciationAnalyzer =
+            new DeterministicPronunciationAnalysisAdapter();
 
     public HttpAiClient(
             @Qualifier("aiRestClient") RestClient restClient,
@@ -203,6 +211,47 @@ public class HttpAiClient implements AiClient {
     }
 
     @Override
+    public PronunciationAnalysisResult analyzePronunciation(
+            PronunciationAnalysisRequest request
+    ) {
+        if (properties.mockSpeech()) {
+            return mockPronunciationAnalyzer.analyze(request);
+        }
+        try {
+            MultipartBodyBuilder body = new MultipartBodyBuilder();
+            body.part("requestId", request.requestId());
+            body.part("expectedText", request.expectedText());
+            body.part("audioFile", new ByteArrayResource(request.audio()) {
+                @Override
+                public String getFilename() {
+                    return request.originalFilename();
+                }
+            }).contentType(MediaType.parseMediaType(request.contentType()));
+
+            PronunciationAnalysisResult response = restClient.post()
+                    .uri(ANALYZE_PRONUNCIATION_PATH)
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .header("Idempotency-Key", request.requestId())
+                    .body(body.build())
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (httpRequest, httpResponse) -> {
+                        throw new AiClientException(
+                                "AI 서버가 발음 분석 오류를 반환했습니다.",
+                                httpResponse.getStatusCode().value()
+                        );
+                    })
+                    .requiredBody(PronunciationAnalysisResult.class);
+            validatePronunciationResponse(request, response);
+            return response;
+        } catch (AiClientException exception) {
+            throw exception;
+        } catch (RestClientException exception) {
+            throw new AiClientException("AI 서버와 발음 분석 통신 중 실패했습니다.", exception);
+        }
+    }
+
+    @Override
     public SpeechSynthesisResponse synthesizeSpeech(SpeechSynthesisRequest request) {
         if (properties.mockSpeech()) {
             return mockSpeechProcessor.synthesize(request);
@@ -239,6 +288,21 @@ public class HttpAiClient implements AiClient {
             throw exception;
         } catch (NumberFormatException | RestClientException exception) {
             throw new AiClientException("AI 서버와 TTS 통신 중 실패했습니다.", exception);
+        }
+    }
+
+    private void validatePronunciationResponse(
+            PronunciationAnalysisRequest request,
+            PronunciationAnalysisResult response
+    ) {
+        if (!Objects.equals(request.requestId(), response.requestId())) {
+            throw new AiClientException("AI 발음 분석 응답의 requestId가 요청과 일치하지 않습니다.");
+        }
+        int expectedIndex = 0;
+        for (PronunciationWordResult word : response.words()) {
+            if (word.resultIndex() != expectedIndex++) {
+                throw new AiClientException("AI 발음 분석 단어 결과 순서가 올바르지 않습니다.");
+            }
         }
     }
 

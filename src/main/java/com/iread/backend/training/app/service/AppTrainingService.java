@@ -3,9 +3,7 @@ package com.iread.backend.training.app.service;
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.exception.ConflictException;
 import com.iread.backend.global.audio.AudioUploadPolicy;
-import com.iread.backend.pronunciation.PronunciationAnalysisAdapter;
-import com.iread.backend.pronunciation.PronunciationAnalysisRequest;
-import com.iread.backend.pronunciation.PronunciationAnalysisResult;
+import com.iread.backend.pronunciation.*;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.admin.dto.req.CompleteTrainingRequest;
@@ -35,11 +33,18 @@ import tools.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AppTrainingService {
+    private static final Pattern WORD_PATTERN =
+            Pattern.compile("[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9]+");
+
     private final StudentRepository studentRepository;
     private final TrainingRepository trainingRepository;
     private final TrainingDataRepository trainingDataRepository;
@@ -48,6 +53,7 @@ public class AppTrainingService {
     private final PronunciationAnalysisAdapter pronunciationAnalysisAdapter;
     private final AudioUploadPolicy audioUploadPolicy;
     private final WordAttemptScoreCalculator wordAttemptScoreCalculator;
+    private final PronunciationWordAligner pronunciationWordAligner;
     private final TrainingInputRequirementService trainingInputRequirementService;
     private final TrainingService trainingService;
     private final ObjectMapper objectMapper;
@@ -128,79 +134,62 @@ public class AppTrainingService {
                 questionNumber,
                 TrainingInputType.VOICE
         );
-        WordEntity word = findWord(request.wordId());
-        validateRecordingTarget(
+        RecordingTarget target = resolveRecordingTarget(
                 trainingId,
                 questionNumber,
                 request.targetIndex(),
                 request.tokenIndex(),
                 request.expectedText()
         );
-        if (!word.getContent().equals(request.expectedText())) {
-            throw new IllegalArgumentException("wordId와 expectedText가 일치하지 않습니다.");
-        }
         validateSpeechOffsets(request.speechStartOffsetMs(), request.speechEndOffsetMs());
         audioUploadPolicy.validate(request.audioFile());
         PronunciationAnalysisResult analysis = pronunciationAnalysisAdapter.analyze(
                 new PronunciationAnalysisRequest(
                         "training-recording-" + trainingId + "-" + questionNumber
-                                + "-" + request.targetIndex() + "-" + System.nanoTime(),
-                        request.expectedText(),
+                                + "-" + target.targetIndex() + "-" + System.nanoTime(),
+                        target.referenceText(),
                         request.audioFile().getOriginalFilename(),
+                        request.audioFile().getContentType(),
                         audioBytes(request)
                 )
         );
-        int pronunciationAccuracyScore =
-                (int) Math.round(analysis.pronunciationAccuracyScore() * 10);
-        boolean correct = analysis.pronunciationAccuracyScore() >= 70
-                && "NONE".equals(analysis.errorType());
-        int totalScore = wordAttemptScoreCalculator.calculate(
-                pronunciationAccuracyScore,
-                true,
-                false,
-                0,
-                correct
+        PronunciationWordAligner.Alignment alignment = pronunciationWordAligner.align(
+                target.words(),
+                analysis.words()
         );
-        markPreviousAttemptsNotFinal(
+        List<StoredPronunciationWord> storedWords = storePronunciationWords(
+                student,
+                training,
+                questionNumber,
+                request,
+                target,
+                alignment
+        );
+        recordAttemptLinks(
+                training,
+                questionNumber,
+                request,
+                target,
+                storedWords,
+                analysis,
+                alignment.insertionCount()
+        );
+        LocalDateTime createdAt = storedWords.stream()
+                .map(value -> value.attempt().getCreatedAt())
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElseGet(LocalDateTime::now);
+        return new TrainingRecordingResponse(
                 trainingId,
                 questionNumber,
-                request.targetIndex(),
-                request.tokenIndex()
-        );
-        WordAttemptLogEntity attempt = wordAttemptLogRepository.saveAndFlush(
-                new WordAttemptLogEntity(
-                        student,
-                        word,
-                        training,
-                        word.getContent(),
-                        true,
-                        null,
-                        null,
-                        null,
-                        null,
-                        false,
-                        0,
-                        pronunciationAccuracyScore,
-                        request.speechStartOffsetMs(),
-                        request.speechEndOffsetMs(),
-                        correct,
-                        totalScore,
-                        questionNumber,
-                        request.targetIndex(),
-                        request.tokenIndex(),
-                        true
-                )
-        );
-        recordAttemptLink(training, questionNumber, request, attempt, analysis);
-        return new TrainingRecordingResponse(
-                attempt.getId(),
-                trainingId,
-                word.getId(),
                 analysis.pronunciationAccuracyScore(),
+                analysis.fluencyScore(),
+                analysis.completenessScore(),
+                analysis.pronScore(),
                 analysis.confidence(),
-                analysis.errorType(),
-                attempt.getTotalScore(),
-                attempt.getCreatedAt()
+                analysis.analysisVersion(),
+                storedWords.stream().map(this::toRecordingWordResult).toList(),
+                createdAt
         );
     }
 
@@ -305,10 +294,10 @@ public class AppTrainingService {
                 .orElseThrow(() -> new ResourceNotFoundException("단어를 찾을 수 없습니다."));
     }
 
-    private void validateRecordingTarget(
+    private RecordingTarget resolveRecordingTarget(
             Long trainingId,
             int questionNumber,
-            int targetIndex,
+            Integer targetIndex,
             Integer tokenIndex,
             String expectedText
     ) {
@@ -321,9 +310,15 @@ public class AppTrainingService {
             throw new ResourceNotFoundException("훈련 문항을 찾을 수 없습니다.");
         }
         JsonNode question = questions.get(questionNumber - 1);
+        int resolvedTargetIndex = resolveTargetIndex(
+                question,
+                targetIndex,
+                tokenIndex,
+                expectedText
+        );
         JsonNode expected = tokenIndex == null
-                ? question.path("analysisTargets").path(targetIndex)
-                : question.path("words").path(tokenIndex);
+                ? question.path("analysisTargets").path(resolvedTargetIndex)
+                : findQuestionWord(question, tokenIndex);
         if (!expected.isObject()) {
             throw new IllegalArgumentException("요청한 분석 대상 위치가 올바르지 않습니다.");
         }
@@ -333,44 +328,258 @@ public class AppTrainingService {
         if (!expectedText.equals(storedText)) {
             throw new IllegalArgumentException("요청한 텍스트가 생성된 훈련 문항과 일치하지 않습니다.");
         }
+        if (tokenIndex != null) {
+            return new RecordingTarget(
+                    resolvedTargetIndex,
+                    storedText,
+                    List.of(new PronunciationReferenceWord(tokenIndex, storedText))
+            );
+        }
+        if (storedText.equals(question.path("text").asText())
+                && question.path("words").isArray()
+                && !question.path("words").isEmpty()) {
+            List<PronunciationReferenceWord> words = new ArrayList<>();
+            question.path("words").forEach(word -> words.add(
+                    new PronunciationReferenceWord(
+                            word.path("wordIndex").asInt(),
+                            word.path("surface").asText()
+                    )
+            ));
+            return new RecordingTarget(resolvedTargetIndex, storedText, words);
+        }
+        List<PronunciationReferenceWord> tokenized = tokenize(storedText);
+        if (tokenized.size() == 1) {
+            tokenized = List.of(new PronunciationReferenceWord(
+                    null,
+                    tokenized.getFirst().surface()
+            ));
+        }
+        return new RecordingTarget(resolvedTargetIndex, storedText, tokenized);
     }
 
-    private void recordAttemptLink(
+    private int resolveTargetIndex(
+            JsonNode question,
+            Integer targetIndex,
+            Integer tokenIndex,
+            String expectedText
+    ) {
+        if (targetIndex != null) {
+            if (!question.path("analysisTargets").path(targetIndex).isObject()) {
+                throw new IllegalArgumentException(
+                        "요청한 targetIndex에 해당하는 분석 대상을 찾을 수 없습니다."
+                );
+            }
+            return targetIndex;
+        }
+        if (tokenIndex != null) {
+            throw new IllegalArgumentException(
+                    "단일 단어 녹음에는 targetIndex가 필요합니다."
+            );
+        }
+        int matchedIndex = -1;
+        JsonNode targets = question.path("analysisTargets");
+        for (int index = 0; index < targets.size(); index++) {
+            if (expectedText.equals(targets.path(index).path("text").asText())) {
+                if (matchedIndex >= 0) {
+                    throw new IllegalArgumentException(
+                            "같은 텍스트의 분석 대상이 여러 개이므로 targetIndex가 필요합니다."
+                    );
+                }
+                matchedIndex = index;
+            }
+        }
+        if (matchedIndex < 0) {
+            throw new IllegalArgumentException(
+                    "요청한 텍스트와 일치하는 분석 대상을 찾을 수 없습니다."
+            );
+        }
+        return matchedIndex;
+    }
+
+    private JsonNode findQuestionWord(JsonNode question, int tokenIndex) {
+        for (JsonNode word : question.path("words")) {
+            if (word.path("wordIndex").asInt(-1) == tokenIndex) {
+                return word;
+            }
+        }
+        return objectMapper.missingNode();
+    }
+
+    private List<PronunciationReferenceWord> tokenize(String text) {
+        List<PronunciationReferenceWord> words = new ArrayList<>();
+        Matcher matcher = WORD_PATTERN.matcher(text);
+        while (matcher.find()) {
+            words.add(new PronunciationReferenceWord(words.size(), matcher.group()));
+        }
+        if (words.isEmpty()) {
+            throw new IllegalArgumentException("발음 평가할 단어를 찾을 수 없습니다.");
+        }
+        return List.copyOf(words);
+    }
+
+    private List<StoredPronunciationWord> storePronunciationWords(
+            StudentEntity student,
             TrainingEntity training,
             int questionNumber,
             TrainingRecordingRequest request,
-            WordAttemptLogEntity attempt,
-            PronunciationAnalysisResult analysis
+            RecordingTarget target,
+            PronunciationWordAligner.Alignment alignment
+    ) {
+        List<StoredPronunciationWord> values = new ArrayList<>();
+        for (PronunciationWordAligner.AlignedWord aligned : alignment.words()) {
+            PronunciationReferenceWord reference = aligned.reference();
+            var analyzed = aligned.analyzed();
+            WordEntity word = resolveWord(
+                    reference.surface(),
+                    target.words().size() == 1 ? request.wordId() : null
+            );
+            int pronunciationAccuracyScore =
+                    (int) Math.round(analyzed.scoreOrZero() * 10);
+            boolean correct = pronunciationAccuracyScore >= 700
+                    && "NONE".equalsIgnoreCase(analyzed.errorType());
+            int totalScore = wordAttemptScoreCalculator.calculate(
+                    pronunciationAccuracyScore,
+                    true,
+                    false,
+                    0,
+                    correct
+            );
+            markPreviousAttemptsNotFinal(
+                    training.getId(),
+                    questionNumber,
+                    target.targetIndex(),
+                    reference.tokenIndex()
+            );
+            int speechStartOffsetMs = analyzed.offsetMs();
+            int speechEndOffsetMs = analyzed.offsetMs() + analyzed.durationMs();
+            WordAttemptLogEntity attempt = new WordAttemptLogEntity(
+                    student,
+                    word,
+                    training,
+                    reference.surface(),
+                    true,
+                    null,
+                    null,
+                    null,
+                    null,
+                    analyzed.isOmission(),
+                    0,
+                    pronunciationAccuracyScore,
+                    speechStartOffsetMs,
+                    speechEndOffsetMs,
+                    correct,
+                    totalScore,
+                    questionNumber,
+                    target.targetIndex(),
+                    reference.tokenIndex(),
+                    true
+            );
+            values.add(new StoredPronunciationWord(reference, analyzed, attempt));
+        }
+        List<WordAttemptLogEntity> saved = wordAttemptLogRepository.saveAllAndFlush(
+                values.stream().map(StoredPronunciationWord::attempt).toList()
+        );
+        for (int index = 0; index < values.size(); index++) {
+            values.set(index, new StoredPronunciationWord(
+                    values.get(index).reference(),
+                    values.get(index).analyzed(),
+                    saved.get(index)
+            ));
+        }
+        return List.copyOf(values);
+    }
+
+    private WordEntity resolveWord(String surface, Long requestedWordId) {
+        if (requestedWordId != null) {
+            WordEntity requested = findWord(requestedWordId);
+            if (!surface.equals(requested.getContent())) {
+                throw new IllegalArgumentException(
+                        "wordId와 발음 평가 대상 단어가 일치하지 않습니다."
+                );
+            }
+            return requested;
+        }
+        return wordRepository.findByContent(surface)
+                .orElseGet(() -> wordRepository.save(new WordEntity(surface)));
+    }
+
+    private void recordAttemptLinks(
+            TrainingEntity training,
+            int questionNumber,
+            TrainingRecordingRequest request,
+            RecordingTarget target,
+            List<StoredPronunciationWord> storedWords,
+            PronunciationAnalysisResult analysis,
+            int insertionCount
     ) {
         ObjectNode result = readObjectOrNew(training.getResult());
         result.put("schemaVersion", 2);
         ArrayNode attempts = result.withArray("wordAttempts");
-        attempts.forEach(existing -> {
-            if (existing.path("questionNo").asInt() == questionNumber
-                    && existing.path("targetIndex").asInt() == request.targetIndex()
-                    && java.util.Objects.equals(nullableInt(existing, "tokenIndex"), request.tokenIndex())) {
-                ((ObjectNode) existing).put("isFinal", false);
-            }
-        });
-        ObjectNode link = attempts.addObject();
-        link.put("wordAttemptLogId", attempt.getId());
-        link.put("questionNo", questionNumber);
-        link.put("targetIndex", request.targetIndex());
-        if (request.tokenIndex() == null) link.putNull("tokenIndex");
-        else link.put("tokenIndex", request.tokenIndex());
-        link.put("isFinal", true);
-        link.put("expectedText", request.expectedText());
-        link.put("pronunciationAccuracyScore", analysis.pronunciationAccuracyScore());
-        link.put("pronunciationConfidence", analysis.confidence());
-        link.put("pronunciationErrorType", analysis.errorType());
-        link.put("pronunciationAnalysisVersion", analysis.analysisVersion());
-        if (request.speechStartOffsetMs() != null && request.speechEndOffsetMs() != null) {
-            link.put("wordReadTimeMs",
-                    request.speechEndOffsetMs() - request.speechStartOffsetMs());
-        } else {
-            link.putNull("wordReadTimeMs");
+        for (StoredPronunciationWord stored : storedWords) {
+            Integer tokenIndex = stored.reference().tokenIndex();
+            attempts.forEach(existing -> {
+                if (existing.path("questionNo").asInt() == questionNumber
+                        && existing.path("targetIndex").asInt() == target.targetIndex()
+                        && java.util.Objects.equals(
+                        nullableInt(existing, "tokenIndex"),
+                        tokenIndex
+                )) {
+                    ((ObjectNode) existing).put("isFinal", false);
+                }
+            });
+            ObjectNode link = attempts.addObject();
+            link.put("wordAttemptLogId", stored.attempt().getId());
+            link.put("questionNo", questionNumber);
+            link.put("targetIndex", target.targetIndex());
+            if (tokenIndex == null) link.putNull("tokenIndex");
+            else link.put("tokenIndex", tokenIndex);
+            link.put("isFinal", true);
+            link.put("expectedText", stored.reference().surface());
+            link.put(
+                    "pronunciationAccuracyScore",
+                    stored.analyzed().scoreOrZero()
+            );
+            link.put("pronunciationErrorType", stored.analyzed().errorType());
+            link.put("pronunciationAnalysisVersion", analysis.analysisVersion());
+            link.put("wordReadTimeMs", stored.analyzed().durationMs());
         }
+        ObjectNode analysisLink = result.withArray("pronunciationAnalyses").addObject();
+        analysisLink.put("questionNo", questionNumber);
+        analysisLink.put("targetIndex", target.targetIndex());
+        analysisLink.put("referenceText", target.referenceText());
+        analysisLink.put(
+                "pronunciationAccuracyScore",
+                analysis.pronunciationAccuracyScore()
+        );
+        putNullableScore(analysisLink, "fluencyScore", analysis.fluencyScore());
+        putNullableScore(analysisLink, "completenessScore", analysis.completenessScore());
+        putNullableScore(analysisLink, "pronScore", analysis.pronScore());
+        analysisLink.put("confidence", analysis.confidence());
+        analysisLink.put("analysisVersion", analysis.analysisVersion());
+        analysisLink.put("insertionCount", insertionCount);
         training.recordProgressResult(writeJson(result));
+    }
+
+    private void putNullableScore(ObjectNode node, String field, Double value) {
+        if (value == null) node.putNull(field);
+        else node.put(field, value);
+    }
+
+    private TrainingRecordingResponse.WordResult toRecordingWordResult(
+            StoredPronunciationWord stored
+    ) {
+        return new TrainingRecordingResponse.WordResult(
+                stored.attempt().getId(),
+                stored.attempt().getWord().getId(),
+                stored.reference().tokenIndex(),
+                stored.reference().surface(),
+                stored.analyzed().scoreOrZero(),
+                stored.analyzed().errorType(),
+                stored.attempt().getTotalScore(),
+                stored.attempt().getSpeechStartOffsetMs(),
+                stored.attempt().getSpeechEndOffsetMs(),
+                stored.attempt().getCreatedAt()
+        );
     }
 
     private void markPreviousAttemptsNotFinal(
@@ -404,6 +613,23 @@ public class AppTrainingService {
 
     private Integer nullableInt(JsonNode node, String field) {
         return node.hasNonNull(field) ? node.path(field).asInt() : null;
+    }
+
+    private record RecordingTarget(
+            int targetIndex,
+            String referenceText,
+            List<PronunciationReferenceWord> words
+    ) {
+        private RecordingTarget {
+            words = List.copyOf(words);
+        }
+    }
+
+    private record StoredPronunciationWord(
+            PronunciationReferenceWord reference,
+            com.iread.backend.pronunciation.PronunciationWordResult analyzed,
+            WordAttemptLogEntity attempt
+    ) {
     }
 
     private ObjectNode readObjectOrNew(String value) {

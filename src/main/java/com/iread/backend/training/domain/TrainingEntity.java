@@ -73,6 +73,7 @@ public class TrainingEntity {
     public void start(LocalDateTime startedAt) {
         this.startedAt = startedAt;
         this.status = TrainingStatus.IN_PROGRESS;
+        dailyCurriculum.markInProgress();
     }
 
     public void reset() {

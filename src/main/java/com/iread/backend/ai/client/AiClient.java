@@ -10,6 +10,8 @@ import com.iread.backend.ai.dto.res.GenerateStoryResponse;
 import com.iread.backend.ai.dto.res.GenerateTrainingResponse;
 import com.iread.backend.ai.dto.res.SpeechSynthesisResponse;
 import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
+import com.iread.backend.pronunciation.PronunciationAnalysisRequest;
+import com.iread.backend.pronunciation.PronunciationAnalysisResult;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface AiClient {
@@ -25,6 +27,8 @@ public interface AiClient {
     SpeechTranscriptionResponse transcribeSpeech(
             String requestId, Long studentId, String expectedText, MultipartFile audioFile
     );
+
+    PronunciationAnalysisResult analyzePronunciation(PronunciationAnalysisRequest request);
 
     SpeechSynthesisResponse synthesizeSpeech(SpeechSynthesisRequest request);
 }

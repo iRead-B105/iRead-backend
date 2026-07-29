@@ -59,4 +59,10 @@ public class DailyCurriculumEntity {
             if (completedAt == null) completedAt = now;
         }
     }
+
+    void markInProgress() {
+        if (status == DailyCurriculumStatus.NOT_STARTED) {
+            status = DailyCurriculumStatus.IN_PROGRESS;
+        }
+    }
 }
