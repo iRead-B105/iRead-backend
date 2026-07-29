@@ -51,7 +51,7 @@ class StudentServiceImplTest {
         );
         teacher = new TeacherEntity(
                 "teacher@test.com", "encoded-password", "교사", "기관",
-                com.iread.backend.teacher.domain.Gender.Female, null
+                com.iread.backend.teacher.domain.Gender.FEMALE, null
         );
         ReflectionTestUtils.setField(teacher, "id", 1L);
     }
@@ -139,7 +139,7 @@ class StudentServiceImplTest {
     }
 
     @Test
-    void filtersOwnedStudentsByKeywordAgeAndLearningPeriod() {
+    void filtersAndPagesOwnedStudentsByFrontendListContract() {
         StudentEntity included = student(10L, "민준", LocalDate.now().minusYears(10));
         StudentEntity excluded = student(11L, "서연", LocalDate.now().minusYears(8));
         StudentRepository.StudentLearningSummaryProjection includedSummary =
@@ -155,13 +155,52 @@ class StudentServiceImplTest {
         var result = studentService.getStudents(
                 1L,
                 "민",
-                9,
-                11,
-                LocalDate.now().minusDays(7),
-                LocalDate.now()
+                10,
+                7,
+                0,
+                10
         );
 
-        assertThat(result).extracting("id").containsExactly(10L);
+        assertThat(result.students()).extracting("studentId").containsExactly(10L);
+        assertThat(result.page()).isZero();
+        assertThat(result.size()).isEqualTo(10);
+        assertThat(result.totalElements()).isEqualTo(1);
+        assertThat(result.totalPages()).isEqualTo(1);
+    }
+
+    @Test
+    void searchesSchoolAndReturnsAnEmptyOutOfRangePage() {
+        StudentEntity first = student(10L, "민준", LocalDate.now().minusYears(10));
+        StudentEntity second = student(11L, "서연", LocalDate.now().minusYears(10));
+        ReflectionTestUtils.setField(first, "school", "새봄초");
+        ReflectionTestUtils.setField(second, "school", "새봄초");
+        when(teacherRepository.findById(1L)).thenReturn(Optional.of(teacher));
+        when(studentRepository.findAllByTeacherIdOrderByIdAsc(1L))
+                .thenReturn(List.of(first, second));
+        when(studentRepository.findLearningSummaries(1L)).thenReturn(List.of());
+
+        var result = studentService.getStudents(
+                1L, "새봄", null, null, 2, 1
+        );
+
+        assertThat(result.students()).isEmpty();
+        assertThat(result.totalElements()).isEqualTo(2);
+        assertThat(result.totalPages()).isEqualTo(2);
+    }
+
+    @Test
+    void rejectsUnsupportedStudentListQueryValues() {
+        when(teacherRepository.findById(1L)).thenReturn(Optional.of(teacher));
+
+        assertThatThrownBy(() -> studentService.getStudents(
+                1L, null, 5, null, 0, 10
+        )).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("age");
+        assertThatThrownBy(() -> studentService.getStudents(
+                1L, null, null, 14, 0, 10
+        )).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("recentDays");
+        assertThatThrownBy(() -> studentService.getStudents(
+                1L, null, null, null, -1, 10
+        )).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("page");
     }
 
     @Test
@@ -232,6 +271,53 @@ class StudentServiceImplTest {
         assertThat(result.recommendedTrainingTemplateId()).isEqualTo(30L);
         assertThat(result.recommendedMinutes()).isEqualTo(10);
         assertThat(result.recommendedRepeatCount()).isEqualTo(2);
+    }
+
+    @Test
+    void returnsRecentLearningEventsWithTypeQualifiedSourceIds() {
+        StudentEntity student = student(10L, "민준", LocalDate.now().minusYears(10));
+        StudentRepository.RecentLearningEventProjection training =
+                org.mockito.Mockito.mock(StudentRepository.RecentLearningEventProjection.class);
+        StudentRepository.RecentLearningEventProjection test =
+                org.mockito.Mockito.mock(StudentRepository.RecentLearningEventProjection.class);
+        StudentRepository.LearningOverviewProjection overview =
+                org.mockito.Mockito.mock(StudentRepository.LearningOverviewProjection.class);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(studentRepository.findRecentLearningEvents(10L, 3))
+                .thenReturn(List.of(training, test));
+        when(studentRepository.findLearningOverview(10L)).thenReturn(overview);
+        when(training.getEventId()).thenReturn(100L);
+        when(training.getEventType()).thenReturn("training");
+        when(training.getOccurredAt()).thenReturn(LocalDateTime.of(2026, 7, 28, 16, 0));
+        when(training.getAccuracy()).thenReturn(new BigDecimal("82.50"));
+        when(test.getEventId()).thenReturn(100L);
+        when(test.getEventType()).thenReturn("test");
+        when(test.getOccurredAt()).thenReturn(LocalDateTime.of(2026, 7, 27, 16, 0));
+        when(test.getAccuracy()).thenReturn(new BigDecimal("75.00"));
+        when(overview.getRecentCompletedCount()).thenReturn(3L);
+        when(overview.getRecentAverageAccuracy()).thenReturn(new BigDecimal("69.00"));
+        when(overview.getLastLearningAt()).thenReturn(LocalDateTime.now().minusDays(1));
+
+        var result = studentService.getRecentLearningEvents(1L, 10L, 3);
+
+        assertThat(result.events()).extracting("eventType")
+                .containsExactly("training", "test");
+        assertThat(result.events()).extracting("sourceId")
+                .containsExactly(100L, 100L);
+        assertThat(result.events()).allSatisfy(event -> {
+            assertThat(event.attentionRequired()).isTrue();
+            assertThat(event.attentionReasons()).contains("LOW_ACCURACY");
+        });
+    }
+
+    @Test
+    void rejectsRecentLearningEventLimitOutsideContractRange() {
+        StudentEntity student = student(10L, "민준", LocalDate.now().minusYears(10));
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+
+        assertThatThrownBy(() -> studentService.getRecentLearningEvents(1L, 10L, 0))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("limit");
     }
 
     @Test

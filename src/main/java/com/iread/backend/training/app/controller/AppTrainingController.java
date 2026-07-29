@@ -2,10 +2,9 @@ package com.iread.backend.training.app.controller;
 
 import com.iread.backend.auth.annotation.CurrentStudentId;
 import com.iread.backend.auth.annotation.CurrentTeacherId;
+import com.iread.backend.learning.app.dto.LearningSubmission;
 import com.iread.backend.security.StudentResourceAccessPolicy;
-import com.iread.backend.training.admin.dto.req.CompleteTrainingRequest;
 import com.iread.backend.training.app.dto.req.TrainingRecordingRequest;
-import com.iread.backend.training.app.dto.req.TrainingSelectionRequest;
 import com.iread.backend.training.app.dto.res.*;
 import com.iread.backend.training.app.service.AppTrainingService;
 import jakarta.validation.Valid;
@@ -91,13 +90,13 @@ public class AppTrainingController {
 
     @PostMapping("/questions/{questionNumber}/responses")
     @ResponseStatus(HttpStatus.CREATED)
-    public TrainingSelectionResponse saveSelection(
+    public TrainingFeedbackResponse saveSelection(
             @CurrentTeacherId Long teacherId,
             @CurrentStudentId Long authenticatedStudentId,
             @PathVariable Long studentId,
             @PathVariable Long trainingId,
             @PathVariable int questionNumber,
-            @Valid @RequestBody TrainingSelectionRequest request
+            @Valid @RequestBody LearningSubmission request
     ) {
         requireSameStudent(authenticatedStudentId, studentId);
         return trainingService.saveSelection(
@@ -114,11 +113,10 @@ public class AppTrainingController {
             @CurrentTeacherId Long teacherId,
             @CurrentStudentId Long authenticatedStudentId,
             @PathVariable Long studentId,
-            @PathVariable Long trainingId,
-            @Valid @RequestBody CompleteTrainingRequest request
+            @PathVariable Long trainingId
     ) {
         requireSameStudent(authenticatedStudentId, studentId);
-        return trainingService.complete(teacherId, studentId, trainingId, request);
+        return trainingService.complete(teacherId, studentId, trainingId);
     }
 
     private void requireSameStudent(Long authenticatedStudentId, Long studentId) {

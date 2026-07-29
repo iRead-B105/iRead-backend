@@ -64,8 +64,7 @@ public class TeacherEntity {
         this.password = encodedPassword;
     }
 
-    public void updateProfile(String email, String name, String organization, Gender gender) {
-        this.email = email.trim();
+    public void updateProfile(String name, String organization, Gender gender) {
         this.name = name.trim();
         this.organization = organization == null || organization.isBlank() ? null : organization.trim();
         this.gender = gender;

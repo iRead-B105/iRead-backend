@@ -2,6 +2,7 @@ package com.iread.backend.teacher.admin.service;
 
 import com.iread.backend.teacher.domain.Gender;
 import com.iread.backend.teacher.domain.TeacherEntity;
+import com.iread.backend.teacher.admin.dto.req.UpdateTeacherProfileRequest;
 import com.iread.backend.teacher.repository.TeacherRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,7 +30,7 @@ class TeacherServiceTest {
         var result = teacherService.getTeacherInfo(1L);
 
         assertThat(result.email()).isEqualTo("teacher@test.com");
-        assertThat(result.gender()).isEqualTo(Gender.Female);
+        assertThat(result.gender()).isEqualTo(Gender.FEMALE);
         assertThat(result.profileImageUrl()).isEqualTo("/uploads/images/profile.png");
     }
 
@@ -37,6 +38,22 @@ class TeacherServiceTest {
     void returnsNullWithoutProfileImage() {
         when(teacherRepository.findById(1L)).thenReturn(Optional.of(teacher(1L, null)));
         assertThat(teacherService.getTeacherInfo(1L).profileImageUrl()).isNull();
+    }
+
+    @Test
+    void updatesProfileWithoutChangingLoginEmail() {
+        TeacherEntity teacher = teacher(1L, null);
+        when(teacherRepository.findById(1L)).thenReturn(Optional.of(teacher));
+
+        var result = teacherService.updateProfile(
+                1L,
+                new UpdateTeacherProfileRequest(" 새 이름 ", " 새 기관 ", Gender.MALE)
+        );
+
+        assertThat(result.email()).isEqualTo("teacher@test.com");
+        assertThat(result.name()).isEqualTo("새 이름");
+        assertThat(result.organization()).isEqualTo("새 기관");
+        assertThat(result.gender()).isEqualTo(Gender.MALE);
     }
 
     @Test
@@ -48,7 +65,7 @@ class TeacherServiceTest {
 
     private TeacherEntity teacher(Long id, String imageUrl) {
         TeacherEntity teacher = new TeacherEntity(
-                "teacher@test.com", "password", "교사", "한국대학교", Gender.Female, imageUrl
+                "teacher@test.com", "password", "교사", "한국대학교", Gender.FEMALE, imageUrl
         );
         ReflectionTestUtils.setField(teacher, "id", id);
         return teacher;

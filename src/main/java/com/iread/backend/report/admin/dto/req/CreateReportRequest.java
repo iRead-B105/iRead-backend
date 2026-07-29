@@ -8,5 +8,5 @@ public record CreateReportRequest(
         @NotNull Long studentId,
         @NotNull LocalDate startDate,
         @NotNull LocalDate endDate,
-        @Size(max = 5000) String teacherMemo
+        @Size(max = 2000) String teacherMemo
 ) {}

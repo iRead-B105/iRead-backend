@@ -55,7 +55,7 @@ class AdminRequestValidationTest {
                 10L,
                 LocalDate.of(2026, 7, 1),
                 LocalDate.of(2026, 7, 31),
-                "가".repeat(5001)
+                "가".repeat(2001)
         );
 
         assertThat(validator.validate(request))

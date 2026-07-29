@@ -11,11 +11,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import tools.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Tag(name = "훈련 관리", description = "관리자 앱 커리큘럼 및 훈련 관리 API")
@@ -27,8 +29,15 @@ public class TrainingController {
 
     @Operation(summary = "학생의 완료된 일일 커리큘럼 기록 조회")
     @GetMapping("/{studentId}/curriculum-log")
-    public List<CurriculumLogResponse> getCurriculumLogs(@CurrentTeacherId Long teacherId, @PathVariable Long studentId) {
-        return trainingService.getCurriculumLogs(teacherId, studentId);
+    public List<CurriculumLogResponse> getCurriculumLogs(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return trainingService.getCurriculumLogs(teacherId, studentId, from, to);
     }
 
     @Operation(summary = "일일 커리큘럼의 훈련 이력 조회")

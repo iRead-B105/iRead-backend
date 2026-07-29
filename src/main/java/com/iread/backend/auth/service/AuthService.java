@@ -1,16 +1,11 @@
 package com.iread.backend.auth.service;
 
-import com.iread.backend.auth.config.AuthSettings;
 import com.iread.backend.auth.domain.AuthAudience;
-import com.iread.backend.auth.dto.req.FindIdRequest;
 import com.iread.backend.auth.dto.req.LoginRequest;
-import com.iread.backend.auth.dto.req.ResetPasswordRequest;
 import com.iread.backend.auth.dto.req.SignUpRequest;
 import com.iread.backend.auth.dto.req.StudentLoginRequest;
 import com.iread.backend.auth.dto.res.AdminLoginResponse;
 import com.iread.backend.auth.dto.res.AppTeacherLoginResponse;
-import com.iread.backend.auth.dto.res.FindIdResponse;
-import com.iread.backend.auth.dto.res.PasswordResetResponse;
 import com.iread.backend.auth.dto.res.SignUpResponse;
 import com.iread.backend.auth.dto.res.StudentLoginResponse;
 import com.iread.backend.auth.dto.res.TokenRefreshResponse;
@@ -27,8 +22,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.List;
 
 @Service
@@ -40,7 +33,6 @@ public class AuthService {
     private final JwtTokenService jwtTokenService;
     private final RefreshTokenService refreshTokenService;
     private final LoginAttemptService loginAttemptService;
-    private final AuthSettings settings;
 
     public AuthService(
             TeacherRepository teacherRepository,
@@ -48,8 +40,7 @@ public class AuthService {
             PasswordEncoder passwordEncoder,
             JwtTokenService jwtTokenService,
             RefreshTokenService refreshTokenService,
-            LoginAttemptService loginAttemptService,
-            AuthSettings settings
+            LoginAttemptService loginAttemptService
     ) {
         this.teacherRepository = teacherRepository;
         this.studentRepository = studentRepository;
@@ -57,7 +48,6 @@ public class AuthService {
         this.jwtTokenService = jwtTokenService;
         this.refreshTokenService = refreshTokenService;
         this.loginAttemptService = loginAttemptService;
-        this.settings = settings;
     }
 
     @Transactional
@@ -72,7 +62,7 @@ public class AuthService {
                 request.name().trim(),
                 request.organization().trim(),
                 null,
-                normalizeNullable(request.profileImage())
+                null
         );
         return SignUpResponse.completed(teacherRepository.save(teacher));
     }
@@ -104,31 +94,6 @@ public class AuthService {
                 AdminLoginResponse.completed(teacher, accessToken.value(), accessToken.expiresIn()),
                 refreshToken.rawToken()
         );
-    }
-
-    @Transactional
-    public PasswordResetResponse resetPassword(ResetPasswordRequest request) {
-        validateDemoVerificationCode(request.verificationCode());
-        TeacherEntity teacher = teacherRepository.findByEmail(request.email())
-                .orElseThrow(() -> new AuthException(
-                        HttpStatus.NOT_FOUND,
-                        "TEACHER_NOT_FOUND",
-                        "계정 정보를 확인할 수 없습니다."
-                ));
-        teacher.updatePassword(passwordEncoder.encode(request.newPassword()));
-        refreshTokenService.revokeAll(teacher.getId());
-        return PasswordResetResponse.completed();
-    }
-
-    @Transactional(readOnly = true)
-    public FindIdResponse findId(FindIdRequest request) {
-        TeacherEntity teacher = teacherRepository.findByNameAndEmail(request.name(), request.email())
-                .orElseThrow(() -> new AuthException(
-                        HttpStatus.NOT_FOUND,
-                        "TEACHER_NOT_FOUND",
-                        "계정 정보를 확인할 수 없습니다."
-                ));
-        return FindIdResponse.completed(mask(teacher.getEmail()));
     }
 
     @Transactional
@@ -222,45 +187,6 @@ public class AuthService {
             throw new AuthException(HttpStatus.FORBIDDEN, "INVALID_TOKEN_AUDIENCE", "학습 앱 로그아웃 권한이 없습니다.");
         }
         refreshTokenService.revoke(rawRefreshToken, AuthAudience.LEARNING);
-    }
-
-    private void validateDemoVerificationCode(String providedCode) {
-        String configuredCode = settings.demoVerificationCode();
-        if (configuredCode == null || configuredCode.isBlank()) {
-            throw new AuthException(
-                    HttpStatus.BAD_REQUEST,
-                    "DEMO_VERIFICATION_NOT_CONFIGURED",
-                    "데모 비밀번호 재설정 코드가 설정되지 않았습니다."
-            );
-        }
-        if (!MessageDigest.isEqual(
-                configuredCode.getBytes(StandardCharsets.UTF_8),
-                providedCode.getBytes(StandardCharsets.UTF_8)
-        )) {
-            throw new AuthException(
-                    HttpStatus.BAD_REQUEST,
-                    "INVALID_VERIFICATION_CODE",
-                    "인증 코드가 올바르지 않습니다."
-            );
-        }
-    }
-
-    private String mask(String email) {
-        int atIndex = email.indexOf('@');
-        String localPart = atIndex > 0 ? email.substring(0, atIndex) : email;
-        String domain = atIndex > 0 ? email.substring(atIndex) : "";
-        if (localPart.length() <= 2) {
-            return localPart.charAt(0) + "*" + domain;
-        }
-        int visiblePrefix = Math.min(3, localPart.length() - 1);
-        int maskLength = Math.max(1, localPart.length() - visiblePrefix);
-        return localPart.substring(0, visiblePrefix)
-                + "*".repeat(maskLength)
-                + domain;
-    }
-
-    private String normalizeNullable(String value) {
-        return value == null || value.isBlank() ? null : value.trim();
     }
 
     public record LoginResult<T>(T response, String refreshToken) {

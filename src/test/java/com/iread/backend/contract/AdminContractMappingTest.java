@@ -90,6 +90,7 @@ class AdminContractMappingTest {
 
                 route(RequestMethod.GET, "/api/admin/teacher/info"),
                 route(RequestMethod.PATCH, "/api/admin/teacher/profile"),
+                route(RequestMethod.PATCH, "/api/admin/teacher/profile/image"),
 
                 route(RequestMethod.GET, "/api/admin/test/{studentId}/compare"),
                 route(RequestMethod.GET, "/api/admin/test/{studentId}/list"),

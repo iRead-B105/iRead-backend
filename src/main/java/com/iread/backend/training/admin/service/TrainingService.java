@@ -59,9 +59,23 @@ public class TrainingService {
     private final TrainingInputRequirementService trainingInputRequirementService;
     private final ObjectMapper objectMapper;
 
-    public List<CurriculumLogResponse> getCurriculumLogs(Long teacherId, Long studentId) {
+    public List<CurriculumLogResponse> getCurriculumLogs(
+            Long teacherId,
+            Long studentId,
+            LocalDate from,
+            LocalDate to
+    ) {
         validateStudentOwner(teacherId, studentId);
-        return dailyCurriculumRepository.findAllByStudentIdAndCompletedAtIsNotNullOrderByCompletedAtDesc(studentId)
+        if (from != null && to != null && from.isAfter(to)) {
+            throw new IllegalArgumentException("시작일은 종료일보다 늦을 수 없습니다.");
+        }
+        LocalDateTime fromDateTime = from == null ? null : from.atStartOfDay();
+        LocalDateTime toDateTimeExclusive = to == null ? null : to.plusDays(1).atStartOfDay();
+        return dailyCurriculumRepository.findCompletedByStudentIdWithin(
+                        studentId,
+                        fromDateTime,
+                        toDateTimeExclusive
+                )
                 .stream().map(curriculum -> new CurriculumLogResponse(
                         curriculum.getId(), curriculum.getCompletedAt().toLocalDate(), averageAccuracy(curriculum),
                         curriculum.getTrainings().stream().map(this::toCurriculumLogItem).toList()

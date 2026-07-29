@@ -5,7 +5,6 @@ import com.iread.backend.teacher.admin.dto.res.TeacherInfoResponse;
 import com.iread.backend.teacher.admin.dto.req.UpdateTeacherProfileRequest;
 import com.iread.backend.global.storage.FileStorage;
 import com.iread.backend.global.storage.StoredFile;
-import com.iread.backend.exception.ConflictException;
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.teacher.repository.TeacherRepository;
 import lombok.RequiredArgsConstructor;
@@ -30,10 +29,7 @@ public class TeacherService {
     @Transactional
     public TeacherInfoResponse updateProfile(Long teacherId, UpdateTeacherProfileRequest request) {
         TeacherEntity teacher = findTeacher(teacherId);
-        if (teacherRepository.existsByEmailAndIdNot(request.email(), teacherId)) {
-            throw new ConflictException("이미 사용 중인 이메일입니다.");
-        }
-        teacher.updateProfile(request.email(), request.name(), request.organization(), request.gender());
+        teacher.updateProfile(request.name(), request.organization(), request.gender());
         return TeacherInfoResponse.from(teacher, teacher.getImageUrl());
     }
 

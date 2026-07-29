@@ -3,6 +3,8 @@ package com.iread.backend.test.app.service;
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.exception.ConflictException;
 import com.iread.backend.global.audio.AudioUploadPolicy;
+import com.iread.backend.learning.app.dto.LearningSubmission;
+import com.iread.backend.learning.app.service.AppLearningQuestionSupport;
 import com.iread.backend.pronunciation.PronunciationAnalysisAdapter;
 import com.iread.backend.pronunciation.PronunciationAnalysisRequest;
 import com.iread.backend.pronunciation.PronunciationAnalysisResult;
@@ -26,14 +28,17 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
+import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -48,6 +53,7 @@ public class AppTestService {
     private final AudioUploadPolicy audioUploadPolicy;
     private final WordAttemptScoreCalculator wordAttemptScoreCalculator;
     private final ObjectMapper objectMapper;
+    private final AppLearningQuestionSupport learningQuestionSupport;
 
     public TestIntroResponse getIntro(Long teacherId, Long studentId) {
         findOwnedStudent(teacherId, studentId);
@@ -80,7 +86,7 @@ public class AppTestService {
                 testId,
                 questionNumber,
                 questions.size(),
-                questions.get(questionNumber - 1)
+                learningQuestionSupport.toStudentQuestion(questions.get(questionNumber - 1))
         );
     }
 
@@ -170,58 +176,65 @@ public class AppTestService {
     }
 
     @Transactional
-    public TestSelectionResponse saveSelection(
+    public TestProgressResponse saveSelection(
             Long teacherId,
             Long studentId,
             int questionNumber,
-            TestSelectionRequest request
-    ) {
-        StudentEntity student = findOwnedStudent(teacherId, studentId);
-        StudentTestEntity test = findInProgressTestForUpdate(studentId, request.testId());
-        validateQuestion(request.testId(), questionNumber);
-        WordEntity word = findWord(request.wordId());
-        markPreviousAttemptNotFinal(test.getId(), questionNumber);
-        WordAttemptLogEntity attempt = wordAttemptLogRepository.saveAndFlush(
-                WordAttemptLogEntity.forTest(
-                        student,
-                        word,
-                        test,
-                        false,
-                        null,
-                        null,
-                        null,
-                        request.isCorrect(),
-                        request.totalScore(),
-                        questionNumber
-                )
-        );
-        return new TestSelectionResponse(
-                attempt.getId(),
-                test.getId(),
-                word.getId(),
-                attempt.getCorrect(),
-                attempt.getTotalScore(),
-                attempt.getCreatedAt()
-        );
-    }
-
-    @Transactional
-    public TestQuestionCompleteResponse completeQuestion(
-            Long teacherId,
-            Long studentId,
-            int questionNumber,
-            TestQuestionCompleteRequest request
+            TestSubmissionRequest request
     ) {
         findOwnedStudent(teacherId, studentId);
         StudentTestEntity test = findInProgressTestForUpdate(studentId, request.testId());
-        validateQuestion(request.testId(), questionNumber);
-        test.updateResult(writeJson(request.result()));
-        return new TestQuestionCompleteResponse(
-                test.getId(),
+        JsonNode questions = readQuestions(request.testId());
+        if (questionNumber < 1 || questionNumber > questions.size()) {
+            throw new ResourceNotFoundException("검사 문항을 찾을 수 없습니다.");
+        }
+        LearningSubmission submissionRequest = request.submission();
+        ObjectNode result = readObjectOrNew(test.getResult());
+        result.put("schemaVersion", 2);
+        ArrayNode submissions = result.withArray("submissions");
+
+        JsonNode existing = findSubmission(submissions, submissionRequest.submissionId());
+        if (existing != null) {
+            if (!sameSubmission(existing, questionNumber, submissionRequest)) {
+                throw new ConflictException("같은 submissionId를 다른 제출에 재사용할 수 없습니다.");
+            }
+            return readProgress(existing.path("progress"));
+        }
+        if (hasQuestionSubmission(submissions, questionNumber)) {
+            throw new ConflictException("검사 문항은 최초 제출만 인정됩니다.");
+        }
+
+        AppLearningQuestionSupport.Evaluation evaluation =
+                learningQuestionSupport.evaluate(
+                        questions.get(questionNumber - 1),
+                        submissionRequest
+                );
+        ObjectNode stored = submissions.addObject();
+        stored.put("submissionId", submissionRequest.submissionId().toString());
+        stored.put("questionNo", questionNumber);
+        stored.put("responseType", submissionRequest.responseType().name());
+        stored.set("response", submissionRequest.response().deepCopy());
+        stored.put("correct", evaluation.correct());
+        stored.put("totalScore", evaluation.totalScore());
+        stored.put("submittedAt", LocalDateTime.now().toString());
+
+        int completedQuestions = completedQuestionNumbers(submissions).size();
+        int totalQuestions = questions.size();
+        Integer nextQuestion = nextQuestionNumber(submissions, totalQuestions);
+        TestProgressResponse progress = new TestProgressResponse(
+                "TEST_PROGRESS",
+                submissionRequest.submissionId(),
+                true,
                 questionNumber,
-                test.getStatus(),
-                LocalDateTime.now()
+                completedQuestions,
+                totalQuestions,
+                completedQuestions * 100 / totalQuestions,
+                nextQuestion,
+                completedQuestions == totalQuestions
         );
+        stored.set("progress", writeProgress(progress));
+        test.updateResult(writeJson(result));
+        return progress;
     }
 
     @Transactional
@@ -230,30 +243,46 @@ public class AppTestService {
             Long studentId,
             TestCompleteRequest request
     ) {
-        findOwnedStudent(teacherId, studentId);
+        StudentTestEntity owned = findOwnedTest(teacherId, studentId, request.testId());
+        if (owned.getStatus() == TestStatus.COMPLETED) {
+            return completionResponse(owned);
+        }
         StudentTestEntity test = findInProgressTestForUpdate(studentId, request.testId());
-        List<WordAttemptLogEntity> attempts =
+        JsonNode questions = readQuestions(test.getId());
+        ObjectNode result = readObjectOrNew(test.getResult());
+        ArrayNode submissions = result.withArray("submissions");
+        List<WordAttemptLogEntity> legacyAttempts =
                 wordAttemptLogRepository.findAllByTestIdAndFinalAttemptTrueOrderByIdAsc(
                         test.getId()
                 );
-        if (attempts.isEmpty()) {
-            throw new ConflictException("저장된 검사 응답이 없습니다.");
+        int completedQuestions =
+                completedQuestionNumbers(submissions).size() + legacyAttempts.size();
+        if (completedQuestions != questions.size()) {
+            throw new ConflictException("모든 검사 문항을 제출한 후 검사를 종료할 수 있습니다.");
         }
-        long scoreSum = attempts.stream()
+        long scoreSum = 0;
+        for (JsonNode submission : submissions) {
+            scoreSum += submission.path("totalScore").asInt();
+        }
+        scoreSum += legacyAttempts.stream()
                 .map(WordAttemptLogEntity::getTotalScore)
                 .mapToLong(Integer::longValue)
                 .sum();
         BigDecimal accuracy = BigDecimal.valueOf(scoreSum)
-                .divide(BigDecimal.valueOf(attempts.size() * 10L), 2, RoundingMode.HALF_UP);
-        String result = test.getResult() != null
-                ? test.getResult()
-                : writeJson(Map.of("attemptCount", attempts.size()));
-        test.complete(result, accuracy, request.completedAt());
+                .divide(BigDecimal.valueOf(completedQuestions * 10L), 2, RoundingMode.HALF_UP);
+        LocalDateTime completedAt = LocalDateTime.now();
+        test.complete(writeJson(result), accuracy, completedAt);
+        return completionResponse(test);
+    }
+
+    private TestCompleteResponse completionResponse(StudentTestEntity test) {
         return new TestCompleteResponse(
+                "TEST_COMPLETED",
                 test.getId(),
                 test.getStatus(),
-                test.getAccuracy(),
-                test.getFinishedAt()
+                test.getFinishedAt(),
+                "TEST_COMPLETE_GREAT_JOB",
+                "SHOW_COMPLETION"
         );
     }
 
@@ -357,5 +386,95 @@ public class AppTestService {
         } catch (Exception exception) {
             throw new IllegalStateException("검사 결과를 저장할 수 없습니다.", exception);
         }
+    }
+
+    private ObjectNode readObjectOrNew(String value) {
+        if (value == null || value.isBlank()) {
+            return objectMapper.createObjectNode();
+        }
+        JsonNode parsed = readJson(value);
+        if (parsed instanceof ObjectNode object) {
+            return object.deepCopy();
+        }
+        throw new IllegalStateException("저장된 검사 결과가 JSON 객체가 아닙니다.");
+    }
+
+    private JsonNode findSubmission(ArrayNode submissions, UUID submissionId) {
+        for (JsonNode submission : submissions) {
+            if (submissionId.toString().equals(submission.path("submissionId").asText())) {
+                return submission;
+            }
+        }
+        return null;
+    }
+
+    private boolean hasQuestionSubmission(ArrayNode submissions, int questionNumber) {
+        for (JsonNode submission : submissions) {
+            if (submission.path("questionNo").asInt() == questionNumber) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean sameSubmission(
+            JsonNode existing,
+            int questionNumber,
+            LearningSubmission request
+    ) {
+        return existing.path("questionNo").asInt() == questionNumber
+                && existing.path("responseType").asText().equals(request.responseType().name())
+                && existing.path("response").equals(request.response());
+    }
+
+    private Set<Integer> completedQuestionNumbers(ArrayNode submissions) {
+        Set<Integer> completed = new HashSet<>();
+        submissions.forEach(submission -> {
+            if (submission.path("questionNo").asInt() > 0) {
+                completed.add(submission.path("questionNo").asInt());
+            }
+        });
+        return completed;
+    }
+
+    private Integer nextQuestionNumber(ArrayNode submissions, int totalQuestions) {
+        Set<Integer> completed = completedQuestionNumbers(submissions);
+        for (int questionNumber = 1; questionNumber <= totalQuestions; questionNumber++) {
+            if (!completed.contains(questionNumber)) {
+                return questionNumber;
+            }
+        }
+        return null;
+    }
+
+    private ObjectNode writeProgress(TestProgressResponse progress) {
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("feedbackType", progress.feedbackType());
+        node.put("submissionId", progress.submissionId().toString());
+        node.put("accepted", progress.accepted());
+        node.put("questionNumber", progress.questionNumber());
+        node.put("completedQuestions", progress.completedQuestions());
+        node.put("totalQuestions", progress.totalQuestions());
+        node.put("progressPercent", progress.progressPercent());
+        if (progress.nextQuestionNumber() == null) node.putNull("nextQuestionNumber");
+        else node.put("nextQuestionNumber", progress.nextQuestionNumber());
+        node.put("testCompleted", progress.testCompleted());
+        return node;
+    }
+
+    private TestProgressResponse readProgress(JsonNode node) {
+        return new TestProgressResponse(
+                node.path("feedbackType").asText(),
+                UUID.fromString(node.path("submissionId").asText()),
+                node.path("accepted").asBoolean(),
+                node.path("questionNumber").asInt(),
+                node.path("completedQuestions").asInt(),
+                node.path("totalQuestions").asInt(),
+                node.path("progressPercent").asInt(),
+                node.path("nextQuestionNumber").isNull()
+                        ? null
+                        : node.path("nextQuestionNumber").asInt(),
+                node.path("testCompleted").asBoolean()
+        );
     }
 }

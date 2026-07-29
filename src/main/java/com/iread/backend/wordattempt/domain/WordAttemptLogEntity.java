@@ -106,7 +106,7 @@ public class WordAttemptLogEntity {
     private Integer tokenIndex;
 
     @Column(name = "is_final", nullable = false)
-    private boolean finalAttempt;
+    private boolean finalAttempt = true;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

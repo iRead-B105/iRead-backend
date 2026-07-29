@@ -80,27 +80,15 @@ public class AppTestController {
 
     @PostMapping("/questions/{questionNumber}/responses")
     @ResponseStatus(HttpStatus.CREATED)
-    public TestSelectionResponse saveSelection(
+    public TestProgressResponse saveSelection(
             @CurrentTeacherId Long teacherId,
             @CurrentStudentId Long authenticatedStudentId,
             @PathVariable Long studentId,
             @PathVariable int questionNumber,
-            @Valid @RequestBody TestSelectionRequest request
+            @Valid @RequestBody TestSubmissionRequest request
     ) {
         requireSameStudent(authenticatedStudentId, studentId);
         return testService.saveSelection(teacherId, studentId, questionNumber, request);
-    }
-
-    @PostMapping("/questions/{questionNumber}/complete")
-    public TestQuestionCompleteResponse completeQuestion(
-            @CurrentTeacherId Long teacherId,
-            @CurrentStudentId Long authenticatedStudentId,
-            @PathVariable Long studentId,
-            @PathVariable int questionNumber,
-            @Valid @RequestBody TestQuestionCompleteRequest request
-    ) {
-        requireSameStudent(authenticatedStudentId, studentId);
-        return testService.completeQuestion(teacherId, studentId, questionNumber, request);
     }
 
     @PostMapping("/complete")

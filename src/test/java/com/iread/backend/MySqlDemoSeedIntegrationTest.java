@@ -10,7 +10,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest(properties = "iread.training-template-seed.enabled=false")
+@SpringBootTest
 @ActiveProfiles({"mysql-test", "demo"})
 @EnabledIfEnvironmentVariable(named = "IREAD_MYSQL_TEST_ENABLED", matches = "true")
 class MySqlDemoSeedIntegrationTest {
@@ -33,6 +33,7 @@ class MySqlDemoSeedIntegrationTest {
         assertThat(count("stories", 6001L)).isEqualTo(1);
         assertThat(count("trainings", 4001L)).isEqualTo(1);
         assertThat(count("tests", 5101L)).isEqualTo(1);
+        assertThat(tableCount("training_templates")).isEqualTo(34);
     }
 
     private Integer count(String table, Long id) {
@@ -40,6 +41,13 @@ class MySqlDemoSeedIntegrationTest {
                 "SELECT COUNT(*) FROM " + table + " WHERE id = ?",
                 Integer.class,
                 id
+        );
+    }
+
+    private Integer tableCount(String table) {
+        return jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + table,
+                Integer.class
         );
     }
 }

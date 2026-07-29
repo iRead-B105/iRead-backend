@@ -29,6 +29,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -91,14 +92,43 @@ class TrainingServiceTest {
         curriculum.getTrainings().addAll(List.of(first, second));
         ReflectionTestUtils.setField(curriculum, "completedAt", LocalDateTime.of(2026, 7, 20, 12, 0));
         allowStudent();
-        when(dailyCurriculumRepository.findAllByStudentIdAndCompletedAtIsNotNullOrderByCompletedAtDesc(10L))
+        when(dailyCurriculumRepository.findCompletedByStudentIdWithin(
+                10L,
+                LocalDateTime.of(2026, 7, 1, 0, 0),
+                LocalDateTime.of(2026, 8, 1, 0, 0)
+        ))
                 .thenReturn(List.of(curriculum));
 
-        var result = trainingService.getCurriculumLogs(1L, 10L);
+        var result = trainingService.getCurriculumLogs(
+                1L,
+                10L,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        );
 
         assertThat(result).hasSize(1);
         assertThat(result.getFirst().achievementRate()).isEqualByComparingTo("85.00");
         assertThat(result.getFirst().trainings()).hasSize(2);
+    }
+
+    @Test
+    void 커리큘럼_조회_시작일은_종료일보다_늦을_수_없다() {
+        allowStudent();
+
+        assertThatThrownBy(() -> trainingService.getCurriculumLogs(
+                1L,
+                10L,
+                LocalDate.of(2026, 7, 31),
+                LocalDate.of(2026, 7, 1)
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("시작일은 종료일보다 늦을 수 없습니다.");
+
+        verify(dailyCurriculumRepository, never()).findCompletedByStudentIdWithin(
+                any(),
+                any(),
+                any()
+        );
     }
 
     @Test

@@ -43,9 +43,9 @@ class MySqlFlywayIntegrationTest {
 
     @Test
     void appliesAllMigrationsAndValidatesJpaMappings() {
-        assertThat(applicationTableCount()).isEqualTo(25);
-        assertThat(constraintCount("FOREIGN KEY")).isEqualTo(34);
-        assertThat(constraintCount("UNIQUE")).isEqualTo(11);
+        assertThat(applicationTableCount()).isEqualTo(26);
+        assertThat(constraintCount("FOREIGN KEY")).isEqualTo(35);
+        assertThat(constraintCount("UNIQUE")).isEqualTo(13);
         assertThat(constraintCount("CHECK")).isEqualTo(11);
 
         assertThat(tableExists("training_datas")).isTrue();
@@ -65,6 +65,12 @@ class MySqlFlywayIntegrationTest {
         assertThat(columnExists("word_attempt_logs", "has_gaze_data")).isFalse();
         assertThat(tableExists("test_datas")).isTrue();
         assertThat(tableExists("auth_refresh_sessions")).isTrue();
+        assertThat(tableExists("password_reset_tokens")).isTrue();
+        assertThat(columnExists("password_reset_tokens", "teacher_id")).isTrue();
+        assertThat(columnExists("word_attempt_logs", "question_no")).isTrue();
+        assertThat(columnExists("word_attempt_logs", "target_index")).isTrue();
+        assertThat(columnExists("word_attempt_logs", "token_index")).isTrue();
+        assertThat(columnExists("word_attempt_logs", "is_final")).isTrue();
         assertThat(constraintExists(
                 "auth_refresh_sessions",
                 "CHK_AUTH_REFRESH_SESSIONS_AUDIENCE",
@@ -83,6 +89,11 @@ class MySqlFlywayIntegrationTest {
         assertThat(constraintExists(
                 "gaze_analysis_results",
                 "UK_GAZE_ANALYSIS_RESULTS_SESSION",
+                "UNIQUE"
+        )).isTrue();
+        assertThat(constraintExists(
+                "reports",
+                "UQ_REPORTS_STUDENT_PERIOD",
                 "UNIQUE"
         )).isTrue();
 

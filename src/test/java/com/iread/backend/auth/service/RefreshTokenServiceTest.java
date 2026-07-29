@@ -38,8 +38,7 @@ class RefreshTokenServiceTest {
                 Duration.ofMinutes(15),
                 Duration.ofMinutes(5),
                 Duration.ofDays(14),
-                false,
-                "123456"
+                false
         );
         service = new RefreshTokenService(repository, settings);
         teacher = new TeacherEntity(

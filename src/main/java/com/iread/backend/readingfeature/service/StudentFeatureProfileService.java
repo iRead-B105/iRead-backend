@@ -119,8 +119,65 @@ public class StudentFeatureProfileService {
                 continue;
             }
             collectTrainingEvidence(result.path("wordAttempts"), questions, evidenceByFeature);
+            collectNonAudioEvidence(
+                    result.path("questions"),
+                    questions,
+                    training.getFinishedAt(),
+                    evidenceByFeature
+            );
         }
         return evidenceByFeature;
+    }
+
+    private void collectNonAudioEvidence(
+            JsonNode results,
+            JsonNode questions,
+            LocalDateTime completedAt,
+            Map<String, List<Evidence>> evidenceByFeature
+    ) {
+        if (!results.isArray()) {
+            return;
+        }
+        for (JsonNode result : results) {
+            JsonNode question = findQuestion(questions, result.path("questionNo").asInt(-1));
+            if (question == null) {
+                continue;
+            }
+            List<String> featureCodes = questionFeatureCodes(question);
+            if (featureCodes.isEmpty()) {
+                continue;
+            }
+            Evidence evidence = Evidence.fromNonAudio(
+                    result.path("isCorrect").asBoolean(false),
+                    completedAt
+            );
+            for (String code : featureCodes) {
+                evidenceByFeature.computeIfAbsent(code, ignored -> new ArrayList<>())
+                        .add(evidence);
+            }
+        }
+    }
+
+    private List<String> questionFeatureCodes(JsonNode question) {
+        List<String> codes = new ArrayList<>();
+        JsonNode targets = question.path("targetFeatureCodes");
+        if (targets.isArray()) {
+            targets.forEach(value -> {
+                if (value.isTextual() && !value.asText().isBlank()) {
+                    codes.add(value.asText());
+                }
+            });
+        }
+        if (!codes.isEmpty()) {
+            return codes.stream().distinct().toList();
+        }
+        question.path("analysisTargets").forEach(target ->
+                target.path("featureCodes").forEach(value -> {
+                    if (value.isTextual() && !value.asText().isBlank()) {
+                        codes.add(value.asText());
+                    }
+                }));
+        return codes.stream().distinct().toList();
     }
 
     private void collectTrainingEvidence(
@@ -381,6 +438,21 @@ public class StudentFeatureProfileService {
                     attempt.hasNonNull("wordReadTimeMs")
                             ? attempt.path("wordReadTimeMs").asInt() : null,
                     log.getCreatedAt()
+            );
+        }
+
+        static Evidence fromNonAudio(boolean correct, LocalDateTime completedAt) {
+            return new Evidence(
+                    correct,
+                    false,
+                    null,
+                    1.0,
+                    null,
+                    null,
+                    null,
+                    false,
+                    null,
+                    completedAt
             );
         }
 

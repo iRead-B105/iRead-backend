@@ -3,6 +3,7 @@ package com.iread.backend.exception;
 import com.iread.backend.auth.exception.AuthException;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.global.api.ApiErrorResponse;
+import com.iread.backend.report.admin.exception.ReportCreationException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +22,19 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ReportCreationException.class)
+    public ResponseEntity<ApiErrorResponse> handleReportCreation(
+            ReportCreationException exception
+    ) {
+        return ResponseEntity.status(exception.status()).body(
+                ApiErrorResponse.of(
+                        exception.code(),
+                        exception.getMessage(),
+                        exception.details()
+                )
+        );
+    }
 
     @ExceptionHandler(AuthException.class)
     public ResponseEntity<ApiErrorResponse> handleAuth(AuthException exception) {

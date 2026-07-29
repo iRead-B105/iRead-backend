@@ -4,7 +4,12 @@ import com.iread.backend.global.audio.AudioUploadPolicy;
 import com.iread.backend.pronunciation.PronunciationAnalysisAdapter;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
+import com.iread.backend.learning.app.service.AppLearningQuestionSupport;
+import com.iread.backend.learning.app.dto.LearningResponseType;
+import com.iread.backend.learning.app.dto.LearningSubmission;
 import com.iread.backend.test.app.dto.req.TestCompleteRequest;
+import com.iread.backend.test.app.dto.req.TestSubmissionRequest;
+import com.iread.backend.test.domain.TestDataEntity;
 import com.iread.backend.test.domain.StudentTestEntity;
 import com.iread.backend.test.domain.TestStatus;
 import com.iread.backend.test.repository.StudentTestRepository;
@@ -15,17 +20,21 @@ import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
 import com.iread.backend.wordattempt.service.WordAttemptScoreCalculator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -69,36 +78,127 @@ class AppTestServiceTest {
     }
 
     @Test
-    void completesTestWithServerCalculatedAccuracy() throws Exception {
+    void completesTestWithServerTimeWithoutExposingAccuracy() {
         StudentEntity student = mock(StudentEntity.class);
         StudentTestEntity test = mock(StudentTestEntity.class);
-        WordAttemptLogEntity first = mock(WordAttemptLogEntity.class);
-        WordAttemptLogEntity second = mock(WordAttemptLogEntity.class);
-        LocalDateTime completedAt = LocalDateTime.of(2026, 7, 27, 15, 0);
+        TestDataEntity data = mock(TestDataEntity.class);
         when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        when(testRepository.findByIdAndTestCurriculumStudentId(30L, 20L))
+                .thenReturn(Optional.of(test));
         when(testRepository.findByIdAndStudentIdForUpdate(30L, 20L))
                 .thenReturn(Optional.of(test));
         when(test.getId()).thenReturn(30L);
-        when(test.getStatus()).thenReturn(TestStatus.IN_PROGRESS, TestStatus.COMPLETED);
-        when(test.getResult()).thenReturn(null);
-        when(first.getTotalScore()).thenReturn(900);
-        when(second.getTotalScore()).thenReturn(800);
-        when(wordAttemptLogRepository.findAllByTestIdAndFinalAttemptTrueOrderByIdAsc(30L))
-                .thenReturn(List.of(first, second));
-        when(objectMapper.writeValueAsString(any())).thenReturn("{\"attemptCount\":2}");
-        when(test.getAccuracy()).thenReturn(new BigDecimal("85.00"));
+        when(test.getStatus()).thenReturn(
+                TestStatus.IN_PROGRESS,
+                TestStatus.IN_PROGRESS,
+                TestStatus.COMPLETED
+        );
+        when(test.getResult()).thenReturn("""
+                {
+                  "submissions":[
+                    {"submissionId":"00000000-0000-0000-0000-000000000001",
+                     "questionNo":1,"totalScore":1000}
+                  ]
+                }
+                """);
+        when(testDataRepository.findFirstByTestIdOrderByCreatedAtDescIdDesc(30L))
+                .thenReturn(Optional.of(data));
+        when(data.getGeneratedData()).thenReturn("""
+                {"questions":[{"type":"CONSONANT_SOUND_CHOICE"}]}
+                """);
+        LocalDateTime completedAt = LocalDateTime.of(2026, 7, 27, 15, 0);
         when(test.getFinishedAt()).thenReturn(completedAt);
-
-        var result = appTestService.complete(
-                1L,
-                20L,
-                new TestCompleteRequest(30L, completedAt)
+        ObjectMapper mapper = JsonMapper.builder().build();
+        AppTestService service = new AppTestService(
+                studentRepository,
+                testRepository,
+                testDataRepository,
+                wordRepository,
+                wordAttemptLogRepository,
+                pronunciationAnalysisAdapter,
+                audioUploadPolicy,
+                wordAttemptScoreCalculator,
+                mapper,
+                new AppLearningQuestionSupport(mapper)
         );
 
-        verify(test).complete("{\"attemptCount\":2}", new BigDecimal("85.00"), completedAt);
+        var result = service.complete(
+                1L,
+                20L,
+                new TestCompleteRequest(30L)
+        );
+
+        ArgumentCaptor<LocalDateTime> completedAtCaptor =
+                ArgumentCaptor.forClass(LocalDateTime.class);
+        verify(test).complete(
+                any(String.class),
+                org.mockito.ArgumentMatchers.eq(new BigDecimal("100.00")),
+                completedAtCaptor.capture()
+        );
         assertThat(result.testId()).isEqualTo(30L);
         assertThat(result.status()).isEqualTo(TestStatus.COMPLETED);
-        assertThat(result.accuracy()).isEqualByComparingTo("85.00");
+        assertThat(result.completionType()).isEqualTo("TEST_COMPLETED");
+        assertThat(result.messageKey()).isEqualTo("TEST_COMPLETE_GREAT_JOB");
         assertThat(result.completedAt()).isEqualTo(completedAt);
+    }
+
+    @Test
+    void rejectsSecondSubmissionForSameTestQuestion() {
+        StudentEntity student = mock(StudentEntity.class);
+        StudentTestEntity test = mock(StudentTestEntity.class);
+        TestDataEntity data = mock(TestDataEntity.class);
+        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        when(testRepository.findByIdAndStudentIdForUpdate(30L, 20L))
+                .thenReturn(Optional.of(test));
+        when(test.getStatus()).thenReturn(TestStatus.IN_PROGRESS);
+        when(test.getResult()).thenReturn("""
+                {
+                  "submissions":[{
+                    "submissionId":"00000000-0000-0000-0000-000000000001",
+                    "questionNo":1,
+                    "totalScore":0
+                  }]
+                }
+                """);
+        when(testDataRepository.findFirstByTestIdOrderByCreatedAtDescIdDesc(30L))
+                .thenReturn(Optional.of(data));
+        when(data.getGeneratedData()).thenReturn("""
+                {
+                  "questions":[{
+                    "type":"CONSONANT_SOUND_CHOICE",
+                    "content":{"audioText":"ㄱ","choices":["ㄱ","ㄴ"]},
+                    "answer":{"answerIndex":0}
+                  }]
+                }
+                """);
+        ObjectMapper mapper = JsonMapper.builder().build();
+        AppTestService service = new AppTestService(
+                studentRepository,
+                testRepository,
+                testDataRepository,
+                wordRepository,
+                wordAttemptLogRepository,
+                pronunciationAnalysisAdapter,
+                audioUploadPolicy,
+                wordAttemptScoreCalculator,
+                mapper,
+                new AppLearningQuestionSupport(mapper)
+        );
+
+        assertThatThrownBy(() -> service.saveSelection(
+                1L,
+                20L,
+                1,
+                new TestSubmissionRequest(
+                        30L,
+                        new LearningSubmission(
+                                UUID.randomUUID(),
+                                LearningResponseType.SINGLE_CHOICE,
+                                mapper.createObjectNode().put("selectedIndex", 0)
+                        )
+                )
+        ))
+                .isInstanceOf(com.iread.backend.exception.ConflictException.class)
+                .hasMessageContaining("최초 제출");
     }
 }
