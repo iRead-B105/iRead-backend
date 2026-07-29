@@ -168,6 +168,7 @@ public class WordAttemptLogEntity {
             Integer pronunciationAccuracyScore,
             Integer speechStartOffsetMs,
             Integer speechEndOffsetMs,
+            Boolean skipped,
             Boolean correct,
             Integer totalScore,
             Integer questionNo
@@ -182,7 +183,7 @@ public class WordAttemptLogEntity {
         attempt.useLocation = WordAttemptUseLocation.TEST;
         attempt.surfaceText = word.getContent();
         attempt.hasAudioData = hasAudioData;
-        attempt.skipped = false;
+        attempt.skipped = skipped;
         attempt.regressionCount = 0;
         attempt.pronunciationAccuracyScore = pronunciationAccuracyScore;
         attempt.speechStartOffsetMs = speechStartOffsetMs;
@@ -196,6 +197,26 @@ public class WordAttemptLogEntity {
 
     public void markNotFinal() {
         this.finalAttempt = false;
+    }
+
+    public void applyGazeMetrics(
+            Integer fixationDurationMs,
+            Integer fixationCount,
+            Integer gazeStartOffsetMs,
+            Integer gazeEndOffsetMs,
+            Boolean gazeSkipped,
+            Integer regressionCount,
+            Integer totalScore
+    ) {
+        validateScore(totalScore, "단어 종합 점수");
+        this.fixationDurationMs = fixationDurationMs;
+        this.fixationCount = fixationCount;
+        this.gazeStartOffsetMs = gazeStartOffsetMs;
+        this.gazeEndOffsetMs = gazeEndOffsetMs;
+        this.skipped = Boolean.TRUE.equals(this.skipped)
+                || Boolean.TRUE.equals(gazeSkipped);
+        this.regressionCount = regressionCount;
+        this.totalScore = totalScore;
     }
 
     private static void validateScore(Integer score, String label) {

@@ -8,6 +8,8 @@ import com.iread.backend.learning.app.service.AppLearningQuestionSupport;
 import com.iread.backend.pronunciation.PronunciationAnalysisAdapter;
 import com.iread.backend.pronunciation.PronunciationAnalysisRequest;
 import com.iread.backend.pronunciation.PronunciationAnalysisResult;
+import com.iread.backend.pronunciation.PronunciationReferenceWord;
+import com.iread.backend.pronunciation.PronunciationWordAligner;
 import com.iread.backend.pronunciation.PronunciationWordResult;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
@@ -19,6 +21,8 @@ import com.iread.backend.test.domain.TestStatus;
 import com.iread.backend.test.repository.StudentTestRepository;
 import com.iread.backend.test.repository.TestDataRepository;
 import com.iread.backend.training.domain.WordEntity;
+import com.iread.backend.training.input.TrainingInputPolicy;
+import com.iread.backend.training.input.TrainingInputType;
 import com.iread.backend.training.repository.WordRepository;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
@@ -50,6 +54,7 @@ public class AppTestService {
     private final WordRepository wordRepository;
     private final WordAttemptLogRepository wordAttemptLogRepository;
     private final PronunciationAnalysisAdapter pronunciationAnalysisAdapter;
+    private final PronunciationWordAligner pronunciationWordAligner;
     private final AudioUploadPolicy audioUploadPolicy;
     private final WordAttemptScoreCalculator wordAttemptScoreCalculator;
     private final ObjectMapper objectMapper;
@@ -117,7 +122,9 @@ public class AppTestService {
     ) {
         StudentEntity student = findOwnedStudent(teacherId, studentId);
         StudentTestEntity test = findInProgressTestForUpdate(studentId, request.testId());
-        validateQuestion(request.testId(), questionNumber);
+        JsonNode question = findQuestion(request.testId(), questionNumber);
+        boolean gazeRequired = TrainingInputPolicy.forQuestion(question)
+                .contains(TrainingInputType.GAZE);
         WordEntity word = findWord(request.wordId());
         validateSpeechOffsets(request.speechStartOffsetMs(), request.speechEndOffsetMs());
         audioUploadPolicy.validate(request.audioFile());
@@ -131,26 +138,33 @@ public class AppTestService {
                         audioBytes(request)
                 )
         );
-        PronunciationWordResult wordResult = analysis.words().stream()
-                .filter(result -> !result.isInsertion())
-                .filter(result -> word.getContent().equals(result.word()))
-                .findFirst()
-                .orElseThrow(() -> new ConflictException(
-                        "발음 분석 결과를 검사 단어와 정렬할 수 없습니다."
-                ));
+        PronunciationWordResult wordResult = pronunciationWordAligner.align(
+                List.of(new PronunciationReferenceWord(0, word.getContent())),
+                analysis.words()
+        ).words().getFirst().analyzed();
         int pronunciationAccuracyScore =
                 (int) Math.round(wordResult.scoreOrZero() * 10);
         boolean correct = wordAttemptScoreCalculator
                 .meetsPronunciationThreshold(pronunciationAccuracyScore)
                 && "NONE".equalsIgnoreCase(wordResult.errorType());
-        int totalScore = wordAttemptScoreCalculator.calculate(
+        int retryCount = wordAttemptLogRepository
+                .findAllByTestIdAndQuestionNo(test.getId(), questionNumber)
+                .size();
+        Integer totalScore = wordAttemptScoreCalculator.calculate(
                 pronunciationAccuracyScore,
                 true,
+                true,
+                wordResult.isOmission(),
+                gazeRequired,
                 false,
-                0,
+                null,
+                null,
+                retryCount,
                 correct
         );
         markPreviousAttemptNotFinal(test.getId(), questionNumber);
+        int speechStartOffsetMs = wordResult.offsetMs();
+        int speechEndOffsetMs = wordResult.offsetMs() + wordResult.durationMs();
         WordAttemptLogEntity attempt = wordAttemptLogRepository.saveAndFlush(
                 WordAttemptLogEntity.forTest(
                         student,
@@ -158,12 +172,20 @@ public class AppTestService {
                         test,
                         true,
                         pronunciationAccuracyScore,
-                        request.speechStartOffsetMs(),
-                        request.speechEndOffsetMs(),
+                        speechStartOffsetMs,
+                        speechEndOffsetMs,
+                        wordResult.isOmission(),
                         correct,
                         totalScore,
                         questionNumber
                 )
+        );
+        recordPronunciationAnalysis(
+                test,
+                questionNumber,
+                attempt,
+                wordResult,
+                analysis
         );
         return new TestRecordingResponse(
                 attempt.getId(),
@@ -261,6 +283,13 @@ public class AppTestService {
         if (completedQuestions != questions.size()) {
             throw new ConflictException("모든 검사 문항을 제출한 후 검사를 종료할 수 있습니다.");
         }
+        if (legacyAttempts.stream().anyMatch(
+                attempt -> attempt.getTotalScore() == null
+        )) {
+            throw new ConflictException(
+                    "단어별 필수 입력 점수가 모두 계산된 후 검사를 종료할 수 있습니다."
+            );
+        }
         long scoreSum = 0;
         for (JsonNode submission : submissions) {
             scoreSum += submission.path("totalScore").asInt();
@@ -330,11 +359,12 @@ public class AppTestService {
                 .orElseThrow(() -> new ResourceNotFoundException("단어를 찾을 수 없습니다."));
     }
 
-    private void validateQuestion(Long testId, int questionNumber) {
+    private JsonNode findQuestion(Long testId, int questionNumber) {
         JsonNode questions = readQuestions(testId);
         if (questionNumber < 1 || questionNumber > questions.size()) {
             throw new ResourceNotFoundException("검사 문항을 찾을 수 없습니다.");
         }
+        return questions.get(questionNumber - 1);
     }
 
     private JsonNode readQuestions(Long testId) {
@@ -371,6 +401,74 @@ public class AppTestService {
         wordAttemptLogRepository
                 .findAllByTestIdAndQuestionNoAndFinalAttemptTrue(testId, questionNumber)
                 .forEach(WordAttemptLogEntity::markNotFinal);
+    }
+
+    private void recordPronunciationAnalysis(
+            StudentTestEntity test,
+            int questionNumber,
+            WordAttemptLogEntity attempt,
+            PronunciationWordResult wordResult,
+            PronunciationAnalysisResult analysis
+    ) {
+        ObjectNode result = readObjectOrNew(test.getResult());
+        result.put("schemaVersion", 2);
+        ArrayNode wordAttempts = result.withArray("wordAttempts");
+        wordAttempts.forEach(existing -> {
+            if (existing.path("questionNo").asInt() == questionNumber) {
+                ((ObjectNode) existing).put("isFinal", false);
+            }
+        });
+        ObjectNode attemptLink = wordAttempts.addObject();
+        if (attempt.getId() == null) {
+            attemptLink.putNull("wordAttemptLogId");
+        } else {
+            attemptLink.put("wordAttemptLogId", attempt.getId());
+        }
+        attemptLink.put("questionNo", questionNumber);
+        attemptLink.put("isFinal", true);
+        attemptLink.put("referenceText", attempt.getSurfaceText());
+        attemptLink.put(
+                "pronunciationAccuracyScore",
+                wordResult.scoreOrZero()
+        );
+        attemptLink.put("pronunciationErrorType", wordResult.errorType());
+        attemptLink.put(
+                "pronunciationAnalysisVersion",
+                analysis.analysisVersion()
+        );
+        attemptLink.put("wordReadTimeMs", wordResult.durationMs());
+
+        ObjectNode analysisLink = result.withArray("pronunciationAnalyses").addObject();
+        analysisLink.put("questionNo", questionNumber);
+        analysisLink.put("referenceText", attempt.getSurfaceText());
+        analysisLink.put(
+                "pronunciationAccuracyScore",
+                analysis.pronunciationAccuracyScore()
+        );
+        putNullableScore(analysisLink, "fluencyScore", analysis.fluencyScore());
+        putNullableScore(
+                analysisLink,
+                "completenessScore",
+                analysis.completenessScore()
+        );
+        putNullableScore(analysisLink, "pronScore", analysis.pronScore());
+        analysisLink.put("confidence", analysis.confidence());
+        analysisLink.put("analysisVersion", analysis.analysisVersion());
+        analysisLink.put(
+                "insertionCount",
+                analysis.words().stream()
+                        .filter(PronunciationWordResult::isInsertion)
+                        .count()
+        );
+        test.updateResult(writeJson(result));
+    }
+
+    private void putNullableScore(ObjectNode node, String field, Double value) {
+        if (value == null) {
+            node.putNull(field);
+        } else {
+            node.put(field, value);
+        }
     }
 
     private JsonNode readJson(String value) {

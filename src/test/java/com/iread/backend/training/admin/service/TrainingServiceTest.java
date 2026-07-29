@@ -72,7 +72,16 @@ class TrainingServiceTest {
                 wordRepository,
                 wordAttemptLogRepository,
                 new WordAttemptScoreCalculator(
-                        new WordAttemptScoreProperties(100, 300, 70, 200, 600, 250)
+                        new WordAttemptScoreProperties(
+                                100,
+                                70,
+                                200,
+                                600,
+                                100,
+                                50,
+                                30,
+                                20
+                        )
                 ),
                 gazeWordAnalysisAdapter,
                 aiClient,
@@ -439,7 +448,7 @@ class TrainingServiceTest {
         assertThat(logs.getFirst().getGazeEndOffsetMs()).isEqualTo(500);
         assertThat(logs.getFirst().getRegressionCount()).isEqualTo(2);
         assertThat(logs.getFirst().getCorrect()).isTrue();
-        assertThat(logs.getFirst().getTotalScore()).isEqualTo(800);
+        assertThat(logs.getFirst().getTotalScore()).isEqualTo(850);
         assertThat(training.getResult()).contains("\"wordAttemptLogId\":501");
         assertThat(training.getResult()).contains("\"isFinal\":true");
     }

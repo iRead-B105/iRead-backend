@@ -141,6 +141,9 @@ public class AppTrainingService {
                 questionNumber,
                 TrainingInputType.VOICE
         );
+        boolean gazeRequired = trainingInputRequirementService
+                .inputsForQuestion(trainingId, questionNumber)
+                .contains(TrainingInputType.GAZE);
         RecordingTarget target = resolveRecordingTarget(
                 trainingId,
                 questionNumber,
@@ -178,7 +181,9 @@ public class AppTrainingService {
                 questionNumber,
                 request,
                 target,
-                alignment
+                alignment,
+                gazeRequired,
+                attemptNo - 1
         );
         boolean passed = wordAttemptScoreCalculator.meetsPronunciationThreshold(
                 analysis.pronunciationAccuracyScore()
@@ -499,7 +504,9 @@ public class AppTrainingService {
             int questionNumber,
             TrainingRecordingRequest request,
             RecordingTarget target,
-            PronunciationWordAligner.Alignment alignment
+            PronunciationWordAligner.Alignment alignment,
+            boolean gazeRequired,
+            int retryCount
     ) {
         List<StoredPronunciationWord> values = new ArrayList<>();
         for (PronunciationWordAligner.AlignedWord aligned : alignment.words()) {
@@ -514,11 +521,16 @@ public class AppTrainingService {
             boolean correct = wordAttemptScoreCalculator
                     .meetsPronunciationThreshold(pronunciationAccuracyScore)
                     && "NONE".equalsIgnoreCase(analyzed.errorType());
-            int totalScore = wordAttemptScoreCalculator.calculate(
+            Integer totalScore = wordAttemptScoreCalculator.calculate(
                     pronunciationAccuracyScore,
                     true,
+                    true,
+                    analyzed.isOmission(),
+                    gazeRequired,
                     false,
-                    0,
+                    null,
+                    null,
+                    retryCount,
                     correct
             );
             markPreviousAttemptsNotFinal(

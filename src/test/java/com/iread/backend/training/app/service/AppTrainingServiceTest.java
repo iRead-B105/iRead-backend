@@ -22,6 +22,7 @@ import com.iread.backend.training.domain.WordEntity;
 import com.iread.backend.training.repository.TrainingDataRepository;
 import com.iread.backend.training.repository.TrainingRepository;
 import com.iread.backend.training.repository.WordRepository;
+import com.iread.backend.training.input.TrainingInputType;
 import com.iread.backend.training.input.TrainingInputRequirementService;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
@@ -43,6 +44,7 @@ import tools.jackson.databind.json.JsonMapper;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -500,6 +502,8 @@ class AppTrainingServiceTest {
 
     @Test
     void sentenceRecordingStoresOneAttemptForEachAnalyzedWord() {
+        when(trainingInputRequirementService.inputsForQuestion(30L, 1))
+                .thenReturn(Set.of(TrainingInputType.VOICE, TrainingInputType.GAZE));
         StudentEntity student = mock(StudentEntity.class);
         TrainingEntity training = mock(TrainingEntity.class);
         TrainingDataEntity data = mock(TrainingDataEntity.class);
@@ -609,6 +613,9 @@ class AppTrainingServiceTest {
         assertThat(response.words()).extracting(
                 TrainingRecordingResponse.WordResult::pronunciationAccuracyScore
         ).containsExactly(91.0, 0.0, 74.0);
+        assertThat(response.words()).extracting(
+                TrainingRecordingResponse.WordResult::totalScore
+        ).containsExactly(null, null, null);
         assertThat(response.words().get(1).pronunciationErrorType())
                 .isEqualTo("Omission");
         assertThat(response.words().get(2).speechStartOffsetMs()).isEqualTo(950);
@@ -633,7 +640,16 @@ class AppTrainingServiceTest {
 
     private WordAttemptScoreCalculator scoreCalculator() {
         return new WordAttemptScoreCalculator(
-                new WordAttemptScoreProperties(100, 300, 70, 200, 600, 250)
+                new WordAttemptScoreProperties(
+                        100,
+                        70,
+                        200,
+                        600,
+                        100,
+                        50,
+                        30,
+                        20
+                )
         );
     }
 }

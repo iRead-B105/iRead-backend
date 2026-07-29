@@ -19,6 +19,7 @@ import com.iread.backend.training.domain.*;
 import com.iread.backend.training.curriculum.PersonalizedCurriculumPlanner;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
 import com.iread.backend.training.input.TrainingInputRequirementService;
+import com.iread.backend.training.input.TrainingInputType;
 import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.admin.dto.res.*;
@@ -411,10 +412,28 @@ public class TrainingService {
             if (retryCount != null && retryCount < 0) {
                 throw new IllegalArgumentException("단어 재응시 횟수는 0 이상이어야 합니다.");
             }
-            int totalScore = wordAttemptScoreCalculator.calculate(
+            Integer questionNo = nullableInteger(attempt, "questionNo");
+            var requiredInputs = questionNo == null
+                    ? java.util.Set.<TrainingInputType>of()
+                    : trainingInputRequirementService.inputsForQuestion(
+                            training.getId(),
+                            questionNo
+                    );
+            boolean pronunciationRequired = requiredInputs.isEmpty()
+                    ? hasAudioData
+                    : requiredInputs.contains(TrainingInputType.VOICE);
+            boolean gazeRequired = requiredInputs.isEmpty()
+                    ? hasGazeData
+                    : requiredInputs.contains(TrainingInputType.GAZE);
+            Integer totalScore = wordAttemptScoreCalculator.calculate(
                     pronunciationAccuracyScore,
+                    pronunciationRequired,
                     hasAudioData,
                     skipped,
+                    gazeRequired,
+                    hasGazeData,
+                    skipped,
+                    regressionCount,
                     retryCount,
                     correct
             );
@@ -438,7 +457,7 @@ public class TrainingService {
                     nullableInteger(attempt, "speechEndOffsetMs"),
                     correct,
                     totalScore,
-                    nullableInteger(attempt, "questionNo"),
+                    questionNo,
                     nullableInteger(attempt, "targetIndex"),
                     nullableInteger(attempt, "tokenIndex"),
                     attempt.path("isFinal").asBoolean(true)
