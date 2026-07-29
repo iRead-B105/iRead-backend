@@ -17,7 +17,10 @@ import static org.assertj.core.api.Assertions.assertThat;
         "iread.training-template-seed.enabled=false"
 })
 @ActiveProfiles("demo")
-@Sql("/db/demo/V2__demo_seed.sql")
+@Sql({
+        "/db/demo/V2__demo_seed.sql",
+        "/db/demo/V3__fix_demo_student_gender.sql"
+})
 class DemoSeedIntegrationTest {
 
     @Autowired JdbcTemplate jdbcTemplate;
@@ -31,6 +34,10 @@ class DemoSeedIntegrationTest {
         );
 
         assertThat(passwordEncoder.matches("demo1234", passwordHash)).isTrue();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT gender FROM students WHERE id = 2001",
+                String.class
+        )).isEqualTo("Girl");
         assertThat(count("students", 2001L)).isEqualTo(1);
         assertThat(count("stories", 6001L)).isEqualTo(1);
         assertThat(count("trainings", 4001L)).isEqualTo(1);
