@@ -86,11 +86,11 @@ class GazeServiceTest {
         var response = gazeService.getTestGazeAnalysis(1L, 10L, 20L);
 
         assertThat(response.gazeSessionId()).isEqualTo(30L);
-        assertThat(response.gazeAnalysisResultId()).isEqualTo(40L);
+        assertThat(response.gazeAnalysisId()).isEqualTo(40L);
         assertThat(response.totalDwellTime()).isEqualTo(1200);
-        assertThat(response.totalVisitedCount()).isEqualTo(8);
-        assertThat(response.reverseReadCount()).isEqualTo(2);
-        assertThat(response.avgVisitedDuration()).isEqualTo(150);
+        assertThat(response.dwellCount()).isEqualTo(8);
+        assertThat(response.regressionCount()).isEqualTo(2);
+        assertThat(response.averageFixationTime()).isEqualTo(150);
     }
 
     @Test
@@ -110,8 +110,8 @@ class GazeServiceTest {
 
         var response = gazeService.getTrainingGazeAnalysis(1L, 10L, 50L);
 
-        assertThat(response.gazeAnalysisResultId()).isEqualTo(40L);
-        assertThat(response.reverseReadCount()).isEqualTo(2);
+        assertThat(response.gazeAnalysisId()).isEqualTo(40L);
+        assertThat(response.regressionCount()).isEqualTo(2);
     }
 
     @Test
@@ -265,9 +265,11 @@ class GazeServiceTest {
                 new GazeAnalysisResultRequest(
                         10L, 1200, 8, 2, 150,
                         List.of(new GazeAnalysisResultRequest.SentenceMetric(
-                                null, 1, "문장", 1000, 1, 0, 1000
+                                1L, 1, "첫 문장", 1200, 8, 0, 1200
                         )),
-                        null, null, null
+                        null,
+                        null,
+                        null
                 )
         ))
                 .isInstanceOf(IllegalArgumentException.class)

@@ -7,27 +7,18 @@ public record GazeAnalysisDetailResponse(
         Long gazeSessionId,
 
         @Schema(description = "시선 트래킹 분석 결과 ID", example = "1")
-        Long gazeAnalysisResultId,
+        Long gazeAnalysisId,
 
         @Schema(description = "총 시선 체류 시간(ms)", example = "65000")
         Integer totalDwellTime,
 
         @Schema(description = "총 시선 체류 횟수", example = "23")
-        Integer totalVisitedCount,
+        Integer dwellCount,
 
         @Schema(description = "역행 횟수", example = "4")
-        Integer reverseReadCount,
+        Integer regressionCount,
 
         @Schema(description = "평균 응시 시간(ms)", example = "2826")
-        Integer avgVisitedDuration,
-
-        @Schema(description = "문장 또는 스토리 라인 단위 분석 결과 JSON")
-        String sentenceMetrics,
-
-        @Schema(description = "역행 이벤트 목록 JSON")
-        String regressions,
-
-        @Schema(description = "분석 메타데이터 JSON")
-        String analysisMeta
+        Integer averageFixationTime
 ) {
 }

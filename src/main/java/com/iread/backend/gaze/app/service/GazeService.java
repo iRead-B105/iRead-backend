@@ -152,7 +152,6 @@ public class GazeService {
                         toJson(request.analysisMeta())
                 )
         );
-
         return new GazeAnalysisResultResponse(result.getId(), result.getCreatedAt());
     }
 
@@ -200,7 +199,7 @@ public class GazeService {
         if (gazeSession.getData() != null && !gazeSession.getData().isBlank()) {
             combinedData.set("rawData", objectMapper.readTree(gazeSession.getData()));
         }
-        combinedData.set("sentenceMetrics", objectMapper.readTree(toJson(request.sentenceMetrics())));
+        combinedData.set("sentenceMetrics", objectMapper.valueToTree(request.sentenceMetrics()));
         gazeSession.updateData(combinedData.toString());
     }
 
@@ -248,10 +247,7 @@ public class GazeService {
                 result.getTotalVisitedDuration(),
                 result.getTotalVisitedCount(),
                 result.getReverseReadCount(),
-                result.getAvgVisitedDuration(),
-                result.getSentenceMetrics(),
-                result.getRegressions(),
-                result.getAnalysisMeta()
+                result.getAvgVisitedDuration()
         );
     }
 
@@ -316,7 +312,14 @@ public class GazeService {
         if (value == null) {
             return null;
         }
-        return objectMapper.writeValueAsString(value);
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception exception) {
+            throw new IllegalArgumentException(
+                    "시선 분석 요청을 JSON으로 변환할 수 없습니다.",
+                    exception
+            );
+        }
     }
 
     private GazeSessionEntity findOwnedGazeSessionForUpdate(Long gazeSessionId, Long studentId) {
