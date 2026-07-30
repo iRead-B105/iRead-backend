@@ -19,11 +19,18 @@ iRead 서비스의 백엔드 애플리케이션입니다.
 ## Docker Compose 사용법
 
 Docker Compose는 로컬 개발용 MySQL, Redis, AI Mock과 Mailpit 컨테이너를 실행합니다.
+AI Mock은 인접한 `iRead-ai` 저장소의 FastAPI 서버를 빌드하여 실행합니다.
 
 ### 실행
 
 ```bash
 docker compose up -d
+```
+
+AI Mock 코드가 변경된 경우 이미지를 다시 빌드합니다.
+
+```bash
+docker compose up -d --build ai-mock
 ```
 
 실행되는 컨테이너:

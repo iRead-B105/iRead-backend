@@ -38,14 +38,23 @@ services:
       retries: 5
 
   ai-mock:
-    image: wiremock/wiremock:3.13.2
+    build:
+      context: ../iRead-ai
+      dockerfile: Dockerfile
+    image: iread-ai-mock:local
     container_name: iread-ai-mock
     restart: unless-stopped
     ports:
       - "8081:8080"
-    volumes:
-      - ./mock-ai:/home/wiremock
-    command: ["--global-response-templating", "--verbose"]
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   mailpit:
     image: axllent/mailpit:v1.27
