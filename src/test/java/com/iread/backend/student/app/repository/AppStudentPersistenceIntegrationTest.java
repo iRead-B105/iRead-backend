@@ -57,7 +57,7 @@ class AppStudentPersistenceIntegrationTest {
                 VALUES (910, 902, 909, CURRENT_TIMESTAMP, 'IN_PROGRESS', 0)
                 """);
         jdbcTemplate.update("""
-                INSERT INTO character
+                INSERT INTO characters
                     (id, student_id, image_url, story_id, name, created_at)
                 VALUES (911, 902, '/characters/book-fairy.png', 910, '책 요정', CURRENT_TIMESTAMP)
                 """);

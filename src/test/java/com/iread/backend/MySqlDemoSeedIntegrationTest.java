@@ -1,5 +1,6 @@
 package com.iread.backend;
 
+import com.iread.backend.mypage.repository.CharacterRepository;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.admin.service.TrainingService;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,9 @@ class MySqlDemoSeedIntegrationTest {
     @Autowired
     private TrainingService trainingService;
 
+    @Autowired
+    private CharacterRepository characterRepository;
+
     @Test
     void appliesDemoSeedToMySqlAndKeepsDemoLoginUsable() {
         assertThat(jdbcTemplate.queryForList(
@@ -37,7 +41,7 @@ class MySqlDemoSeedIntegrationTest {
                  ORDER BY installed_rank
                 """,
                 String.class
-        )).containsExactly("1", "2");
+        )).containsExactly("1", "2", "3", "4", "5");
 
         String passwordHash = jdbcTemplate.queryForObject(
                 "SELECT password FROM teachers WHERE id = 1001",
@@ -49,7 +53,7 @@ class MySqlDemoSeedIntegrationTest {
         assertThat(count("stories", 6001L)).isZero();
         assertThat(countByColumn("story_scenes", "scene_id", 6101L)).isZero();
         assertThat(count("story_lines", 6201L)).isZero();
-        assertThat(count("`character`", 6301L)).isZero();
+        assertThat(count("characters", 6301L)).isZero();
         assertThat(count("trainings", 4001L)).isEqualTo(1);
         assertThat(count("tests", 5101L)).isEqualTo(1);
         assertThat(count("students", 2101L)).isEqualTo(1);
@@ -349,6 +353,12 @@ class MySqlDemoSeedIntegrationTest {
                 Integer.class,
                 curriculumId
         )).isEqualTo(5);
+    }
+
+    @Test
+    void loadsStoryFriendsFromCharactersTable() {
+        assertThat(characterRepository.findAllByStudentIdOrderByCreatedAtDesc(2001L))
+                .isNotNull();
     }
 
     private Integer count(String table, Long id) {
