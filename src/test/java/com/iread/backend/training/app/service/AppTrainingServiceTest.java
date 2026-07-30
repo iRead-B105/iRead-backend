@@ -283,10 +283,82 @@ class AppTrainingServiceTest {
         );
 
         assertThat(result.attemptNo()).isEqualTo(2);
-        assertThat(result.questionCompleted()).isTrue();
-        assertThat(result.canRetry()).isFalse();
+        assertThat(result.questionCompleted()).isFalse();
+        assertThat(result.canRetry()).isTrue();
         assertThat(result.correctResponse().path("response").path("selectedIndex").asInt())
                 .isZero();
+    }
+
+    @Test
+    void completesCorrectionAfterTwoIncorrectAttemptsButKeepsIncorrectScore() {
+        StudentEntity student = mock(StudentEntity.class);
+        TrainingEntity training = mock(TrainingEntity.class);
+        TrainingDataEntity data = mock(TrainingDataEntity.class);
+        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        when(trainingRepository.findForUpdate(30L, 20L)).thenReturn(Optional.of(training));
+        when(training.getStatus()).thenReturn(TrainingStatus.IN_PROGRESS);
+        when(training.getResult()).thenReturn("""
+                {
+                  "questions":[{
+                    "questionNo":1,
+                    "isCorrect":false,
+                    "totalScore":0
+                  }],
+                  "submissions":[
+                    {"submissionId":"00000000-0000-0000-0000-000000000001","questionNo":1},
+                    {"submissionId":"00000000-0000-0000-0000-000000000002","questionNo":1}
+                  ]
+                }
+                """);
+        when(trainingDataRepository.findByTrainingId(30L)).thenReturn(Optional.of(data));
+        when(data.getGeneratedData()).thenReturn("""
+                {
+                  "questions":[{
+                    "type":"CONSONANT_SOUND_CHOICE",
+                    "content":{"audioText":"ㄱ","choices":["ㄱ","ㄴ"]},
+                    "answer":{"answerIndex":0}
+                  }]
+                }
+                """);
+        ObjectMapper mapper = JsonMapper.builder().build();
+        AppTrainingService service = new AppTrainingService(
+                studentRepository,
+                trainingRepository,
+                trainingDataRepository,
+                wordRepository,
+                wordAttemptLogRepository,
+                pronunciationAnalysisAdapter,
+                audioUploadPolicy,
+                scoreCalculator(),
+                new PronunciationWordAligner(),
+                trainingInputRequirementService,
+                trainingService,
+                mapper,
+                new AppLearningQuestionSupport(mapper)
+        );
+
+        var result = service.saveSelection(
+                1L,
+                20L,
+                30L,
+                1,
+                new LearningSubmission(
+                        UUID.randomUUID(),
+                        LearningResponseType.SINGLE_CHOICE,
+                        mapper.createObjectNode().put("selectedIndex", 0)
+                )
+        );
+
+        assertThat(result.attemptNo()).isEqualTo(3);
+        assertThat(result.correct()).isTrue();
+        assertThat(result.questionCompleted()).isTrue();
+        assertThat(result.canRetry()).isFalse();
+        ArgumentCaptor<String> resultCaptor = ArgumentCaptor.forClass(String.class);
+        verify(training).recordProgressResult(resultCaptor.capture());
+        assertThat(resultCaptor.getValue())
+                .contains("\"isCorrect\":false")
+                .contains("\"totalScore\":0")
+                .contains("\"correctionConfirmed\":true");
     }
 
     @Test

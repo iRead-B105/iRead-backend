@@ -469,6 +469,33 @@ class TrainingServiceTest {
     }
 
     @Test
+    void completeTrainingActivatesGeneratedNextTraining() throws Exception {
+        DailyCurriculumEntity curriculum = curriculum(100L);
+        TrainingEntity training = training(1L, curriculum, template(11L, "현재 훈련"), null);
+        TrainingEntity nextTraining = training(2L, curriculum, template(12L, "다음 훈련"), null);
+        ReflectionTestUtils.setField(training, "sequenceNo", 1);
+        ReflectionTestUtils.setField(nextTraining, "sequenceNo", 2);
+        ReflectionTestUtils.setField(training, "status", TrainingStatus.NOT_STARTED);
+        curriculum.getTrainings().add(training);
+        curriculum.getTrainings().add(nextTraining);
+        allowStudent();
+        when(trainingRepository.findForUpdate(1L, 10L)).thenReturn(Optional.of(training));
+        when(trainingDataRepository.findByTrainingId(2L))
+                .thenReturn(Optional.of(org.mockito.Mockito.mock(TrainingDataEntity.class)));
+        when(aiClient.evaluateTraining(any(EvaluateTrainingRequest.class)))
+                .thenReturn(new EvaluateTrainingResponse(
+                        "training-evaluation-1", 1, new BigDecimal("100.00")
+                ));
+        var resultJson = JsonMapper.builder().build().readTree("{}");
+
+        trainingService.completeTraining(1L, 10L, 1L, resultJson, null);
+
+        assertThat(training.getStatus()).isEqualTo(TrainingStatus.COMPLETED);
+        assertThat(nextTraining.getStatus()).isEqualTo(TrainingStatus.NOT_STARTED);
+        verify(personalizedCurriculumPlanner, never()).createNextIfAbsent(any());
+    }
+
+    @Test
     void completedTrainingReturnsStoredAccuracyWithoutCallingAiAgain() throws Exception {
         TrainingEntity training = ownedTraining(1L);
         ReflectionTestUtils.setField(training, "status", TrainingStatus.COMPLETED);

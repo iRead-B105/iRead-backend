@@ -255,17 +255,14 @@ public class AppTrainingService {
         }
 
         int attemptNo = countQuestionSubmissions(submissions, questionNumber) + 1;
-        if (attemptNo > MAX_SELECTION_ATTEMPTS) {
-            throw new ConflictException("훈련 문항의 최대 시도 횟수를 초과했습니다.");
-        }
+        boolean correctionRequired = attemptNo > MAX_SELECTION_ATTEMPTS;
         AppLearningQuestionSupport.Evaluation evaluation =
                 learningQuestionSupport.evaluate(question, request);
-        boolean questionCompleted =
-                evaluation.correct() || attemptNo == MAX_SELECTION_ATTEMPTS;
+        boolean questionCompleted = evaluation.correct();
         boolean canRetry = !questionCompleted;
         String hint = evaluation.correct() ? null : hint(attemptNo);
         JsonNode correctResponse =
-                !evaluation.correct() && attemptNo == MAX_SELECTION_ATTEMPTS
+                !evaluation.correct() && attemptNo >= MAX_SELECTION_ATTEMPTS
                 ? evaluation.correctResponse()
                 : null;
         TrainingFeedbackResponse feedback = new TrainingFeedbackResponse(
@@ -273,7 +270,7 @@ public class AppTrainingService {
                 request.submissionId(),
                 attemptNo,
                 MAX_SELECTION_ATTEMPTS,
-                MAX_SELECTION_ATTEMPTS - attemptNo,
+                Math.max(MAX_SELECTION_ATTEMPTS - attemptNo, 0),
                 evaluation.correct(),
                 questionCompleted,
                 canRetry,
@@ -295,12 +292,14 @@ public class AppTrainingService {
         submission.set("feedback", writeFeedback(feedback));
 
         if (questionCompleted) {
+            boolean scoredCorrect = !correctionRequired;
             upsertQuestionResult(
                     result,
                     questionNumber,
-                    evaluation.correct(),
-                    evaluation.totalScore(),
-                    request.submissionId()
+                    scoredCorrect,
+                    scoredCorrect ? evaluation.totalScore() : 0,
+                    request.submissionId(),
+                    correctionRequired
             );
         }
         training.recordProgressResult(writeJson(result));
@@ -855,7 +854,8 @@ public class AppTrainingService {
     private boolean isQuestionCompleted(ObjectNode result, int questionNumber) {
         for (JsonNode question : result.withArray("questions")) {
             if (question.path("questionNo").asInt() == questionNumber) {
-                return true;
+                return question.path("isCorrect").asBoolean(false)
+                        || question.path("correctionConfirmed").asBoolean(false);
             }
         }
         return false;
@@ -866,7 +866,8 @@ public class AppTrainingService {
             int questionNumber,
             boolean correct,
             int totalScore,
-            UUID submissionId
+            UUID submissionId,
+            boolean correctionConfirmed
     ) {
         ArrayNode questions = result.withArray("questions");
         for (int index = questions.size() - 1; index >= 0; index--) {
@@ -879,12 +880,15 @@ public class AppTrainingService {
         question.put("isCorrect", correct);
         question.put("totalScore", totalScore);
         question.put("submissionId", submissionId.toString());
+        question.put("correctionConfirmed", correctionConfirmed);
     }
 
     private Set<Integer> completedQuestionNumbers(ObjectNode result) {
         Set<Integer> completed = new HashSet<>();
         result.withArray("questions").forEach(question -> {
-            if (question.path("questionNo").asInt() > 0) {
+            if (question.path("questionNo").asInt() > 0
+                    && (question.path("isCorrect").asBoolean(false)
+                    || question.path("correctionConfirmed").asBoolean(false))) {
                 completed.add(question.path("questionNo").asInt());
             }
         });
@@ -898,9 +902,9 @@ public class AppTrainingService {
     }
 
     private String hint(int attemptNo) {
-        return attemptNo == 1
+        return attemptNo < MAX_SELECTION_ATTEMPTS
                 ? "문항을 천천히 다시 살펴보세요."
-                : "선택지의 소리와 순서를 하나씩 비교해 보세요.";
+                : "정답을 확인하고 정답과 똑같이 다시 해보세요.";
     }
 
     private ObjectNode writeFeedback(TrainingFeedbackResponse feedback) {

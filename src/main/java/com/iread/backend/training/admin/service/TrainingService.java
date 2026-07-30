@@ -299,11 +299,26 @@ public class TrainingService {
         }
         saveWordAttemptLogs(student, training, finalResult.path("wordAttempts"));
         training.complete(writeJson(finalResult), accuracy, finishedAt);
+        activateNextTraining(training);
         studentFeatureProfileService.recalculate(student);
         if (training.getDailyCurriculum().getStatus() == DailyCurriculumStatus.COMPLETED) {
             personalizedCurriculumPlanner.createNextIfAbsent(student);
         }
         return accuracy;
+    }
+
+    private void activateNextTraining(TrainingEntity completedTraining) {
+        Integer completedSequence = completedTraining.getSequenceNo();
+        if (completedSequence == null) {
+            return;
+        }
+        completedTraining.getDailyCurriculum().getTrainings().stream()
+                .filter(training -> training.getSequenceNo() != null)
+                .filter(training -> training.getSequenceNo() > completedSequence)
+                .min(Comparator.comparingInt(TrainingEntity::getSequenceNo))
+                .filter(TrainingEntity::isEditable)
+                .filter(training -> trainingDataRepository.findByTrainingId(training.getId()).isPresent())
+                .ifPresent(TrainingEntity::markReady);
     }
 
     @Transactional
