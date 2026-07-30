@@ -56,7 +56,7 @@ class MySqlDemoSeedIntegrationTest {
         assertThat(count("daily_curriculums", 3203L)).isEqualTo(1);
         assertThat(count("trainings", 4203L)).isEqualTo(1);
         assertThat(count("tests", 5503L)).isEqualTo(1);
-        assertThat(count("gaze_analysis_results", 7302L)).isEqualTo(1);
+        assertThat(count("gaze_sessions", 7202L)).isEqualTo(1);
         assertThat(count("reports", 9101L)).isEqualTo(1);
         assertThat(tableCount("training_templates")).isEqualTo(34);
         assertThat(demoStudentCount()).isEqualTo(13);
@@ -280,14 +280,19 @@ class MySqlDemoSeedIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(DISTINCT curriculum.student_id)
-                  FROM gaze_analysis_results analysis
-                  JOIN gaze_sessions session ON session.id = analysis.gaze_session_id
+                  FROM gaze_sessions session
                   JOIN trainings training ON training.id = session.training_id
                   JOIN daily_curriculums curriculum
                     ON curriculum.id = training.daily_curriculum_id
                  WHERE session.content_type = 'TRAINING'
                    AND session.status = 'COMPLETED'
                    AND training.finished_at >= '2026-07-27 00:00:00'
+                   AND EXISTS (
+                         SELECT 1
+                           FROM word_attempt_logs attempt
+                          WHERE attempt.training_id = training.id
+                            AND attempt.fixation_duration_ms IS NOT NULL
+                   )
                 """,
                 Integer.class
         )).isEqualTo(13);

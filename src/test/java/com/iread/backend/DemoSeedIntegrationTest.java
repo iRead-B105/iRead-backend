@@ -18,6 +18,15 @@ import static org.assertj.core.api.Assertions.assertThat;
         "iread.teacher-demo-seed.enabled=false"
 })
 @ActiveProfiles("demo")
+@Sql(statements = "CREATE TABLE IF NOT EXISTS gaze_analysis_results ("
+        + "id BIGINT PRIMARY KEY, "
+        + "gaze_session_id BIGINT NOT NULL, "
+        + "total_visited_duration INT NOT NULL, "
+        + "total_visited_count INT NOT NULL, "
+        + "reverse_read_count INT NOT NULL, "
+        + "avg_visited_duration INT NULL, "
+        + "created_at TIMESTAMP NOT NULL"
+        + ")")
 @Sql({
         "/db/demo/V2__demo_seed.sql",
         "/db/demo/V3__remove_preseeded_saetbyeol_story.sql"

@@ -51,7 +51,6 @@ class AppStoryGazeContractTest {
                 route(RequestMethod.GET, "/api/app/gaze/calibration-guide"),
                 route(RequestMethod.GET, "/api/app/gaze/device/status"),
                 route(RequestMethod.POST, "/api/app/gaze/sessions"),
-                route(RequestMethod.POST, "/api/app/gaze/sessions/{gazeSessionId}/analysis-results"),
                 route(RequestMethod.PATCH, "/api/app/gaze/sessions/{gazeSessionId}/end"),
                 route(RequestMethod.PATCH, "/api/app/gaze/sessions/{gazeSessionId}/failed")
         );

@@ -189,14 +189,6 @@ VALUES
      '[{"timestampMs":0,"x":0.28,"y":0.40},{"timestampMs":200,"x":0.40,"y":0.41},{"timestampMs":400,"x":0.52,"y":0.42}]',
      'COMPLETED', 'SUCCESS', '2026-07-29 11:01:00');
 
-INSERT INTO gaze_analysis_results
-    (id, gaze_session_id, total_visited_duration, total_visited_count,
-     reverse_read_count, avg_visited_duration, created_at)
-VALUES
-    (7501, 7401, 48600, 76, 9, 639, '2026-05-18 10:07:00'),
-    (7502, 7403, 62400, 96, 12, 650, '2026-04-20 11:13:00'),
-    (7503, 7405, 38900, 62, 3, 627, '2026-07-29 11:10:00');
-
 INSERT INTO student_feature_profiles
     (id, student_id, reading_features_id, accuracy_rate, avg_pronunciation_scor,
      pronunciation_error_rate, avg_fixation_duration_ms, avg_fixation_count,

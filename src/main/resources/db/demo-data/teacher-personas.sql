@@ -1,4 +1,4 @@
-CREATE TEMPORARY TABLE demo_personas (
+﻿CREATE TEMPORARY TABLE demo_personas (
     persona_no INT PRIMARY KEY,
     student_id BIGINT NOT NULL,
     persona_title VARCHAR(80) NOT NULL,
@@ -17,45 +17,45 @@ INSERT INTO demo_personas
     (persona_no, student_id, persona_title, teacher_memo, strength_area, weakness_area,
      base_accuracy, trend_delta, reading_speed, past_gaze_failure, story_status, story_progress)
 VALUES
-    (1, 2001, '글자 탐색을 시작한 초기 학습자',
-     '[관찰] 그림 단서에는 적극적으로 반응하지만 자음과 모음의 소리 연결에서 망설임이 있습니다. [지도] 한 번에 5분 이내로 기본 모음과 첫소리를 짝짓고, 성공한 글자는 그림 단서 없이 다시 확인합니다. [다음 확인] 2주 동안 정확도보다 참여 지속 시간과 독립 반응 수를 우선 기록합니다.',
-     '그림 단서 활용', '자음·모음 연결', 570, 45, 34, FALSE, 'IN_PROGRESS', 35),
-    (2, 2101, '꾸준히 성장하는 균형형 학습자',
-     '[관찰] 음절 읽기와 문장 이해가 함께 성장하며 최근 정확도와 읽기 속도가 모두 안정적으로 상승했습니다. [지도] 현재 난이도를 유지하되 긴 문장은 의미 단위 표시 후 한 번 더 자연스럽게 읽게 합니다. [다음 확인] 2주 뒤 문장 길이를 늘려 호흡 유지 여부를 확인합니다.',
-     '음절 읽기', '긴 문장 호흡', 720, 35, 58, FALSE, 'COMPLETED', 100),
-    (3, 2102, '기초 검사를 마친 신규 전입 학습자',
-     '[관찰] 신규 전입 후 기초 검사를 마쳤고 낱글자 인식은 양호하지만 반복 자료가 아직 적습니다. [지도] 첫 3회기는 자모·음절·짧은 낱말을 같은 비율로 제시해 기준선을 수집합니다. [다음 확인] 성급한 단계 조정 없이 오류가 반복되는 유형부터 다음 커리큘럼에 반영합니다.',
-     '낱글자 인식', '학습 근거 축적', 680, 20, 42, FALSE, 'IN_PROGRESS', 20),
-    (4, 2103, '전 영역을 체험한 종합 시연 학습자',
-     '[관찰] 기초 음운부터 문장 유창성까지 전 영역을 경험했고 내용 이해가 가장 안정적입니다. 받침 낱말과 의미 단위 끊어 읽기에서 속도가 흔들립니다. [지도] 받침 낱말을 포함한 2~3문장 읽기를 반복하고 시선 되돌아가기를 함께 관찰합니다. [다음 확인] 2주 뒤 같은 길이의 문장으로 정확도와 호흡을 비교합니다.',
-     '내용 이해', '받침·끊어 읽기', 810, 28, 72, TRUE, 'IN_PROGRESS', 60),
-    (5, 2104, '시선 보정 실패를 극복한 회복형 학습자',
-     '[관찰] 초기 시선 보정 실패 뒤 재측정에서는 안정적으로 수집되었고 되읽기와 이탈 횟수도 감소했습니다. [지도] 매 회기 시작 전 자세와 화면 거리를 확인한 뒤 짧은 문장에서 성공 경험을 제공합니다. [다음 확인] 보정 실패 여부와 문장 끝까지 읽은 비율을 함께 기록해 회복 추이를 유지합니다.',
-     '재시도 지속성', '시선 고정 안정화', 640, 52, 49, TRUE, 'COMPLETED', 100),
-    (6, 2105, '정확하지만 천천히 읽는 신중형 학습자',
-     '[관찰] 정답 정확도는 높지만 낱말마다 확인 시간이 길어 문장 흐름이 자주 끊깁니다. [지도] 시간 제한은 두지 않고 동일한 짧은 문장을 세 차례 읽어 두 번째부터 묶어 읽기를 유도합니다. [다음 확인] 정확도를 유지하면서 분당 읽은 낱말 수가 완만하게 증가하는지 확인합니다.',
-     '높은 정확도', '읽기 자동화 속도', 870, 18, 38, FALSE, 'IN_PROGRESS', 50),
-    (7, 2106, '빠르게 읽지만 누락이 잦은 속도 우선형 학습자',
-     '[관찰] 읽기 속도는 빠르지만 조사와 받침을 건너뛰어 정확도 손실이 큽니다. [지도] 문장 경계와 받침 낱말을 시각적으로 표시하고 첫 읽기는 의도적으로 속도를 낮춥니다. [다음 확인] 속도보다 누락 낱말 수가 줄어드는지를 우선 지표로 보고 표시 단서를 점차 제거합니다.',
-     '빠른 읽기 속도', '낱말·받침 누락', 610, 30, 84, TRUE, 'IN_PROGRESS', 70),
-    (8, 2107, '이야기 몰입도가 높은 서사형 학습자',
-     '[관찰] 이야기 선택과 내용 예측에 적극적이며 맥락을 이용한 이해가 강합니다. 처음 보는 낱말은 문맥으로 추측하고 글자 단서를 놓치는 경우가 있습니다. [지도] 이야기 전후에 새 낱말 3개를 분리해 해독한 뒤 본문에서 다시 찾게 합니다. [다음 확인] 문맥 없이도 같은 낱말을 정확히 읽는지 확인합니다.',
-     '이야기 이해·예측', '새 낱말 해독', 760, 32, 66, FALSE, 'COMPLETED', 100),
-    (9, 2108, '비음화 발음에 집중하는 발음 교정형 학습자',
-     '[관찰] 국물·읽는처럼 비음화가 포함된 낱말에서 같은 발음 오류가 반복되며 음절 분리 단서에는 잘 반응합니다. [지도] 표기와 실제 발음을 나란히 제시하고 느린 모범 발음 뒤 한 번만 재시도합니다. [다음 확인] 연습 낱말과 새 낱말에서 오류가 함께 감소하는지 구분해 기록합니다.',
-     '음절 분리', '비음화 발음', 590, 42, 46, FALSE, 'IN_PROGRESS', 45),
-    (10, 2109, '검사 긴장을 완화해 가는 자신감 회복형 학습자',
-     '[관찰] 훈련에서는 안정적이지만 검사 화면에서 응답 시작이 늦고 정확도도 함께 낮아집니다. [지도] 검사 전 연습 문항으로 성공 경험을 제공하고 중립적인 안내만 사용합니다. [다음 확인] 검사 점수뿐 아니라 첫 응답 시간과 중단 횟수가 줄어드는지를 함께 비교합니다.',
-     '훈련 참여도', '검사 상황 긴장', 670, 48, 52, TRUE, 'COMPLETED', 100),
-    (11, 2110, '문장 의미 연결이 강한 이해 중심형 학습자',
-     '[관찰] 중심 내용 찾기와 그림-문장 연결은 안정적이지만 소리 내어 읽을 때 문장 부호를 충분히 반영하지 않습니다. [지도] 쉼표와 마침표에서 호흡 표시를 한 뒤 의미가 달라지는 예를 비교합니다. [다음 확인] 표시 없이도 억양과 멈춤을 유지하는지 녹음 기록으로 확인합니다.',
-     '중심 내용 이해', '문장 억양·호흡', 800, 24, 64, FALSE, 'IN_PROGRESS', 80),
-    (12, 2111, '겹받침과 되읽기가 잦은 집중 지원형 학습자',
-     '[관찰] 겹받침 낱말에서 시선 머무름과 되읽기가 많지만 재시도 안내는 잘 수용합니다. [지도] 낱말을 음절 단위로 나누고 최대 3회 안에서 마지막 시도만 평가에 반영합니다. [다음 확인] 같은 낱말의 머무름 시간과 재시도 횟수가 함께 줄어드는지 확인합니다.',
-     '재시도 수용성', '겹받침·되읽기', 520, 55, 41, TRUE, 'IN_PROGRESS', 30),
-    (13, 2002, '모음 구별이 빠른 시작 단계 학습자',
-     '[관찰] 기본 모음 따라 쓰기와 소리 구별은 빠르게 익히지만 음절을 합칠 때 카드 순서를 바꾸는 경우가 있습니다. [지도] 모음 강점을 활용해 두 글자 음절 합성부터 시작하고 손가락으로 읽는 순서를 짚게 합니다. [다음 확인] 도움 없이 카드 순서를 유지한 문항 수와 첫 시도 성공률을 기록합니다.',
-     '기본 모음 구별', '음절 합성 순서', 740, 38, 45, FALSE, 'IN_PROGRESS', 55);
+    (1, 2001, '湲???먯깋???쒖옉??珥덇린 ?숈뒿??,
+     '[愿李? 洹몃┝ ?⑥꽌?먮뒗 ?곴레?곸쑝濡?諛섏쓳?섏?留??먯쓬怨?紐⑥쓬???뚮━ ?곌껐?먯꽌 留앹꽕?꾩씠 ?덉뒿?덈떎. [吏?? ??踰덉뿉 5遺??대궡濡?湲곕낯 紐⑥쓬怨?泥レ냼由щ? 吏앹쭞怨? ?깃났??湲?먮뒗 洹몃┝ ?⑥꽌 ?놁씠 ?ㅼ떆 ?뺤씤?⑸땲?? [?ㅼ쓬 ?뺤씤] 2二??숈븞 ?뺥솗?꾨낫??李몄뿬 吏???쒓컙怨??낅┰ 諛섏쓳 ?섎? ?곗꽑 湲곕줉?⑸땲??',
+     '洹몃┝ ?⑥꽌 ?쒖슜', '?먯쓬쨌紐⑥쓬 ?곌껐', 570, 45, 34, FALSE, 'IN_PROGRESS', 35),
+    (2, 2101, '袁몄????깆옣?섎뒗 洹좏삎???숈뒿??,
+     '[愿李? ?뚯젅 ?쎄린? 臾몄옣 ?댄빐媛 ?④퍡 ?깆옣?섎ŉ 理쒓렐 ?뺥솗?꾩? ?쎄린 ?띾룄媛 紐⑤몢 ?덉젙?곸쑝濡??곸듅?덉뒿?덈떎. [吏?? ?꾩옱 ?쒖씠?꾨? ?좎??섎릺 湲?臾몄옣? ?섎? ?⑥쐞 ?쒖떆 ????踰????먯뿰?ㅻ읇寃??쎄쾶 ?⑸땲?? [?ㅼ쓬 ?뺤씤] 2二???臾몄옣 湲몄씠瑜??섎젮 ?명씉 ?좎? ?щ?瑜??뺤씤?⑸땲??',
+     '?뚯젅 ?쎄린', '湲?臾몄옣 ?명씉', 720, 35, 58, FALSE, 'COMPLETED', 100),
+    (3, 2102, '湲곗큹 寃?щ? 留덉튇 ?좉퇋 ?꾩엯 ?숈뒿??,
+     '[愿李? ?좉퇋 ?꾩엯 ??湲곗큹 寃?щ? 留덉낀怨??깃????몄떇? ?묓샇?섏?留?諛섎났 ?먮즺媛 ?꾩쭅 ?곸뒿?덈떎. [吏?? 泥?3?뚭린???먮え쨌?뚯젅쨌吏㏃? ?깅쭚??媛숈? 鍮꾩쑉濡??쒖떆??湲곗??좎쓣 ?섏쭛?⑸땲?? [?ㅼ쓬 ?뺤씤] ?깃툒???④퀎 議곗젙 ?놁씠 ?ㅻ쪟媛 諛섎났?섎뒗 ?좏삎遺???ㅼ쓬 而ㅻ━?섎읆??諛섏쁺?⑸땲??',
+     '?깃????몄떇', '?숈뒿 洹쇨굅 異뺤쟻', 680, 20, 42, FALSE, 'IN_PROGRESS', 20),
+    (4, 2103, '???곸뿭??泥댄뿕??醫낇빀 ?쒖뿰 ?숈뒿??,
+     '[愿李? 湲곗큹 ?뚯슫遺??臾몄옣 ?좎갹?깃퉴吏 ???곸뿭??寃쏀뿕?덇퀬 ?댁슜 ?댄빐媛 媛???덉젙?곸엯?덈떎. 諛쏆묠 ?깅쭚怨??섎? ?⑥쐞 ?딆뼱 ?쎄린?먯꽌 ?띾룄媛 ?붾뱾由쎈땲?? [吏?? 諛쏆묠 ?깅쭚???ы븿??2~3臾몄옣 ?쎄린瑜?諛섎났?섍퀬 ?쒖꽑 ?섎룎?꾧?湲곕? ?④퍡 愿李고빀?덈떎. [?ㅼ쓬 ?뺤씤] 2二???媛숈? 湲몄씠??臾몄옣?쇰줈 ?뺥솗?꾩? ?명씉??鍮꾧탳?⑸땲??',
+     '?댁슜 ?댄빐', '諛쏆묠쨌?딆뼱 ?쎄린', 810, 28, 72, TRUE, 'IN_PROGRESS', 60),
+    (5, 2104, '?쒖꽑 蹂댁젙 ?ㅽ뙣瑜?洹밸났???뚮났???숈뒿??,
+     '[愿李? 珥덇린 ?쒖꽑 蹂댁젙 ?ㅽ뙣 ???ъ륫?뺤뿉?쒕뒗 ?덉젙?곸쑝濡??섏쭛?섏뿀怨??섏씫湲곗? ?댄깉 ?잛닔??媛먯냼?덉뒿?덈떎. [吏?? 留??뚭린 ?쒖옉 ???먯꽭? ?붾㈃ 嫄곕━瑜??뺤씤????吏㏃? 臾몄옣?먯꽌 ?깃났 寃쏀뿕???쒓났?⑸땲?? [?ㅼ쓬 ?뺤씤] 蹂댁젙 ?ㅽ뙣 ?щ?? 臾몄옣 ?앷퉴吏 ?쎌? 鍮꾩쑉???④퍡 湲곕줉???뚮났 異붿씠瑜??좎??⑸땲??',
+     '?ъ떆??吏?띿꽦', '?쒖꽑 怨좎젙 ?덉젙??, 640, 52, 49, TRUE, 'COMPLETED', 100),
+    (6, 2105, '?뺥솗?섏?留?泥쒖쿇???쎈뒗 ?좎쨷???숈뒿??,
+     '[愿李? ?뺣떟 ?뺥솗?꾨뒗 ?믪?留??깅쭚留덈떎 ?뺤씤 ?쒓컙??湲몄뼱 臾몄옣 ?먮쫫???먯＜ ?딄퉩?덈떎. [吏?? ?쒓컙 ?쒗븳? ?먯? ?딄퀬 ?숈씪??吏㏃? 臾몄옣????李⑤? ?쎌뼱 ??踰덉㎏遺??臾띠뼱 ?쎄린瑜??좊룄?⑸땲?? [?ㅼ쓬 ?뺤씤] ?뺥솗?꾨? ?좎??섎㈃??遺꾨떦 ?쎌? ?깅쭚 ?섍? ?꾨쭔?섍쾶 利앷??섎뒗吏 ?뺤씤?⑸땲??',
+     '?믪? ?뺥솗??, '?쎄린 ?먮룞???띾룄', 870, 18, 38, FALSE, 'IN_PROGRESS', 50),
+    (7, 2106, '鍮좊Ⅴ寃??쎌?留??꾨씫????? ?띾룄 ?곗꽑???숈뒿??,
+     '[愿李? ?쎄린 ?띾룄??鍮좊Ⅴ吏留?議곗궗? 諛쏆묠??嫄대꼫?곗뼱 ?뺥솗???먯떎???쎈땲?? [吏?? 臾몄옣 寃쎄퀎? 諛쏆묠 ?깅쭚???쒓컖?곸쑝濡??쒖떆?섍퀬 泥??쎄린???섎룄?곸쑝濡??띾룄瑜???땅?덈떎. [?ㅼ쓬 ?뺤씤] ?띾룄蹂대떎 ?꾨씫 ?깅쭚 ?섍? 以꾩뼱?쒕뒗吏瑜??곗꽑 吏?쒕줈 蹂닿퀬 ?쒖떆 ?⑥꽌瑜??먯감 ?쒓굅?⑸땲??',
+     '鍮좊Ⅸ ?쎄린 ?띾룄', '?깅쭚쨌諛쏆묠 ?꾨씫', 610, 30, 84, TRUE, 'IN_PROGRESS', 70),
+    (8, 2107, '?댁빞湲?紐곗엯?꾧? ?믪? ?쒖궗???숈뒿??,
+     '[愿李? ?댁빞湲??좏깮怨??댁슜 ?덉륫???곴레?곸씠硫?留λ씫???댁슜???댄빐媛 媛뺥빀?덈떎. 泥섏쓬 蹂대뒗 ?깅쭚? 臾몃㎘?쇰줈 異붿륫?섍퀬 湲???⑥꽌瑜??볦튂??寃쎌슦媛 ?덉뒿?덈떎. [吏?? ?댁빞湲??꾪썑?????깅쭚 3媛쒕? 遺꾨━???대룆????蹂몃Ц?먯꽌 ?ㅼ떆 李얘쾶 ?⑸땲?? [?ㅼ쓬 ?뺤씤] 臾몃㎘ ?놁씠??媛숈? ?깅쭚???뺥솗???쎈뒗吏 ?뺤씤?⑸땲??',
+     '?댁빞湲??댄빐쨌?덉륫', '???깅쭚 ?대룆', 760, 32, 66, FALSE, 'COMPLETED', 100),
+    (9, 2108, '鍮꾩쓬??諛쒖쓬??吏묒쨷?섎뒗 諛쒖쓬 援먯젙???숈뒿??,
+     '[愿李? 援?Ъ쨌?쎈뒗泥섎읆 鍮꾩쓬?붽? ?ы븿???깅쭚?먯꽌 媛숈? 諛쒖쓬 ?ㅻ쪟媛 諛섎났?섎ŉ ?뚯젅 遺꾨━ ?⑥꽌?먮뒗 ??諛섏쓳?⑸땲?? [吏?? ?쒓린? ?ㅼ젣 諛쒖쓬???섎????쒖떆?섍퀬 ?먮┛ 紐⑤쾾 諛쒖쓬 ????踰덈쭔 ?ъ떆?꾪빀?덈떎. [?ㅼ쓬 ?뺤씤] ?곗뒿 ?깅쭚怨????깅쭚?먯꽌 ?ㅻ쪟媛 ?④퍡 媛먯냼?섎뒗吏 援щ텇??湲곕줉?⑸땲??',
+     '?뚯젅 遺꾨━', '鍮꾩쓬??諛쒖쓬', 590, 42, 46, FALSE, 'IN_PROGRESS', 45),
+    (10, 2109, '寃??湲댁옣???꾪솕??媛???먯떊媛??뚮났???숈뒿??,
+     '[愿李? ?덈젴?먯꽌???덉젙?곸씠吏留?寃???붾㈃?먯꽌 ?묐떟 ?쒖옉????퀬 ?뺥솗?꾨룄 ?④퍡 ??븘吏묐땲?? [吏?? 寃?????곗뒿 臾명빆?쇰줈 ?깃났 寃쏀뿕???쒓났?섍퀬 以묐┰?곸씤 ?덈궡留??ъ슜?⑸땲?? [?ㅼ쓬 ?뺤씤] 寃???먯닔肉??꾨땲??泥??묐떟 ?쒓컙怨?以묐떒 ?잛닔媛 以꾩뼱?쒕뒗吏瑜??④퍡 鍮꾧탳?⑸땲??',
+     '?덈젴 李몄뿬??, '寃???곹솴 湲댁옣', 670, 48, 52, TRUE, 'COMPLETED', 100),
+    (11, 2110, '臾몄옣 ?섎? ?곌껐??媛뺥븳 ?댄빐 以묒떖???숈뒿??,
+     '[愿李? 以묒떖 ?댁슜 李얘린? 洹몃┝-臾몄옣 ?곌껐? ?덉젙?곸씠吏留??뚮━ ?댁뼱 ?쎌쓣 ??臾몄옣 遺?몃? 異⑸텇??諛섏쁺?섏? ?딆뒿?덈떎. [吏?? ?쇳몴? 留덉묠?쒖뿉???명씉 ?쒖떆瑜??????섎?媛 ?щ씪吏???덈? 鍮꾧탳?⑸땲?? [?ㅼ쓬 ?뺤씤] ?쒖떆 ?놁씠???듭뼇怨?硫덉땄???좎??섎뒗吏 ?뱀쓬 湲곕줉?쇰줈 ?뺤씤?⑸땲??',
+     '以묒떖 ?댁슜 ?댄빐', '臾몄옣 ?듭뼇쨌?명씉', 800, 24, 64, FALSE, 'IN_PROGRESS', 80),
+    (12, 2111, '寃밸컺移④낵 ?섏씫湲곌? ??? 吏묒쨷 吏?먰삎 ?숈뒿??,
+     '[愿李? 寃밸컺移??깅쭚?먯꽌 ?쒖꽑 癒몃Т由꾧낵 ?섏씫湲곌? 留롮?留??ъ떆???덈궡?????섏슜?⑸땲?? [吏?? ?깅쭚???뚯젅 ?⑥쐞濡??섎늻怨?理쒕? 3???덉뿉??留덉?留??쒕룄留??됯???諛섏쁺?⑸땲?? [?ㅼ쓬 ?뺤씤] 媛숈? ?깅쭚??癒몃Т由??쒓컙怨??ъ떆???잛닔媛 ?④퍡 以꾩뼱?쒕뒗吏 ?뺤씤?⑸땲??',
+     '?ъ떆???섏슜??, '寃밸컺移㉱룸릺?쎄린', 520, 55, 41, TRUE, 'IN_PROGRESS', 30),
+    (13, 2002, '紐⑥쓬 援щ퀎??鍮좊Ⅸ ?쒖옉 ?④퀎 ?숈뒿??,
+     '[愿李? 湲곕낯 紐⑥쓬 ?곕씪 ?곌린? ?뚮━ 援щ퀎? 鍮좊Ⅴ寃??듯엳吏留??뚯젅???⑹튌 ??移대뱶 ?쒖꽌瑜?諛붽씀??寃쎌슦媛 ?덉뒿?덈떎. [吏?? 紐⑥쓬 媛뺤젏???쒖슜????湲???뚯젅 ?⑹꽦遺???쒖옉?섍퀬 ?먭??쎌쑝濡??쎈뒗 ?쒖꽌瑜?吏싰쾶 ?⑸땲?? [?ㅼ쓬 ?뺤씤] ?꾩? ?놁씠 移대뱶 ?쒖꽌瑜??좎???臾명빆 ?섏? 泥??쒕룄 ?깃났瑜좎쓣 湲곕줉?⑸땲??',
+     '湲곕낯 紐⑥쓬 援щ퀎', '?뚯젅 ?⑹꽦 ?쒖꽌', 740, 38, 45, FALSE, 'IN_PROGRESS', 55);
 
 CREATE TEMPORARY TABLE demo_numbers (seq INT PRIMARY KEY);
 INSERT INTO demo_numbers (seq)
@@ -91,7 +91,7 @@ SET @demo_reading_template_count = (SELECT COUNT(*) FROM demo_reading_templates)
 UPDATE students student
 JOIN demo_personas persona ON persona.student_id = student.id
 SET student.teacher_memo = persona.teacher_memo,
-    student.guardian = COALESCE(student.guardian, CONCAT(LEFT(student.name, 1), '보호자')),
+    student.guardian = COALESCE(student.guardian, CONCAT(LEFT(student.name, 1), '蹂댄샇??)),
     student.guardian_contact = COALESCE(
         student.guardian_contact,
         CONCAT('010-0000-', RIGHT(CONCAT('0000', student.id), 4))
@@ -100,7 +100,7 @@ SET student.teacher_memo = persona.teacher_memo,
         student.guardian_email,
         CONCAT('guardian', student.id, '@example.invalid')
     ),
-    student.address = COALESCE(student.address, '서울시 데모구 읽기마을'),
+    student.address = COALESCE(student.address, '?쒖슱???곕え援??쎄린留덉쓣'),
     student.image_url = COALESCE(student.image_url, '/images/student-profile.png');
 
 INSERT INTO daily_curriculums (id, student_id, status, created_at, completed_at)
@@ -177,17 +177,17 @@ SELECT
          WHEN number.seq = 9 THEN 'NOT_STARTED'
          ELSE 'NOT_READY' END,
     CASE WHEN number.seq <= 8 THEN JSON_OBJECT(
-        'learningAssessment', CONCAT(persona.persona_title, '의 ', template.name, ' 수행 결과입니다.'),
+        'learningAssessment', CONCAT(persona.persona_title, '??', template.name, ' ?섑뻾 寃곌낵?낅땲??'),
         'retryCount', CASE WHEN persona.base_accuracy + number.seq * persona.trend_delta / 4 < 700 THEN 2 ELSE 0 END,
         'questions', JSON_ARRAY(
-            JSON_OBJECT('questionNumber', 1, 'question', CONCAT(persona.weakness_area, ' 관련 첫 번째 문항'),
-                        'isCorrect', TRUE, 'selectedAnswer', '바르게 읽었습니다.', 'correctAnswer', '바르게 읽었습니다.'),
-            JSON_OBJECT('questionNumber', 2, 'question', CONCAT(template.name, ' 두 번째 문항'),
+            JSON_OBJECT('questionNumber', 1, 'question', CONCAT(persona.weakness_area, ' 愿??泥?踰덉㎏ 臾명빆'),
+                        'isCorrect', TRUE, 'selectedAnswer', '諛붾Ⅴ寃??쎌뿀?듬땲??', 'correctAnswer', '諛붾Ⅴ寃??쎌뿀?듬땲??'),
+            JSON_OBJECT('questionNumber', 2, 'question', CONCAT(template.name, ' ??踰덉㎏ 臾명빆'),
                         'isCorrect', number.seq % 3 <> 0,
-                        'selectedAnswer', CASE WHEN number.seq % 3 <> 0 THEN '정확한 응답' ELSE '비슷한 소리로 읽음' END,
-                        'correctAnswer', '정확한 응답'),
-            JSON_OBJECT('questionNumber', 3, 'question', CONCAT(persona.strength_area, ' 확인 문항'),
-                        'isCorrect', TRUE, 'selectedAnswer', '끝까지 읽었습니다.', 'correctAnswer', '끝까지 읽었습니다.')
+                        'selectedAnswer', CASE WHEN number.seq % 3 <> 0 THEN '?뺥솗???묐떟' ELSE '鍮꾩듂???뚮━濡??쎌쓬' END,
+                        'correctAnswer', '?뺥솗???묐떟'),
+            JSON_OBJECT('questionNumber', 3, 'question', CONCAT(persona.strength_area, ' ?뺤씤 臾명빆'),
+                        'isCorrect', TRUE, 'selectedAnswer', '?앷퉴吏 ?쎌뿀?듬땲??', 'correctAnswer', '?앷퉴吏 ?쎌뿀?듬땲??')
         )
     ) END,
     CASE WHEN number.seq <= 8 THEN
@@ -233,23 +233,23 @@ SELECT
                         'questionNo', 1,
                         'type', 'SENTENCE_READING',
                         'requiredInputs', JSON_ARRAY('VOICE'),
-                        'content', JSON_OBJECT('tokens', JSON_ARRAY('국물')),
-                        'analysisTargets', JSON_ARRAY(JSON_OBJECT('text', '국물')),
-                        'answer', JSON_OBJECT('expectedText', '국물')),
+                        'content', JSON_OBJECT('tokens', JSON_ARRAY('援?Ъ')),
+                        'analysisTargets', JSON_ARRAY(JSON_OBJECT('text', '援?Ъ')),
+                        'answer', JSON_OBJECT('expectedText', '援?Ъ')),
             JSON_OBJECT('questionId', CONCAT('persona-', persona.persona_no, '-', number.seq, '-2'),
                         'questionNo', 2,
                         'type', 'SENTENCE_READING',
                         'requiredInputs', JSON_ARRAY('VOICE'),
-                        'content', JSON_OBJECT('tokens', JSON_ARRAY('친구와', '도서관에', '갑니다.')),
-                        'analysisTargets', JSON_ARRAY(JSON_OBJECT('text', '친구와 도서관에 갑니다.')),
-                        'answer', JSON_OBJECT('expectedText', '친구와 도서관에 갑니다.')),
+                        'content', JSON_OBJECT('tokens', JSON_ARRAY('移쒓뎄?', '?꾩꽌愿??, '媛묐땲??')),
+                        'analysisTargets', JSON_ARRAY(JSON_OBJECT('text', '移쒓뎄? ?꾩꽌愿??媛묐땲??')),
+                        'answer', JSON_OBJECT('expectedText', '移쒓뎄? ?꾩꽌愿??媛묐땲??')),
             JSON_OBJECT('questionId', CONCAT('persona-', persona.persona_no, '-', number.seq, '-3'),
                         'questionNo', 3,
                         'type', 'SENTENCE_READING',
                         'requiredInputs', JSON_ARRAY('VOICE'),
-                        'content', JSON_OBJECT('tokens', JSON_ARRAY('친구와', '함께', '책을', '읽는', '내용입니다.')),
-                        'analysisTargets', JSON_ARRAY(JSON_OBJECT('text', '친구와 함께 책을 읽는 내용입니다.')),
-                        'answer', JSON_OBJECT('expectedText', '친구와 함께 책을 읽는 내용입니다.'))
+                        'content', JSON_OBJECT('tokens', JSON_ARRAY('移쒓뎄?', '?④퍡', '梨낆쓣', '?쎈뒗', '?댁슜?낅땲??')),
+                        'analysisTargets', JSON_ARRAY(JSON_OBJECT('text', '移쒓뎄? ?④퍡 梨낆쓣 ?쎈뒗 ?댁슜?낅땲??')),
+                        'answer', JSON_OBJECT('expectedText', '移쒓뎄? ?④퍡 梨낆쓣 ?쎈뒗 ?댁슜?낅땲??'))
         )
     ),
     TIMESTAMPADD(MINUTE, 1, training.created_at)
@@ -262,8 +262,8 @@ WHERE NOT EXISTS (
     WHERE existing.id = 135000 + persona.persona_no * 100 + number.seq
 );
 
--- 모든 훈련 유형에 대한 페르소나별 기초 수행 기록을 제공한다.
--- 최근 커리큘럼의 동일 훈련과 비교할 수 있도록 기준 기록은 현재 회차보다 앞선다.
+-- 紐⑤뱺 ?덈젴 ?좏삎??????섎Ⅴ?뚮굹蹂?湲곗큹 ?섑뻾 湲곕줉???쒓났?쒕떎.
+-- 理쒓렐 而ㅻ━?섎읆???숈씪 ?덈젴怨?鍮꾧탳?????덈룄濡?湲곗? 湲곕줉? ?꾩옱 ?뚯감蹂대떎 ?욎꽑??
 INSERT INTO daily_curriculums (id, student_id, status, created_at, completed_at)
 SELECT
     220000 + persona.persona_no,
@@ -291,8 +291,8 @@ SELECT
     'COMPLETED',
     JSON_OBJECT(
         'learningAssessment', CONCAT(
-            persona.persona_title, '의 기초 수행 기록입니다. ',
-            persona.weakness_area, ' 관련 반응은 다음 회차에서 다시 확인합니다.'
+            persona.persona_title, '??湲곗큹 ?섑뻾 湲곕줉?낅땲?? ',
+            persona.weakness_area, ' 愿??諛섏쓳? ?ㅼ쓬 ?뚯감?먯꽌 ?ㅼ떆 ?뺤씤?⑸땲??'
         ),
         'retryCount', CASE
             WHEN persona.base_accuracy < 600 THEN 2
@@ -302,28 +302,28 @@ SELECT
         'questions', JSON_ARRAY(
             JSON_OBJECT(
                 'questionNumber', 1,
-                'question', CONCAT(template.name, ' 기초 확인 문항'),
+                'question', CONCAT(template.name, ' 湲곗큹 ?뺤씤 臾명빆'),
                 'isCorrect', TRUE,
-                'selectedAnswer', '첫 문항을 정확히 수행했습니다.',
-                'correctAnswer', '첫 문항을 정확히 수행했습니다.'
+                'selectedAnswer', '泥?臾명빆???뺥솗???섑뻾?덉뒿?덈떎.',
+                'correctAnswer', '泥?臾명빆???뺥솗???섑뻾?덉뒿?덈떎.'
             ),
             JSON_OBJECT(
                 'questionNumber', 2,
-                'question', CONCAT(persona.weakness_area, ' 확인 문항'),
+                'question', CONCAT(persona.weakness_area, ' ?뺤씤 臾명빆'),
                 'isCorrect', MOD(template.id + persona.persona_no, 4) <> 0,
                 'selectedAnswer', CASE
                     WHEN MOD(template.id + persona.persona_no, 4) <> 0
-                    THEN '정확한 응답'
-                    ELSE '단서를 확인한 뒤 수정함'
+                    THEN '?뺥솗???묐떟'
+                    ELSE '?⑥꽌瑜??뺤씤?????섏젙??
                 END,
-                'correctAnswer', '정확한 응답'
+                'correctAnswer', '?뺥솗???묐떟'
             ),
             JSON_OBJECT(
                 'questionNumber', 3,
-                'question', CONCAT(persona.strength_area, ' 활용 문항'),
+                'question', CONCAT(persona.strength_area, ' ?쒖슜 臾명빆'),
                 'isCorrect', TRUE,
-                'selectedAnswer', '끝까지 수행했습니다.',
-                'correctAnswer', '끝까지 수행했습니다.'
+                'selectedAnswer', '?앷퉴吏 ?섑뻾?덉뒿?덈떎.',
+                'correctAnswer', '?앷퉴吏 ?섑뻾?덉뒿?덈떎.'
             )
         )
     ),
@@ -354,16 +354,16 @@ SELECT
             JSON_OBJECT(
                 'questionId', CONCAT('baseline-', persona.persona_no, '-', template.id, '-1'),
                 'questionNo', 1,
-                'problem', JSON_OBJECT('targetText', CONCAT(template.name, '의 기초 문항입니다.')),
-                'answer', JSON_OBJECT('correctText', '제시된 단서에 맞게 응답합니다.')
+                'problem', JSON_OBJECT('targetText', CONCAT(template.name, '??湲곗큹 臾명빆?낅땲??')),
+                'answer', JSON_OBJECT('correctText', '?쒖떆???⑥꽌??留욊쾶 ?묐떟?⑸땲??')
             ),
             JSON_OBJECT(
                 'questionId', CONCAT('baseline-', persona.persona_no, '-', template.id, '-2'),
                 'questionNo', 2,
                 'problem', JSON_OBJECT(
-                    'targetText', CONCAT(persona.weakness_area, '에 유의하여 읽어 보세요.')
+                    'targetText', CONCAT(persona.weakness_area, '???좎쓽?섏뿬 ?쎌뼱 蹂댁꽭??')
                 ),
-                'answer', JSON_OBJECT('correctText', '천천히 확인하며 정확히 읽습니다.')
+                'answer', JSON_OBJECT('correctText', '泥쒖쿇???뺤씤?섎ŉ ?뺥솗???쎌뒿?덈떎.')
             )
         )
     ),
@@ -375,7 +375,7 @@ WHERE NOT EXISTS (
     WHERE existing.id = 240000 + persona.persona_no * 100 + template.id
 );
 
--- 최근 30일에 서로 다른 세 번의 읽기 기록을 만들어 정확도·읽기 속도 추이를 제공한다.
+-- 理쒓렐 30?쇱뿉 ?쒕줈 ?ㅻⅨ ??踰덉쓽 ?쎄린 湲곕줉??留뚮뱾???뺥솗?꽷룹씫湲??띾룄 異붿씠瑜??쒓났?쒕떎.
 INSERT INTO daily_curriculums (id, student_id, status, created_at, completed_at)
 SELECT
     250000 + persona.persona_no * 10 + number.seq,
@@ -424,39 +424,39 @@ SELECT
     'COMPLETED',
     JSON_OBJECT(
         'learningAssessment', CONCAT(
-            persona.strength_area, '을 활용한 읽기에서 ',
+            persona.strength_area, '???쒖슜???쎄린?먯꽌 ',
             CASE
-                WHEN number.seq = 1 THEN CONCAT(persona.weakness_area, ' 지원이 필요했습니다.')
-                WHEN number.seq = 2 THEN '첫 기록보다 망설임이 줄었습니다.'
-                ELSE '정확도와 읽기 흐름이 함께 안정되었습니다.'
+                WHEN number.seq = 1 THEN CONCAT(persona.weakness_area, ' 吏?먯씠 ?꾩슂?덉뒿?덈떎.')
+                WHEN number.seq = 2 THEN '泥?湲곕줉蹂대떎 留앹꽕?꾩씠 以꾩뿀?듬땲??'
+                ELSE '?뺥솗?꾩? ?쎄린 ?먮쫫???④퍡 ?덉젙?섏뿀?듬땲??'
             END
         ),
         'retryCount', GREATEST(0, 3 - number.seq - FLOOR(persona.base_accuracy / 800)),
         'questions', JSON_ARRAY(
             JSON_OBJECT(
                 'questionNumber', 1,
-                'question', '제시된 낱말을 순서대로 읽어 보세요.',
+                'question', '?쒖떆???깅쭚???쒖꽌?濡??쎌뼱 蹂댁꽭??',
                 'isCorrect', TRUE,
-                'selectedAnswer', '도서관 친구 학교',
-                'correctAnswer', '도서관 친구 학교'
+                'selectedAnswer', '?꾩꽌愿 移쒓뎄 ?숆탳',
+                'correctAnswer', '?꾩꽌愿 移쒓뎄 ?숆탳'
             ),
             JSON_OBJECT(
                 'questionNumber', 2,
-                'question', CONCAT(persona.weakness_area, '을 확인하는 문장을 읽어 보세요.'),
+                'question', CONCAT(persona.weakness_area, '???뺤씤?섎뒗 臾몄옣???쎌뼱 蹂댁꽭??'),
                 'isCorrect', number.seq > 1 OR persona.base_accuracy >= 750,
                 'selectedAnswer', CASE
                     WHEN number.seq > 1 OR persona.base_accuracy >= 750
-                    THEN '친구와 함께 도서관에 갑니다.'
-                    ELSE '친구와 도서관에 감니다.'
+                    THEN '移쒓뎄? ?④퍡 ?꾩꽌愿??媛묐땲??'
+                    ELSE '移쒓뎄? ?꾩꽌愿??媛먮땲??'
                 END,
-                'correctAnswer', '친구와 함께 도서관에 갑니다.'
+                'correctAnswer', '移쒓뎄? ?④퍡 ?꾩꽌愿??媛묐땲??'
             ),
             JSON_OBJECT(
                 'questionNumber', 3,
-                'question', '문장의 뜻을 짧게 말해 보세요.',
+                'question', '臾몄옣???살쓣 吏㏐쾶 留먰빐 蹂댁꽭??',
                 'isCorrect', TRUE,
-                'selectedAnswer', '친구와 도서관에 가는 내용입니다.',
-                'correctAnswer', '친구와 도서관에 가는 내용입니다.'
+                'selectedAnswer', '移쒓뎄? ?꾩꽌愿??媛???댁슜?낅땲??',
+                'correctAnswer', '移쒓뎄? ?꾩꽌愿??媛???댁슜?낅땲??'
             )
         )
     ),
@@ -486,14 +486,14 @@ SELECT
             JSON_OBJECT(
                 'questionId', CONCAT('trend-', persona.persona_no, '-', number.seq, '-1'),
                 'questionNo', 1,
-                'problem', JSON_OBJECT('targetText', '도서관 친구 학교'),
-                'answer', JSON_OBJECT('correctText', '도서관 친구 학교')
+                'problem', JSON_OBJECT('targetText', '?꾩꽌愿 移쒓뎄 ?숆탳'),
+                'answer', JSON_OBJECT('correctText', '?꾩꽌愿 移쒓뎄 ?숆탳')
             ),
             JSON_OBJECT(
                 'questionId', CONCAT('trend-', persona.persona_no, '-', number.seq, '-2'),
                 'questionNo', 2,
-                'problem', JSON_OBJECT('targetText', '친구와 함께 도서관에 갑니다.'),
-                'answer', JSON_OBJECT('correctText', '친구와 함께 도서관에 갑니다.')
+                'problem', JSON_OBJECT('targetText', '移쒓뎄? ?④퍡 ?꾩꽌愿??媛묐땲??'),
+                'answer', JSON_OBJECT('correctText', '移쒓뎄? ?④퍡 ?꾩꽌愿??媛묐땲??')
             )
         )
     ),
@@ -529,8 +529,8 @@ SELECT
             + token_no.seq * 18
     ),
     CASE
-        WHEN persona.weakness_area LIKE '%되읽기%' AND token_no.seq <= 2 THEN 3
-        WHEN persona.weakness_area LIKE '%누락%' AND token_no.seq = 3 THEN 1
+        WHEN persona.weakness_area LIKE '%?섏씫湲?' AND token_no.seq <= 2 THEN 3
+        WHEN persona.weakness_area LIKE '%?꾨씫%' AND token_no.seq = 3 THEN 1
         ELSE 1 + MOD(token_no.seq + persona.persona_no, 2)
     END,
     FLOOR(
@@ -624,34 +624,8 @@ WHERE NOT EXISTS (
     WHERE existing.id = 260000 + persona.persona_no * 10 + number.seq
 );
 
-INSERT INTO gaze_analysis_results
-    (id, gaze_session_id, total_visited_duration, total_visited_count,
-     reverse_read_count, avg_visited_duration, created_at)
-SELECT
-    261000 + persona.persona_no * 10 + number.seq,
-    260000 + persona.persona_no * 10 + number.seq,
-    GREATEST(
-        18000,
-        61000 - persona.reading_speed * 250 - number.seq * persona.trend_delta * 75
-    ),
-    GREATEST(30, 96 - persona.reading_speed / 2 - number.seq * 5),
-    GREATEST(
-        0,
-        12 - number.seq * 2
-            + CASE WHEN persona.weakness_area LIKE '%되읽기%' THEN 4 ELSE 0 END
-    ),
-    GREATEST(300, 780 - persona.trend_delta * number.seq),
-    TIMESTAMPADD(MINUTE, 1, session.ended_at)
-FROM demo_personas persona
-JOIN demo_numbers number ON number.seq <= 3
-JOIN gaze_sessions session ON session.id = 260000 + persona.persona_no * 10 + number.seq
-WHERE session.status = 'COMPLETED'
-  AND NOT EXISTS (
-      SELECT 1 FROM gaze_analysis_results existing
-      WHERE existing.id = 261000 + persona.persona_no * 10 + number.seq
-  );
 
--- 교수자가 어떤 완료 훈련을 먼저 열어도 시선 분석 예시를 확인할 수 있게 누락 세션을 보강한다.
+-- 援먯닔?먭? ?대뼡 ?꾨즺 ?덈젴??癒쇱? ?댁뼱???쒖꽑 遺꾩꽍 ?덉떆瑜??뺤씤?????덇쾶 ?꾨씫 ?몄뀡??蹂닿컯?쒕떎.
 INSERT INTO gaze_sessions
     (id, student_id, test_id, training_id, story_id, content_type, started_at,
      ended_at, data, status, calibration_status, created_at)
@@ -688,38 +662,8 @@ WHERE training.status = 'COMPLETED'
       WHERE existing.id = 400000 + training.id
   );
 
-INSERT INTO gaze_analysis_results
-    (id, gaze_session_id, total_visited_duration, total_visited_count,
-     reverse_read_count, avg_visited_duration, created_at)
-SELECT
-    500000 + training.id,
-    session.id,
-    GREATEST(18000, 64000 - persona.reading_speed * 260),
-    GREATEST(28, 94 - persona.reading_speed / 2),
-    GREATEST(
-        0,
-        10
-            + CASE WHEN persona.weakness_area LIKE '%되읽기%' THEN 4 ELSE 0 END
-            - FLOOR(COALESCE(training.accuracy, 60) / 12)
-    ),
-    GREATEST(280, 820 - persona.trend_delta * 2),
-    TIMESTAMPADD(MINUTE, 1, session.ended_at)
-FROM demo_personas persona
-JOIN daily_curriculums curriculum ON curriculum.student_id = persona.student_id
-JOIN trainings training ON training.daily_curriculum_id = curriculum.id
-JOIN gaze_sessions session
-  ON session.id = 400000 + training.id
-WHERE session.status = 'COMPLETED'
-  AND NOT EXISTS (
-      SELECT 1 FROM gaze_analysis_results existing
-      WHERE existing.gaze_session_id = session.id
-  )
-  AND NOT EXISTS (
-      SELECT 1 FROM gaze_analysis_results existing
-      WHERE existing.id = 500000 + training.id
-  );
 
--- DB 정수 저장 단위(0~1000)를 화면 백분율(0~100)로 잘못 넣은 기존 데모 행을 복구한다.
+-- DB ?뺤닔 ????⑥쐞(0~1000)瑜??붾㈃ 諛깅텇??0~100)濡??섎せ ?ｌ? 湲곗〈 ?곕え ?됱쓣 蹂듦뎄?쒕떎.
 UPDATE trainings training
 JOIN daily_curriculums curriculum ON curriculum.id = training.daily_curriculum_id
 JOIN demo_personas persona ON persona.student_id = curriculum.student_id
@@ -756,9 +700,9 @@ SELECT
         END,
         'strengthAreas', JSON_ARRAY(persona.strength_area),
         'improvementAreas', JSON_ARRAY(persona.weakness_area),
-        'recommendedCourse', CONCAT(persona.weakness_area, ' 집중 훈련'),
+        'recommendedCourse', CONCAT(persona.weakness_area, ' 吏묒쨷 ?덈젴'),
         'nextTestRecommendation', CONCAT(
-            '2주 후 ', persona.weakness_area, ' 영역의 같은 난이도 재검사를 권장합니다.'
+            '2二???', persona.weakness_area, ' ?곸뿭??媛숈? ?쒖씠???ш??щ? 沅뚯옣?⑸땲??'
         ),
         'areaScores', JSON_ARRAY(
             JSON_OBJECT(
@@ -776,7 +720,7 @@ SELECT
                 )))
             ),
             JSON_OBJECT(
-                'area', '읽기 유창성',
+                'area', '?쎄린 ?좎갹??,
                 'score', LEAST(98, GREATEST(35, persona.reading_speed + number.seq * 3))
             )
         ),
@@ -784,15 +728,15 @@ SELECT
         'solvingTimeSeconds', GREATEST(90, 260 - persona.reading_speed - number.seq * 10),
         'gazeDepartureCount', GREATEST(0, 5 - number.seq),
         'questions', JSON_ARRAY(
-            JSON_OBJECT('questionNumber', 1, 'question', '제시된 낱말을 소리 내어 읽어 보세요.',
-                        'isCorrect', TRUE, 'selectedAnswer', '도서관', 'correctAnswer', '도서관'),
-            JSON_OBJECT('questionNumber', 2, 'question', CONCAT(persona.weakness_area, '을 확인하는 문장을 읽어 보세요.'),
+            JSON_OBJECT('questionNumber', 1, 'question', '?쒖떆???깅쭚???뚮━ ?댁뼱 ?쎌뼱 蹂댁꽭??',
+                        'isCorrect', TRUE, 'selectedAnswer', '?꾩꽌愿', 'correctAnswer', '?꾩꽌愿'),
+            JSON_OBJECT('questionNumber', 2, 'question', CONCAT(persona.weakness_area, '???뺤씤?섎뒗 臾몄옣???쎌뼱 蹂댁꽭??'),
                         'isCorrect', number.seq > 1, 'selectedAnswer',
-                        CASE WHEN number.seq > 1 THEN '친구와 함께 길을 찾았습니다.' ELSE '친구와 길을 잃었습니다.' END,
-                        'correctAnswer', '친구와 함께 길을 찾았습니다.'),
-            JSON_OBJECT('questionNumber', 3, 'question', '이야기의 중심 내용을 말해 보세요.',
-                        'isCorrect', TRUE, 'selectedAnswer', '서로 도와 문제를 해결했습니다.',
-                        'correctAnswer', '서로 도와 문제를 해결했습니다.')
+                        CASE WHEN number.seq > 1 THEN '移쒓뎄? ?④퍡 湲몄쓣 李얠븯?듬땲??' ELSE '移쒓뎄? 湲몄쓣 ?껋뿀?듬땲??' END,
+                        'correctAnswer', '移쒓뎄? ?④퍡 湲몄쓣 李얠븯?듬땲??'),
+            JSON_OBJECT('questionNumber', 3, 'question', '?댁빞湲곗쓽 以묒떖 ?댁슜??留먰빐 蹂댁꽭??',
+                        'isCorrect', TRUE, 'selectedAnswer', '?쒕줈 ?꾩? 臾몄젣瑜??닿껐?덉뒿?덈떎.',
+                        'correctAnswer', '?쒕줈 ?꾩? 臾몄젣瑜??닿껐?덉뒿?덈떎.')
         )
     ),
     LEAST(98, GREATEST(45,
@@ -836,9 +780,9 @@ SET test.result = JSON_SET(
         END,
         '$.strengthAreas', JSON_ARRAY(persona.strength_area),
         '$.improvementAreas', JSON_ARRAY(persona.weakness_area),
-        '$.recommendedCourse', CONCAT(persona.weakness_area, ' 집중 훈련'),
+        '$.recommendedCourse', CONCAT(persona.weakness_area, ' 吏묒쨷 ?덈젴'),
         '$.nextTestRecommendation', CONCAT(
-            '2주 후 ', persona.weakness_area, ' 영역의 같은 난이도 재검사를 권장합니다.'
+            '2二???', persona.weakness_area, ' ?곸뿭??媛숈? ?쒖씠???ш??щ? 沅뚯옣?⑸땲??'
         ),
         '$.areaScores', JSON_ARRAY(
             JSON_OBJECT(
@@ -856,7 +800,7 @@ SET test.result = JSON_SET(
                 )))
             ),
             JSON_OBJECT(
-                'area', '읽기 유창성',
+                'area', '?쎄린 ?좎갹??,
                 'score', LEAST(98, GREATEST(35, persona.reading_speed + number.seq * 3))
             )
         )
@@ -873,21 +817,21 @@ SELECT
             JSON_OBJECT('questionNo', 1,
                         'type', 'SENTENCE_READING',
                         'requiredInputs', JSON_ARRAY('VOICE'),
-                        'content', JSON_OBJECT('tokens', JSON_ARRAY('도서관에서', '책을', '읽었습니다.')),
-                        'analysisTargets', JSON_ARRAY(JSON_OBJECT('text', '도서관에서 책을 읽었습니다.')),
-                        'answer', JSON_OBJECT('expectedText', '도서관에서 책을 읽었습니다.')),
+                        'content', JSON_OBJECT('tokens', JSON_ARRAY('?꾩꽌愿?먯꽌', '梨낆쓣', '?쎌뿀?듬땲??')),
+                        'analysisTargets', JSON_ARRAY(JSON_OBJECT('text', '?꾩꽌愿?먯꽌 梨낆쓣 ?쎌뿀?듬땲??')),
+                        'answer', JSON_OBJECT('expectedText', '?꾩꽌愿?먯꽌 梨낆쓣 ?쎌뿀?듬땲??')),
             JSON_OBJECT('questionNo', 2,
                         'type', 'SENTENCE_READING',
                         'requiredInputs', JSON_ARRAY('VOICE'),
-                        'content', JSON_OBJECT('tokens', JSON_ARRAY('친구와', '함께', '길을', '찾았습니다.')),
-                        'analysisTargets', JSON_ARRAY(JSON_OBJECT('text', '친구와 함께 길을 찾았습니다.')),
-                        'answer', JSON_OBJECT('expectedText', '친구와 함께 길을 찾았습니다.')),
+                        'content', JSON_OBJECT('tokens', JSON_ARRAY('移쒓뎄?', '?④퍡', '湲몄쓣', '李얠븯?듬땲??')),
+                        'analysisTargets', JSON_ARRAY(JSON_OBJECT('text', '移쒓뎄? ?④퍡 湲몄쓣 李얠븯?듬땲??')),
+                        'answer', JSON_OBJECT('expectedText', '移쒓뎄? ?④퍡 湲몄쓣 李얠븯?듬땲??')),
             JSON_OBJECT('questionNo', 3,
                         'type', 'SENTENCE_READING',
                         'requiredInputs', JSON_ARRAY('VOICE'),
-                        'content', JSON_OBJECT('tokens', JSON_ARRAY('서로', '도와', '문제를', '해결했습니다.')),
-                        'analysisTargets', JSON_ARRAY(JSON_OBJECT('text', '서로 도와 문제를 해결했습니다.')),
-                        'answer', JSON_OBJECT('expectedText', '서로 도와 문제를 해결했습니다.'))
+                        'content', JSON_OBJECT('tokens', JSON_ARRAY('?쒕줈', '?꾩?', '臾몄젣瑜?, '?닿껐?덉뒿?덈떎.')),
+                        'analysisTargets', JSON_ARRAY(JSON_OBJECT('text', '?쒕줈 ?꾩? 臾몄젣瑜??닿껐?덉뒿?덈떎.')),
+                        'answer', JSON_OBJECT('expectedText', '?쒕줈 ?꾩? 臾몄젣瑜??닿껐?덉뒿?덈떎.'))
         )
     ),
     test.created_at
@@ -940,29 +884,6 @@ WHERE NOT EXISTS (
     WHERE existing.id = 150000 + persona.persona_no * 10 + number.seq
 );
 
-INSERT INTO gaze_analysis_results
-    (id, gaze_session_id, total_visited_duration, total_visited_count,
-     reverse_read_count, avg_visited_duration, created_at)
-SELECT
-    155000 + persona.persona_no * 10 + number.seq,
-    150000 + persona.persona_no * 10 + number.seq,
-    GREATEST(22000, 68000 - persona.reading_speed * 260 - number.seq * persona.trend_delta * 80),
-    GREATEST(38, 104 - persona.reading_speed / 2 - number.seq * 6),
-    GREATEST(1, 15 - number.seq * 3 - persona.trend_delta / 20),
-    GREATEST(380, 820 - persona.trend_delta * number.seq),
-    CASE number.seq
-        WHEN 1 THEN TIMESTAMPADD(DAY, persona.persona_no, '2026-04-05 10:14:00')
-        WHEN 2 THEN TIMESTAMPADD(HOUR, persona.persona_no, '2026-07-28 09:14:00')
-        ELSE TIMESTAMPADD(DAY, persona.persona_no, '2026-07-08 09:13:00')
-    END
-FROM demo_personas persona
-JOIN demo_numbers number ON number.seq <= 3
-JOIN gaze_sessions session ON session.id = 150000 + persona.persona_no * 10 + number.seq
-WHERE session.status = 'COMPLETED'
-  AND NOT EXISTS (
-      SELECT 1 FROM gaze_analysis_results existing
-      WHERE existing.id = 155000 + persona.persona_no * 10 + number.seq
-  );
 
 INSERT INTO student_feature_profiles
     (id, student_id, reading_features_id, accuracy_rate, avg_pronunciation_scor,
@@ -1028,18 +949,18 @@ SELECT
                         'achievement', LEAST(98, ROUND((persona.base_accuracy + 90) / 10, 1))),
             JSON_OBJECT('area', persona.weakness_area,
                         'achievement', GREATEST(40, ROUND((persona.base_accuracy - 80 + number.seq * persona.trend_delta) / 10, 1))),
-            JSON_OBJECT('area', '문장 유창성',
+            JSON_OBJECT('area', '臾몄옣 ?좎갹??,
                         'achievement', ROUND((persona.base_accuracy + persona.trend_delta / 2) / 10, 1))
         ),
         'frequentlyIncorrectWords', JSON_ARRAY(
-            JSON_OBJECT('wordId', 10003, 'wordName', '꽃밭',
+            JSON_OBJECT('wordId', 10003, 'wordName', '苑껊강',
                         'attemptCount', 4, 'incorrectCount', CASE WHEN persona.base_accuracy < 700 THEN 3 ELSE 1 END,
                         'incorrectRate', CASE WHEN persona.base_accuracy < 700 THEN 75.00 ELSE 25.00 END),
-            JSON_OBJECT('wordId', 10005, 'wordName', '국물',
-                        'attemptCount', 3, 'incorrectCount', CASE WHEN persona.weakness_area LIKE '%비음화%' THEN 2 ELSE 1 END,
-                        'incorrectRate', CASE WHEN persona.weakness_area LIKE '%비음화%' THEN 66.67 ELSE 33.33 END)
+            JSON_OBJECT('wordId', 10005, 'wordName', '援?Ъ',
+                        'attemptCount', 3, 'incorrectCount', CASE WHEN persona.weakness_area LIKE '%鍮꾩쓬??' THEN 2 ELSE 1 END,
+                        'incorrectRate', CASE WHEN persona.weakness_area LIKE '%鍮꾩쓬??' THEN 66.67 ELSE 33.33 END)
         ),
-        'improvedPatterns', JSON_ARRAY(persona.strength_area, CONCAT(persona.weakness_area, ' 재시도')),
+        'improvedPatterns', JSON_ARRAY(persona.strength_area, CONCAT(persona.weakness_area, ' ?ъ떆??)),
         'persistentDifficultyPatterns', JSON_ARRAY(persona.weakness_area),
         'gazeAnalysis', JSON_OBJECT(
             'gazeAnalysisResultId', 155000 + persona.persona_no * 10 + 2,
@@ -1057,8 +978,8 @@ SELECT
                 'changes', NULL,
                 'descriptions', JSON_ARRAY(
                     CASE WHEN persona.past_gaze_failure
-                         THEN '과거 보정 실패 세션은 추이에서 제외했습니다.'
-                         ELSE '훈련 시선은 안정 범위에서 수집되었습니다.' END),
+                         THEN '怨쇨굅 蹂댁젙 ?ㅽ뙣 ?몄뀡? 異붿씠?먯꽌 ?쒖쇅?덉뒿?덈떎.'
+                         ELSE '?덈젴 ?쒖꽑? ?덉젙 踰붿쐞?먯꽌 ?섏쭛?섏뿀?듬땲??' END),
                 'failedSessionCount', CASE WHEN persona.past_gaze_failure THEN 1 ELSE 0 END
             ),
             'test', JSON_OBJECT(
@@ -1105,13 +1026,13 @@ SELECT
                         'delta', -persona.trend_delta)
                 ),
                 'descriptions', JSON_ARRAY(
-                    CONCAT(persona.weakness_area, ' 관련 시선 지표가 이전 검사보다 안정되었습니다.')),
+                    CONCAT(persona.weakness_area, ' 愿???쒖꽑 吏?쒓? ?댁쟾 寃?щ낫???덉젙?섏뿀?듬땲??')),
                 'failedSessionCount', CASE WHEN persona.past_gaze_failure THEN 1 ELSE 0 END
             )
         )
     ),
     CONCAT('[', persona.persona_title, '] ', persona.strength_area,
-           '은 강점이며 ', persona.weakness_area, '을 다음 지도 목표로 권장합니다.'),
+           '? 媛뺤젏?대ŉ ', persona.weakness_area, '???ㅼ쓬 吏??紐⑺몴濡?沅뚯옣?⑸땲??'),
     CASE number.seq
         WHEN 1 THEN TIMESTAMPADD(HOUR, persona.persona_no, '2026-05-31 18:00:00')
         ELSE TIMESTAMPADD(MINUTE, persona.persona_no, '2026-07-29 18:00:00')
@@ -1126,9 +1047,9 @@ WHERE NOT EXISTS (
 UPDATE reports report
 JOIN demo_personas persona ON report.student_id = persona.student_id
 SET report.teacher_memo = CONCAT(
-        '[기간 관찰] ', persona.strength_area, '은 안정적으로 활용했습니다. ',
-        persona.weakness_area, '에서는 단서 제공 여부에 따라 수행 차이가 나타났습니다. ',
-        '[다음 지도] 현재 난이도를 유지하며 같은 유형을 짧게 반복하고, 2주 뒤 독립 수행을 비교합니다.'
+        '[湲곌컙 愿李? ', persona.strength_area, '? ?덉젙?곸쑝濡??쒖슜?덉뒿?덈떎. ',
+        persona.weakness_area, '?먯꽌???⑥꽌 ?쒓났 ?щ????곕씪 ?섑뻾 李⑥씠媛 ?섑??ъ뒿?덈떎. ',
+        '[?ㅼ쓬 吏?? ?꾩옱 ?쒖씠?꾨? ?좎??섎ŉ 媛숈? ?좏삎??吏㏐쾶 諛섎났?섍퀬, 2二????낅┰ ?섑뻾??鍮꾧탳?⑸땲??'
     ),
     report.snapshot_data = JSON_SET(
         report.snapshot_data,
@@ -1154,7 +1075,7 @@ SET report.teacher_memo = CONCAT(
                         'totalVisitedCount', GREATEST(30, 96 - persona.reading_speed / 2 - 10),
                         'reverseReadCount', GREATEST(
                             0,
-                            8 + CASE WHEN persona.weakness_area LIKE '%되읽기%' THEN 4 ELSE 0 END
+                            8 + CASE WHEN persona.weakness_area LIKE '%?섏씫湲?' THEN 4 ELSE 0 END
                         ),
                         'avgVisitedDurationMs', GREATEST(300, 780 - persona.trend_delta * 2)
                     ),
@@ -1174,7 +1095,7 @@ SET report.teacher_memo = CONCAT(
                         'totalVisitedCount', GREATEST(30, 96 - persona.reading_speed / 2 - 15),
                         'reverseReadCount', GREATEST(
                             0,
-                            6 + CASE WHEN persona.weakness_area LIKE '%되읽기%' THEN 4 ELSE 0 END
+                            6 + CASE WHEN persona.weakness_area LIKE '%?섏씫湲?' THEN 4 ELSE 0 END
                         ),
                         'avgVisitedDurationMs', GREATEST(300, 780 - persona.trend_delta * 3)
                     )
@@ -1196,7 +1117,7 @@ SET report.teacher_memo = CONCAT(
                         'totalVisitedCount', GREATEST(30, 96 - persona.reading_speed / 2 - 5),
                         'reverseReadCount', GREATEST(
                             0,
-                            10 + CASE WHEN persona.weakness_area LIKE '%되읽기%' THEN 4 ELSE 0 END
+                            10 + CASE WHEN persona.weakness_area LIKE '%?섏씫湲?' THEN 4 ELSE 0 END
                         ),
                         'avgVisitedDurationMs', GREATEST(300, 780 - persona.trend_delta)
                     ),
@@ -1216,7 +1137,7 @@ SET report.teacher_memo = CONCAT(
                         'totalVisitedCount', GREATEST(30, 96 - persona.reading_speed / 2 - 10),
                         'reverseReadCount', GREATEST(
                             0,
-                            8 + CASE WHEN persona.weakness_area LIKE '%되읽기%' THEN 4 ELSE 0 END
+                            8 + CASE WHEN persona.weakness_area LIKE '%?섏씫湲?' THEN 4 ELSE 0 END
                         ),
                         'avgVisitedDurationMs', GREATEST(300, 780 - persona.trend_delta * 2)
                     ),
@@ -1236,7 +1157,7 @@ SET report.teacher_memo = CONCAT(
                         'totalVisitedCount', GREATEST(30, 96 - persona.reading_speed / 2 - 15),
                         'reverseReadCount', GREATEST(
                             0,
-                            6 + CASE WHEN persona.weakness_area LIKE '%되읽기%' THEN 4 ELSE 0 END
+                            6 + CASE WHEN persona.weakness_area LIKE '%?섏씫湲?' THEN 4 ELSE 0 END
                         ),
                         'avgVisitedDurationMs', GREATEST(300, 780 - persona.trend_delta * 3)
                     )
@@ -1286,12 +1207,12 @@ SET report.teacher_memo = CONCAT(
             'descriptions', JSON_ARRAY(
                 CONCAT(
                     persona.weakness_area,
-                    ' 지도 뒤 훈련 중 머무름과 되읽기 지표가 완만하게 감소했습니다.'
+                    ' 吏?????덈젴 以?癒몃Т由꾧낵 ?섏씫湲?吏?쒓? ?꾨쭔?섍쾶 媛먯냼?덉뒿?덈떎.'
                 ),
                 CASE
                     WHEN persona.past_gaze_failure
-                    THEN '첫 회기 보정 실패는 비교에서 제외하고 이후 성공 세션만 반영했습니다.'
-                    ELSE '세 회기 모두 보정에 성공해 같은 조건의 추이를 비교했습니다.'
+                    THEN '泥??뚭린 蹂댁젙 ?ㅽ뙣??鍮꾧탳?먯꽌 ?쒖쇅?섍퀬 ?댄썑 ?깃났 ?몄뀡留?諛섏쁺?덉뒿?덈떎.'
+                    ELSE '???뚭린 紐⑤몢 蹂댁젙???깃났??媛숈? 議곌굔??異붿씠瑜?鍮꾧탳?덉뒿?덈떎.'
                 END
             ),
             'failedSessionCount', CASE WHEN persona.past_gaze_failure THEN 1 ELSE 0 END
@@ -1344,8 +1265,8 @@ SELECT
     181000 + persona.persona_no * 100 + story_no.seq * 10 + scene_no.seq,
     line_no.seq = 2,
     CASE line_no.seq
-        WHEN 1 THEN CONCAT(persona.persona_title, '가 숲속 도서관에서 빛나는 지도를 발견했습니다.')
-        ELSE CONCAT('지도에는 ', persona.strength_area, '을 활용해야 열리는 길이 그려져 있었습니다.')
+        WHEN 1 THEN CONCAT(persona.persona_title, '媛 ?뀁냽 ?꾩꽌愿?먯꽌 鍮쏅굹??吏?꾨? 諛쒓껄?덉뒿?덈떎.')
+        ELSE CONCAT('吏?꾩뿉??', persona.strength_area, '???쒖슜?댁빞 ?대━??湲몄씠 洹몃젮???덉뿀?듬땲??')
     END,
     line_no.seq,
     TIMESTAMPADD(MINUTE, scene_no.seq * 5 + line_no.seq,
@@ -1375,7 +1296,7 @@ INSERT INTO story_choices (id, story_line_id, content, created_at)
 SELECT
     195000 + persona.persona_no * 100 + story_no.seq * 10 + scene_no.seq,
     182000 + persona.persona_no * 1000 + story_no.seq * 100 + scene_no.seq * 10 + 2,
-    CONCAT(persona.weakness_area, '을 천천히 확인하며 다음 길로 간다.'),
+    CONCAT(persona.weakness_area, '??泥쒖쿇???뺤씤?섎ŉ ?ㅼ쓬 湲몃줈 媛꾨떎.'),
     TIMESTAMPADD(MINUTE, scene_no.seq * 5 + 3,
         CASE story_no.seq
             WHEN 1 THEN TIMESTAMPADD(DAY, persona.persona_no, '2026-06-15 15:00:00')

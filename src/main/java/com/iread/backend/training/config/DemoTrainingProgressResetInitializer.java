@@ -59,21 +59,6 @@ public class DemoTrainingProgressResetInitializer implements ApplicationRunner {
         );
         jdbcTemplate.update(
                 """
-                DELETE FROM gaze_analysis_results
-                 WHERE gaze_session_id IN (
-                       SELECT id
-                         FROM gaze_sessions
-                        WHERE training_id IN (
-                              SELECT id
-                                FROM trainings
-                               WHERE daily_curriculum_id = ?
-                        )
-                 )
-                """,
-                curriculumId
-        );
-        jdbcTemplate.update(
-                """
                 DELETE FROM gaze_sessions
                  WHERE training_id IN (
                        SELECT id

@@ -1,10 +1,8 @@
 package com.iread.backend.report.admin.service;
 
-import com.iread.backend.gaze.domain.GazeAnalysisResultEntity;
 import com.iread.backend.gaze.domain.GazeContentType;
 import com.iread.backend.gaze.domain.GazeSessionEntity;
 import com.iread.backend.gaze.domain.GazeSessionStatus;
-import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.report.admin.dto.req.CreateReportRequest;
@@ -20,6 +18,7 @@ import com.iread.backend.test.repository.StudentTestRepository;
 import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.domain.TrainingStatus;
 import com.iread.backend.training.repository.TrainingRepository;
+import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -40,12 +39,19 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ReportService {
+    private record GazeMetricSummary(
+            int totalVisitedDuration,
+            int totalVisitedCount,
+            int reverseReadCount,
+            int avgVisitedDuration
+    ) {
+    }
+
     private final ReportRepository reportRepository;
     private final StudentRepository studentRepository;
     private final TrainingRepository trainingRepository;
     private final StudentTestRepository testRepository;
     private final WordAttemptLogRepository wordAttemptLogRepository;
-    private final GazeAnalysisResultRepository gazeAnalysisResultRepository;
     private final GazeSessionRepository gazeSessionRepository;
     private final ObjectMapper objectMapper;
 
@@ -247,11 +253,16 @@ public class ReportService {
             LocalDateTime start,
             LocalDateTime endExclusive
     ) {
-        List<ReportSnapshot.GazePoint> points = gazeAnalysisResultRepository
-                .findAllByGazeSessionStudentIdAndGazeSessionContentTypeAndGazeSessionStartedAtGreaterThanEqualAndGazeSessionStartedAtLessThanOrderByCreatedAtAscIdAsc(
-                        studentId, contentType, start, endExclusive)
+        List<ReportSnapshot.GazePoint> points = gazeSessionRepository
+                .findAllByStudentIdAndContentTypeAndStatusAndStartedAtGreaterThanEqualAndStartedAtLessThanOrderByStartedAtAscIdAsc(
+                        studentId,
+                        contentType,
+                        GazeSessionStatus.COMPLETED,
+                        start,
+                        endExclusive
+                )
                 .stream()
-                .map(result -> toGazePoint(result, contentType))
+                .map(session -> toGazePoint(session, contentType))
                 .filter(Objects::nonNull)
                 .toList();
         long failedSessionCount = gazeSessionRepository
@@ -281,30 +292,78 @@ public class ReportService {
     }
 
     private ReportSnapshot.GazePoint toGazePoint(
-            GazeAnalysisResultEntity result,
+            GazeSessionEntity session,
             GazeContentType contentType
     ) {
-        GazeSessionEntity session = result.getGazeSession();
         Long sourceId;
+        List<WordAttemptLogEntity> attempts;
         if (contentType == GazeContentType.TRAINING) {
             sourceId = session.getTraining() == null ? null : session.getTraining().getId();
+            attempts = sourceId == null
+                    ? List.of()
+                    : wordAttemptLogRepository.findAllByTrainingIdAndFinalAttemptTrueOrderByIdAsc(sourceId);
         } else {
             sourceId = session.getTest() == null ? null : session.getTest().getId();
+            attempts = sourceId == null
+                    ? List.of()
+                    : wordAttemptLogRepository.findAllByTestIdAndFinalAttemptTrueOrderByIdAsc(sourceId);
         }
         if (sourceId == null) {
             return null;
         }
+        GazeMetricSummary summary = summarizeGazeMetrics(attempts);
+        if (summary == null) {
+            return null;
+        }
         return new ReportSnapshot.GazePoint(
-                result.getId(),
+                null,
                 session.getId(),
                 contentType.name(),
                 sourceId,
-                result.getCreatedAt(),
-                result.getTotalVisitedDuration(),
-                result.getTotalVisitedCount(),
-                result.getReverseReadCount(),
-                result.getAvgVisitedDuration()
+                session.getEndedAt() == null ? session.getCreatedAt() : session.getEndedAt(),
+                summary.totalVisitedDuration(),
+                summary.totalVisitedCount(),
+                summary.reverseReadCount(),
+                summary.avgVisitedDuration()
         );
+    }
+
+    private GazeMetricSummary summarizeGazeMetrics(List<WordAttemptLogEntity> attempts) {
+        List<WordAttemptLogEntity> gazeAttempts = attempts.stream()
+                .filter(this::hasGazeMetric)
+                .toList();
+        if (gazeAttempts.isEmpty()) {
+            return null;
+        }
+        int totalDuration = gazeAttempts.stream()
+                .map(WordAttemptLogEntity::getFixationDurationMs)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
+        int totalCount = gazeAttempts.stream()
+                .map(WordAttemptLogEntity::getFixationCount)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
+        int reverseReadCount = gazeAttempts.stream()
+                .map(WordAttemptLogEntity::getRegressionCount)
+                .filter(Objects::nonNull)
+                .mapToInt(Integer::intValue)
+                .sum();
+        return new GazeMetricSummary(
+                totalDuration,
+                totalCount,
+                reverseReadCount,
+                totalCount == 0 ? 0 : totalDuration / totalCount
+        );
+    }
+
+    private boolean hasGazeMetric(WordAttemptLogEntity attempt) {
+        return attempt.getFixationDurationMs() != null
+                || attempt.getFixationCount() != null
+                || attempt.getRegressionCount() != null
+                || attempt.getGazeStartOffsetMs() != null
+                || attempt.getGazeEndOffsetMs() != null;
     }
 
     private ReportSnapshot.GazeChanges buildGazeChanges(

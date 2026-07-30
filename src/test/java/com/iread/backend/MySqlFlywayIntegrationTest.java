@@ -45,9 +45,9 @@ class MySqlFlywayIntegrationTest {
 
     @Test
     void appliesAllMigrationsAndValidatesJpaMappings() {
-        assertThat(applicationTableCount()).isEqualTo(26);
-        assertThat(constraintCount("FOREIGN KEY")).isEqualTo(35);
-        assertThat(constraintCount("UNIQUE")).isEqualTo(13);
+        assertThat(applicationTableCount()).isEqualTo(25);
+        assertThat(constraintCount("FOREIGN KEY")).isEqualTo(34);
+        assertThat(constraintCount("UNIQUE")).isEqualTo(12);
         assertThat(constraintCount("CHECK")).isEqualTo(11);
 
         assertThat(tableExists("training_datas")).isTrue();
@@ -109,11 +109,7 @@ class MySqlFlywayIntegrationTest {
                 "UK_STORY_CHOICES_STORY_LINE",
                 "UNIQUE"
         )).isTrue();
-        assertThat(constraintExists(
-                "gaze_analysis_results",
-                "UK_GAZE_ANALYSIS_RESULTS_SESSION",
-                "UNIQUE"
-        )).isTrue();
+        assertThat(tableExists("gaze_analysis_results")).isFalse();
         assertThat(constraintExists(
                 "reports",
                 "UQ_REPORTS_STUDENT_PERIOD",
@@ -188,7 +184,7 @@ class MySqlFlywayIntegrationTest {
     }
 
     @Test
-    void concurrentStoryChoiceAndGazeAnalysisWritesKeepSingleResult() throws Exception {
+    void concurrentStoryChoiceWritesKeepSingleResult() throws Exception {
         long teacherId = insertAndReturnKey(
                 "INSERT INTO teachers(email, password, name, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
                 "ci-" + UUID.randomUUID() + "@x.io", "password", "교사"
@@ -222,34 +218,12 @@ class MySqlFlywayIntegrationTest {
                 """,
                 sceneId
         );
-        long gazeSessionId = insertAndReturnKey(
-                """
-                INSERT INTO gaze_sessions(
-                    student_id, story_id, content_type, started_at, ended_at,
-                    status, calibration_status, created_at
-                )
-                VALUES (?, ?, 'STORY', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
-                        'COMPLETED', 'SUCCESS', CURRENT_TIMESTAMP)
-                """,
-                studentId, storyId
-        );
-
         ConcurrentResult storyChoiceResult = runConcurrently(() -> jdbcTemplate.update(
                 """
                 INSERT INTO story_choices(story_line_id, content, created_at)
                 VALUES (?, '친구를 따라간다', CURRENT_TIMESTAMP)
                 """,
                 lineId
-        ));
-        ConcurrentResult gazeResult = runConcurrently(() -> jdbcTemplate.update(
-                """
-                INSERT INTO gaze_analysis_results(
-                    gaze_session_id, total_visited_duration, total_visited_count,
-                    reverse_read_count, avg_visited_duration, created_at
-                )
-                VALUES (?, 1200, 8, 2, 150, CURRENT_TIMESTAMP)
-                """,
-                gazeSessionId
         ));
 
         assertThat(storyChoiceResult.successes()).isEqualTo(1);
@@ -258,13 +232,6 @@ class MySqlFlywayIntegrationTest {
                 "SELECT COUNT(*) FROM story_choices WHERE story_line_id = ?",
                 Integer.class,
                 lineId
-        )).isEqualTo(1);
-        assertThat(gazeResult.successes()).isEqualTo(1);
-        assertThat(gazeResult.conflicts()).isEqualTo(1);
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM gaze_analysis_results WHERE gaze_session_id = ?",
-                Integer.class,
-                gazeSessionId
         )).isEqualTo(1);
     }
 

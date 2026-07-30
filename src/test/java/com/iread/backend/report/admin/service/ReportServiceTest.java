@@ -1,9 +1,8 @@
 package com.iread.backend.report.admin.service;
 
-import com.iread.backend.gaze.domain.GazeAnalysisResultEntity;
 import com.iread.backend.gaze.domain.GazeContentType;
 import com.iread.backend.gaze.domain.GazeSessionEntity;
-import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
+import com.iread.backend.gaze.domain.GazeSessionStatus;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
 import com.iread.backend.report.admin.dto.req.CreateReportRequest;
 import com.iread.backend.report.admin.dto.res.ReportSnapshot;
@@ -15,6 +14,7 @@ import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.test.repository.StudentTestRepository;
 import com.iread.backend.training.repository.TrainingRepository;
 import com.iread.backend.training.domain.TrainingEntity;
+import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,7 +46,6 @@ class ReportServiceTest {
     @Mock TrainingRepository trainingRepository;
     @Mock StudentTestRepository testRepository;
     @Mock WordAttemptLogRepository wordAttemptLogRepository;
-    @Mock GazeAnalysisResultRepository gazeAnalysisResultRepository;
     @Mock GazeSessionRepository gazeSessionRepository;
 
     private ReportService reportService;
@@ -54,8 +53,7 @@ class ReportServiceTest {
     @BeforeEach
     void setUp() {
         reportService = new ReportService(reportRepository, studentRepository, trainingRepository,
-                testRepository, wordAttemptLogRepository, gazeAnalysisResultRepository,
-                gazeSessionRepository,
+                testRepository, wordAttemptLogRepository, gazeSessionRepository,
                 JsonMapper.builder().build());
     }
 
@@ -246,24 +244,21 @@ class ReportServiceTest {
         when(latestTraining.getId()).thenReturn(102L);
         GazeSessionEntity firstSession = gazeSession(201L, firstTraining);
         GazeSessionEntity latestSession = gazeSession(202L, latestTraining);
-        GazeAnalysisResultEntity first = gazeResult(
-                301L, firstSession, LocalDateTime.of(2026, 7, 10, 10, 0),
-                42000, 68, 7, 617
-        );
-        GazeAnalysisResultEntity latest = gazeResult(
-                302L, latestSession, LocalDateTime.of(2026, 7, 20, 10, 0),
-                35000, 58, 5, 603
-        );
         when(reportRepository.findByIdAndStudentTeacherId(25L, 1L))
                 .thenReturn(Optional.of(report));
-        when(gazeAnalysisResultRepository
-                .findAllByGazeSessionStudentIdAndGazeSessionContentTypeAndGazeSessionStartedAtGreaterThanEqualAndGazeSessionStartedAtLessThanOrderByCreatedAtAscIdAsc(
+        when(gazeSessionRepository
+                .findAllByStudentIdAndContentTypeAndStatusAndStartedAtGreaterThanEqualAndStartedAtLessThanOrderByStartedAtAscIdAsc(
                         10L,
                         GazeContentType.TRAINING,
+                        GazeSessionStatus.COMPLETED,
                         LocalDateTime.of(2026, 7, 1, 0, 0),
                         LocalDateTime.of(2026, 8, 1, 0, 0)
                 ))
-                .thenReturn(List.of(first, latest));
+                .thenReturn(List.of(firstSession, latestSession));
+        when(wordAttemptLogRepository.findAllByTrainingIdAndFinalAttemptTrueOrderByIdAsc(101L))
+                .thenReturn(List.of(attempt(42000, 68, 7)));
+        when(wordAttemptLogRepository.findAllByTrainingIdAndFinalAttemptTrueOrderByIdAsc(102L))
+                .thenReturn(List.of(attempt(35000, 58, 5)));
 
         var result = reportService.refreshGazeTrend(1L, 25L);
         reportService.refreshGazeTrend(1L, 25L);
@@ -273,7 +268,7 @@ class ReportServiceTest {
                 .readValue(report.getSnapshotData(), ReportSnapshot.class);
         assertThat(stored.gazeTrend().training().points())
                 .extracting(ReportSnapshot.GazePoint::gazeAnalysisResultId)
-                .containsExactly(301L, 302L);
+                .containsExactly(null, null);
         assertThat(stored.gazeTrend().training().changes().reverseReadCount())
                 .isEqualTo(new ReportSnapshot.GazeMetricChange(7, 5, -2));
         assertThat(stored.gazeTrend().training().points()).hasSize(2);
@@ -297,29 +292,37 @@ class ReportServiceTest {
         GazeSessionEntity session = org.mockito.Mockito.mock(GazeSessionEntity.class);
         when(session.getId()).thenReturn(id);
         when(session.getTraining()).thenReturn(training);
+        when(session.getEndedAt()).thenReturn(LocalDateTime.of(2026, 7, 20, 10, 0));
         return session;
     }
 
-    private GazeAnalysisResultEntity gazeResult(
-            Long id,
-            GazeSessionEntity session,
-            LocalDateTime createdAt,
-            int totalVisitedDuration,
-            int totalVisitedCount,
-            int reverseReadCount,
-            int avgVisitedDuration
+    private WordAttemptLogEntity attempt(
+            int fixationDurationMs,
+            int fixationCount,
+            int regressionCount
     ) {
-        GazeAnalysisResultEntity result = org.mockito.Mockito.mock(
-                GazeAnalysisResultEntity.class
+        return new WordAttemptLogEntity(
+                org.mockito.Mockito.mock(StudentEntity.class),
+                org.mockito.Mockito.mock(com.iread.backend.training.domain.WordEntity.class),
+                null,
+                "test",
+                true,
+                fixationDurationMs,
+                fixationCount,
+                null,
+                null,
+                false,
+                regressionCount,
+                null,
+                null,
+                null,
+                null,
+                null,
+                1,
+                0,
+                0,
+                true
         );
-        when(result.getId()).thenReturn(id);
-        when(result.getGazeSession()).thenReturn(session);
-        when(result.getCreatedAt()).thenReturn(createdAt);
-        when(result.getTotalVisitedDuration()).thenReturn(totalVisitedDuration);
-        when(result.getTotalVisitedCount()).thenReturn(totalVisitedCount);
-        when(result.getReverseReadCount()).thenReturn(reverseReadCount);
-        when(result.getAvgVisitedDuration()).thenReturn(avgVisitedDuration);
-        return result;
     }
 
     private String snapshotJson() {

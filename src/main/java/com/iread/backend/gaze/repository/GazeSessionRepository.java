@@ -10,8 +10,9 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.util.Optional;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 
 public interface GazeSessionRepository extends JpaRepository<GazeSessionEntity, Long> {
     boolean existsByTrainingIdAndStatusAndDataIsNotNull(
@@ -31,6 +32,28 @@ public interface GazeSessionRepository extends JpaRepository<GazeSessionEntity, 
     );
 
     long countByStudentIdAndContentTypeAndStatusAndStartedAtGreaterThanEqualAndStartedAtLessThan(
+            Long studentId,
+            GazeContentType contentType,
+            GazeSessionStatus status,
+            LocalDateTime startedAt,
+            LocalDateTime endedAt
+    );
+
+    Optional<GazeSessionEntity> findFirstByStudentIdAndTestIdAndStatusOrderByEndedAtDescIdDesc(
+            Long studentId,
+            Long testId,
+            GazeSessionStatus status
+    );
+
+    Optional<GazeSessionEntity> findFirstByStudentIdAndTrainingIdAndStatusOrderByEndedAtDescIdDesc(
+            Long studentId,
+            Long trainingId,
+            GazeSessionStatus status
+    );
+
+    @EntityGraph(attributePaths = {"test", "training"})
+    List<GazeSessionEntity>
+    findAllByStudentIdAndContentTypeAndStatusAndStartedAtGreaterThanEqualAndStartedAtLessThanOrderByStartedAtAscIdAsc(
             Long studentId,
             GazeContentType contentType,
             GazeSessionStatus status,

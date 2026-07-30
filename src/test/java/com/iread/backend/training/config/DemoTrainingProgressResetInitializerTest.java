@@ -52,12 +52,6 @@ class DemoTrainingProgressResetInitializerTest {
                     training_id BIGINT NULL
                 )
                 """);
-        jdbcTemplate.execute("""
-                CREATE TABLE gaze_analysis_results (
-                    id BIGINT PRIMARY KEY,
-                    gaze_session_id BIGINT NOT NULL
-                )
-                """);
     }
 
     @Test
@@ -82,9 +76,6 @@ class DemoTrainingProgressResetInitializerTest {
         );
         jdbcTemplate.update(
                 "INSERT INTO gaze_sessions (id, training_id) VALUES (1, 1)"
-        );
-        jdbcTemplate.update(
-                "INSERT INTO gaze_analysis_results (id, gaze_session_id) VALUES (1, 1)"
         );
 
         new DemoTrainingProgressResetInitializer(jdbcTemplate).run(null);
@@ -121,10 +112,6 @@ class DemoTrainingProgressResetInitializerTest {
         )).isZero();
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM gaze_sessions",
-                Integer.class
-        )).isZero();
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM gaze_analysis_results",
                 Integer.class
         )).isZero();
     }
