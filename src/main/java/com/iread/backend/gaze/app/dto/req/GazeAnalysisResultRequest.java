@@ -6,7 +6,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
-import tools.jackson.databind.JsonNode;
 
 import java.util.List;
 
@@ -21,7 +20,7 @@ public record GazeAnalysisResultRequest(
         Integer totalVisitedDuration,
 
         @PositiveOrZero
-        @Schema(description = "총 시선 체류 횟수", example = "23")
+        @Schema(description = "총 시선 방문 횟수", example = "23")
         Integer totalVisitedCount,
 
         @PositiveOrZero
@@ -64,24 +63,27 @@ public record GazeAnalysisResultRequest(
             Long storyLineId,
             Long trainingId,
             Long testId,
-            @NotNull Integer wordIndex,
+            GazeContentType useLocation,
+            @NotNull Integer targetIndex,
+            @NotNull Integer tokenIndex,
             @NotBlank String surfaceText,
-            Boolean hasAudioData,
+            Boolean hasGazeData,
             @PositiveOrZero Integer fixationDurationMs,
             @PositiveOrZero Integer fixationCount,
             @PositiveOrZero Integer gazeStartOffsetMs,
             @PositiveOrZero Integer gazeEndOffsetMs,
-            Boolean isRead,
-            Boolean isFixated,
             Boolean isSkipped,
-            Boolean isRegressed,
-            @PositiveOrZero Integer regressionCount
+            @PositiveOrZero Integer regressionCount,
+            Integer questionNo,
+            Boolean isFinal
     ) {
     }
 
     public record Regression(
-            @NotNull Integer fromWordIndex,
-            @NotNull Integer toWordIndex,
+            @NotNull Integer fromTargetIndex,
+            @NotNull Integer fromTokenIndex,
+            @NotNull Integer toTargetIndex,
+            @NotNull Integer toTokenIndex,
             @PositiveOrZero Integer offsetMs
     ) {
     }
