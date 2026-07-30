@@ -27,6 +27,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.OptionalDouble;
+import java.util.function.Function;
 import java.util.function.ToDoubleFunction;
 
 @Service
@@ -323,16 +325,29 @@ public class StudentFeatureProfileService {
 
     private Integer nullableRoundedAverage(
             List<Evidence> evidence,
-            ToDoubleFunction<Evidence> mapper
+            Function<Evidence, Integer> mapper
     ) {
-        return evidence.isEmpty() ? null : (int) Math.round(average(evidence, mapper));
+        OptionalDouble average = nullableAverage(evidence, mapper);
+        return average.isPresent() ? (int) Math.round(average.getAsDouble()) : null;
     }
 
     private BigDecimal nullableDecimalAverage(
             List<Evidence> evidence,
-            ToDoubleFunction<Evidence> mapper
+            Function<Evidence, Integer> mapper
     ) {
-        return evidence.isEmpty() ? null : decimal(average(evidence, mapper), 2);
+        OptionalDouble average = nullableAverage(evidence, mapper);
+        return average.isPresent() ? decimal(average.getAsDouble(), 2) : null;
+    }
+
+    private OptionalDouble nullableAverage(
+            List<Evidence> evidence,
+            Function<Evidence, Integer> mapper
+    ) {
+        return evidence.stream()
+                .map(mapper)
+                .filter(Objects::nonNull)
+                .mapToDouble(Integer::doubleValue)
+                .average();
     }
 
     private double average(List<Evidence> evidence, ToDoubleFunction<Evidence> mapper) {

@@ -503,6 +503,11 @@ class AppTrainingServiceTest {
         assertThat(result.pronunciationAccuracyScore()).isEqualTo(54.2);
         assertThat(result.words().getFirst().pronunciationErrorType())
                 .isEqualTo("Mispronunciation");
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<WordAttemptLogEntity>> attemptsCaptor =
+                ArgumentCaptor.forClass(List.class);
+        verify(wordAttemptLogRepository).saveAllAndFlush(attemptsCaptor.capture());
+        assertThat(attemptsCaptor.getValue().getFirst().getRegressionCount()).isNull();
         ArgumentCaptor<String> resultCaptor = ArgumentCaptor.forClass(String.class);
         verify(training).recordProgressResult(resultCaptor.capture());
         assertThat(resultCaptor.getValue())
