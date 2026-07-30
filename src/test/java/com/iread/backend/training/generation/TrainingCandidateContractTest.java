@@ -6,10 +6,22 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class TrainingCandidateContractTest {
+
+    private static final Set<TrainingType> THREE_CHOICE_TYPES = Set.of(
+            TrainingType.CONSONANT_SOUND_CHOICE,
+            TrainingType.VOWEL_SOUND_CHOICE,
+            TrainingType.SYLLABLE_INITIAL_CHOICE,
+            TrainingType.WORD_INITIAL_CHOICE,
+            TrainingType.SAME_INITIAL_WORD_CHOICE,
+            TrainingType.FINAL_CONSONANT_CHOICE,
+            TrainingType.WORD_FINAL_SOUND_CHOICE,
+            TrainingType.FINAL_CONSONANT_COMPARISON
+    );
 
     private final JsonMapper objectMapper = JsonMapper.builder().build();
     private final TrainingCandidateValidator validator = new TrainingCandidateValidator();
@@ -46,6 +58,15 @@ class TrainingCandidateContractTest {
                     .as(type + " validation issues")
                     .isEmpty();
             assertThat(response.data()).hasSize(5);
+            if (THREE_CHOICE_TYPES.contains(type)) {
+                assertThat(prompt.path("additionalPrompt").asText())
+                        .contains("정확히 3개");
+                response.data().forEach(candidate ->
+                        assertThat(candidate.path("choices"))
+                                .as(type + " choices")
+                                .hasSize(3)
+                );
+            }
             if (type == TrainingType.FINAL_CONSONANT_DELETE) {
                 response.data().forEach(candidate -> {
                     HangulSyllable syllable = HangulSyllable.decompose(
@@ -134,6 +155,11 @@ class TrainingCandidateContractTest {
 
         assertThat(result.passed()).isFalse();
         assertThat(result.issues()).extracting(CandidateValidationIssue::type)
-                .contains("COUNT_MISMATCH", "DUPLICATE_OPTION", "INVALID_INDEX");
+                .contains(
+                        "COUNT_MISMATCH",
+                        "DUPLICATE_OPTION",
+                        "INVALID_INDEX",
+                        "INVALID_CHOICE_COUNT"
+                );
     }
 }

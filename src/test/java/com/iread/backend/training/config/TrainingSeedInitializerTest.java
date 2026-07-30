@@ -45,7 +45,7 @@ class TrainingSeedInitializerTest {
                 objectMapper.getNodeFactory().textNode("VOICE"),
                 objectMapper.getNodeFactory().textNode("GAZE")
         );
-        assertThat(json.path("promptVersion").asText()).isEqualTo("TRAINING_PROMPT_V1");
+        assertThat(json.path("promptVersion").asText()).isEqualTo("TRAINING_PROMPT_V2");
         assertThat(json.path("additionalPrompt").asText()).isNotBlank();
         assertThat(json.path("outputTemplate").path("type").asText())
                 .isEqualTo("SHORT_STORY_READING");

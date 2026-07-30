@@ -14,6 +14,17 @@ import java.util.Set;
 @Component
 public class TrainingCandidateValidator {
 
+    private static final Set<TrainingType> THREE_CHOICE_TYPES = Set.of(
+            TrainingType.CONSONANT_SOUND_CHOICE,
+            TrainingType.VOWEL_SOUND_CHOICE,
+            TrainingType.SYLLABLE_INITIAL_CHOICE,
+            TrainingType.WORD_INITIAL_CHOICE,
+            TrainingType.SAME_INITIAL_WORD_CHOICE,
+            TrainingType.FINAL_CONSONANT_CHOICE,
+            TrainingType.WORD_FINAL_SOUND_CHOICE,
+            TrainingType.FINAL_CONSONANT_COMPARISON
+    );
+
     public CandidateValidationResult validate(
             TrainingCandidateRequest request,
             TrainingCandidateResponse response
@@ -177,7 +188,12 @@ public class TrainingCandidateValidator {
     }
 
     private void validateTypeRules(TrainingType type, int index, String path, JsonNode candidate,
-                                   List<CandidateValidationIssue> issues) {
+                                    List<CandidateValidationIssue> issues) {
+        if (THREE_CHOICE_TYPES.contains(type)
+                && candidate.path("choices").size() != 3) {
+            issues.add(issue(index, path + ".choices", "INVALID_CHOICE_COUNT",
+                    "choices는 정답 1개와 오답 2개를 포함해 정확히 3개여야 합니다."));
+        }
         switch (type) {
             case CONSONANT_VOWEL_CLASSIFICATION -> {
                 JsonNode choices = candidate.path("choices");

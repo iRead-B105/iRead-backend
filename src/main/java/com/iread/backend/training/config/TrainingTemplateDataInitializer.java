@@ -24,7 +24,7 @@ import java.io.IOException;
 public class TrainingTemplateDataInitializer implements ApplicationRunner {
 
     private static final String SEED_RESOURCE = "training-templates.json";
-    private static final String PROMPT_VERSION = "TRAINING_PROMPT_V1";
+    private static final String PROMPT_VERSION = "TRAINING_PROMPT_V2";
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
