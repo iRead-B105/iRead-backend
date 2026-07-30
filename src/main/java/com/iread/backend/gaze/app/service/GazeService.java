@@ -1,5 +1,7 @@
 package com.iread.backend.gaze.app.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.iread.backend.gaze.app.dto.req.EndGazeSessionRequest;
 import com.iread.backend.gaze.app.dto.req.FailGazeSessionRequest;
 import com.iread.backend.gaze.app.dto.req.GazeAnalysisResultRequest;
@@ -8,6 +10,7 @@ import com.iread.backend.gaze.app.dto.res.*;
 import com.iread.backend.gaze.domain.*;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
+import com.iread.backend.gaze.repository.WordAttemptLogRepository;
 import com.iread.backend.story.domain.StoryEntity;
 import com.iread.backend.story.repository.StoryRepository;
 import com.iread.backend.student.domain.StudentEntity;
@@ -21,17 +24,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class GazeService {
+    private final ObjectMapper objectMapper;
     private final StudentRepository studentRepository;
     private final StudentTestRepository testRepository;
     private final TrainingRepository trainingRepository;
     private final StoryRepository storyRepository;
     private final GazeSessionRepository gazeSessionRepository;
     private final GazeAnalysisResultRepository gazeAnalysisResultRepository;
+    private final WordAttemptLogRepository wordAttemptLogRepository;
 
     public GazeDeviceStatusResponse getDeviceStatus(Long teacherId, Long studentId) {
         validateStudentOwner(teacherId, studentId);
@@ -104,12 +110,16 @@ public class GazeService {
         GazeAnalysisResultEntity result = gazeAnalysisResultRepository.saveAndFlush(
                 new GazeAnalysisResultEntity(
                         gazeSession,
-                        request.totalVisitedDuration(),
-                        request.totalVisitedCount(),
-                        request.reverseReadCount(),
-                        request.avgVisitedDuration()
+                        resolveTotalVisitedDuration(request),
+                        resolveTotalVisitedCount(request),
+                        resolveReverseReadCount(request),
+                        resolveAvgVisitedDuration(request),
+                        toJson(request.sentenceMetrics()),
+                        toJson(request.regressions()),
+                        toJson(request.analysisMeta())
                 )
         );
+        saveWordAttempts(result, request);
 
         return new GazeAnalysisResultResponse(result.getId(), result.getCreatedAt());
     }
@@ -150,8 +160,109 @@ public class GazeService {
                 result.getTotalVisitedDuration(),
                 result.getTotalVisitedCount(),
                 result.getReverseReadCount(),
-                result.getAvgVisitedDuration()
+                result.getAvgVisitedDuration(),
+                result.getSentenceMetrics(),
+                result.getRegressions(),
+                result.getAnalysisMeta()
         );
+    }
+
+    private void saveWordAttempts(GazeAnalysisResultEntity result, GazeAnalysisResultRequest request) {
+        List<GazeAnalysisResultRequest.WordAttempt> wordAttempts = request.wordAttempts();
+        if (wordAttempts == null || wordAttempts.isEmpty()) {
+            return;
+        }
+        List<WordAttemptLogEntity> logs = wordAttempts.stream()
+                .map(wordAttempt -> new WordAttemptLogEntity(
+                        result,
+                        request.studentId(),
+                        wordAttempt.wordId(),
+                        wordAttempt.storyLineId(),
+                        wordAttempt.trainingId(),
+                        wordAttempt.testId(),
+                        wordAttempt.wordIndex(),
+                        wordAttempt.surfaceText(),
+                        wordAttempt.hasAudioData(),
+                        wordAttempt.fixationDurationMs(),
+                        wordAttempt.fixationCount(),
+                        wordAttempt.gazeStartOffsetMs(),
+                        wordAttempt.gazeEndOffsetMs(),
+                        wordAttempt.isRead(),
+                        wordAttempt.isFixated(),
+                        wordAttempt.isSkipped(),
+                        wordAttempt.isRegressed(),
+                        wordAttempt.regressionCount()
+                ))
+                .toList();
+        wordAttemptLogRepository.saveAll(logs);
+    }
+
+    private Integer resolveTotalVisitedDuration(GazeAnalysisResultRequest request) {
+        if (request.totalVisitedDuration() != null) {
+            return request.totalVisitedDuration();
+        }
+        if (request.wordAttempts() == null) {
+            return 0;
+        }
+        return request.wordAttempts().stream()
+                .map(GazeAnalysisResultRequest.WordAttempt::fixationDurationMs)
+                .filter(value -> value != null)
+                .mapToInt(Integer::intValue)
+                .sum();
+    }
+
+    private Integer resolveTotalVisitedCount(GazeAnalysisResultRequest request) {
+        if (request.totalVisitedCount() != null) {
+            return request.totalVisitedCount();
+        }
+        if (request.wordAttempts() == null) {
+            return 0;
+        }
+        return request.wordAttempts().stream()
+                .map(GazeAnalysisResultRequest.WordAttempt::fixationCount)
+                .filter(value -> value != null)
+                .mapToInt(Integer::intValue)
+                .sum();
+    }
+
+    private Integer resolveReverseReadCount(GazeAnalysisResultRequest request) {
+        if (request.reverseReadCount() != null) {
+            return request.reverseReadCount();
+        }
+        if (request.regressions() != null) {
+            return request.regressions().size();
+        }
+        if (request.wordAttempts() == null) {
+            return 0;
+        }
+        return request.wordAttempts().stream()
+                .map(GazeAnalysisResultRequest.WordAttempt::regressionCount)
+                .filter(value -> value != null)
+                .mapToInt(Integer::intValue)
+                .sum();
+    }
+
+    private Integer resolveAvgVisitedDuration(GazeAnalysisResultRequest request) {
+        if (request.avgVisitedDuration() != null) {
+            return request.avgVisitedDuration();
+        }
+        Integer totalDuration = resolveTotalVisitedDuration(request);
+        Integer totalCount = resolveTotalVisitedCount(request);
+        if (totalCount == null || totalCount == 0) {
+            return 0;
+        }
+        return totalDuration / totalCount;
+    }
+
+    private String toJson(Object value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException exception) {
+            throw new IllegalArgumentException("Gaze analysis payload could not be serialized.", exception);
+        }
     }
 
     private GazeSessionEntity findOwnedGazeSession(Long gazeSessionId, Long studentId) {
