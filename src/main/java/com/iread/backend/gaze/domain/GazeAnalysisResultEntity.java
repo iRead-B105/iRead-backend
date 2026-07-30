@@ -16,8 +16,8 @@ public class GazeAnalysisResultEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "gaze_session_id", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "gaze_session_id", nullable = false, unique = true)
     private GazeSessionEntity gazeSession;
 
     @Column(name = "total_visited_duration", nullable = false)

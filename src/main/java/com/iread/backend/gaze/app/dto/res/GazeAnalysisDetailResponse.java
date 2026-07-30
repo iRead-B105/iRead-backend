@@ -10,7 +10,7 @@ public record GazeAnalysisDetailResponse(
         Long gazeAnalysisResultId,
 
         @Schema(description = "총 시선 체류 시간(ms)", example = "65000")
-        Integer totalVisitedDuration,
+        Integer totalDwellTime,
 
         @Schema(description = "총 시선 체류 횟수", example = "23")
         Integer totalVisitedCount,

@@ -1,6 +1,5 @@
 package com.iread.backend.story.domain;
 
-import com.iread.backend.global.domain.ImageEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -12,7 +11,7 @@ import java.time.LocalDateTime;
 @Getter
 @Entity
 @Table(name = "story_lines", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_story_lines_story_sequence", columnNames = {"story_id", "sequence_no"})
+        @UniqueConstraint(name = "uk_story_lines_scene_sequence", columnNames = {"scene_id", "sequence_no"})
 })
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class StoryLineEntity {
@@ -21,20 +20,15 @@ public class StoryLineEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "previous_story_line_id")
+    @Transient
     private StoryLineEntity previousStoryLine;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "story_id", nullable = false)
-    private StoryEntity story;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "image_id")
-    private ImageEntity image;
+    @JoinColumn(name = "scene_id", nullable = false)
+    private StorySceneEntity scene;
 
     @Column(name = "has_choices", nullable = false)
-    private boolean hasChoices;
+    private boolean requiresBranchInput;
 
     @Column(nullable = false, columnDefinition = "text")
     private String content;
@@ -49,12 +43,11 @@ public class StoryLineEntity {
     @Column(name = "read_at")
     private LocalDateTime readAt;
 
-    public StoryLineEntity(StoryLineEntity previousStoryLine, StoryEntity story, ImageEntity image,
-                           boolean hasChoices, String content, Integer sequenceNo) {
+    public StoryLineEntity(StoryLineEntity previousStoryLine, StorySceneEntity scene,
+                           boolean requiresBranchInput, String content, Integer sequenceNo) {
         this.previousStoryLine = previousStoryLine;
-        this.story = story;
-        this.image = image;
-        this.hasChoices = hasChoices;
+        this.scene = scene;
+        this.requiresBranchInput = requiresBranchInput;
         this.content = content;
         this.sequenceNo = sequenceNo;
     }
@@ -63,5 +56,13 @@ public class StoryLineEntity {
         if (this.readAt == null) {
             this.readAt = readAt;
         }
+    }
+
+    public StoryEntity getStory() {
+        return scene.getStory();
+    }
+
+    public String getImageUrl() {
+        return scene.getImageUrl();
     }
 }

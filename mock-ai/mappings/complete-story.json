@@ -6,7 +6,7 @@
     "bodyPatterns": [
       {
         "matchesJsonPath": {
-          "expression": "$.choice",
+          "expression": "$.branchIntent",
           "matches": ".*끝.*"
         }
       }
@@ -23,11 +23,12 @@
     "jsonBody": {
       "requestId": "{{jsonPath request.body '$.requestId'}}",
       "schemaVersion": 1,
+      "nextProgress": 100,
       "completed": true,
       "lines": [
         {
           "content": "주인공은 친구들과 인사를 나누고 행복하게 집으로 돌아왔습니다.",
-          "hasChoices": false
+          "requiresBranchInput": false
         }
       ]
     }

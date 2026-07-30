@@ -12,7 +12,13 @@ import java.time.LocalDateTime;
 
 @Getter
 @Entity
-@Table(name = "reports")
+@Table(
+        name = "reports",
+        uniqueConstraints = @UniqueConstraint(
+                name = "UQ_REPORTS_STUDENT_PERIOD",
+                columnNames = {"student_id", "start_date", "end_date"}
+        )
+)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class ReportEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,12 +29,12 @@ public class ReportEntity {
     private StudentEntity student;
 
     @Column(name = "start_date", nullable = false)
-    private LocalDate startDate;
+    private LocalDateTime startDate;
 
     @Column(name = "end_date", nullable = false)
-    private LocalDate endDate;
+    private LocalDateTime endDate;
 
-    @Column(name = "snapshot_data", nullable = false, columnDefinition = "json")
+    @Column(name = "snapshot_data", columnDefinition = "json")
     private String snapshotData;
 
     @Column(name = "teacher_memo", columnDefinition = "text")
@@ -41,9 +47,25 @@ public class ReportEntity {
     public ReportEntity(StudentEntity student, LocalDate startDate, LocalDate endDate,
                         String snapshotData, String teacherMemo) {
         this.student = student;
-        this.startDate = startDate;
-        this.endDate = endDate;
+        this.startDate = startDate.atStartOfDay();
+        this.endDate = endDate.plusDays(1).atStartOfDay().minusNanos(1);
         this.snapshotData = snapshotData;
         this.teacherMemo = teacherMemo;
+    }
+
+    public LocalDate getStartDate() {
+        return startDate.toLocalDate();
+    }
+
+    public LocalDate getEndDate() {
+        return endDate.toLocalDate();
+    }
+
+    public void updateTeacherMemo(String teacherMemo) {
+        this.teacherMemo = teacherMemo == null || teacherMemo.isBlank() ? null : teacherMemo.trim();
+    }
+
+    public void updateSnapshotData(String snapshotData) {
+        this.snapshotData = snapshotData;
     }
 }

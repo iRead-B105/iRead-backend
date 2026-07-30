@@ -2,10 +2,17 @@ package com.iread.backend.student.controller;
 
 import com.iread.backend.auth.annotation.CurrentTeacherId;
 import com.iread.backend.student.dto.req.StudentRequest;
-import com.iread.backend.student.dto.res.AccuracyTrendResponse;
-import com.iread.backend.student.dto.res.StudentListResponse;
+import com.iread.backend.student.domain.LearningEventType;
+import com.iread.backend.student.dto.res.AccuracyTrendDataResponse;
+import com.iread.backend.student.dto.res.CreateStudentResponse;
+import com.iread.backend.student.dto.res.LearningEventResponse;
+import com.iread.backend.student.dto.res.LearningEventListResponse;
+import com.iread.backend.student.dto.res.LearningSummaryResponse;
+import com.iread.backend.student.dto.res.ReadingSpeedTrendResponse;
+import com.iread.backend.student.dto.res.StudentListDataResponse;
 import com.iread.backend.student.dto.res.StudentResponse;
-import com.iread.backend.student.dto.res.TrainingHistoryResponse;
+import com.iread.backend.student.dto.res.StudentSummaryResponse;
+import com.iread.backend.student.dto.res.TrainingHistoryDataResponse;
 import com.iread.backend.student.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,6 +20,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.MediaType;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -21,10 +29,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
+import java.time.LocalDate;
 
 @Tag(name = "학생 관리", description = "관리자 앱 학생 관리 API")
 @RestController
@@ -36,8 +45,23 @@ public class StudentController {
 
     @Operation(summary = "담당 학생 목록 조회")
     @GetMapping("/list")
-    public List<StudentListResponse> getStudents(@CurrentTeacherId Long teacherId) {
-        return studentService.getStudents(teacherId);
+    public StudentListDataResponse getStudents(
+            @CurrentTeacherId Long teacherId,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer age,
+            @RequestParam(required = false) Integer recentDays,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return studentService.getStudents(
+                teacherId, keyword, age, recentDays, page, size
+        );
+    }
+
+    @Operation(summary = "담당 아동 수와 오늘 학습 예정 아동 수 조회")
+    @GetMapping("/summary")
+    public StudentSummaryResponse getStudentSummary(@CurrentTeacherId Long teacherId) {
+        return studentService.getStudentSummary(teacherId);
     }
 
     @Operation(summary = "학생 상세 정보 조회")
@@ -48,23 +72,23 @@ public class StudentController {
 
     @Operation(summary = "학생 등록")
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Void> createStudent(
+    public ResponseEntity<CreateStudentResponse> createStudent(
             @CurrentTeacherId Long teacherId,
             @Valid @RequestBody StudentRequest request
     ) {
-        studentService.createStudent(teacherId, request);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(new CreateStudentResponse(studentService.createStudent(teacherId, request)));
     }
 
     @Operation(summary = "프로필 이미지와 함께 학생 등록")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Void> createStudentWithImage(
+    public ResponseEntity<CreateStudentResponse> createStudentWithImage(
             @CurrentTeacherId Long teacherId,
             @Valid @RequestPart("request") StudentRequest request,
             @RequestPart(value = "image", required = false) MultipartFile image
     ) {
-        studentService.createStudent(teacherId, request, image);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(new CreateStudentResponse(
+                studentService.createStudent(teacherId, request, image)
+        ));
     }
 
     @Operation(summary = "학생 삭제")
@@ -97,22 +121,78 @@ public class StudentController {
         return ResponseEntity.ok().build();
     }
 
-    @Operation(summary = "학생의 일별 평균 정답률 추이 조회")
+    @Operation(summary = "단어 시도 점수 기반 학생의 일별 읽기 정확도 추이 조회")
     @GetMapping("/{studentId}/accuracy-trend")
-    public List<AccuracyTrendResponse> getAccuracyTrend(
+    public AccuracyTrendDataResponse getAccuracyTrend(
             @CurrentTeacherId Long teacherId,
             @PathVariable Long studentId
     ) {
-        return studentService.getAccuracyTrend(teacherId, studentId);
+        return new AccuracyTrendDataResponse(
+                studentService.getAccuracyTrend(teacherId, studentId)
+        );
     }
 
     @Operation(summary = "학생의 학습 기록 조회")
     @GetMapping("/{studentId}/training-history")
-    public List<TrainingHistoryResponse> getTrainingHistory(
+    public TrainingHistoryDataResponse getTrainingHistory(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @RequestParam(name = "from", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(name = "to", required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return new TrainingHistoryDataResponse(
+                studentService.getTrainingHistory(teacherId, studentId, from, to)
+        );
+    }
+
+    @Operation(summary = "아동 학습 요약 조회")
+    @GetMapping("/{studentId}/learning-summary")
+    public LearningSummaryResponse getLearningSummary(
             @CurrentTeacherId Long teacherId,
             @PathVariable Long studentId
     ) {
-        return studentService.getTrainingHistory(teacherId, studentId);
+        return studentService.getLearningSummary(teacherId, studentId);
+    }
+
+    @Operation(summary = "아동의 최근 학습 이벤트 목록 조회")
+    @GetMapping("/{studentId}/learning-events/recent")
+    public LearningEventListResponse getRecentLearningEvents(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @RequestParam(defaultValue = "3") int limit
+    ) {
+        return studentService.getRecentLearningEvents(teacherId, studentId, limit);
+    }
+
+    @Operation(summary = "아동 학습 이벤트 상세와 추천 훈련 조회")
+    @GetMapping("/{studentId}/learning-events")
+    public LearningEventResponse getLearningEvent(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @RequestParam(name = "eventType", required = true) String eventType,
+            @RequestParam Long eventId
+    ) {
+        return studentService.getLearningEvent(
+                teacherId,
+                studentId,
+                LearningEventType.fromApiValue(eventType),
+                eventId
+        );
+    }
+
+    @Operation(summary = "학생의 일별 읽기 속도 추이 조회")
+    @GetMapping("/{studentId}/reading-speed-trend")
+    public ReadingSpeedTrendResponse getReadingSpeedTrend(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return studentService.getReadingSpeedTrend(teacherId, studentId, from, to);
     }
 
 }

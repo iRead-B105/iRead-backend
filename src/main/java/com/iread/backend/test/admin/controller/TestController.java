@@ -3,6 +3,7 @@ package com.iread.backend.test.admin.controller;
 import com.iread.backend.auth.annotation.CurrentTeacherId;
 import com.iread.backend.test.admin.dto.res.TestCompareResponse;
 import com.iread.backend.test.admin.dto.res.TestListResponse;
+import com.iread.backend.test.admin.dto.res.TestListDataResponse;
 import com.iread.backend.test.admin.service.TestService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,8 +21,11 @@ public class TestController {
 
     @Operation(summary = "학생의 완료된 테스트 목록 조회")
     @GetMapping("/{studentId}/list")
-    public List<TestListResponse> getTestList(@CurrentTeacherId Long teacherId, @PathVariable Long studentId) {
-        return testService.getTestList(teacherId, studentId);
+    public TestListDataResponse getTestList(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId
+    ) {
+        return new TestListDataResponse(testService.getTestList(teacherId, studentId));
     }
 
     @Operation(summary = "현재 테스트와 이전 테스트 결과 비교")
@@ -30,7 +34,7 @@ public class TestController {
             @CurrentTeacherId Long teacherId,
             @PathVariable Long studentId,
             @RequestParam Long currentTestId,
-            @RequestParam List<Long> comparisonTestIds
+            @RequestParam(required = false) List<Long> comparisonTestIds
     ) {
         return testService.compareTests(teacherId, studentId, currentTestId, comparisonTestIds);
     }

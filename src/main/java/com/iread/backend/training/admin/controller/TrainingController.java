@@ -1,6 +1,7 @@
 package com.iread.backend.training.admin.controller;
 
 import com.iread.backend.auth.annotation.CurrentTeacherId;
+import com.iread.backend.training.admin.dto.req.CompleteTrainingRequest;
 import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.admin.dto.res.*;
@@ -10,9 +11,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import tools.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @Tag(name = "훈련 관리", description = "관리자 앱 커리큘럼 및 훈련 관리 API")
@@ -24,8 +29,15 @@ public class TrainingController {
 
     @Operation(summary = "학생의 완료된 일일 커리큘럼 기록 조회")
     @GetMapping("/{studentId}/curriculum-log")
-    public List<CurriculumLogResponse> getCurriculumLogs(@CurrentTeacherId Long teacherId, @PathVariable Long studentId) {
-        return trainingService.getCurriculumLogs(teacherId, studentId);
+    public List<CurriculumLogResponse> getCurriculumLogs(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return trainingService.getCurriculumLogs(teacherId, studentId, from, to);
     }
 
     @Operation(summary = "일일 커리큘럼의 훈련 이력 조회")
@@ -44,8 +56,13 @@ public class TrainingController {
 
     @Operation(summary = "학생에게 제공할 훈련 목록 조회")
     @GetMapping("/{studentId}")
-    public List<TrainingCatalogResponse> getTrainingCatalog(@CurrentTeacherId Long teacherId, @PathVariable Long studentId) {
-        return trainingService.getTrainingCatalog(teacherId, studentId);
+    public TrainingCatalogDataResponse getTrainingCatalog(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId
+    ) {
+        return new TrainingCatalogDataResponse(
+                trainingService.getTrainingCatalog(teacherId, studentId)
+        );
     }
 
     @Operation(summary = "학생의 일일 커리큘럼 조회")
@@ -53,6 +70,25 @@ public class TrainingController {
     public DailyCurriculumResponse getDailyCurriculum(@CurrentTeacherId Long teacherId, @PathVariable Long studentId,
                                                        @PathVariable Long curriculumId) {
         return trainingService.getDailyCurriculum(teacherId, studentId, curriculumId);
+    }
+
+    @Operation(summary = "수정 가능한 현재 커리큘럼 조회")
+    @GetMapping("/{studentId}/current")
+    public DailyCurriculumResponse getCurrentDailyCurriculum(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId
+    ) {
+        return trainingService.getCurrentDailyCurriculum(teacherId, studentId);
+    }
+
+    @Operation(summary = "학생의 일일 커리큘럼 생성")
+    @PostMapping("/{studentId}/curriculum")
+    public DailyCurriculumResponse createDailyCurriculum(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @Valid @RequestBody UpdateCurriculumRequest request
+    ) {
+        return trainingService.createDailyCurriculum(teacherId, studentId, request);
     }
 
     @Operation(summary = "학생의 일일 커리큘럼 수정")
@@ -66,9 +102,47 @@ public class TrainingController {
 
     @Operation(summary = "훈련에 사용할 예정 단어 목록 조회")
     @GetMapping("/{studentId}/{trainingId}/expected-word")
-    public List<ExpectedWordResponse> getExpectedWords(@CurrentTeacherId Long teacherId, @PathVariable Long studentId,
-                                                       @PathVariable Long trainingId) {
-        return trainingService.getExpectedWords(teacherId, studentId, trainingId);
+    public ExpectedWordDataResponse getExpectedWords(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @PathVariable Long trainingId
+    ) {
+        return new ExpectedWordDataResponse(
+                trainingService.getExpectedWords(teacherId, studentId, trainingId)
+        );
+    }
+
+    @Operation(summary = "선택한 훈련의 템플릿, 생성 데이터와 결과 조회")
+    @GetMapping("/{studentId}/{trainingId}/detail")
+    public TrainingDetailResponse getTrainingDetail(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @PathVariable Long trainingId
+    ) {
+        return trainingService.getTrainingDetail(teacherId, studentId, trainingId);
+    }
+
+    @Operation(summary = "훈련 결과를 JSON 또는 CSV 파일로 내보내기")
+    @PostMapping(
+            value = "/{studentId}/{trainingId}/export",
+            produces = MediaType.APPLICATION_OCTET_STREAM_VALUE
+    )
+    public ResponseEntity<byte[]> exportTraining(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @PathVariable Long trainingId,
+            @RequestParam String format
+    ) {
+        TrainingExportFile file = trainingService.exportTraining(
+                teacherId, studentId, trainingId, format
+        );
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(
+                        HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + file.fileName() + "\""
+                )
+                .body(file.content());
     }
 
     @Operation(summary = "훈련에 사용할 예정 단어 추가")
@@ -93,5 +167,24 @@ public class TrainingController {
     public JsonNode generateTraining(@CurrentTeacherId Long teacherId, @PathVariable Long studentId,
                                      @PathVariable Long trainingId) {
         return trainingService.generateTraining(teacherId, studentId, trainingId);
+    }
+
+    @Operation(summary = "훈련 결과 AI 평가 및 완료")
+    @PostMapping("/{studentId}/{trainingId}/complete")
+    public TrainingEvaluationResponse completeTraining(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @PathVariable Long trainingId,
+            @Valid @RequestBody CompleteTrainingRequest request
+        ) {
+        return new TrainingEvaluationResponse(
+                trainingService.completeTraining(
+                        teacherId,
+                        studentId,
+                        trainingId,
+                        request.result(),
+                        request.completedAt()
+                )
+        );
     }
 }

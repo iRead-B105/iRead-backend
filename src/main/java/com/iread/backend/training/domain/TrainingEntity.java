@@ -1,12 +1,17 @@
 package com.iread.backend.training.domain;
 
+import com.iread.backend.exception.ConflictException;
+import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Entity
@@ -27,6 +32,10 @@ public class TrainingEntity {
     @Column(name = "sequence_no", nullable = false)
     private Integer sequenceNo;
 
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
     @Column(name = "started_at")
     private LocalDateTime startedAt;
 
@@ -40,8 +49,12 @@ public class TrainingEntity {
     @Column(columnDefinition = "json")
     private String result;
 
-    @Column(precision = 5, scale = 2)
+    @Convert(converter = AccuracyIntegerConverter.class)
+    @Column(columnDefinition = "int")
     private BigDecimal accuracy;
+
+    @OneToMany(mappedBy = "training", cascade = CascadeType.REMOVE)
+    private List<WordAttemptLogEntity> wordAttemptLogs = new ArrayList<>();
 
     TrainingEntity(DailyCurriculumEntity dailyCurriculum, TrainingTemplateEntity trainingTemplate, Integer sequenceNo) {
         this.dailyCurriculum = dailyCurriculum;
@@ -50,9 +63,36 @@ public class TrainingEntity {
     }
 
     public boolean isCompleted() { return status == TrainingStatus.COMPLETED; }
-    public boolean isEditable() { return status == TrainingStatus.NOT_READY || status == TrainingStatus.NOT_STARTED; }
+    public boolean isEditable() { return status == TrainingStatus.NOT_READY; }
+    public boolean isCompletable() {
+        return status == TrainingStatus.NOT_STARTED || status == TrainingStatus.IN_PROGRESS;
+    }
     public void markNotReady() { status = TrainingStatus.NOT_READY; }
     public void markReady() { status = TrainingStatus.NOT_STARTED; }
+
+    public void start(LocalDateTime startedAt) {
+        this.startedAt = startedAt;
+        this.status = TrainingStatus.IN_PROGRESS;
+        dailyCurriculum.markInProgress();
+    }
+
+    public void reset() {
+        if (status == TrainingStatus.COMPLETED) {
+            throw new ConflictException("완료된 훈련은 초기화할 수 없습니다.");
+        }
+        startedAt = null;
+        finishedAt = null;
+        result = null;
+        accuracy = null;
+        status = TrainingStatus.NOT_STARTED;
+    }
+
+    public void recordProgressResult(String result) {
+        if (status != TrainingStatus.IN_PROGRESS) {
+            throw new IllegalStateException("진행 중인 훈련에만 시도 결과를 연결할 수 있습니다.");
+        }
+        this.result = result;
+    }
 
     public void complete(String result, BigDecimal accuracy, LocalDateTime finishedAt) {
         this.result = result;

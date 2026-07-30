@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Getter
 @Entity
 @Table(name = "story_choices", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_story_choices_story_line", columnNames = "story_lines_id")
+        @UniqueConstraint(name = "uk_story_choices_story_line", columnNames = "story_line_id")
 })
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class StoryChoiceEntity {
@@ -21,7 +21,7 @@ public class StoryChoiceEntity {
     private Long id;
 
     @OneToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "story_lines_id", nullable = false)
+    @JoinColumn(name = "story_line_id", nullable = false)
     private StoryLineEntity storyLine;
 
     @Column(nullable = false, columnDefinition = "text")

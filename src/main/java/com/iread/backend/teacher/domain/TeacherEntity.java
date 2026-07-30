@@ -1,16 +1,12 @@
 package com.iread.backend.teacher.domain;
 
-import com.iread.backend.global.domain.ImageEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -38,7 +34,7 @@ public class TeacherEntity {
     @Column(name = "password", length = 100, nullable = false)
     private String password;
 
-    @Column(name = "name", length = 10)
+    @Column(name = "name", length = 10, nullable = false)
     private String name;
 
     @Column(name = "organization", length = 100)
@@ -52,16 +48,29 @@ public class TeacherEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "image_id")
-    private ImageEntity image;
+    @Column(name = "image_url", length = 255)
+    private String imageUrl;
 
-    public TeacherEntity(String email, String password, String name, String organization, Gender gender, ImageEntity image) {
+    public TeacherEntity(String email, String password, String name, String organization, Gender gender, String imageUrl) {
         this.email = email;
         this.password = password;
         this.name = name;
         this.organization = organization;
         this.gender = gender;
-        this.image = image;
+        this.imageUrl = imageUrl;
+    }
+
+    public void updatePassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
+
+    public void updateProfile(String name, String organization, Gender gender) {
+        this.name = name.trim();
+        this.organization = organization == null || organization.isBlank() ? null : organization.trim();
+        this.gender = gender;
+    }
+
+    public void updateImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 }

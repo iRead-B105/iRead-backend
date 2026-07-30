@@ -11,16 +11,16 @@ public record StoryShelfResponse(
 ) {
     public record StoryItem(
             Long storyId,
-            Long studentId,
+            Long teacherId,
             Long storyTemplateId,
             LocalDateTime createdAt,
-            StoryStatus status
+            StoryStatus storyStatus
     ) {
     }
 
     public record StoryTemplateItem(
             Long storyTemplateId,
-            String title
+            String templateTitle
     ) {
     }
 }

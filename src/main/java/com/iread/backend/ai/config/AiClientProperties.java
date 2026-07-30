@@ -11,7 +11,10 @@ public record AiClientProperties(
         URI baseUrl,
         Duration connectTimeout,
         Duration readTimeout,
-        String apiKey
+        String apiKey,
+        boolean mockGenerate,
+        boolean mockEvaluate,
+        boolean mockSpeech
 ) {
     public AiClientProperties {
         Objects.requireNonNull(baseUrl, "ai.base-url은 필수입니다.");

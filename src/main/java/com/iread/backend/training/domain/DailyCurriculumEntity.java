@@ -10,6 +10,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Getter
 @Entity
@@ -38,6 +39,11 @@ public class DailyCurriculumEntity {
     @OrderBy("sequenceNo ASC")
     private List<TrainingEntity> trainings = new ArrayList<>();
 
+    public DailyCurriculumEntity(StudentEntity student, List<TrainingTemplateEntity> templates) {
+        this.student = Objects.requireNonNull(student, "student는 필수입니다.");
+        replaceTrainings(templates);
+    }
+
     public void replaceTrainings(List<TrainingTemplateEntity> templates) {
         trainings.clear();
         for (int index = 0; index < templates.size(); index++) {
@@ -51,6 +57,12 @@ public class DailyCurriculumEntity {
         if (!trainings.isEmpty() && trainings.stream().allMatch(TrainingEntity::isCompleted)) {
             status = DailyCurriculumStatus.COMPLETED;
             if (completedAt == null) completedAt = now;
+        }
+    }
+
+    void markInProgress() {
+        if (status == DailyCurriculumStatus.NOT_STARTED) {
+            status = DailyCurriculumStatus.IN_PROGRESS;
         }
     }
 }

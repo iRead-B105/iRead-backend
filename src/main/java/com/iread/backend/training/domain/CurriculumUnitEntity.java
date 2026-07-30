@@ -16,6 +16,6 @@ public class CurriculumUnitEntity {
     @Column(name = "unit_name", nullable = false, length = 50)
     private String unitName;
 
-    @Column(name = "sequence_no", nullable = false)
+    @Column(name = "sequence_no")
     private Integer sequenceNo;
 }

@@ -1,6 +1,5 @@
 package com.iread.backend.student.domain;
 
-import com.iread.backend.global.domain.ImageEntity;
 import com.iread.backend.teacher.domain.TeacherEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -14,9 +13,7 @@ import java.time.LocalDateTime;
 
 @Getter
 @Entity
-@Table(name = "students", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_students_student_code", columnNames = "student_code")
-})
+@Table(name = "students")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class StudentEntity {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,11 +23,8 @@ public class StudentEntity {
     @JoinColumn(name = "teacher_id", nullable = false)
     private TeacherEntity teacher;
 
-    @Column(length = 10)
+    @Column(length = 10, nullable = false)
     private String name;
-
-    @Column(name = "student_code", nullable = false, length = 10)
-    private String studentCode;
 
     private LocalDate birthday;
 
@@ -57,17 +51,18 @@ public class StudentEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "image_id")
-    private ImageEntity image;
+    @Column(name = "image_url", length = 255)
+    private String imageUrl;
+
+    @Column(name = "teacher_memo", columnDefinition = "text")
+    private String teacherMemo;
 
     @Builder
-    public StudentEntity(TeacherEntity teacher, String name, String studentCode, LocalDate birthday,
+    public StudentEntity(TeacherEntity teacher, String name, LocalDate birthday,
                          Gender gender, String school, String guardian, String guardianContact,
-                         String guardianEmail, String address, ImageEntity image) {
+                         String guardianEmail, String address, String imageUrl) {
         this.teacher = teacher;
         this.name = name;
-        this.studentCode = studentCode;
         this.birthday = birthday;
         this.gender = gender;
         this.school = school;
@@ -75,14 +70,13 @@ public class StudentEntity {
         this.guardianContact = guardianContact;
         this.guardianEmail = guardianEmail;
         this.address = address;
-        this.image = image;
+        this.imageUrl = imageUrl;
     }
 
-    public void update(String name, String studentCode, LocalDate birthday, Gender gender, String school,
+    public void update(String name, LocalDate birthday, Gender gender, String school,
                        String guardian, String guardianContact, String guardianEmail, String address,
-                       ImageEntity image, boolean updateImage) {
+                       String imageUrl, boolean updateImage) {
         if (name != null) this.name = name;
-        if (studentCode != null) this.studentCode = studentCode;
         if (birthday != null) this.birthday = birthday;
         if (gender != null) this.gender = gender;
         if (school != null) this.school = school;
@@ -90,6 +84,10 @@ public class StudentEntity {
         if (guardianContact != null) this.guardianContact = guardianContact;
         if (guardianEmail != null) this.guardianEmail = guardianEmail;
         if (address != null) this.address = address;
-        if (updateImage) this.image = image;
+        if (updateImage) this.imageUrl = imageUrl;
+    }
+
+    public void updateTeacherMemo(String teacherMemo) {
+        this.teacherMemo = teacherMemo == null || teacherMemo.isBlank() ? null : teacherMemo.trim();
     }
 }

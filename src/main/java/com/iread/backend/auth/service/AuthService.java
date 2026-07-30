@@ -1,114 +1,197 @@
 package com.iread.backend.auth.service;
 
+import com.iread.backend.auth.domain.AuthAudience;
 import com.iread.backend.auth.dto.req.LoginRequest;
 import com.iread.backend.auth.dto.req.SignUpRequest;
-import com.iread.backend.auth.dto.res.TeacherAuthResponse;
-import com.iread.backend.auth.session.LoginTeacher;
-import com.iread.backend.auth.session.SessionConst;
-import com.iread.backend.global.domain.ImageEntity;
-import com.iread.backend.global.repository.ImageRepository;
-import com.iread.backend.global.storage.FileStorage;
-import com.iread.backend.global.storage.StoredFile;
+import com.iread.backend.auth.dto.req.StudentLoginRequest;
+import com.iread.backend.auth.dto.res.AdminLoginResponse;
+import com.iread.backend.auth.dto.res.AppTeacherLoginResponse;
+import com.iread.backend.auth.dto.res.SignUpResponse;
+import com.iread.backend.auth.dto.res.StudentLoginResponse;
+import com.iread.backend.auth.dto.res.TokenRefreshResponse;
+import com.iread.backend.auth.exception.AuthException;
+import com.iread.backend.auth.security.AuthPrincipal;
+import com.iread.backend.auth.security.AuthRole;
+import com.iread.backend.auth.security.JwtTokenService;
+import com.iread.backend.student.domain.StudentEntity;
+import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.teacher.domain.TeacherEntity;
 import com.iread.backend.teacher.repository.TeacherRepository;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
-import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class AuthService {
 
     private final TeacherRepository teacherRepository;
+    private final StudentRepository studentRepository;
     private final PasswordEncoder passwordEncoder;
-    private final ImageRepository imageRepository;
-    private final FileStorage fileStorage;
+    private final JwtTokenService jwtTokenService;
+    private final RefreshTokenService refreshTokenService;
+    private final LoginAttemptService loginAttemptService;
 
-    @Transactional
-    public TeacherAuthResponse signUp(SignUpRequest request) {
-        return signUp(request, null);
+    public AuthService(
+            TeacherRepository teacherRepository,
+            StudentRepository studentRepository,
+            PasswordEncoder passwordEncoder,
+            JwtTokenService jwtTokenService,
+            RefreshTokenService refreshTokenService,
+            LoginAttemptService loginAttemptService
+    ) {
+        this.teacherRepository = teacherRepository;
+        this.studentRepository = studentRepository;
+        this.passwordEncoder = passwordEncoder;
+        this.jwtTokenService = jwtTokenService;
+        this.refreshTokenService = refreshTokenService;
+        this.loginAttemptService = loginAttemptService;
     }
 
     @Transactional
-    public TeacherAuthResponse signUp(SignUpRequest request, MultipartFile imageFile) {
+    public SignUpResponse signUp(SignUpRequest request) {
         if (teacherRepository.existsByEmail(request.email())) {
-            throw new IllegalArgumentException("이미 사용 중인 이메일입니다.");
+            throw new AuthException(HttpStatus.CONFLICT, "EMAIL_ALREADY_EXISTS", "이미 사용 중인 이메일입니다.");
         }
 
-        StoredFile storedFile = null;
-        try {
-            ImageEntity image = null;
-            if (imageFile != null && !imageFile.isEmpty()) {
-                storedFile = fileStorage.store(imageFile);
-                image = imageRepository.save(ImageEntity.builder()
-                        .originalFileName(storedFile.originalFileName())
-                        .storeFileName(storedFile.storeFileName())
-                        .fileSize(storedFile.fileSize())
-                        .url(storedFile.url())
-                        .build());
-            }
-
-            TeacherEntity teacher = new TeacherEntity(
-                    request.email(),
-                    passwordEncoder.encode(request.password()),
-                    request.name(),
-                    request.organization(),
-                    request.gender(),
-                    image
-            );
-
-            return TeacherAuthResponse.from(teacherRepository.save(teacher));
-        } catch (RuntimeException exception) {
-            if (storedFile != null) {
-                fileStorage.delete(storedFile.storeFileName());
-            }
-            throw exception;
-        }
+        TeacherEntity teacher = new TeacherEntity(
+                request.email().trim(),
+                passwordEncoder.encode(request.password()),
+                request.name().trim(),
+                request.organization().trim(),
+                null,
+                null
+        );
+        return SignUpResponse.completed(teacherRepository.save(teacher));
     }
 
     @Transactional(readOnly = true)
-    public TeacherAuthResponse login(LoginRequest request, HttpServletRequest httpRequest) {
+    public TeacherEntity authenticate(LoginRequest request) {
+        loginAttemptService.checkAllowed(request.email());
         TeacherEntity teacher = teacherRepository.findByEmail(request.email())
-                .orElseThrow(() -> new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다."));
-
-        if (!passwordEncoder.matches(request.password(), teacher.getPassword())) {
-            throw new IllegalArgumentException("이메일 또는 비밀번호가 올바르지 않습니다.");
+                .orElse(null);
+        if (teacher == null || !passwordEncoder.matches(request.password(), teacher.getPassword())) {
+            loginAttemptService.recordFailure(request.email());
+            throw new AuthException(
+                    HttpStatus.UNAUTHORIZED,
+                    "INVALID_CREDENTIALS",
+                    "이메일 또는 비밀번호가 올바르지 않습니다."
+            );
         }
-
-        HttpSession oldSession = httpRequest.getSession(false);
-        if (oldSession != null) {
-            oldSession.invalidate();
-        }
-
-        LoginTeacher loginTeacher = LoginTeacher.from(teacher);
-        HttpSession session = httpRequest.getSession(true);
-        session.setAttribute(SessionConst.LOGIN_TEACHER, loginTeacher);
-
-        return TeacherAuthResponse.from(loginTeacher);
+        loginAttemptService.clear(request.email());
+        return teacher;
     }
 
-    public void logout(HttpServletRequest request) {
-        HttpSession session = request.getSession(false);
-        if (session != null) {
-            session.invalidate();
-        }
+    @Transactional
+    public LoginResult<AdminLoginResponse> adminLogin(LoginRequest request) {
+        TeacherEntity teacher = authenticate(request);
+        JwtTokenService.IssuedToken accessToken = jwtTokenService.issueAdminAccessToken(teacher.getId());
+        RefreshTokenService.IssuedRefreshToken refreshToken =
+                refreshTokenService.issue(teacher, null, AuthAudience.ADMIN);
+        return new LoginResult<>(
+                AdminLoginResponse.completed(teacher, accessToken.value(), accessToken.expiresIn()),
+                refreshToken.rawToken()
+        );
     }
 
-    public TeacherAuthResponse getLoginTeacher(HttpServletRequest request) {
-        HttpSession session = request.getSession(false);
-        if (session == null) {
-            throw new IllegalStateException("로그인이 필요합니다.");
+    @Transactional
+    public TokenResult refreshAdmin(String rawRefreshToken) {
+        RefreshTokenService.IssuedRefreshToken rotated =
+                refreshTokenService.rotate(rawRefreshToken, AuthAudience.ADMIN);
+        JwtTokenService.IssuedToken accessToken =
+                jwtTokenService.issueAdminAccessToken(rotated.session().getTeacher().getId());
+        return new TokenResult(
+                TokenRefreshResponse.bearer(accessToken.value(), accessToken.expiresIn()),
+                rotated.rawToken()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public AppTeacherLoginResponse appTeacherLogin(LoginRequest request) {
+        TeacherEntity teacher = authenticate(request);
+        JwtTokenService.IssuedToken bootstrapToken = jwtTokenService.issueBootstrapToken(teacher.getId());
+        List<StudentEntity> students = studentRepository.findAllByTeacherIdOrderByIdAsc(teacher.getId());
+        return AppTeacherLoginResponse.selectionRequired(
+                teacher,
+                bootstrapToken.value(),
+                bootstrapToken.expiresIn(),
+                students
+        );
+    }
+
+    @Transactional
+    public LoginResult<StudentLoginResponse> studentLogin(
+            AuthPrincipal principal,
+            StudentLoginRequest request
+    ) {
+        if (principal == null
+                || principal.role() != AuthRole.TEACHER
+                || !JwtTokenService.BOOTSTRAP_AUDIENCE.equals(principal.audience())) {
+            throw new AuthException(HttpStatus.FORBIDDEN, "INVALID_TOKEN_AUDIENCE", "아동 선택 권한이 없습니다.");
         }
 
-        Object attribute = session.getAttribute(SessionConst.LOGIN_TEACHER);
-        if (!(attribute instanceof LoginTeacher loginTeacher)) {
-            throw new IllegalStateException("로그인이 필요합니다.");
+        Long studentId;
+        try {
+            studentId = Long.valueOf(request.studentId());
+        } catch (NumberFormatException exception) {
+            throw new AuthException(HttpStatus.BAD_REQUEST, "INVALID_STUDENT_ID", "아동 ID 형식이 올바르지 않습니다.");
         }
+        StudentEntity student = studentRepository.findByIdAndTeacherId(studentId, principal.id())
+                .orElseThrow(() -> new AuthException(
+                        HttpStatus.NOT_FOUND,
+                        "STUDENT_NOT_FOUND",
+                        "연결된 아동을 찾을 수 없습니다."
+                ));
+        JwtTokenService.IssuedToken accessToken =
+                jwtTokenService.issueLearningAccessToken(principal.id(), student.getId());
+        RefreshTokenService.IssuedRefreshToken refreshToken =
+                refreshTokenService.issue(student.getTeacher(), student, AuthAudience.LEARNING);
+        return new LoginResult<>(
+                StudentLoginResponse.completed(
+                        student.getId().toString(),
+                        accessToken.value(),
+                        accessToken.expiresIn()
+                ),
+                refreshToken.rawToken()
+        );
+    }
 
-        return TeacherAuthResponse.from(loginTeacher);
+    @Transactional
+    public TokenResult refreshLearning(String rawRefreshToken) {
+        RefreshTokenService.IssuedRefreshToken rotated =
+                refreshTokenService.rotate(rawRefreshToken, AuthAudience.LEARNING);
+        StudentEntity student = rotated.session().getStudent();
+        if (student == null) {
+            throw new AuthException(HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN", "유효하지 않은 refresh token입니다.");
+        }
+        JwtTokenService.IssuedToken accessToken = jwtTokenService.issueLearningAccessToken(
+                rotated.session().getTeacher().getId(),
+                student.getId()
+        );
+        return new TokenResult(
+                TokenRefreshResponse.bearer(accessToken.value(), accessToken.expiresIn()),
+                rotated.rawToken()
+        );
+    }
+
+    public void logoutAdmin(AuthPrincipal principal, String rawRefreshToken) {
+        refreshTokenService.revoke(rawRefreshToken, AuthAudience.ADMIN);
+    }
+
+    public void logoutLearning(AuthPrincipal principal, String rawRefreshToken) {
+        if (principal == null
+                || (!JwtTokenService.LEARNING_AUDIENCE.equals(principal.audience())
+                && !JwtTokenService.BOOTSTRAP_AUDIENCE.equals(principal.audience()))) {
+            throw new AuthException(HttpStatus.FORBIDDEN, "INVALID_TOKEN_AUDIENCE", "학습 앱 로그아웃 권한이 없습니다.");
+        }
+        refreshTokenService.revoke(rawRefreshToken, AuthAudience.LEARNING);
+    }
+
+    public record LoginResult<T>(T response, String refreshToken) {
+    }
+
+    public record TokenResult(TokenRefreshResponse response, String refreshToken) {
     }
 }

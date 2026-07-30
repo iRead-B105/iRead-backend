@@ -1,10 +1,11 @@
 package com.iread.backend.mypage.app.service;
 
-import com.iread.backend.global.domain.ImageEntity;
 import com.iread.backend.mypage.domain.CharacterEntity;
 import com.iread.backend.mypage.repository.CharacterRepository;
+import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
+import com.iread.backend.story.domain.StoryEntity;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -13,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -26,33 +28,37 @@ class MypageServiceTest {
     @InjectMocks MypageService mypageService;
 
     @Test
-    void 획득한_캐릭터의_이미지_URL과_원본파일명을_반환한다() {
+    void returnsCharacterContractFields() {
         StudentEntity student = mock(StudentEntity.class);
         CharacterEntity character = mock(CharacterEntity.class);
-        ImageEntity image = mock(ImageEntity.class);
+        StoryEntity story = mock(StoryEntity.class);
+        LocalDateTime createdAt = LocalDateTime.of(2026, 7, 27, 12, 0);
         when(student.getId()).thenReturn(10L);
-        when(character.getImage()).thenReturn(image);
-        when(image.getUrl()).thenReturn("/uploads/images/character.png");
-        when(image.getOriginalFileName()).thenReturn("고양이.png");
-        when(studentRepository.findByStudentCodeAndTeacherId("ST00000001", 1L))
+        when(character.getId()).thenReturn(30L);
+        when(character.getStory()).thenReturn(story);
+        when(story.getId()).thenReturn(40L);
+        when(character.getImageUrl()).thenReturn("/uploads/images/character.png");
+        when(character.getName()).thenReturn("책 요정");
+        when(character.getCreatedAt()).thenReturn(createdAt);
+        when(studentRepository.findByIdAndTeacherId(2L, 1L))
                 .thenReturn(Optional.of(student));
         when(characterRepository.findAllByStudentIdOrderByCreatedAtDesc(10L))
                 .thenReturn(List.of(character));
 
-        var result = mypageService.getCharacters(1L, "ST00000001");
+        var result = mypageService.getCharacters(1L, 2L);
 
-        assertThat(result).hasSize(1);
         assertThat(result.getFirst().imageUrl()).isEqualTo("/uploads/images/character.png");
-        assertThat(result.getFirst().imageName()).isEqualTo("고양이.png");
+        assertThat(result.getFirst().characterId()).isEqualTo(30L);
+        assertThat(result.getFirst().storyId()).isEqualTo(40L);
+        assertThat(result.getFirst().name()).isEqualTo("책 요정");
+        assertThat(result.getFirst().createdAt()).isEqualTo(createdAt);
     }
 
     @Test
-    void 담당_학생이_아니면_캐릭터를_조회할_수_없다() {
-        when(studentRepository.findByStudentCodeAndTeacherId("ST00000001", 1L))
+    void rejectsUnknownStudent() {
+        when(studentRepository.findByIdAndTeacherId(2L, 1L))
                 .thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> mypageService.getCharacters(1L, "ST00000001"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("학생을 찾을 수 없습니다.");
+        assertThatThrownBy(() -> mypageService.getCharacters(1L, 2L))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 }

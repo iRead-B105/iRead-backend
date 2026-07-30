@@ -1,21 +1,35 @@
 package com.iread.backend.ai.client;
 
 import com.iread.backend.ai.dto.req.ContinueStoryRequest;
+import com.iread.backend.ai.dto.req.EvaluateTrainingRequest;
 import com.iread.backend.ai.dto.req.GenerateStoryRequest;
 import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
+import com.iread.backend.ai.dto.req.GenerateImageRequest;
 import com.iread.backend.ai.dto.req.StoryHistoryLine;
 import com.iread.backend.ai.dto.req.StoryTemplateData;
+import com.iread.backend.ai.dto.req.SpeechSynthesisRequest;
 import com.iread.backend.ai.exception.AiClientException;
+import com.iread.backend.ai.config.AiClientProperties;
+import com.iread.backend.global.audio.AudioUploadPolicy;
+import com.iread.backend.global.audio.TemporaryAudioStorage;
+import com.iread.backend.pronunciation.PronunciationAnalysisRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.util.unit.DataSize;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -31,6 +45,9 @@ class HttpAiClientTest {
 
     private final JsonMapper objectMapper = new JsonMapper();
 
+    @TempDir
+    Path tempDir;
+
     private MockRestServiceServer server;
     private HttpAiClient aiClient;
 
@@ -38,7 +55,29 @@ class HttpAiClientTest {
     void setUp() {
         RestClient.Builder builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
-        aiClient = new HttpAiClient(builder.baseUrl("http://localhost:8081").build());
+        aiClient = new HttpAiClient(
+                builder.baseUrl("http://localhost:8081").build(),
+                new AiClientProperties(
+                        URI.create("http://localhost:8081"),
+                        Duration.ofSeconds(1),
+                        Duration.ofSeconds(1),
+                        "",
+                        false,
+                        false,
+                        false
+                ),
+                new MockTrainingGenerator(objectMapper),
+                new MockTrainingEvaluator(),
+                new MockStoryGenerator(),
+                new MockSpeechProcessor(),
+                new TemporaryAudioStorage(
+                        tempDir.resolve("audio").toString(),
+                        new AudioUploadPolicy(
+                                DataSize.ofMegabytes(20),
+                                "audio/webm,audio/wav,audio/mpeg,audio/mp4"
+                        )
+                )
+        );
     }
 
     @Test
@@ -76,6 +115,30 @@ class HttpAiClientTest {
         assertThat(response.schemaVersion()).isEqualTo(1);
         assertThat(response.generatedData().path("questions").get(0).path("question").asString())
                 .isEqualTo("사과를 읽어보세요.");
+        server.verify();
+    }
+
+    @Test
+    void 이미지_생성_요청의_상대_URL을_공개_URL로_변환한다() {
+        server.expect(once(), requestTo("http://localhost:8081/api/v1/images/generate"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Idempotency-Key", "image-request-1"))
+                .andRespond(withSuccess("""
+                        {
+                          "requestId": "image-request-1",
+                          "imageUrl": "/api/v1/images/mock/example.svg",
+                          "provider": "MOCK_IMAGE_V1"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var response = aiClient.generateImage(new GenerateImageRequest(
+                "image-request-1",
+                "우산을 쓰는 아이"
+        ));
+
+        assertThat(response.imageUrl())
+                .isEqualTo("http://localhost:8081/api/v1/images/mock/example.svg");
+        assertThat(response.provider()).isEqualTo("MOCK_IMAGE_V1");
         server.verify();
     }
 
@@ -135,6 +198,7 @@ class HttpAiClientTest {
                 100L,
                 20L,
                 1,
+                0,
                 new StoryTemplateData(30L, "신비한 숲", "숲에서 친구를 만나는 이야기")
         );
         server.expect(requestTo("http://localhost:8081/api/v1/story/generate"))
@@ -144,10 +208,11 @@ class HttpAiClientTest {
                         {
                           "requestId": "story-request-1",
                           "schemaVersion": 1,
+                          "nextProgress": 50,
                           "completed": false,
                           "lines": [
-                            {"content": "숲에 도착했어요.", "hasChoices": false},
-                            {"content": "어디로 갈까요?", "hasChoices": true}
+                            {"content": "숲에 도착했어요.", "requiresBranchInput": false},
+                            {"content": "어디로 갈까요?", "requiresBranchInput": true}
                           ]
                         }
                         """, MediaType.APPLICATION_JSON));
@@ -157,7 +222,7 @@ class HttpAiClientTest {
         assertThat(response.completed()).isFalse();
         assertThat(response.lines()).extracting("content")
                 .containsExactly("숲에 도착했어요.", "어디로 갈까요?");
-        assertThat(response.lines().getLast().hasChoices()).isTrue();
+        assertThat(response.lines().getLast().requiresBranchInput()).isTrue();
         server.verify();
     }
 
@@ -168,26 +233,29 @@ class HttpAiClientTest {
                 100L,
                 20L,
                 1,
+                50,
                 new StoryTemplateData(30L, "신비한 숲", "숲에서 친구를 만나는 이야기"),
                 1001L,
                 "노랫소리를 따라간다",
-                List.of(new StoryHistoryLine(1001L, "어디로 갈까요?", true, "노랫소리를 따라간다"))
+                List.of(new StoryHistoryLine(1001L, "어디로 갈까요?", true))
         );
         server.expect(requestTo("http://localhost:8081/api/v1/story/continue"))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(content().json("""
                         {
-                          "choice": "노랫소리를 따라간다",
-                          "selectedStoryLineId": 1001
+                          "branchIntent": "노랫소리를 따라간다",
+                          "currentStoryLineId": 1001,
+                          "currentProgress": 50
                         }
                         """))
                 .andRespond(withSuccess("""
                         {
                           "requestId": "story-request-2",
                           "schemaVersion": 1,
+                          "nextProgress": 100,
                           "completed": true,
                           "lines": [
-                            {"content": "친구를 만나 집으로 돌아왔어요.", "hasChoices": false}
+                            {"content": "친구를 만나 집으로 돌아왔어요.", "requiresBranchInput": false}
                           ]
                         }
                         """, MediaType.APPLICATION_JSON));
@@ -196,6 +264,221 @@ class HttpAiClientTest {
 
         assertThat(response.completed()).isTrue();
         assertThat(response.lines().getFirst().content()).isEqualTo("친구를 만나 집으로 돌아왔어요.");
+        server.verify();
+    }
+
+    @Test
+    void sendsMultipartSpeechAndReturnsTranscription() throws Exception {
+        server.expect(requestTo("http://localhost:8081/api/v1/speech/transcribe"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Idempotency-Key", "speech-request-1"))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.MULTIPART_FORM_DATA))
+                .andRespond(withSuccess("""
+                        {
+                          "requestId": "speech-request-1",
+                          "transcript": "책을 읽어요",
+                          "confidence": 0.95,
+                          "durationMs": 1200
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var response = aiClient.transcribeSpeech(
+                "speech-request-1",
+                20L,
+                "책을 읽어요",
+                new MockMultipartFile(
+                        "audioFile", "reading.webm", "audio/webm", new byte[]{1, 2, 3}
+                )
+        );
+
+        assertThat(response.transcript()).isEqualTo("책을 읽어요");
+        assertThat(response.confidence()).isEqualTo(0.95);
+        try (var files = Files.list(tempDir.resolve("audio"))) {
+            assertThat(files.toList()).isEmpty();
+        }
+        server.verify();
+    }
+
+    @Test
+    void sendsSentenceAudioAndReturnsWordPronunciationScores() {
+        server.expect(requestTo(
+                        "http://localhost:8081/api/v1/speech/pronunciation/analyze"
+                ))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Idempotency-Key", "pronunciation-request-1"))
+                .andExpect(content().contentTypeCompatibleWith(
+                        MediaType.MULTIPART_FORM_DATA
+                ))
+                .andRespond(withSuccess("""
+                        {
+                          "requestId": "pronunciation-request-1",
+                          "pronunciationAccuracyScore": 88.0,
+                          "fluencyScore": 81.0,
+                          "completenessScore": 100.0,
+                          "pronScore": 86.0,
+                          "confidence": 0.95,
+                          "analysisVersion": "AZURE_SPEECH_V1",
+                          "words": [
+                            {
+                              "resultIndex": 0,
+                              "word": "아기는",
+                              "accuracyScore": 91.0,
+                              "errorType": "None",
+                              "offsetMs": 100,
+                              "durationMs": 500
+                            },
+                            {
+                              "resultIndex": 1,
+                              "word": "사과를",
+                              "accuracyScore": 85.0,
+                              "errorType": "None",
+                              "offsetMs": 650,
+                              "durationMs": 600
+                            }
+                          ]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var response = aiClient.analyzePronunciation(
+                new PronunciationAnalysisRequest(
+                        "pronunciation-request-1",
+                        "아기는 사과를",
+                        "sentence.wav",
+                        "audio/wav",
+                        new byte[]{1, 2, 3}
+                )
+        );
+
+        assertThat(response.words()).hasSize(2);
+        assertThat(response.words().get(1).word()).isEqualTo("사과를");
+        assertThat(response.words().get(1).accuracyScore()).isEqualTo(85.0);
+        server.verify();
+    }
+
+    @Test
+    void 잘못된_JSON_응답은_통신_예외로_변환하고_재시도하지_않는다() throws Exception {
+        server.expect(once(), requestTo("http://localhost:8081/api/v1/trainings/generate"))
+                .andRespond(withSuccess("{invalid-json", MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> aiClient.generateTraining(request("malformed-response")))
+                .isInstanceOf(AiClientException.class)
+                .hasMessage("AI 서버와 통신하는 데 실패했습니다.");
+
+        server.verify();
+    }
+
+    @Test
+    void 음성_인식이_실패해도_임시_파일을_삭제하고_재시도하지_않는다() throws Exception {
+        server.expect(once(), requestTo("http://localhost:8081/api/v1/speech/transcribe"))
+                .andRespond(withStatus(HttpStatus.SERVICE_UNAVAILABLE));
+
+        assertThatThrownBy(() -> aiClient.transcribeSpeech(
+                "speech-failure",
+                20L,
+                "책을 읽어요",
+                new MockMultipartFile(
+                        "audioFile", "reading.webm", "audio/webm", new byte[]{1, 2, 3}
+                )
+        ))
+                .isInstanceOf(AiClientException.class)
+                .hasMessage("AI 서버가 음성 인식 오류를 반환했습니다.");
+
+        try (var files = Files.list(tempDir.resolve("audio"))) {
+            assertThat(files.toList()).isEmpty();
+        }
+        server.verify();
+    }
+
+    @Test
+    void sendsTtsRequestAndReturnsAudioWithDurationHeader() {
+        byte[] audio = new byte[]{'I', 'D', '3'};
+        server.expect(requestTo("http://localhost:8081/api/v1/speech/synthesize"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Idempotency-Key", "tts-request-1"))
+                .andExpect(content().json("""
+                        {"requestId":"tts-request-1","text":"책을 읽어요","voice":null}
+                        """))
+                .andRespond(withSuccess()
+                        .body(audio)
+                        .contentType(MediaType.parseMediaType("audio/mpeg"))
+                        .header("X-Request-Id", "tts-request-1")
+                        .header("X-Audio-Duration-Ms", "1500"));
+
+        var response = aiClient.synthesizeSpeech(
+                new SpeechSynthesisRequest("tts-request-1", "책을 읽어요", null)
+        );
+
+        assertThat(response.audio()).isEqualTo(audio);
+        assertThat(response.durationMs()).isEqualTo(1500);
+        server.verify();
+    }
+
+    @Test
+    void sendsTrainingResultAndReturnsAccuracy() throws Exception {
+        EvaluateTrainingRequest request = new EvaluateTrainingRequest(
+                "training-evaluation-10",
+                10L,
+                20L,
+                30L,
+                1,
+                objectMapper.readTree("""
+                        {"questions":[{"questionId":"q1","selectedAnswer":"apple"}]}
+                        """)
+        );
+        server.expect(once(), requestTo("http://localhost:8081/api/v1/trainings/evaluate"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Idempotency-Key", "training-evaluation-10"))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(content().json("""
+                        {
+                          "requestId": "training-evaluation-10",
+                          "trainingId": 10,
+                          "studentId": 20,
+                          "trainingTemplateId": 30,
+                          "schemaVersion": 1,
+                          "result": {
+                            "questions": [
+                              {"questionId": "q1", "selectedAnswer": "apple"}
+                            ]
+                          }
+                        }
+                        """))
+                .andRespond(withSuccess("""
+                        {
+                          "requestId": "training-evaluation-10",
+                          "schemaVersion": 1,
+                          "accuracy": 87.25
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var response = aiClient.evaluateTraining(request);
+
+        assertThat(response.accuracy()).isEqualByComparingTo("87.25");
+        server.verify();
+    }
+
+    @Test
+    void rejectsAccuracyOutsideZeroToOneHundred() throws Exception {
+        EvaluateTrainingRequest request = new EvaluateTrainingRequest(
+                "training-evaluation-10",
+                10L,
+                20L,
+                30L,
+                1,
+                objectMapper.readTree("{}")
+        );
+        server.expect(requestTo("http://localhost:8081/api/v1/trainings/evaluate"))
+                .andRespond(withSuccess("""
+                        {
+                          "requestId": "training-evaluation-10",
+                          "schemaVersion": 1,
+                          "accuracy": 100.01
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> aiClient.evaluateTraining(request))
+                .isInstanceOf(AiClientException.class)
+                .hasMessage("AI 훈련 평가 응답의 accuracy는 0.0 이상 100.0 이하여야 합니다.");
         server.verify();
     }
 

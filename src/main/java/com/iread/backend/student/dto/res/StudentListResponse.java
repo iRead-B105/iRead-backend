@@ -3,11 +3,16 @@ package com.iread.backend.student.dto.res;
 import java.time.LocalDate;
 
 public record StudentListResponse(
-        Long id,
+        Long studentId,
         String name,
+        String school,
         Integer age,
+        String imageUrl,
+        String recentTraining,
         LocalDate recentLearningDate,
-        Long totalLearningTime,
-        String recentTraining
+        long weeklyScheduledCount,
+        long weeklyCompletedCount,
+        Integer weeklyParticipationRate,
+        long totalLearningMinutes
 ) {
 }

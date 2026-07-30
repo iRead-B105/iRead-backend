@@ -1,12 +1,14 @@
 package com.iread.backend.story.app.dto.res;
 
-import com.iread.backend.story.domain.StoryStatus;
-
-import java.util.List;
-
 public record StoryChoiceResponse(
-        Long storyChoiceId,
-        StoryStatus status,
-        List<StoryLineResponse> generatedLines
+        Long choiceId,
+        String transcript,
+        Long nextSceneId,
+        Long nextLineId,
+        String generatedContent,
+        String imageUrl,
+        int progress,
+        String status,
+        boolean replayed
 ) {
 }

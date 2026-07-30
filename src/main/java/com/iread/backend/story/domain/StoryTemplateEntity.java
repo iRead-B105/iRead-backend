@@ -21,6 +21,9 @@ public class StoryTemplateEntity {
     @Column(nullable = false, columnDefinition = "text")
     private String content;
 
+    @Column(name = "image_url", length = 255)
+    private String imageUrl;
+
     public StoryTemplateEntity(String title, String content) {
         this.title = title;
         this.content = content;

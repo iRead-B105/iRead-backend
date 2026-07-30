@@ -6,7 +6,9 @@ import java.util.List;
 
 public record TrainingLogResponse(List<TrainingItem> trainings) {
     public record TrainingItem(Long trainingId, String trainingName, LocalDateTime startedAt,
-                               LocalDateTime finishedAt, BigDecimal accuracy, List<QuestionResult> questions) {}
-    public record QuestionResult(Integer questionNumber, Long wordId, String question, Boolean correct,
-                                 String correctAnswer, String selectedAnswer) {}
+                               LocalDateTime endedAt, List<QuestionResult> questionResults,
+                               BigDecimal accuracyRate, List<IncorrectItem> incorrectItems) {}
+    public record QuestionResult(Integer questionNumber, Boolean isCorrect) {}
+    public record IncorrectItem(Integer questionNumber, String question,
+                                String correctAnswer, String selectedAnswer) {}
 }

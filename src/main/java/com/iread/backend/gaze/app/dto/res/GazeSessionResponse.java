@@ -15,7 +15,7 @@ public record GazeSessionResponse(
         GazeContentType contentType,
 
         @Schema(description = "수집 상태", example = "RUNNING")
-        GazeSessionStatus status,
+        GazeSessionStatus collectionStatus,
 
         @Schema(description = "시선 보정 상태", example = "SUCCESS")
         GazeCalibrationStatus calibrationStatus,

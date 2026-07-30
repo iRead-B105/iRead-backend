@@ -2,29 +2,45 @@ package com.iread.backend.report.admin.controller;
 
 import com.iread.backend.auth.annotation.CurrentTeacherId;
 import com.iread.backend.report.admin.dto.req.CreateReportRequest;
+import com.iread.backend.report.admin.dto.req.UpdateReportMemoRequest;
 import com.iread.backend.report.admin.dto.res.CreateReportResponse;
-import com.iread.backend.report.admin.dto.res.CreateReportShareResponse;
-import com.iread.backend.report.admin.dto.res.ReportFeedbackResponse;
+import com.iread.backend.report.admin.dto.res.RefreshReportGazeTrendResponse;
+import com.iread.backend.report.admin.dto.res.ReportListResponse;
 import com.iread.backend.report.admin.dto.res.ReportResponse;
-import com.iread.backend.report.admin.dto.res.ReportShareResponse;
+import com.iread.backend.report.admin.dto.res.UpdateReportMemoResponse;
 import com.iread.backend.report.admin.service.ReportService;
-import com.iread.backend.report.service.ReportShareService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 import java.util.List;
 
-@Tag(name = "리포트 관리", description = "리포트 생성, 공유 및 피드백 관리 API")
+@Tag(name = "리포트 관리", description = "리포트 생성 및 조회 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/admin/report")
 public class ReportController {
     private final ReportService reportService;
-    private final ReportShareService reportShareService;
+
+    @Operation(summary = "리포트 목록 조회")
+    @GetMapping
+    public List<ReportListResponse> getReports(
+            @CurrentTeacherId Long teacherId,
+            @RequestParam(required = false) Long studentId
+    ) {
+        return reportService.getReports(teacherId, studentId);
+    }
 
     @Operation(summary = "리포트 상세 조회")
     @GetMapping("/{reportId}")
@@ -34,39 +50,31 @@ public class ReportController {
 
     @Operation(summary = "리포트 생성")
     @PostMapping
-    public CreateReportResponse createReport(@CurrentTeacherId Long teacherId,
-                                               @Valid @RequestBody CreateReportRequest request) {
+    @ResponseStatus(HttpStatus.CREATED)
+    public CreateReportResponse createReport(
+            @CurrentTeacherId Long teacherId,
+            @Valid @RequestBody CreateReportRequest request
+    ) {
         return reportService.createReport(teacherId, request);
     }
 
-    @Operation(summary = "리포트 외부 공유 링크 생성")
-    @PostMapping("/{reportId}/shares")
-    public CreateReportShareResponse createShare(@CurrentTeacherId Long teacherId, @PathVariable Long reportId) {
-        return reportShareService.createShare(teacherId, reportId);
-    }
-
-    @Operation(summary = "리포트 공유 이력 조회")
-    @GetMapping("/{reportId}/shares")
-    public List<ReportShareResponse> getShares(@CurrentTeacherId Long teacherId, @PathVariable Long reportId) {
-        return reportShareService.getShares(teacherId, reportId);
-    }
-
-    @Operation(summary = "외부 공유 리포트 피드백 목록 조회")
-    @GetMapping("/feedbacks")
-    public List<ReportFeedbackResponse> getFeedbacks(
+    @Operation(summary = "리포트 메모 수정")
+    @PatchMapping("/{reportId}/teacher-memo")
+    public UpdateReportMemoResponse updateReportMemo(
             @CurrentTeacherId Long teacherId,
-            @RequestParam(defaultValue = "false") boolean unreadOnly
+            @PathVariable Long reportId,
+            @Valid @RequestBody UpdateReportMemoRequest request
     ) {
-        return reportShareService.getFeedbacks(teacherId, unreadOnly);
+        return reportService.updateReportMemo(teacherId, reportId, request.teacherMemo());
     }
 
-    @Operation(summary = "리포트 피드백 읽음 처리")
-    @PatchMapping("/feedbacks/{feedbackId}/read")
-    public ResponseEntity<Void> markFeedbackRead(
+    @Operation(summary = "보고서 기간의 시선 분석 추이 갱신")
+    @PostMapping("/{reportId}/gaze-analysis")
+    public RefreshReportGazeTrendResponse refreshGazeTrend(
             @CurrentTeacherId Long teacherId,
-            @PathVariable Long feedbackId
+            @PathVariable Long reportId
     ) {
-        reportShareService.markFeedbackRead(teacherId, feedbackId);
-        return ResponseEntity.ok().build();
+        return reportService.refreshGazeTrend(teacherId, reportId);
     }
+
 }

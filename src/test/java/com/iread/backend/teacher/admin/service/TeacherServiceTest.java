@@ -1,8 +1,8 @@
 package com.iread.backend.teacher.admin.service;
 
-import com.iread.backend.global.domain.ImageEntity;
 import com.iread.backend.teacher.domain.Gender;
 import com.iread.backend.teacher.domain.TeacherEntity;
+import com.iread.backend.teacher.admin.dto.req.UpdateTeacherProfileRequest;
 import com.iread.backend.teacher.repository.TeacherRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,36 +23,49 @@ class TeacherServiceTest {
     @InjectMocks TeacherService teacherService;
 
     @Test
-    void 교사_정보와_프로필_이미지_URL을_반환한다() {
-        ImageEntity image = ImageEntity.builder()
-                .originalFileName("profile.png").storeFileName("stored.png")
-                .fileSize(10L).url("/uploads/images/profile.png").build();
-        TeacherEntity teacher = teacher(1L, image);
+    void returnsProfileImageUrl() {
+        TeacherEntity teacher = teacher(1L, "/uploads/images/profile.png");
         when(teacherRepository.findById(1L)).thenReturn(Optional.of(teacher));
 
         var result = teacherService.getTeacherInfo(1L);
 
         assertThat(result.email()).isEqualTo("teacher@test.com");
-        assertThat(result.gender()).isEqualTo(Gender.Female);
+        assertThat(result.gender()).isEqualTo(Gender.FEMALE);
         assertThat(result.profileImageUrl()).isEqualTo("/uploads/images/profile.png");
     }
 
     @Test
-    void 프로필_이미지가_없으면_URL은_null이다() {
+    void returnsNullWithoutProfileImage() {
         when(teacherRepository.findById(1L)).thenReturn(Optional.of(teacher(1L, null)));
         assertThat(teacherService.getTeacherInfo(1L).profileImageUrl()).isNull();
     }
 
     @Test
-    void 존재하지_않는_교사는_조회할_수_없다() {
+    void updatesProfileWithoutChangingLoginEmail() {
+        TeacherEntity teacher = teacher(1L, null);
+        when(teacherRepository.findById(1L)).thenReturn(Optional.of(teacher));
+
+        var result = teacherService.updateProfile(
+                1L,
+                new UpdateTeacherProfileRequest(" 새 이름 ", " 새 기관 ", Gender.MALE)
+        );
+
+        assertThat(result.email()).isEqualTo("teacher@test.com");
+        assertThat(result.name()).isEqualTo("새 이름");
+        assertThat(result.organization()).isEqualTo("새 기관");
+        assertThat(result.gender()).isEqualTo(Gender.MALE);
+    }
+
+    @Test
+    void rejectsUnknownTeacher() {
         when(teacherRepository.findById(1L)).thenReturn(Optional.empty());
         assertThatThrownBy(() -> teacherService.getTeacherInfo(1L))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    private TeacherEntity teacher(Long id, ImageEntity image) {
+    private TeacherEntity teacher(Long id, String imageUrl) {
         TeacherEntity teacher = new TeacherEntity(
-                "teacher@test.com", "password", "교사", "한글학교", Gender.Female, image
+                "teacher@test.com", "password", "교사", "한국대학교", Gender.FEMALE, imageUrl
         );
         ReflectionTestUtils.setField(teacher, "id", id);
         return teacher;
