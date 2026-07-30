@@ -84,6 +84,46 @@ class MySqlDemoSeedIntegrationTest {
                 Integer.class
         )).isZero();
         assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM trainings
+                 WHERE daily_curriculum_id = 190001
+                """,
+                Integer.class
+        )).isEqualTo(34);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(DISTINCT training_template_id)
+                  FROM trainings
+                 WHERE daily_curriculum_id = 190001
+                """,
+                Integer.class
+        )).isEqualTo(34);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM training_datas data
+                  JOIN trainings training ON training.id = data.train_id
+                 WHERE training.daily_curriculum_id = 190001
+                   AND JSON_LENGTH(
+                         JSON_EXTRACT(data.generated_data, '$.questions')
+                       ) = 1
+                """,
+                Integer.class
+        )).isEqualTo(34);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM trainings
+                 WHERE daily_curriculum_id = 190001
+                   AND (
+                         (sequence_no = 1 AND status = 'NOT_STARTED')
+                         OR (sequence_no > 1 AND status = 'NOT_READY')
+                       )
+                """,
+                Integer.class
+        )).isEqualTo(34);
+        assertThat(jdbcTemplate.queryForObject(
                 "SELECT training_template_id FROM trainings WHERE id = 4001",
                 Long.class
         )).isEqualTo(29L);
