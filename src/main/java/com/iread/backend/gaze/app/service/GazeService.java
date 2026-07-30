@@ -1,5 +1,7 @@
 package com.iread.backend.gaze.app.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.exception.ConflictException;
 import com.iread.backend.gaze.app.dto.req.EndGazeSessionRequest;
@@ -11,6 +13,7 @@ import com.iread.backend.gaze.analysis.GazeWordMetricMergeService;
 import com.iread.backend.gaze.domain.*;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
+import com.iread.backend.gaze.repository.WordAttemptLogRepository;
 import com.iread.backend.story.domain.StoryEntity;
 import com.iread.backend.story.repository.StoryRepository;
 import com.iread.backend.student.domain.StudentEntity;
@@ -27,11 +30,13 @@ import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class GazeService {
+    private final ObjectMapper objectMapper;
     private final StudentRepository studentRepository;
     private final StudentTestRepository testRepository;
     private final TrainingRepository trainingRepository;
@@ -143,12 +148,16 @@ public class GazeService {
         GazeAnalysisResultEntity result = gazeAnalysisResultRepository.saveAndFlush(
                 new GazeAnalysisResultEntity(
                         gazeSession,
-                        request.totalVisitedDuration(),
-                        request.totalVisitedCount(),
-                        request.reverseReadCount(),
-                        request.avgVisitedDuration()
+                        resolveTotalVisitedDuration(request),
+                        resolveTotalVisitedCount(request),
+                        resolveReverseReadCount(request),
+                        resolveAvgVisitedDuration(request),
+                        toJson(request.sentenceMetrics()),
+                        toJson(request.regressions()),
+                        toJson(request.analysisMeta())
                 )
         );
+        saveWordAttempts(result, request);
 
         return new GazeAnalysisResultResponse(result.getId(), result.getCreatedAt());
     }
@@ -245,7 +254,10 @@ public class GazeService {
                 result.getTotalVisitedDuration(),
                 result.getTotalVisitedCount(),
                 result.getReverseReadCount(),
-                result.getAvgVisitedDuration()
+                result.getAvgVisitedDuration(),
+                result.getSentenceMetrics(),
+                result.getRegressions(),
+                result.getAnalysisMeta()
         );
     }
 
