@@ -23,7 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
         "/db/demo/V3__fix_demo_student_gender.sql",
         "/db/demo/V4__complete_demo_training_questions.sql",
         "/db/demo/V5__add_second_demo_student.sql",
-        "/db/demo/V6__expand_demo_daily_curriculums.sql"
+        "/db/demo/V6__expand_demo_daily_curriculums.sql",
+        "/db/demo/V7__add_teacher_demo_data.sql"
 })
 class DemoSeedIntegrationTest {
 
