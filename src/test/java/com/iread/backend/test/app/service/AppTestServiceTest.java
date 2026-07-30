@@ -46,6 +46,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -194,7 +195,7 @@ class AppTestServiceTest {
     }
 
     @Test
-    void rejectsSecondSubmissionForSameTestQuestion() {
+    void returnsExistingProgressForSecondSubmissionToSameTestQuestion() {
         StudentEntity student = mock(StudentEntity.class);
         StudentTestEntity test = mock(StudentTestEntity.class);
         TestDataEntity data = mock(TestDataEntity.class);
@@ -237,7 +238,7 @@ class AppTestServiceTest {
                 new AppLearningQuestionSupport(mapper)
         );
 
-        assertThatThrownBy(() -> service.saveSelection(
+        var progress = service.saveSelection(
                 1L,
                 20L,
                 1,
@@ -249,9 +250,16 @@ class AppTestServiceTest {
                                 mapper.createObjectNode().put("selectedIndex", 0)
                         )
                 )
-        ))
-                .isInstanceOf(com.iread.backend.exception.ConflictException.class)
-                .hasMessageContaining("최초 제출");
+        );
+
+        assertThat(progress.submissionId())
+                .isEqualTo(UUID.fromString("00000000-0000-0000-0000-000000000001"));
+        assertThat(progress.accepted()).isTrue();
+        assertThat(progress.questionNumber()).isEqualTo(1);
+        assertThat(progress.completedQuestions()).isEqualTo(1);
+        assertThat(progress.nextQuestionNumber()).isNull();
+        assertThat(progress.testCompleted()).isTrue();
+        verify(test, never()).updateResult(any(String.class));
     }
 
     @Test
