@@ -14,7 +14,8 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.datasource.url=jdbc:h2:mem:iread-demo-test;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE",
         "spring.flyway.enabled=false",
         "spring.jpa.hibernate.ddl-auto=create-drop",
-        "iread.training-template-seed.enabled=false"
+        "iread.training-template-seed.enabled=false",
+        "iread.teacher-demo-seed.enabled=false"
 })
 @ActiveProfiles("demo")
 @Sql({

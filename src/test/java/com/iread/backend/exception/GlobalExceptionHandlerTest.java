@@ -25,6 +25,19 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void preservesDomainSpecificMissingResourceCode() {
+        var response = handler.handleNotFound(
+                new ResourceNotFoundException(
+                        "NEXT_CURRICULUM_NOT_FOUND",
+                        "수정 가능한 커리큘럼을 찾을 수 없습니다."
+                )
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody().error().code()).isEqualTo("NEXT_CURRICULUM_NOT_FOUND");
+    }
+
+    @Test
     void mapsStateConflictToConflictInsteadOfUnauthorized() {
         var response = handler.handleConflict(
                 new ConflictException("이미 시작한 훈련입니다.")

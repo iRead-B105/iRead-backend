@@ -128,11 +128,7 @@ public class TrainingService {
     public DailyCurriculumResponse getDailyCurriculum(Long teacherId, Long studentId, Long curriculumId) {
         validateStudentOwner(teacherId, studentId);
         DailyCurriculumEntity curriculum = findCurriculum(studentId, curriculumId);
-        return new DailyCurriculumResponse(curriculum.getId(), curriculum.getTrainings().stream()
-                .map(t -> new DailyCurriculumResponse.TrainingItem(
-                        t.getId(), t.getTrainingTemplate().getId(),
-                        t.getTrainingTemplate().getCurriculumUnit().getUnitName(),
-                        t.getTrainingTemplate().getName())).toList());
+        return toDailyCurriculumResponse(curriculum);
     }
 
     public DailyCurriculumResponse getCurrentDailyCurriculum(Long teacherId, Long studentId) {
@@ -140,6 +136,7 @@ public class TrainingService {
         DailyCurriculumEntity curriculum = dailyCurriculumRepository
                 .findByStudentIdAndStatus(studentId, DailyCurriculumStatus.NOT_STARTED)
                 .orElseThrow(() -> new ResourceNotFoundException(
+                        "NEXT_CURRICULUM_NOT_FOUND",
                         "수정 가능한 커리큘럼을 찾을 수 없습니다."
                 ));
         return getDailyCurriculum(teacherId, studentId, curriculum.getId());
@@ -537,14 +534,20 @@ public class TrainingService {
     }
 
     private DailyCurriculumResponse toDailyCurriculumResponse(DailyCurriculumEntity curriculum) {
-        return new DailyCurriculumResponse(curriculum.getId(), curriculum.getTrainings().stream()
+        return new DailyCurriculumResponse(
+                curriculum.getId(),
+                curriculum.getStatus().name(),
+                curriculum.getTrainings().stream()
                 .map(training -> new DailyCurriculumResponse.TrainingItem(
                         training.getId(),
                         training.getTrainingTemplate().getId(),
+                        training.getSequenceNo(),
                         training.getTrainingTemplate().getCurriculumUnit().getUnitName(),
-                        training.getTrainingTemplate().getName()
+                        training.getTrainingTemplate().getName(),
+                        training.getStatus().name()
                 ))
-                .toList());
+                .toList()
+        );
     }
 
     private BigDecimal averageAccuracy(DailyCurriculumEntity curriculum) {

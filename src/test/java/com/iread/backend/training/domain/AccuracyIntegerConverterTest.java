@@ -10,9 +10,9 @@ class AccuracyIntegerConverterTest {
     private final AccuracyIntegerConverter converter = new AccuracyIntegerConverter();
 
     @Test
-    void storesTrainingAccuracyAsRoundedInteger() {
-        assertThat(converter.convertToDatabaseColumn(new BigDecimal("85.50"))).isEqualTo(86);
-        assertThat(converter.convertToEntityAttribute(860)).isEqualByComparingTo("860");
+    void convertsApiPercentageToDatabaseThousandPointScale() {
+        assertThat(converter.convertToDatabaseColumn(new BigDecimal("85.55"))).isEqualTo(856);
+        assertThat(converter.convertToEntityAttribute(856)).isEqualByComparingTo("85.6");
     }
 
     @Test

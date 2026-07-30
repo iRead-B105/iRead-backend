@@ -4,6 +4,7 @@ import com.iread.backend.ai.client.AiClient;
 import com.iread.backend.ai.dto.req.EvaluateTrainingRequest;
 import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
 import com.iread.backend.gaze.analysis.GazeWordAnalysisAdapter;
+import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
@@ -164,6 +165,20 @@ class TrainingServiceTest {
         assertThat(incorrectItem.correctAnswer()).isEqualTo("사과");
         assertThat(incorrectItem.selectedAnswer()).isEqualTo("사가");
     }
+
+    @Test
+    void currentCurriculumUsesDomainSpecificNotFoundCode() {
+        allowStudent();
+        when(dailyCurriculumRepository.findByStudentIdAndStatus(
+                10L,
+                DailyCurriculumStatus.NOT_STARTED
+        )).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> trainingService.getCurrentDailyCurriculum(1L, 10L))
+                .isInstanceOfSatisfying(ResourceNotFoundException.class, exception ->
+                        assertThat(exception.code()).isEqualTo("NEXT_CURRICULUM_NOT_FOUND"));
+    }
+
 
     @Test
     void 진행중인_훈련이_있으면_차회_커리큘럼을_수정할_수_없다() {

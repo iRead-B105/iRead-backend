@@ -86,6 +86,7 @@ class AdminContractMappingTest {
                 route(RequestMethod.GET, "/api/admin/student/{studentId}/accuracy-trend"),
                 route(RequestMethod.GET, "/api/admin/student/{studentId}/learning-events"),
                 route(RequestMethod.GET, "/api/admin/student/{studentId}/learning-summary"),
+                route(RequestMethod.GET, "/api/admin/student/{studentId}/reading-speed-trend"),
                 route(RequestMethod.GET, "/api/admin/student/{studentId}/training-history"),
 
                 route(RequestMethod.GET, "/api/admin/teacher/info"),
@@ -98,6 +99,7 @@ class AdminContractMappingTest {
 
                 route(RequestMethod.GET, "/api/admin/training/{studentId}"),
                 route(RequestMethod.GET, "/api/admin/training/{studentId}/curriculum-log"),
+                route(RequestMethod.GET, "/api/admin/training/{studentId}/current"),
                 route(RequestMethod.GET, "/api/admin/training/{studentId}/{curriculumId}"),
                 route(RequestMethod.PATCH, "/api/admin/training/{studentId}/{curriculumId}"),
                 route(RequestMethod.GET, "/api/admin/training/{studentId}/{curriculumId}/statistics"),
