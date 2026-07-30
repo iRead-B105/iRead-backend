@@ -1,6 +1,7 @@
 package com.iread.backend.training.generation;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
@@ -10,6 +11,11 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(
+        name = "ai.mock-generate",
+        havingValue = "true",
+        matchIfMissing = true
+)
 public class DeterministicTrainingCandidateProvider implements TrainingCandidateProvider {
 
     private static final List<String> WORDS = List.of("사과", "나무", "바다", "토끼", "모자");

@@ -18,9 +18,11 @@ import static org.assertj.core.api.Assertions.assertThat;
         "iread.teacher-demo-seed.enabled=false"
 })
 @ActiveProfiles("demo")
+@Sql(statements = "ALTER TABLE characters RENAME TO `character`")
 @Sql({
         "/db/demo/V2__demo_seed.sql",
-        "/db/demo/V3__remove_preseeded_saetbyeol_story.sql"
+        "/db/demo/V3__remove_preseeded_saetbyeol_story.sql",
+        "/sql/rename-character-to-characters.sql"
 })
 class DemoSeedIntegrationTest {
 
@@ -43,7 +45,7 @@ class DemoSeedIntegrationTest {
         assertThat(count("stories", 6001L)).isZero();
         assertThat(countByColumn("story_scenes", "scene_id", 6101L)).isZero();
         assertThat(count("story_lines", 6201L)).isZero();
-        assertThat(count("`character`", 6301L)).isZero();
+        assertThat(count("characters", 6301L)).isZero();
         assertThat(count("trainings", 4001L)).isEqualTo(1);
         assertThat(count("tests", 5101L)).isEqualTo(1);
         assertThat(trainingCount(2001L)).isEqualTo(10);
@@ -79,7 +81,7 @@ class DemoSeedIntegrationTest {
                 Integer.class
         )).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM character WHERE student_id = 2002",
+                "SELECT COUNT(*) FROM characters WHERE student_id = 2002",
                 Integer.class
         )).isEqualTo(1);
         assertThat(count("tests", 5102L)).isEqualTo(1);

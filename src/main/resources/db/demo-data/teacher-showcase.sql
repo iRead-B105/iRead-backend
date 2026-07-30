@@ -252,7 +252,7 @@ VALUES
     (6831, 6822, '별빛이 비치는 왼쪽 길로 간다.', '2026-07-29 15:03:00'),
     (6834, 6823, '문을 조심스럽게 두드린다.', '2026-07-29 15:05:00');
 
-INSERT INTO `character` (id, student_id, story_id, image_url, created_at, name)
+INSERT INTO `characters` (id, student_id, story_id, image_url, created_at, name)
 VALUES (6841, 2103, 6801, NULL, '2026-07-29 15:01:00', '지도 요정 루미');
 
 INSERT INTO gaze_sessions
