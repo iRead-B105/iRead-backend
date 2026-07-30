@@ -293,26 +293,17 @@ class MySqlDemoSeedIntegrationTest {
 
     @Test
     @Transactional
-    void replacesNotReadyCurriculumWithoutSequenceConflict() {
+    void replacesNotStartedCurriculumWithoutSequenceConflict() {
         Long curriculumId = jdbcTemplate.queryForObject(
                 """
                 SELECT id
                   FROM daily_curriculums
-                 WHERE student_id = 2102
+                 WHERE student_id = 2002
                    AND status = 'NOT_STARTED'
                  ORDER BY created_at DESC, id DESC
                  LIMIT 1
                 """,
                 Long.class
-        );
-        jdbcTemplate.update(
-                "DELETE FROM training_datas WHERE train_id IN "
-                        + "(SELECT id FROM trainings WHERE daily_curriculum_id = ?)",
-                curriculumId
-        );
-        jdbcTemplate.update(
-                "UPDATE trainings SET status = 'NOT_READY' WHERE daily_curriculum_id = ?",
-                curriculumId
         );
         java.util.List<Long> templateIds = jdbcTemplate.queryForList(
                 """
@@ -326,7 +317,7 @@ class MySqlDemoSeedIntegrationTest {
 
         trainingService.updateDailyCurriculum(
                 1001L,
-                2102L,
+                2002L,
                 curriculumId,
                 new UpdateCurriculumRequest(templateIds)
         );

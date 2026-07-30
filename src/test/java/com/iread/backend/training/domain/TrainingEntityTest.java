@@ -12,7 +12,7 @@ import static org.mockito.Mockito.mock;
 class TrainingEntityTest {
 
     @Test
-    void generatedTrainingIsLockedBeforeLearnerStarts() {
+    void teacherCanEditTrainingUntilLearnerStarts() {
         DailyCurriculumEntity curriculum = new DailyCurriculumEntity(
                 mock(StudentEntity.class),
                 List.of(mock(TrainingTemplateEntity.class))
@@ -24,10 +24,15 @@ class TrainingEntityTest {
         training.markReady();
 
         assertThat(training.getStatus()).isEqualTo(TrainingStatus.NOT_STARTED);
-        assertThat(training.isEditable()).isFalse();
+        assertThat(training.isEditable()).isTrue();
 
         training.start(LocalDateTime.of(2026, 7, 30, 13, 0));
 
+        assertThat(training.isEditable()).isFalse();
+
+        training.complete("{}", java.math.BigDecimal.ONE, LocalDateTime.of(2026, 7, 30, 13, 10));
+
+        assertThat(training.getStatus()).isEqualTo(TrainingStatus.COMPLETED);
         assertThat(training.isEditable()).isFalse();
     }
 

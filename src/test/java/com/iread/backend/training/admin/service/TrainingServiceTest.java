@@ -193,7 +193,7 @@ class TrainingServiceTest {
         assertThatThrownBy(() -> trainingService.updateDailyCurriculum(
                 1L, 10L, 100L, new UpdateCurriculumRequest(List.of(11L))))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessage("훈련 자료 생성이 완료된 커리큘럼은 수정할 수 없습니다.");
+                .hasMessage("진행 중이거나 완료된 커리큘럼은 수정할 수 없습니다.");
         verify(trainingTemplateRepository, never()).findAllById(any());
     }
 
@@ -228,19 +228,32 @@ class TrainingServiceTest {
     }
 
     @Test
-    void 생성_완료된_훈련이_있으면_학습_시작_전에도_수정할_수_없다() {
+    void 생성_완료된_훈련도_학습_시작_전이면_수정할_수_있다() {
         DailyCurriculumEntity curriculum = curriculum(100L);
         TrainingEntity training = training(1L, curriculum, template(11L, "생성 완료 훈련"), null);
         ReflectionTestUtils.setField(training, "status", TrainingStatus.NOT_STARTED);
         curriculum.getTrainings().add(training);
+        TrainingTemplateEntity replacement = template(12L, "교체 훈련");
         allowStudent();
         when(dailyCurriculumRepository.findForUpdate(100L, 10L)).thenReturn(Optional.of(curriculum));
+        when(trainingTemplateRepository.findAllById(List.of(12L)))
+                .thenReturn(List.of(replacement));
 
-        assertThatThrownBy(() -> trainingService.updateDailyCurriculum(
-                1L, 10L, 100L, new UpdateCurriculumRequest(List.of(11L))))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("훈련 자료 생성이 완료된 커리큘럼은 수정할 수 없습니다.");
-        verify(trainingTemplateRepository, never()).findAllById(any());
+        trainingService.updateDailyCurriculum(
+                1L,
+                10L,
+                100L,
+                new UpdateCurriculumRequest(List.of(12L))
+        );
+
+        verify(trainingDataRepository).deleteByTrainingId(1L);
+        verify(trainingDataRepository).flush();
+        verify(dailyCurriculumRepository, times(2)).flush();
+        assertThat(curriculum.getTrainings()).hasSize(1);
+        assertThat(curriculum.getTrainings().getFirst().getTrainingTemplate())
+                .isSameAs(replacement);
+        assertThat(curriculum.getTrainings().getFirst().getStatus())
+                .isEqualTo(TrainingStatus.NOT_READY);
     }
 
     @Test
@@ -326,6 +339,24 @@ class TrainingServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("이미 추가된 예정 단어입니다.");
         verify(wordRepository, never()).save(any());
+    }
+
+    @Test
+    void 진행중인_훈련의_예정_단어는_수정할_수_없다() {
+        TrainingEntity training = ownedTraining(1L);
+        ReflectionTestUtils.setField(training, "status", TrainingStatus.IN_PROGRESS);
+        allowStudent();
+        when(trainingRepository.findByIdAndDailyCurriculumStudentId(1L, 10L))
+                .thenReturn(Optional.of(training));
+
+        assertThatThrownBy(() -> trainingService.addExpectedWord(
+                1L, 10L, 1L, new ExpectedWordRequest("사과")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("진행 중이거나 완료된 훈련은 수정할 수 없습니다.");
+        assertThatThrownBy(() -> trainingService.deleteExpectedWord(1L, 10L, 1L, 101L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("진행 중이거나 완료된 훈련은 수정할 수 없습니다.");
+        verify(trainingDataRepository, never()).findByTrainingId(any());
     }
 
     @Test

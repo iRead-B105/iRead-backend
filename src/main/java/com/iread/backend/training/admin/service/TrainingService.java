@@ -174,7 +174,7 @@ public class TrainingService {
                         "일일 커리큘럼을 찾을 수 없습니다."
                 ));
         if (curriculum.getTrainings().stream().anyMatch(training -> !training.isEditable())) {
-            throw new ConflictException("훈련 자료 생성이 완료된 커리큘럼은 수정할 수 없습니다.");
+            throw new ConflictException("진행 중이거나 완료된 커리큘럼은 수정할 수 없습니다.");
         }
         List<Long> ids = request.trainingTemplateIds();
         List<TrainingTemplateEntity> templates = resolveTemplates(ids);
@@ -245,9 +245,7 @@ public class TrainingService {
     @Transactional
     public JsonNode generateTraining(Long teacherId, Long studentId, Long trainingId) {
         TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
-        if (!training.isEditable()) {
-            throw new ConflictException("시작했거나 완료한 훈련은 다시 생성할 수 없습니다.");
-        }
+        validateEditable(training);
 
         TrainingDataEntity data = findOrCreateTrainingData(training);
         ObjectNode generatedData = personalizedTrainingGenerationService.generate(training);
@@ -327,6 +325,7 @@ public class TrainingService {
     @Transactional
     public void addExpectedWord(Long teacherId, Long studentId, Long trainingId, ExpectedWordRequest request) {
         TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
+        validateEditable(training);
         TrainingDataEntity data = findOrCreateTrainingData(training);
         ObjectNode root = parseObject(data.getGeneratedData());
         ArrayNode words = root.withArray("expectedWords");
@@ -345,6 +344,7 @@ public class TrainingService {
     @Transactional
     public void deleteExpectedWord(Long teacherId, Long studentId, Long trainingId, Long wordId) {
         TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
+        validateEditable(training);
         TrainingDataEntity data = trainingDataRepository.findByTrainingId(trainingId)
                 .orElseThrow(() -> new ResourceNotFoundException("예정 단어를 찾을 수 없습니다."));
         ObjectNode root = parseObject(data.getGeneratedData());
@@ -364,6 +364,12 @@ public class TrainingService {
     private StudentEntity validateStudentOwner(Long teacherId, Long studentId) {
         return studentRepository.findByIdAndTeacherId(studentId, teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException("학생을 찾을 수 없습니다."));
+    }
+
+    private void validateEditable(TrainingEntity training) {
+        if (!training.isEditable()) {
+            throw new ConflictException("진행 중이거나 완료된 훈련은 수정할 수 없습니다.");
+        }
     }
 
     private void saveWordAttemptLogs(StudentEntity student, TrainingEntity training, JsonNode attempts) {
