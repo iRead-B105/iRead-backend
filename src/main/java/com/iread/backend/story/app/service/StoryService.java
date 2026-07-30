@@ -49,13 +49,18 @@ public class StoryService {
                         teacherId,
                         story.getStoryTemplate().getId(),
                         story.getCreatedAt(),
-                        story.getStatus()
+                        story.getStatus(),
+                        story.getProgress()
                 ))
                 .toList();
 
         List<StoryShelfResponse.StoryTemplateItem> templates = storyTemplateRepository.findAllByOrderByIdAsc()
                 .stream()
-                .map(template -> new StoryShelfResponse.StoryTemplateItem(template.getId(), template.getTitle()))
+                .map(template -> new StoryShelfResponse.StoryTemplateItem(
+                        template.getId(),
+                        template.getTitle(),
+                        template.getImageUrl()
+                ))
                 .toList();
 
         return new StoryShelfResponse(stories, templates);

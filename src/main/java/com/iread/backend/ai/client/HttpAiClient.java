@@ -31,6 +31,8 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Objects;
 
 @Component
@@ -163,6 +165,9 @@ public class HttpAiClient implements AiClient {
 
     @Override
     public GenerateImageResponse generateImage(GenerateImageRequest request) {
+        if (properties.mockGenerate()) {
+            return mockImage(request);
+        }
         try {
             GenerateImageResponse response = restClient.post()
                     .uri(GENERATE_IMAGE_PATH)
@@ -196,6 +201,50 @@ public class HttpAiClient implements AiClient {
         } catch (RestClientException exception) {
             throw new AiClientException("AI 서버와 이미지 생성 통신 중 실패했습니다.", exception);
         }
+    }
+
+    private GenerateImageResponse mockImage(GenerateImageRequest request) {
+        String prompt = Objects.toString(request.prompt(), "그림").strip();
+        if (prompt.length() > 42) {
+            prompt = prompt.substring(0, 42) + "…";
+        }
+        String escapedPrompt = prompt
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&apos;");
+        String svg = """
+                <svg xmlns="http://www.w3.org/2000/svg" width="960" height="540"
+                     viewBox="0 0 960 540">
+                  <defs>
+                    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" stop-color="#dff4ff"/>
+                      <stop offset="1" stop-color="#fff8dc"/>
+                    </linearGradient>
+                  </defs>
+                  <rect width="960" height="540" rx="32" fill="url(#sky)"/>
+                  <circle cx="790" cy="105" r="58" fill="#ffd86b"/>
+                  <path d="M0 390 Q180 300 360 390 T720 390 T1080 390 V540 H0Z"
+                        fill="#9ed98f"/>
+                  <rect x="120" y="145" width="720" height="230" rx="28"
+                        fill="#ffffff" fill-opacity=".9"/>
+                  <text x="480" y="245" text-anchor="middle"
+                        font-family="sans-serif" font-size="38" font-weight="700"
+                        fill="#31506b">그림과 문장을 연결해요</text>
+                  <text x="480" y="305" text-anchor="middle"
+                        font-family="sans-serif" font-size="25"
+                        fill="#526b7f">%s</text>
+                </svg>
+                """.formatted(escapedPrompt);
+        String encoded = Base64.getEncoder().encodeToString(
+                svg.getBytes(StandardCharsets.UTF_8)
+        );
+        return new GenerateImageResponse(
+                request.requestId(),
+                "data:image/svg+xml;base64," + encoded,
+                "BACKEND_MOCK_IMAGE_V1"
+        );
     }
 
     @Override
