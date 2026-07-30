@@ -26,6 +26,7 @@ class AppStudentContractJsonTest {
                 new CharacterResponse(
                         10L,
                         20L,
+                        "별빛 숲의 친구",
                         "/characters/book-fairy.png",
                         "책 요정",
                         LocalDateTime.of(2026, 7, 27, 12, 0)
@@ -37,6 +38,7 @@ class AppStudentContractJsonTest {
 
         assertThat(character.get("characterId").asLong()).isEqualTo(10L);
         assertThat(character.get("storyId").asLong()).isEqualTo(20L);
+        assertThat(character.get("storyTitle").asText()).isEqualTo("별빛 숲의 친구");
         assertThat(character.get("imageUrl").asText()).isEqualTo("/characters/book-fairy.png");
         assertThat(character.get("name").asText()).isEqualTo("책 요정");
         assertThat(character.get("createdAt").asText()).startsWith("2026-07-27T12:00");

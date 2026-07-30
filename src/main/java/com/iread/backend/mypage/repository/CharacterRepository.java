@@ -7,6 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface CharacterRepository extends JpaRepository<CharacterEntity, Long> {
-    @EntityGraph(attributePaths = "story")
+    @EntityGraph(attributePaths = {"story", "story.storyTemplate"})
     List<CharacterEntity> findAllByStudentIdOrderByCreatedAtDesc(Long studentId);
 }

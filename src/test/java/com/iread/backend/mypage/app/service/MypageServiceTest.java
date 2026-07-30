@@ -6,6 +6,7 @@ import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.story.domain.StoryEntity;
+import com.iread.backend.story.domain.StoryTemplateEntity;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -32,11 +33,14 @@ class MypageServiceTest {
         StudentEntity student = mock(StudentEntity.class);
         CharacterEntity character = mock(CharacterEntity.class);
         StoryEntity story = mock(StoryEntity.class);
+        StoryTemplateEntity storyTemplate = mock(StoryTemplateEntity.class);
         LocalDateTime createdAt = LocalDateTime.of(2026, 7, 27, 12, 0);
         when(student.getId()).thenReturn(10L);
         when(character.getId()).thenReturn(30L);
         when(character.getStory()).thenReturn(story);
         when(story.getId()).thenReturn(40L);
+        when(story.getStoryTemplate()).thenReturn(storyTemplate);
+        when(storyTemplate.getTitle()).thenReturn("별빛 숲의 친구");
         when(character.getImageUrl()).thenReturn("/uploads/images/character.png");
         when(character.getName()).thenReturn("책 요정");
         when(character.getCreatedAt()).thenReturn(createdAt);
@@ -50,6 +54,7 @@ class MypageServiceTest {
         assertThat(result.getFirst().imageUrl()).isEqualTo("/uploads/images/character.png");
         assertThat(result.getFirst().characterId()).isEqualTo(30L);
         assertThat(result.getFirst().storyId()).isEqualTo(40L);
+        assertThat(result.getFirst().storyTitle()).isEqualTo("별빛 숲의 친구");
         assertThat(result.getFirst().name()).isEqualTo("책 요정");
         assertThat(result.getFirst().createdAt()).isEqualTo(createdAt);
     }

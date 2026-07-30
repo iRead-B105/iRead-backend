@@ -8,6 +8,8 @@ import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.exception.ConflictException;
+import com.iread.backend.mypage.domain.CharacterEntity;
+import com.iread.backend.mypage.repository.CharacterRepository;
 import com.iread.backend.story.app.dto.req.StoryTtsRequest;
 import com.iread.backend.story.app.dto.res.*;
 import com.iread.backend.story.domain.*;
@@ -28,6 +30,9 @@ import java.util.*;
 public class StoryService {
 
     private static final int STORY_SCHEMA_VERSION = 1;
+    private static final String STORY_CHARACTER_PROMPT_PREFIX = "[STORY_CHARACTER] ";
+    private static final int MAX_IMAGE_PROMPT_LENGTH = 1_000;
+    private static final int MAX_CHARACTER_NAME_LENGTH = 50;
 
     private final StudentRepository studentRepository;
     private final StoryTemplateRepository storyTemplateRepository;
@@ -35,6 +40,7 @@ public class StoryService {
     private final StorySceneRepository storySceneRepository;
     private final StoryLineRepository storyLineRepository;
     private final StoryChoiceRepository storyChoiceRepository;
+    private final CharacterRepository characterRepository;
     private final AiClient aiClient;
     private final StoryAudioStorage storyAudioStorage;
 
@@ -114,6 +120,9 @@ public class StoryService {
 
         appendGeneratedLines(story, null, generated);
         updateProgress(story, generated);
+        if (generated.completed()) {
+            createStoryCharacter(story, List.of(), generated);
+        }
 
         return new StorySessionResponse(
                 story.getId(), teacherId, template.getId(), story.getCreatedAt(), story.getStatus()
@@ -170,6 +179,9 @@ public class StoryService {
 
         GeneratedSegment segment = appendGeneratedLines(story, selectedLine, generated);
         updateProgress(story, generated);
+        if (generated.completed()) {
+            createStoryCharacter(story, historyLines, generated);
+        }
         StoryChoiceEntity choice = storyChoiceRepository.saveAndFlush(
                 new StoryChoiceEntity(selectedLine, transcript)
         );
@@ -308,6 +320,40 @@ public class StoryService {
             throw new AiClientException("AI 서버 응답의 완료 상태와 진행률이 일치하지 않습니다.");
         }
         story.updateProgress(response.nextProgress());
+    }
+
+    private void createStoryCharacter(StoryEntity story, List<StoryLineEntity> historyLines,
+                                      GenerateStoryResponse generated) {
+        StoryTemplateEntity template = story.getStoryTemplate();
+        String characterName = truncate(template.getTitle() + " 주인공", MAX_CHARACTER_NAME_LENGTH);
+        String storyText = java.util.stream.Stream.concat(
+                        historyLines.stream().map(StoryLineEntity::getContent),
+                        generated.lines().stream().map(GeneratedStoryLine::content)
+                )
+                .collect(java.util.stream.Collectors.joining(" "));
+        String prompt = truncate(
+                STORY_CHARACTER_PROMPT_PREFIX
+                        + "완성된 어린이 이야기 '" + template.getTitle()
+                        + "'의 친근한 주인공 단독 초상화. 이야기 내용: " + storyText,
+                MAX_IMAGE_PROMPT_LENGTH
+        );
+        String imageUrl = aiClient.generateImage(new GenerateImageRequest(
+                UUID.randomUUID().toString(),
+                prompt
+        )).imageUrl();
+        if (imageUrl == null || imageUrl.isBlank()) {
+            throw new AiClientException("AI 서버가 이야기 주인공 이미지를 반환하지 않았습니다.");
+        }
+        characterRepository.saveAndFlush(new CharacterEntity(
+                story.getStudent(),
+                story,
+                imageUrl,
+                characterName
+        ));
+    }
+
+    private String truncate(String value, int maxLength) {
+        return value.length() <= maxLength ? value : value.substring(0, maxLength);
     }
 
     private StoryTemplateData toTemplateData(StoryTemplateEntity template) {

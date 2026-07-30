@@ -170,6 +170,31 @@ class HttpAiClientTest {
     }
 
     @Test
+    void 이야기_주인공_요청이면_이야기_친구용_목_이미지를_반환한다() {
+        HttpAiClient mockClient = client(
+                RestClient.builder().baseUrl("http://localhost:8081").build(),
+                true
+        );
+
+        var response = mockClient.generateImage(new GenerateImageRequest(
+                "story-character-image",
+                "[STORY_CHARACTER] 별빛 숲의 친구 주인공"
+        ));
+
+        assertThat(response.provider()).isEqualTo("BACKEND_MOCK_STORY_CHARACTER_V1");
+        String svg = new String(
+                Base64.getDecoder().decode(response.imageUrl().substring(
+                        "data:image/svg+xml;base64,".length()
+                )),
+                StandardCharsets.UTF_8
+        );
+        assertThat(svg)
+                .contains("별빛 숲의 친구 주인공")
+                .contains("#f3aa59");
+        server.verify();
+    }
+
+    @Test
     void AI_서버의_오류_상태를_클라이언트_예외로_변환한다() throws Exception {
         server.expect(requestTo("http://localhost:8081/api/v1/trainings/generate"))
                 .andRespond(withStatus(HttpStatus.INTERNAL_SERVER_ERROR)

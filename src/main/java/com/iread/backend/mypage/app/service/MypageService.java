@@ -26,6 +26,7 @@ public class MypageService {
                 .map(character -> new CharacterResponse(
                         character.getId(),
                         character.getStory().getId(),
+                        character.getStory().getStoryTemplate().getTitle(),
                         character.getImageUrl(),
                         character.getName(),
                         character.getCreatedAt()

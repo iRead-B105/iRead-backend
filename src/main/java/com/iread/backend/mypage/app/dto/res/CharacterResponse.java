@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 public record CharacterResponse(
         Long characterId,
         Long storyId,
+        String storyTitle,
         String imageUrl,
         String name,
         LocalDateTime createdAt

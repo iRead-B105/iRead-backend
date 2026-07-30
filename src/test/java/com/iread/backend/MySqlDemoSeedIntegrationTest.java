@@ -46,7 +46,10 @@ class MySqlDemoSeedIntegrationTest {
 
         assertThat(passwordEncoder.matches("demo1234", passwordHash)).isTrue();
         assertThat(count("students", 2001L)).isEqualTo(1);
-        assertThat(count("stories", 6001L)).isEqualTo(1);
+        assertThat(count("stories", 6001L)).isZero();
+        assertThat(countByColumn("story_scenes", "scene_id", 6101L)).isZero();
+        assertThat(count("story_lines", 6201L)).isZero();
+        assertThat(count("`character`", 6301L)).isZero();
         assertThat(count("trainings", 4001L)).isEqualTo(1);
         assertThat(count("tests", 5101L)).isEqualTo(1);
         assertThat(count("students", 2101L)).isEqualTo(1);
@@ -351,6 +354,14 @@ class MySqlDemoSeedIntegrationTest {
     private Integer count(String table, Long id) {
         return jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM " + table + " WHERE id = ?",
+                Integer.class,
+                id
+        );
+    }
+
+    private Integer countByColumn(String table, String column, Long id) {
+        return jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + table + " WHERE " + column + " = ?",
                 Integer.class,
                 id
         );

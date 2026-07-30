@@ -18,7 +18,10 @@ import static org.assertj.core.api.Assertions.assertThat;
         "iread.teacher-demo-seed.enabled=false"
 })
 @ActiveProfiles("demo")
-@Sql("/db/demo/V2__demo_seed.sql")
+@Sql({
+        "/db/demo/V2__demo_seed.sql",
+        "/db/demo/V3__remove_preseeded_saetbyeol_story.sql"
+})
 class DemoSeedIntegrationTest {
 
     @Autowired JdbcTemplate jdbcTemplate;
@@ -37,7 +40,10 @@ class DemoSeedIntegrationTest {
                 String.class
         )).isEqualTo("Girl");
         assertThat(count("students", 2001L)).isEqualTo(1);
-        assertThat(count("stories", 6001L)).isEqualTo(1);
+        assertThat(count("stories", 6001L)).isZero();
+        assertThat(countByColumn("story_scenes", "scene_id", 6101L)).isZero();
+        assertThat(count("story_lines", 6201L)).isZero();
+        assertThat(count("`character`", 6301L)).isZero();
         assertThat(count("trainings", 4001L)).isEqualTo(1);
         assertThat(count("tests", 5101L)).isEqualTo(1);
         assertThat(trainingCount(2001L)).isEqualTo(10);
@@ -82,6 +88,14 @@ class DemoSeedIntegrationTest {
     private Integer count(String table, Long id) {
         return jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM " + table + " WHERE id = ?",
+                Integer.class,
+                id
+        );
+    }
+
+    private Integer countByColumn(String table, String column, Long id) {
+        return jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM " + table + " WHERE " + column + " = ?",
                 Integer.class,
                 id
         );
