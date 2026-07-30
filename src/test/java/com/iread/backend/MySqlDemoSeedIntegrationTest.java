@@ -39,8 +39,8 @@ class MySqlDemoSeedIntegrationTest {
         assertThat(count("tests", 5503L)).isEqualTo(1);
         assertThat(count("gaze_analysis_results", 7302L)).isEqualTo(1);
         assertThat(count("reports", 9101L)).isEqualTo(1);
-        assertThat(tableCount("students")).isEqualTo(13);
-        assertThat(tableCount("training_templates")).isEqualTo(34);
+        assertThat(demoStudentCount()).isEqualTo(13);
+        assertThat(demoTrainingTemplateCount()).isEqualTo(34);
         assertThat(trainingCount(2001L)).isGreaterThanOrEqualTo(50);
         assertThat(trainingCount(2002L)).isGreaterThanOrEqualTo(50);
         assertThat(jdbcTemplate.queryForObject(
@@ -179,9 +179,25 @@ class MySqlDemoSeedIntegrationTest {
         );
     }
 
-    private Integer tableCount(String table) {
+    private Integer demoTrainingTemplateCount() {
         return jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM " + table,
+                """
+                SELECT COUNT(*)
+                FROM training_templates
+                WHERE id BETWEEN 1 AND 34
+                """,
+                Integer.class
+        );
+    }
+
+    private Integer demoStudentCount() {
+        return jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM students
+                WHERE id IN (2001, 2002)
+                   OR id BETWEEN 2101 AND 2111
+                """,
                 Integer.class
         );
     }

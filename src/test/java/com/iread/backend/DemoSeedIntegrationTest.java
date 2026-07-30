@@ -18,13 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "iread.teacher-demo-seed.enabled=false"
 })
 @ActiveProfiles("demo")
-@Sql({
-        "/db/demo/V2__demo_seed.sql",
-        "/db/demo/V3__fix_demo_student_gender.sql",
-        "/db/demo/V4__complete_demo_training_questions.sql",
-        "/db/demo/V5__add_second_demo_student.sql",
-        "/db/demo/V6__expand_demo_daily_curriculums.sql"
-})
+@Sql("/db/demo/V2__demo_seed.sql")
 class DemoSeedIntegrationTest {
 
     @Autowired JdbcTemplate jdbcTemplate;
