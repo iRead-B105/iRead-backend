@@ -39,10 +39,50 @@ class MySqlDemoSeedIntegrationTest {
         assertThat(count("tests", 5503L)).isEqualTo(1);
         assertThat(count("gaze_analysis_results", 7302L)).isEqualTo(1);
         assertThat(count("reports", 9101L)).isEqualTo(1);
-        assertThat(tableCount("students")).isEqualTo(12);
         assertThat(tableCount("training_templates")).isEqualTo(34);
-        assertThat(trainingCount(2001L)).isEqualTo(5);
-        assertThat(trainingCount(2002L)).isEqualTo(5);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM students WHERE teacher_id = 1001",
+                Integer.class
+        )).isEqualTo(3);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT GROUP_CONCAT(id ORDER BY id)
+                  FROM students
+                 WHERE teacher_id = 1001
+                """,
+                String.class
+        )).isEqualTo("2001,2002,2103");
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM trainings
+                 WHERE daily_curriculum_id BETWEEN 180001 AND 180003
+                """,
+                Integer.class
+        )).isEqualTo(15);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM trainings training
+                  JOIN training_datas data ON data.train_id = training.id
+                 WHERE training.daily_curriculum_id BETWEEN 180001 AND 180003
+                """,
+                Integer.class
+        )).isEqualTo(15);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM trainings training
+                  JOIN training_templates template
+                    ON template.id = training.training_template_id
+                 WHERE training.daily_curriculum_id BETWEEN 180001 AND 180003
+                   AND JSON_CONTAINS(
+                         JSON_EXTRACT(template.prompt, '$.requiredInputs'),
+                         JSON_QUOTE('VOICE')
+                       )
+                """,
+                Integer.class
+        )).isZero();
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT training_template_id FROM trainings WHERE id = 4001",
                 Long.class
@@ -107,17 +147,4 @@ class MySqlDemoSeedIntegrationTest {
         );
     }
 
-    private Integer trainingCount(Long studentId) {
-        return jdbcTemplate.queryForObject(
-                """
-                SELECT COUNT(*)
-                  FROM trainings training
-                  JOIN daily_curriculums curriculum
-                    ON curriculum.id = training.daily_curriculum_id
-                 WHERE curriculum.student_id = ?
-                """,
-                Integer.class,
-                studentId
-        );
-    }
 }
