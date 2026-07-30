@@ -12,39 +12,39 @@ import java.util.List;
 public record GazeAnalysisResultRequest(
 
         @NotNull
-        @Schema(description = "Student ID", example = "1")
+        @Schema(description = "학생 ID", example = "1")
         Long studentId,
 
         @PositiveOrZero
-        @Schema(description = "Total gaze dwell duration in milliseconds", example = "65000")
+        @Schema(description = "총 시선 체류 시간(ms)", example = "65000")
         Integer totalVisitedDuration,
 
         @PositiveOrZero
-        @Schema(description = "Total gaze fixation count", example = "23")
+        @Schema(description = "총 시선 체류 횟수", example = "23")
         Integer totalVisitedCount,
 
         @PositiveOrZero
-        @Schema(description = "Regression count", example = "4")
+        @Schema(description = "역행 횟수", example = "4")
         Integer reverseReadCount,
 
         @PositiveOrZero
-        @Schema(description = "Average fixation duration in milliseconds", example = "2826")
+        @Schema(description = "평균 응시 시간(ms)", example = "2826")
         Integer avgVisitedDuration,
 
         @Valid
-        @Schema(description = "Sentence or story-line level gaze metrics")
+        @Schema(description = "문장 또는 스토리 라인 단위 시선 분석 결과")
         List<SentenceMetric> sentenceMetrics,
 
         @Valid
-        @Schema(description = "Word level gaze analysis results")
+        @Schema(description = "단어 단위 시선 분석 결과")
         List<WordAttempt> wordAttempts,
 
         @Valid
-        @Schema(description = "Regression events")
+        @Schema(description = "역행 이벤트 목록")
         List<Regression> regressions,
 
         @Valid
-        @Schema(description = "Analysis metadata")
+        @Schema(description = "분석 메타데이터")
         AnalysisMeta analysisMeta
 ) {
     public record SentenceMetric(
