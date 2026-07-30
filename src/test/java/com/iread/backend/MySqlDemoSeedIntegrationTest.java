@@ -1,5 +1,7 @@
 package com.iread.backend;
 
+import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
+import com.iread.backend.training.admin.service.TrainingService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -7,6 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -20,6 +23,9 @@ class MySqlDemoSeedIntegrationTest {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private TrainingService trainingService;
 
     @Test
     void appliesDemoSeedToMySqlAndKeepsDemoLoginUsable() {
@@ -169,6 +175,62 @@ class MySqlDemoSeedIntegrationTest {
                 """,
                 java.math.BigDecimal.class
         )).isLessThanOrEqualTo(new java.math.BigDecimal("1000"));
+    }
+
+    @Test
+    @Transactional
+    void replacesNotReadyCurriculumWithoutSequenceConflict() {
+        Long curriculumId = jdbcTemplate.queryForObject(
+                """
+                SELECT id
+                  FROM daily_curriculums
+                 WHERE student_id = 2102
+                   AND status = 'NOT_STARTED'
+                 ORDER BY created_at DESC, id DESC
+                 LIMIT 1
+                """,
+                Long.class
+        );
+        jdbcTemplate.update(
+                "DELETE FROM training_datas WHERE train_id IN "
+                        + "(SELECT id FROM trainings WHERE daily_curriculum_id = ?)",
+                curriculumId
+        );
+        jdbcTemplate.update(
+                "UPDATE trainings SET status = 'NOT_READY' WHERE daily_curriculum_id = ?",
+                curriculumId
+        );
+        java.util.List<Long> templateIds = jdbcTemplate.queryForList(
+                """
+                SELECT id
+                  FROM training_templates
+                 ORDER BY id
+                 LIMIT 5
+                """,
+                Long.class
+        );
+
+        trainingService.updateDailyCurriculum(
+                1001L,
+                2102L,
+                curriculumId,
+                new UpdateCurriculumRequest(templateIds)
+        );
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM trainings WHERE daily_curriculum_id = ?",
+                Integer.class,
+                curriculumId
+        )).isEqualTo(5);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(DISTINCT sequence_no)
+                  FROM trainings
+                 WHERE daily_curriculum_id = ?
+                """,
+                Integer.class,
+                curriculumId
+        )).isEqualTo(5);
     }
 
     private Integer count(String table, Long id) {

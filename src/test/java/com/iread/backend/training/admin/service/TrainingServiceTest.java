@@ -40,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -192,7 +193,53 @@ class TrainingServiceTest {
         assertThatThrownBy(() -> trainingService.updateDailyCurriculum(
                 1L, 10L, 100L, new UpdateCurriculumRequest(List.of(11L))))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessage("시작했거나 완료된 커리큘럼은 수정할 수 없습니다.");
+                .hasMessage("훈련 자료 생성이 완료된 커리큘럼은 수정할 수 없습니다.");
+        verify(trainingTemplateRepository, never()).findAllById(any());
+    }
+
+    @Test
+    void 생성_전_커리큘럼은_순번_충돌_없이_수정할_수_있다() {
+        DailyCurriculumEntity curriculum = curriculum(100L);
+        TrainingEntity training = training(1L, curriculum, template(11L, "기존 훈련"), null);
+        ReflectionTestUtils.setField(training, "status", TrainingStatus.NOT_READY);
+        curriculum.getTrainings().add(training);
+        TrainingTemplateEntity replacement = template(12L, "교체 훈련");
+        allowStudent();
+        when(dailyCurriculumRepository.findForUpdate(100L, 10L))
+                .thenReturn(Optional.of(curriculum));
+        when(trainingTemplateRepository.findAllById(List.of(12L)))
+                .thenReturn(List.of(replacement));
+
+        trainingService.updateDailyCurriculum(
+                1L,
+                10L,
+                100L,
+                new UpdateCurriculumRequest(List.of(12L))
+        );
+
+        verify(trainingDataRepository).deleteByTrainingId(1L);
+        verify(trainingDataRepository).flush();
+        verify(dailyCurriculumRepository, times(2)).flush();
+        assertThat(curriculum.getTrainings()).hasSize(1);
+        assertThat(curriculum.getTrainings().getFirst().getTrainingTemplate())
+                .isSameAs(replacement);
+        assertThat(curriculum.getTrainings().getFirst().getStatus())
+                .isEqualTo(TrainingStatus.NOT_READY);
+    }
+
+    @Test
+    void 생성_완료된_훈련이_있으면_학습_시작_전에도_수정할_수_없다() {
+        DailyCurriculumEntity curriculum = curriculum(100L);
+        TrainingEntity training = training(1L, curriculum, template(11L, "생성 완료 훈련"), null);
+        ReflectionTestUtils.setField(training, "status", TrainingStatus.NOT_STARTED);
+        curriculum.getTrainings().add(training);
+        allowStudent();
+        when(dailyCurriculumRepository.findForUpdate(100L, 10L)).thenReturn(Optional.of(curriculum));
+
+        assertThatThrownBy(() -> trainingService.updateDailyCurriculum(
+                1L, 10L, 100L, new UpdateCurriculumRequest(List.of(11L))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("훈련 자료 생성이 완료된 커리큘럼은 수정할 수 없습니다.");
         verify(trainingTemplateRepository, never()).findAllById(any());
     }
 

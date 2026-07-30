@@ -12,6 +12,26 @@ import static org.mockito.Mockito.mock;
 class TrainingEntityTest {
 
     @Test
+    void generatedTrainingIsLockedBeforeLearnerStarts() {
+        DailyCurriculumEntity curriculum = new DailyCurriculumEntity(
+                mock(StudentEntity.class),
+                List.of(mock(TrainingTemplateEntity.class))
+        );
+        TrainingEntity training = curriculum.getTrainings().getFirst();
+
+        assertThat(training.isEditable()).isTrue();
+
+        training.markReady();
+
+        assertThat(training.getStatus()).isEqualTo(TrainingStatus.NOT_STARTED);
+        assertThat(training.isEditable()).isFalse();
+
+        training.start(LocalDateTime.of(2026, 7, 30, 13, 0));
+
+        assertThat(training.isEditable()).isFalse();
+    }
+
+    @Test
     void startingTrainingMarksCurriculumInProgress() {
         DailyCurriculumEntity curriculum = new DailyCurriculumEntity(
                 mock(StudentEntity.class),

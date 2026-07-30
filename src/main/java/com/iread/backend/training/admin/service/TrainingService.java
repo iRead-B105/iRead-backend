@@ -174,14 +174,17 @@ public class TrainingService {
                         "일일 커리큘럼을 찾을 수 없습니다."
                 ));
         if (curriculum.getTrainings().stream().anyMatch(training -> !training.isEditable())) {
-            throw new ConflictException("시작했거나 완료된 커리큘럼은 수정할 수 없습니다.");
+            throw new ConflictException("훈련 자료 생성이 완료된 커리큘럼은 수정할 수 없습니다.");
         }
         List<Long> ids = request.trainingTemplateIds();
         List<TrainingTemplateEntity> templates = resolveTemplates(ids);
 
         curriculum.getTrainings().forEach(t -> trainingDataRepository.deleteByTrainingId(t.getId()));
         trainingDataRepository.flush();
+        curriculum.getTrainings().clear();
+        dailyCurriculumRepository.flush();
         curriculum.replaceTrainings(templates);
+        dailyCurriculumRepository.flush();
     }
 
     public List<ExpectedWordResponse> getExpectedWords(Long teacherId, Long studentId, Long trainingId) {
