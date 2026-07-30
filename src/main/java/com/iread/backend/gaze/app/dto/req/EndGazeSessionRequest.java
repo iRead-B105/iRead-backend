@@ -16,7 +16,7 @@ public record EndGazeSessionRequest(
         @Schema(description = "종료 상태. COMPLETED 또는 FAILED만 사용할 수 있습니다.", example = "COMPLETED")
         GazeSessionStatus endStatus,
 
-        @Schema(description = "초당 5~10프레임으로 수집한 원시 시선 데이터")
+        @Schema(description = "원시 시선 샘플 또는 구조화된 결과. 훈련·검사는 data.words[] 단어 지표가 필수입니다.")
         JsonNode data
 ) {
 }

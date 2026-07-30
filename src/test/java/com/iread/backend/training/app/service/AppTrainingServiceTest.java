@@ -22,6 +22,7 @@ import com.iread.backend.training.domain.WordEntity;
 import com.iread.backend.training.repository.TrainingDataRepository;
 import com.iread.backend.training.repository.TrainingRepository;
 import com.iread.backend.training.repository.WordRepository;
+import com.iread.backend.training.input.TrainingInputType;
 import com.iread.backend.training.input.TrainingInputRequirementService;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
@@ -43,6 +44,7 @@ import tools.jackson.databind.json.JsonMapper;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -227,7 +229,7 @@ class AppTrainingServiceTest {
     }
 
     @Test
-    void revealsCorrectResponseAfterThirdIncorrectAttempt() {
+    void revealsCorrectResponseAfterSecondIncorrectAttempt() {
         StudentEntity student = mock(StudentEntity.class);
         TrainingEntity training = mock(TrainingEntity.class);
         TrainingDataEntity data = mock(TrainingDataEntity.class);
@@ -237,8 +239,7 @@ class AppTrainingServiceTest {
         when(training.getResult()).thenReturn("""
                 {
                   "submissions":[
-                    {"submissionId":"00000000-0000-0000-0000-000000000001","questionNo":1},
-                    {"submissionId":"00000000-0000-0000-0000-000000000002","questionNo":1}
+                    {"submissionId":"00000000-0000-0000-0000-000000000001","questionNo":1}
                   ]
                 }
                 """);
@@ -281,15 +282,87 @@ class AppTrainingServiceTest {
                 )
         );
 
-        assertThat(result.attemptNo()).isEqualTo(3);
-        assertThat(result.questionCompleted()).isTrue();
-        assertThat(result.canRetry()).isFalse();
+        assertThat(result.attemptNo()).isEqualTo(2);
+        assertThat(result.questionCompleted()).isFalse();
+        assertThat(result.canRetry()).isTrue();
         assertThat(result.correctResponse().path("response").path("selectedIndex").asInt())
                 .isZero();
     }
 
     @Test
-    void studentQuestionDoesNotExposeAnswerProfileOrInternalValidation() throws Exception {
+    void completesCorrectionAfterTwoIncorrectAttemptsButKeepsIncorrectScore() {
+        StudentEntity student = mock(StudentEntity.class);
+        TrainingEntity training = mock(TrainingEntity.class);
+        TrainingDataEntity data = mock(TrainingDataEntity.class);
+        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        when(trainingRepository.findForUpdate(30L, 20L)).thenReturn(Optional.of(training));
+        when(training.getStatus()).thenReturn(TrainingStatus.IN_PROGRESS);
+        when(training.getResult()).thenReturn("""
+                {
+                  "questions":[{
+                    "questionNo":1,
+                    "isCorrect":false,
+                    "totalScore":0
+                  }],
+                  "submissions":[
+                    {"submissionId":"00000000-0000-0000-0000-000000000001","questionNo":1},
+                    {"submissionId":"00000000-0000-0000-0000-000000000002","questionNo":1}
+                  ]
+                }
+                """);
+        when(trainingDataRepository.findByTrainingId(30L)).thenReturn(Optional.of(data));
+        when(data.getGeneratedData()).thenReturn("""
+                {
+                  "questions":[{
+                    "type":"CONSONANT_SOUND_CHOICE",
+                    "content":{"audioText":"ㄱ","choices":["ㄱ","ㄴ"]},
+                    "answer":{"answerIndex":0}
+                  }]
+                }
+                """);
+        ObjectMapper mapper = JsonMapper.builder().build();
+        AppTrainingService service = new AppTrainingService(
+                studentRepository,
+                trainingRepository,
+                trainingDataRepository,
+                wordRepository,
+                wordAttemptLogRepository,
+                pronunciationAnalysisAdapter,
+                audioUploadPolicy,
+                scoreCalculator(),
+                new PronunciationWordAligner(),
+                trainingInputRequirementService,
+                trainingService,
+                mapper,
+                new AppLearningQuestionSupport(mapper)
+        );
+
+        var result = service.saveSelection(
+                1L,
+                20L,
+                30L,
+                1,
+                new LearningSubmission(
+                        UUID.randomUUID(),
+                        LearningResponseType.SINGLE_CHOICE,
+                        mapper.createObjectNode().put("selectedIndex", 0)
+                )
+        );
+
+        assertThat(result.attemptNo()).isEqualTo(3);
+        assertThat(result.correct()).isTrue();
+        assertThat(result.questionCompleted()).isTrue();
+        assertThat(result.canRetry()).isFalse();
+        ArgumentCaptor<String> resultCaptor = ArgumentCaptor.forClass(String.class);
+        verify(training).recordProgressResult(resultCaptor.capture());
+        assertThat(resultCaptor.getValue())
+                .contains("\"isCorrect\":false")
+                .contains("\"totalScore\":0")
+                .contains("\"correctionConfirmed\":true");
+    }
+
+    @Test
+    void studentQuestionExposesAnswerButNotProfileOrInternalValidation() throws Exception {
         StudentEntity student = mock(StudentEntity.class);
         TrainingEntity training = mock(TrainingEntity.class);
         TrainingDataEntity data = mock(TrainingDataEntity.class);
@@ -342,7 +415,8 @@ class AppTrainingServiceTest {
         assertThat(result.question().path("requiredInputs"))
                 .extracting(JsonNode::asText)
                 .containsExactly("VOICE", "GAZE");
-        assertThat(result.question().has("answer")).isFalse();
+        assertThat(result.question().path("answer").path("expectedText").asText())
+                .isEqualTo("아기는 사과를 먹는다.");
         assertThat(result.question().has("analysisTargets")).isFalse();
         assertThat(result.question().has("targetFeatureCodes")).isFalse();
     }
@@ -500,6 +574,8 @@ class AppTrainingServiceTest {
 
     @Test
     void sentenceRecordingStoresOneAttemptForEachAnalyzedWord() {
+        when(trainingInputRequirementService.inputsForQuestion(30L, 1))
+                .thenReturn(Set.of(TrainingInputType.VOICE, TrainingInputType.GAZE));
         StudentEntity student = mock(StudentEntity.class);
         TrainingEntity training = mock(TrainingEntity.class);
         TrainingDataEntity data = mock(TrainingDataEntity.class);
@@ -609,6 +685,9 @@ class AppTrainingServiceTest {
         assertThat(response.words()).extracting(
                 TrainingRecordingResponse.WordResult::pronunciationAccuracyScore
         ).containsExactly(91.0, 0.0, 74.0);
+        assertThat(response.words()).extracting(
+                TrainingRecordingResponse.WordResult::totalScore
+        ).containsExactly(null, null, null);
         assertThat(response.words().get(1).pronunciationErrorType())
                 .isEqualTo("Omission");
         assertThat(response.words().get(2).speechStartOffsetMs()).isEqualTo(950);
@@ -633,7 +712,16 @@ class AppTrainingServiceTest {
 
     private WordAttemptScoreCalculator scoreCalculator() {
         return new WordAttemptScoreCalculator(
-                new WordAttemptScoreProperties(100, 300, 700, 200, 600, 250)
+                new WordAttemptScoreProperties(
+                        100,
+                        70,
+                        200,
+                        600,
+                        100,
+                        50,
+                        30,
+                        20
+                )
         );
     }
 }

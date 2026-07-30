@@ -1,5 +1,7 @@
 package com.iread.backend.learning.app.service;
 
+import com.iread.backend.ai.client.AiClient;
+import com.iread.backend.ai.dto.res.GenerateImageResponse;
 import com.iread.backend.learning.app.dto.LearningResponseType;
 import com.iread.backend.learning.app.dto.LearningSubmission;
 import org.junit.jupiter.api.BeforeEach;
@@ -11,6 +13,9 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class AppLearningQuestionSupportTest {
 
@@ -24,7 +29,7 @@ class AppLearningQuestionSupportTest {
     }
 
     @Test
-    void mapsStudentQuestionWithoutAnswerFields() throws Exception {
+    void mapsStudentQuestionWithAnswerForFrontendHint() throws Exception {
         var question = objectMapper.readTree("""
                 {
                   "type":"CONSONANT_SOUND_CHOICE",
@@ -44,8 +49,41 @@ class AppLearningQuestionSupportTest {
                 .isEqualTo("CONSONANT_SOUND_CHOICE");
         assertThat(result.path("responseType").asText()).isEqualTo("SINGLE_CHOICE");
         assertThat(result.path("content").has("answerIndex")).isFalse();
-        assertThat(result.has("answer")).isFalse();
+        assertThat(result.path("answer").path("answerIndex").asInt()).isZero();
         assertThat(result.has("analysisTargets")).isFalse();
+    }
+
+    @Test
+    void enrichesImageUrlAndVoiceRecordingTargets() throws Exception {
+        AiClient aiClient = mock(AiClient.class);
+        when(aiClient.generateImage(any())).thenReturn(new GenerateImageResponse(
+                "training-image-request",
+                "http://localhost:8000/api/v1/images/mock/example.svg",
+                "MOCK_IMAGE_V1"
+        ));
+        support = new AppLearningQuestionSupport(objectMapper, aiClient);
+        var question = objectMapper.readTree("""
+                {
+                  "type":"IMAGE_SENTENCE_MATCH",
+                  "requiredInputs":["VOICE","GAZE"],
+                  "content":{
+                    "imagePrompt":"우산을 쓰는 아이",
+                    "choices":["비가 와요.","눈이 와요."]
+                  },
+                  "answer":{"answerIndex":0,"completedSentence":"비가 와요."},
+                  "analysisTargets":[
+                    {"text":"비가 와요."},
+                    {"text":"눈이 와요."}
+                  ]
+                }
+                """);
+
+        var result = support.toStudentQuestion(question);
+
+        assertThat(result.path("content").path("imageUrl").asText())
+                .isEqualTo("http://localhost:8000/api/v1/images/mock/example.svg");
+        assertThat(result.path("recordingTargets")).hasSize(2);
+        assertThat(result.path("recommendedRecordingTargetIndex").asInt()).isZero();
     }
 
     @Test

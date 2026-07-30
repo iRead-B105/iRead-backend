@@ -4,6 +4,7 @@ import com.iread.backend.ai.dto.req.ContinueStoryRequest;
 import com.iread.backend.ai.dto.req.EvaluateTrainingRequest;
 import com.iread.backend.ai.dto.req.GenerateStoryRequest;
 import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
+import com.iread.backend.ai.dto.req.GenerateImageRequest;
 import com.iread.backend.ai.dto.req.StoryHistoryLine;
 import com.iread.backend.ai.dto.req.StoryTemplateData;
 import com.iread.backend.ai.dto.req.SpeechSynthesisRequest;
@@ -114,6 +115,30 @@ class HttpAiClientTest {
         assertThat(response.schemaVersion()).isEqualTo(1);
         assertThat(response.generatedData().path("questions").get(0).path("question").asString())
                 .isEqualTo("사과를 읽어보세요.");
+        server.verify();
+    }
+
+    @Test
+    void 이미지_생성_요청의_상대_URL을_공개_URL로_변환한다() {
+        server.expect(once(), requestTo("http://localhost:8081/api/v1/images/generate"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Idempotency-Key", "image-request-1"))
+                .andRespond(withSuccess("""
+                        {
+                          "requestId": "image-request-1",
+                          "imageUrl": "/api/v1/images/mock/example.svg",
+                          "provider": "MOCK_IMAGE_V1"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var response = aiClient.generateImage(new GenerateImageRequest(
+                "image-request-1",
+                "우산을 쓰는 아이"
+        ));
+
+        assertThat(response.imageUrl())
+                .isEqualTo("http://localhost:8081/api/v1/images/mock/example.svg");
+        assertThat(response.provider()).isEqualTo("MOCK_IMAGE_V1");
         server.verify();
     }
 

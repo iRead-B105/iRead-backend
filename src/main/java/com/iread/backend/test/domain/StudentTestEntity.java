@@ -51,6 +51,20 @@ public class StudentTestEntity {
     @Column(name = "sequence_no", nullable = false)
     private Integer sequenceNo;
 
+    public StudentTestEntity(
+            TestCurriculumEntity testCurriculum,
+            TrainingTemplateEntity trainingTemplate,
+            Integer sequenceNo
+    ) {
+        if (sequenceNo == null || sequenceNo < 1) {
+            throw new IllegalArgumentException("검사 순서는 1 이상이어야 합니다.");
+        }
+        this.testCurriculum = testCurriculum;
+        this.trainingTemplate = trainingTemplate;
+        this.status = TestStatus.NOT_STARTED;
+        this.sequenceNo = sequenceNo;
+    }
+
     public StudentEntity getStudent() {
         return testCurriculum.getStudent();
     }

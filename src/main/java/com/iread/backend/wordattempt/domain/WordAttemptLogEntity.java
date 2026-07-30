@@ -164,25 +164,29 @@ public class WordAttemptLogEntity {
             StudentEntity student,
             WordEntity word,
             StudentTestEntity test,
+            String surfaceText,
             boolean hasAudioData,
             Integer pronunciationAccuracyScore,
             Integer speechStartOffsetMs,
             Integer speechEndOffsetMs,
+            Boolean skipped,
             Boolean correct,
             Integer totalScore,
-            Integer questionNo
+            Integer questionNo,
+            Integer targetIndex,
+            Integer tokenIndex
     ) {
         validateScore(pronunciationAccuracyScore, "단어 발음 정확도 점수");
         validateScore(totalScore, "단어 종합 점수");
-        validatePosition(questionNo, null, null);
+        validatePosition(questionNo, targetIndex, tokenIndex);
         WordAttemptLogEntity attempt = new WordAttemptLogEntity();
         attempt.student = student;
         attempt.word = word;
         attempt.test = test;
         attempt.useLocation = WordAttemptUseLocation.TEST;
-        attempt.surfaceText = word.getContent();
+        attempt.surfaceText = surfaceText;
         attempt.hasAudioData = hasAudioData;
-        attempt.skipped = false;
+        attempt.skipped = skipped;
         attempt.regressionCount = 0;
         attempt.pronunciationAccuracyScore = pronunciationAccuracyScore;
         attempt.speechStartOffsetMs = speechStartOffsetMs;
@@ -190,12 +194,34 @@ public class WordAttemptLogEntity {
         attempt.correct = correct;
         attempt.totalScore = totalScore;
         attempt.questionNo = questionNo;
+        attempt.targetIndex = targetIndex;
+        attempt.tokenIndex = tokenIndex;
         attempt.finalAttempt = true;
         return attempt;
     }
 
     public void markNotFinal() {
         this.finalAttempt = false;
+    }
+
+    public void applyGazeMetrics(
+            Integer fixationDurationMs,
+            Integer fixationCount,
+            Integer gazeStartOffsetMs,
+            Integer gazeEndOffsetMs,
+            Boolean gazeSkipped,
+            Integer regressionCount,
+            Integer totalScore
+    ) {
+        validateScore(totalScore, "단어 종합 점수");
+        this.fixationDurationMs = fixationDurationMs;
+        this.fixationCount = fixationCount;
+        this.gazeStartOffsetMs = gazeStartOffsetMs;
+        this.gazeEndOffsetMs = gazeEndOffsetMs;
+        this.skipped = Boolean.TRUE.equals(this.skipped)
+                || Boolean.TRUE.equals(gazeSkipped);
+        this.regressionCount = regressionCount;
+        this.totalScore = totalScore;
     }
 
     private static void validateScore(Integer score, String label) {

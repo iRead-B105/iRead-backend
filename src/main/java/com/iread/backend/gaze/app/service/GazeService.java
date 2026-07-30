@@ -7,6 +7,7 @@ import com.iread.backend.gaze.app.dto.req.FailGazeSessionRequest;
 import com.iread.backend.gaze.app.dto.req.GazeAnalysisResultRequest;
 import com.iread.backend.gaze.app.dto.req.StartGazeSessionRequest;
 import com.iread.backend.gaze.app.dto.res.*;
+import com.iread.backend.gaze.analysis.GazeWordMetricMergeService;
 import com.iread.backend.gaze.domain.*;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
@@ -38,6 +39,7 @@ public class GazeService {
     private final GazeSessionRepository gazeSessionRepository;
     private final GazeAnalysisResultRepository gazeAnalysisResultRepository;
     private final TrainingInputRequirementService trainingInputRequirementService;
+    private final GazeWordMetricMergeService gazeWordMetricMergeService;
     private final ObjectMapper objectMapper;
 
     public GazeDeviceStatusResponse getDeviceStatus(Long teacherId, Long studentId) {
@@ -107,11 +109,9 @@ public class GazeService {
             throw new IllegalArgumentException("종료 상태는 COMPLETED 또는 FAILED만 사용할 수 있습니다.");
         }
         if (request.endStatus() == GazeSessionStatus.COMPLETED
-                && (request.data() == null
-                || !request.data().isArray()
-                || request.data().isEmpty())) {
+                && !hasCompletedData(request.data())) {
             throw new IllegalArgumentException(
-                    "완료된 시선 세션에는 한 건 이상의 원시 시선 데이터가 필요합니다."
+                    "완료된 시선 세션에는 한 건 이상의 시선 샘플 또는 단어 지표가 필요합니다."
             );
         }
         GazeSessionEntity gazeSession = findOwnedGazeSessionForUpdate(gazeSessionId, request.studentId());
@@ -121,6 +121,9 @@ public class GazeService {
                 LocalDateTime.now(),
                 request.data() == null ? null : request.data().toString()
         );
+        if (request.endStatus() == GazeSessionStatus.COMPLETED) {
+            gazeWordMetricMergeService.merge(gazeSession, request.data());
+        }
         return toSessionResponse(gazeSession);
     }
 
@@ -219,6 +222,20 @@ public class GazeService {
         if (gazeSession.getStatus() != GazeSessionStatus.RUNNING) {
             throw new ConflictException("실행 중인 시선 세션만 종료할 수 있습니다.");
         }
+    }
+
+    private boolean hasCompletedData(tools.jackson.databind.JsonNode data) {
+        if (data == null || data.isNull()) {
+            return false;
+        }
+        if (data.isArray()) {
+            return !data.isEmpty();
+        }
+        if (!data.isObject()) {
+            return false;
+        }
+        return (data.path("samples").isArray() && !data.path("samples").isEmpty())
+                || (data.path("words").isArray() && !data.path("words").isEmpty());
     }
 
     private GazeAnalysisDetailResponse toAnalysisDetailResponse(GazeAnalysisResultEntity result) {

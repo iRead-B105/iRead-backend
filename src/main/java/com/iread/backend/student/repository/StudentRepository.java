@@ -2,10 +2,12 @@ package com.iread.backend.student.repository;
 
 import com.iread.backend.student.domain.StudentEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -15,6 +17,14 @@ import java.util.Optional;
 public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
     List<StudentEntity> findAllByTeacherIdOrderByIdAsc(Long teacherId);
     Optional<StudentEntity> findByIdAndTeacherId(Long id, Long teacherId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select student from StudentEntity student where student.id = :id and student.teacher.id = :teacherId")
+    Optional<StudentEntity> findByIdAndTeacherIdForUpdate(
+            @Param("id") Long id,
+            @Param("teacherId") Long teacherId
+    );
+
     long countByTeacherId(Long teacherId);
 
     @Query(value = """

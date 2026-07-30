@@ -34,4 +34,25 @@ public class TestCurriculumEntity {
 
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
+
+    public TestCurriculumEntity(Long id, StudentEntity student, LocalDateTime createdAt) {
+        if (id == null || id < 1) {
+            throw new IllegalArgumentException("검사 커리큘럼 ID는 1 이상이어야 합니다.");
+        }
+        this.id = id;
+        this.student = student;
+        this.status = TestStatus.NOT_STARTED.name();
+        this.createdAt = createdAt;
+    }
+
+    public void start() {
+        if (TestStatus.NOT_STARTED.name().equals(status)) {
+            this.status = TestStatus.IN_PROGRESS.name();
+        }
+    }
+
+    public void complete(LocalDateTime completedAt) {
+        this.status = TestStatus.COMPLETED.name();
+        this.completedAt = completedAt;
+    }
 }

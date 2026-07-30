@@ -9,6 +9,7 @@ import com.iread.backend.gaze.domain.GazeContentType;
 import com.iread.backend.gaze.domain.GazeSessionEntity;
 import com.iread.backend.gaze.domain.GazeSessionStatus;
 import com.iread.backend.gaze.app.dto.req.StartGazeSessionRequest;
+import com.iread.backend.gaze.analysis.GazeWordMetricMergeService;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
 import com.iread.backend.story.repository.StoryRepository;
@@ -46,6 +47,7 @@ class GazeServiceTest {
     @Mock GazeSessionRepository gazeSessionRepository;
     @Mock GazeAnalysisResultRepository gazeAnalysisResultRepository;
     @Mock TrainingInputRequirementService trainingInputRequirementService;
+    @Mock GazeWordMetricMergeService gazeWordMetricMergeService;
 
     private GazeService gazeService;
 
@@ -59,6 +61,7 @@ class GazeServiceTest {
                 gazeSessionRepository,
                 gazeAnalysisResultRepository,
                 trainingInputRequirementService,
+                gazeWordMetricMergeService,
                 new JsonMapper()
         );
     }
@@ -177,10 +180,53 @@ class GazeServiceTest {
                 30L,
                 new EndGazeSessionRequest(10L, GazeSessionStatus.COMPLETED, null)
         )).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("원시 시선 데이터");
+                .hasMessageContaining("시선 샘플 또는 단어 지표");
 
         verify(gazeSessionRepository, never())
                 .findByIdAndStudentIdForUpdate(30L, 10L);
+    }
+
+    @Test
+    void acceptsStructuredWordMetricsAndMergesThemAfterSessionEnd() {
+        StudentEntity student = mock(StudentEntity.class);
+        GazeSessionEntity session = mock(GazeSessionEntity.class);
+        var data = new JsonMapper().readTree("""
+                {
+                  "schemaVersion": 1,
+                  "words": [{
+                    "questionNo": 1,
+                    "targetIndex": 0,
+                    "tokenIndex": 0,
+                    "index": 0,
+                    "text": "학교",
+                    "dwellMs": 500,
+                    "visitCount": 1,
+                    "regressionCount": 0
+                  }]
+                }
+                """);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L))
+                .thenReturn(Optional.of(student));
+        when(gazeSessionRepository.findByIdAndStudentIdForUpdate(30L, 10L))
+                .thenReturn(Optional.of(session));
+        when(session.getStatus()).thenReturn(GazeSessionStatus.RUNNING);
+
+        gazeService.endSession(
+                1L,
+                30L,
+                new EndGazeSessionRequest(
+                        10L,
+                        GazeSessionStatus.COMPLETED,
+                        data
+                )
+        );
+
+        verify(session).end(
+                org.mockito.ArgumentMatchers.eq(GazeSessionStatus.COMPLETED),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.eq(data.toString())
+        );
+        verify(gazeWordMetricMergeService).merge(session, data);
     }
 
     @Test
