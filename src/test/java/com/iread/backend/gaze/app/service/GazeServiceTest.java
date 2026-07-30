@@ -28,6 +28,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -85,11 +86,11 @@ class GazeServiceTest {
         var response = gazeService.getTestGazeAnalysis(1L, 10L, 20L);
 
         assertThat(response.gazeSessionId()).isEqualTo(30L);
-        assertThat(response.gazeAnalysisId()).isEqualTo(40L);
+        assertThat(response.gazeAnalysisResultId()).isEqualTo(40L);
         assertThat(response.totalDwellTime()).isEqualTo(1200);
-        assertThat(response.dwellCount()).isEqualTo(8);
-        assertThat(response.regressionCount()).isEqualTo(2);
-        assertThat(response.averageFixationTime()).isEqualTo(150);
+        assertThat(response.totalVisitedCount()).isEqualTo(8);
+        assertThat(response.reverseReadCount()).isEqualTo(2);
+        assertThat(response.avgVisitedDuration()).isEqualTo(150);
     }
 
     @Test
@@ -109,8 +110,8 @@ class GazeServiceTest {
 
         var response = gazeService.getTrainingGazeAnalysis(1L, 10L, 50L);
 
-        assertThat(response.gazeAnalysisId()).isEqualTo(40L);
-        assertThat(response.regressionCount()).isEqualTo(2);
+        assertThat(response.gazeAnalysisResultId()).isEqualTo(40L);
+        assertThat(response.reverseReadCount()).isEqualTo(2);
     }
 
     @Test
@@ -239,7 +240,10 @@ class GazeServiceTest {
         when(gazeAnalysisResultRepository.existsByGazeSessionId(30L)).thenReturn(true);
 
         assertThatThrownBy(() -> gazeService.saveAnalysisResult(
-                1L, 30L, new GazeAnalysisResultRequest(10L, 1200, 8, 2, 150, null)
+                1L, 30L, new GazeAnalysisResultRequest(
+                        10L, 1200, 8, 2, 150,
+                        null, null, null, null
+                )
         ))
                 .isInstanceOf(ConflictException.class)
                 .hasMessage("시선 세션의 분석 결과가 이미 저장되어 있습니다.");
@@ -260,7 +264,10 @@ class GazeServiceTest {
                 1L, 30L,
                 new GazeAnalysisResultRequest(
                         10L, 1200, 8, 2, 150,
-                        new JsonMapper().readTree("[{\"sentenceNo\":1}]")
+                        List.of(new GazeAnalysisResultRequest.SentenceMetric(
+                                null, 1, "문장", 1000, 1, 0, 1000
+                        )),
+                        null, null, null
                 )
         ))
                 .isInstanceOf(IllegalArgumentException.class)
