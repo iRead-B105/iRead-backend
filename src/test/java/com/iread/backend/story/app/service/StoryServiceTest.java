@@ -2,10 +2,14 @@ package com.iread.backend.story.app.service;
 
 import com.iread.backend.ai.client.AiClient;
 import com.iread.backend.ai.dto.req.ContinueStoryRequest;
+import com.iread.backend.ai.dto.req.GenerateImageRequest;
+import com.iread.backend.ai.dto.res.GenerateImageResponse;
 import com.iread.backend.ai.dto.res.GenerateStoryResponse;
 import com.iread.backend.ai.dto.res.GeneratedStoryLine;
 import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
 import com.iread.backend.exception.ConflictException;
+import com.iread.backend.mypage.domain.CharacterEntity;
+import com.iread.backend.mypage.repository.CharacterRepository;
 import com.iread.backend.story.domain.*;
 import com.iread.backend.story.repository.*;
 import com.iread.backend.student.domain.StudentEntity;
@@ -40,6 +44,7 @@ class StoryServiceTest {
     @Mock StorySceneRepository storySceneRepository;
     @Mock StoryLineRepository storyLineRepository;
     @Mock StoryChoiceRepository storyChoiceRepository;
+    @Mock CharacterRepository characterRepository;
     @Mock AiClient aiClient;
     @Mock StoryAudioStorage storyAudioStorage;
     @InjectMocks StoryService storyService;
@@ -94,6 +99,9 @@ class StoryServiceTest {
                 false,
                 List.of(
                         new GeneratedStoryLine("숲에 도착했어요.", false),
+                        new GeneratedStoryLine("반짝이는 길을 걸었어요.", false),
+                        new GeneratedStoryLine("작은 친구를 만났어요.", false),
+                        new GeneratedStoryLine("숨겨진 표지판을 찾았어요.", false),
                         new GeneratedStoryLine("어디로 갈까요?", true)
                 )
         ));
@@ -107,10 +115,16 @@ class StoryServiceTest {
         ArgumentCaptor<List<StoryLineEntity>> linesCaptor = listCaptor();
         verify(storyLineRepository).saveAllAndFlush(linesCaptor.capture());
         List<StoryLineEntity> lines = linesCaptor.getValue();
-        assertThat(lines).extracting(StoryLineEntity::getSequenceNo).containsExactly(1, 2);
+        assertThat(lines).extracting(StoryLineEntity::getSequenceNo).containsExactly(1, 2, 3, 4, 5);
         assertThat(lines).extracting(StoryLineEntity::getContent)
-                .containsExactly("숲에 도착했어요.", "어디로 갈까요?");
-        assertThat(lines.get(1).getPreviousStoryLine()).isSameAs(lines.getFirst());
+                .containsExactly(
+                        "숲에 도착했어요.",
+                        "반짝이는 길을 걸었어요.",
+                        "작은 친구를 만났어요.",
+                        "숨겨진 표지판을 찾았어요.",
+                        "어디로 갈까요?"
+                );
+        assertThat(lines.get(4).getPreviousStoryLine()).isSameAs(lines.get(3));
         assertThat(lines.getLast().isRequiresBranchInput()).isTrue();
     }
 
@@ -159,7 +173,13 @@ class StoryServiceTest {
                 1,
                 100,
                 true,
-                List.of(new GeneratedStoryLine("모두와 인사하고 집으로 돌아왔어요.", false))
+                List.of(
+                        new GeneratedStoryLine("선택한 길로 걸었어요.", false),
+                        new GeneratedStoryLine("친구가 앞장섰어요.", false),
+                        new GeneratedStoryLine("빛나는 단서를 찾았어요.", false),
+                        new GeneratedStoryLine("잃어버린 보물을 발견했어요.", false),
+                        new GeneratedStoryLine("모두와 인사하고 집으로 돌아왔어요.", false)
+                )
         ));
         when(aiClient.transcribeSpeech(anyString(), eq(20L), isNull(), any()))
                 .thenReturn(new SpeechTranscriptionResponse(
@@ -168,6 +188,14 @@ class StoryServiceTest {
                         1.0,
                         1_000
                 ));
+        when(aiClient.generateImage(any())).thenAnswer(invocation -> {
+            GenerateImageRequest request = invocation.getArgument(0);
+            return new GenerateImageResponse(
+                    request.requestId(),
+                    "data:image/svg+xml;base64,bW9jaw==",
+                    "BACKEND_MOCK_STORY_CHARACTER_V1"
+            );
+        });
         mockSceneSave(201L);
         mockLineSave(1002L);
         when(storyChoiceRepository.saveAndFlush(any())).thenAnswer(invocation -> {
@@ -185,6 +213,10 @@ class StoryServiceTest {
         assertThat(response.transcript()).isEqualTo("이야기를 끝내고 집으로 간다");
         assertThat(response.nextSceneId()).isEqualTo(201L);
         assertThat(response.nextLineId()).isEqualTo(1002L);
+        assertThat(response.generatedContent()).contains(
+                "선택한 길로 걸었어요.",
+                "모두와 인사하고 집으로 돌아왔어요."
+        );
         assertThat(response.status()).isEqualTo("completed");
         assertThat(response.replayed()).isFalse();
 
@@ -192,6 +224,21 @@ class StoryServiceTest {
         verify(aiClient).continueStory(requestCaptor.capture());
         assertThat(requestCaptor.getValue().branchIntent()).isEqualTo("이야기를 끝내고 집으로 간다");
         assertThat(requestCaptor.getValue().currentStoryLineId()).isEqualTo(1001L);
+
+        ArgumentCaptor<GenerateImageRequest> imageRequestCaptor =
+                ArgumentCaptor.forClass(GenerateImageRequest.class);
+        verify(aiClient).generateImage(imageRequestCaptor.capture());
+        assertThat(imageRequestCaptor.getValue().prompt())
+                .startsWith("[STORY_CHARACTER]")
+                .contains(template.getTitle());
+        ArgumentCaptor<CharacterEntity> characterCaptor =
+                ArgumentCaptor.forClass(CharacterEntity.class);
+        verify(characterRepository).saveAndFlush(characterCaptor.capture());
+        assertThat(characterCaptor.getValue().getStory()).isSameAs(story);
+        assertThat(characterCaptor.getValue().getStudent()).isSameAs(student);
+        assertThat(characterCaptor.getValue().getImageUrl())
+                .isEqualTo("data:image/svg+xml;base64,bW9jaw==");
+        assertThat(characterCaptor.getValue().getName()).endsWith(" 주인공");
     }
 
     @Test

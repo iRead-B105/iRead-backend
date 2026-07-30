@@ -19,9 +19,14 @@ class MockStoryGeneratorTest {
     void returnsDeterministicInitialSegment() {
         GenerateStoryRequest request = new GenerateStoryRequest("request-1", 10L, 20L, 1, 0, template);
 
-        assertThat(generator.generate(request)).isEqualTo(generator.generate(request));
-        assertThat(generator.generate(request).nextProgress()).isEqualTo(50);
-        assertThat(generator.generate(request).lines().getLast().requiresBranchInput()).isTrue();
+        var response = generator.generate(request);
+
+        assertThat(response).isEqualTo(generator.generate(request));
+        assertThat(response.nextProgress()).isEqualTo(50);
+        assertThat(response.lines()).hasSize(5);
+        assertThat(response.lines())
+                .extracting(line -> line.requiresBranchInput())
+                .containsExactly(false, false, false, false, true);
     }
 
     @Test
@@ -35,6 +40,10 @@ class MockStoryGeneratorTest {
 
         assertThat(response.completed()).isTrue();
         assertThat(response.nextProgress()).isEqualTo(100);
-        assertThat(response.lines().getLast().requiresBranchInput()).isFalse();
+        assertThat(response.lines()).hasSize(5);
+        assertThat(response.lines())
+                .extracting(line -> line.requiresBranchInput())
+                .containsOnly(false);
+        assertThat(response.lines().getFirst().content()).contains("친구를 따라간다");
     }
 }
