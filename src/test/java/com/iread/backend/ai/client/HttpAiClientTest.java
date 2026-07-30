@@ -27,9 +27,11 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -139,6 +141,31 @@ class HttpAiClientTest {
         assertThat(response.imageUrl())
                 .isEqualTo("http://localhost:8081/api/v1/images/mock/example.svg");
         assertThat(response.provider()).isEqualTo("MOCK_IMAGE_V1");
+        server.verify();
+    }
+
+    @Test
+    void mockGenerate이면_외부_AI_호출_없이_인라인_이미지를_반환한다() {
+        HttpAiClient mockClient = client(
+                RestClient.builder().baseUrl("http://localhost:8081").build(),
+                true
+        );
+
+        var response = mockClient.generateImage(new GenerateImageRequest(
+                "image-request-mock",
+                "우산을 쓰는 아이"
+        ));
+
+        assertThat(response.requestId()).isEqualTo("image-request-mock");
+        assertThat(response.provider()).isEqualTo("BACKEND_MOCK_IMAGE_V1");
+        assertThat(response.imageUrl()).startsWith("data:image/svg+xml;base64,");
+        String svg = new String(
+                Base64.getDecoder().decode(response.imageUrl().substring(
+                        "data:image/svg+xml;base64,".length()
+                )),
+                StandardCharsets.UTF_8
+        );
+        assertThat(svg).contains("우산을 쓰는 아이");
         server.verify();
     }
 
@@ -490,6 +517,32 @@ class HttpAiClientTest {
                 30L,
                 1,
                 objectMapper.readTree("{\"expectedWords\":[\"사과\",\"바나나\"]}")
+        );
+    }
+
+    private HttpAiClient client(RestClient restClient, boolean mockGenerate) {
+        return new HttpAiClient(
+                restClient,
+                new AiClientProperties(
+                        URI.create("http://localhost:8081"),
+                        Duration.ofSeconds(1),
+                        Duration.ofSeconds(1),
+                        "",
+                        mockGenerate,
+                        false,
+                        false
+                ),
+                new MockTrainingGenerator(objectMapper),
+                new MockTrainingEvaluator(),
+                new MockStoryGenerator(),
+                new MockSpeechProcessor(),
+                new TemporaryAudioStorage(
+                        tempDir.resolve("audio").toString(),
+                        new AudioUploadPolicy(
+                                DataSize.ofMegabytes(20),
+                                "audio/webm,audio/wav,audio/mpeg,audio/mp4"
+                        )
+                )
         );
     }
 }
