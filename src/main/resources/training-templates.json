@@ -46,7 +46,7 @@
       "prompt": {
         "trainingType": "CONSONANT_SOUND_CHOICE",
         "requiredInputs": [],
-        "additionalPrompt": "자음 소리를 듣고 알맞은 자음 카드를 고른다. audioText는 자음 이름이 아닌 실제 소릿값이고 choices에는 한글 자음만 넣는다. 정답과 혼동 가능한 오답을 포함하고 answerIndex를 실제 정답 위치와 일치시킨다.",
+        "additionalPrompt": "자음 소리를 듣고 알맞은 자음 카드를 고른다. choices는 정답 1개와 중복 없는 오답 2개를 포함해 정확히 3개로 생성한다. audioText는 자음 이름이 아닌 실제 소릿값이고 choices에는 한글 자음만 넣는다. answerIndex를 실제 정답 위치와 일치시킨다.",
         "outputTemplate": {"type": "CONSONANT_SOUND_CHOICE", "data": [{"audioText": "<string>", "choices": ["<string>"], "answerIndex": "<integer>"}]},
         "supportedFeatureCategories": ["GRAPHEME"], "supportedScopes": ["CHARACTER"]
       }
@@ -56,7 +56,7 @@
       "prompt": {
         "trainingType": "VOWEL_SOUND_CHOICE",
         "requiredInputs": [],
-        "additionalPrompt": "모음 소리를 듣고 알맞은 모음 카드를 고른다. audioText는 목표 모음의 실제 소릿값이고 choices에는 한글 모음만 넣는다. 형태나 소리가 비슷한 오답을 포함한다.",
+        "additionalPrompt": "모음 소리를 듣고 알맞은 모음 카드를 고른다. choices는 정답 1개와 중복 없는 오답 2개를 포함해 정확히 3개로 생성한다. audioText는 목표 모음의 실제 소릿값이고 choices에는 한글 모음만 넣는다. 형태나 소리가 비슷한 오답을 포함한다.",
         "outputTemplate": {"type": "VOWEL_SOUND_CHOICE", "data": [{"audioText": "<string>", "choices": ["<string>"], "answerIndex": "<integer>"}]},
         "supportedFeatureCategories": ["GRAPHEME"], "supportedScopes": ["CHARACTER"]
       }
@@ -76,7 +76,7 @@
       "prompt": {
         "trainingType": "SYLLABLE_INITIAL_CHOICE",
         "requiredInputs": [],
-        "additionalPrompt": "한글 음절 하나를 듣고 실제 초성을 고른다. choices에는 초성 자음만 넣고 오답은 정답과 형태나 소리가 비슷한 자음을 우선 사용한다.",
+        "additionalPrompt": "한글 음절 하나를 듣고 실제 초성을 고른다. choices는 정답 1개와 중복 없는 오답 2개를 포함해 정확히 3개로 생성한다. choices에는 초성 자음만 넣고 오답은 정답과 형태나 소리가 비슷한 자음을 우선 사용한다.",
         "outputTemplate": {"type": "SYLLABLE_INITIAL_CHOICE", "data": [{"audioText": "<string>", "choices": ["<string>"], "answerIndex": "<integer>"}]},
         "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
       }
@@ -86,7 +86,7 @@
       "prompt": {
         "trainingType": "WORD_INITIAL_CHOICE",
         "requiredInputs": [],
-        "additionalPrompt": "친숙한 실제 낱말을 듣고 첫 음절의 초성을 고른다. choices에는 초성 자음만 넣고 받침이나 의미가 아니라 첫소리만으로 판단할 수 있게 구성한다.",
+        "additionalPrompt": "친숙한 실제 낱말을 듣고 첫 음절의 초성을 고른다. choices는 정답 1개와 중복 없는 오답 2개를 포함해 정확히 3개로 생성한다. choices에는 초성 자음만 넣고 받침이나 의미가 아니라 첫소리만으로 판단할 수 있게 구성한다.",
         "outputTemplate": {"type": "WORD_INITIAL_CHOICE", "data": [{"audioText": "<string>", "choices": ["<string>"], "answerIndex": "<integer>"}]},
         "supportedFeatureCategories": ["GRAPHEME", "WORD"], "supportedScopes": ["CHARACTER", "WORD"]
       }
@@ -96,7 +96,7 @@
       "prompt": {
         "trainingType": "SAME_INITIAL_WORD_CHOICE",
         "requiredInputs": [],
-        "additionalPrompt": "targetType은 SYLLABLE 또는 WORD, choiceType은 WORD 또는 IMAGE_WORD만 사용한다. targetAudioText와 정답 낱말의 초성이 같고 오답은 다른 초성으로 시작해야 한다. WORD의 imagePrompt는 빈 문자열이다.",
+        "additionalPrompt": "targetType은 SYLLABLE 또는 WORD, choiceType은 WORD 또는 IMAGE_WORD만 사용한다. choices는 정답 1개와 중복 없는 오답 2개를 포함해 정확히 3개로 생성한다. targetAudioText와 정답 낱말의 초성이 같고 오답은 다른 초성으로 시작해야 한다. WORD의 imagePrompt는 빈 문자열이다.",
         "outputTemplate": {"type": "SAME_INITIAL_WORD_CHOICE", "data": [{"targetType": "<string>", "targetAudioText": "<string>", "choiceType": "<string>", "choices": [{"text": "<string>", "imagePrompt": "<string>"}], "answerIndex": "<integer>"}]},
         "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE", "WORD"], "supportedScopes": ["CHARACTER", "SYLLABLE", "WORD"]
       }
@@ -106,7 +106,7 @@
       "prompt": {
         "trainingType": "FINAL_CONSONANT_CHOICE",
         "requiredInputs": [],
-        "additionalPrompt": "받침이 있는 한글 음절 하나를 듣고 실제 종성 자음을 고른다. choices에는 종성 자음만 넣고 낮은 난이도에서는 표기와 발음이 달라지는 복잡한 음운 규칙을 피한다.",
+        "additionalPrompt": "받침이 있는 한글 음절 하나를 듣고 실제 종성 자음을 고른다. choices는 정답 1개와 중복 없는 오답 2개를 포함해 정확히 3개로 생성한다. choices에는 종성 자음만 넣고 낮은 난이도에서는 표기와 발음이 달라지는 복잡한 음운 규칙을 피한다.",
         "outputTemplate": {"type": "FINAL_CONSONANT_CHOICE", "data": [{"audioText": "<string>", "choices": ["<string>"], "answerIndex": "<integer>"}]},
         "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
       }
@@ -116,7 +116,7 @@
       "prompt": {
         "trainingType": "WORD_FINAL_SOUND_CHOICE",
         "requiredInputs": [],
-        "additionalPrompt": "친숙한 받침 포함 낱말을 듣고 마지막에 들리는 표준 발음의 끝소리를 고른다. 낮은 난이도에서는 음운 변동이 없는 낱말을 우선한다.",
+        "additionalPrompt": "친숙한 받침 포함 낱말을 듣고 마지막에 들리는 표준 발음의 끝소리를 고른다. choices는 정답 1개와 중복 없는 오답 2개를 포함해 정확히 3개로 생성한다. 낮은 난이도에서는 음운 변동이 없는 낱말을 우선한다.",
         "outputTemplate": {"type": "WORD_FINAL_SOUND_CHOICE", "data": [{"audioText": "<string>", "choices": ["<string>"], "answerIndex": "<integer>"}]},
         "supportedFeatureCategories": ["GRAPHEME", "PHONOLOGY", "WORD"], "supportedScopes": ["CHARACTER", "SYLLABLE", "WORD"]
       }
@@ -126,7 +126,7 @@
       "prompt": {
         "trainingType": "FINAL_CONSONANT_COMPARISON",
         "requiredInputs": [],
-        "additionalPrompt": "같은 초성과 중성을 가지면서 받침만 다른 음절 중 목표 음절을 고른다. choices는 가능한 한 초성과 중성을 공유하고 종성만 다르게 구성하며 정답은 audioText와 정확히 일치한다.",
+        "additionalPrompt": "같은 초성과 중성을 가지면서 받침만 다른 음절 중 목표 음절을 고른다. choices는 정답 1개와 중복 없는 오답 2개를 포함해 정확히 3개로 생성한다. choices는 가능한 한 초성과 중성을 공유하고 종성만 다르게 구성하며 정답은 audioText와 정확히 일치한다.",
         "outputTemplate": {"type": "FINAL_CONSONANT_COMPARISON", "data": [{"audioText": "<string>", "choices": ["<string>"], "answerIndex": "<integer>"}]},
         "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
       }

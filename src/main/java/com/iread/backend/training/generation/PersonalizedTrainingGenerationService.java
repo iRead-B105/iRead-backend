@@ -220,7 +220,7 @@ public class PersonalizedTrainingGenerationService {
         metadata.put("source", "AI");
         metadata.put("provider", "MOCK");
         metadata.put("model", "DETERMINISTIC_TRAINING_MOCK_V1");
-        metadata.put("promptVersion", prompt.path("promptVersion").asText("TRAINING_PROMPT_V1"));
+        metadata.put("promptVersion", prompt.path("promptVersion").asText("TRAINING_PROMPT_V2"));
         metadata.put("generatedAt", LocalDateTime.now().toString());
         metadata.put("trainingTemplateId", training.getTrainingTemplate().getId());
 
@@ -254,7 +254,7 @@ public class PersonalizedTrainingGenerationService {
         metadata.put("source", "AI");
         metadata.put("provider", "MOCK");
         metadata.put("model", "DETERMINISTIC_TRAINING_MOCK_V1");
-        metadata.put("promptVersion", prompt.path("promptVersion").asText("TRAINING_PROMPT_V1"));
+        metadata.put("promptVersion", prompt.path("promptVersion").asText("TRAINING_PROMPT_V2"));
         metadata.put("generatedAt", LocalDateTime.now().toString());
         metadata.put("trainingTemplateId", template.getId());
 
