@@ -17,8 +17,10 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -99,6 +101,80 @@ class DemoAllTrainingCurriculumInitializerTest {
                 throw new AssertionError(exception);
             }
         });
+        verify(dataRepository).flush();
+    }
+
+    @Test
+    void refreshesExistingFinalConsonantDeleteShowcaseQuestion() throws Exception {
+        DailyCurriculumRepository curriculumRepository =
+                mock(DailyCurriculumRepository.class);
+        TrainingTemplateRepository templateRepository =
+                mock(TrainingTemplateRepository.class);
+        TrainingDataRepository dataRepository =
+                mock(TrainingDataRepository.class);
+        PersonalizedTrainingGenerationService generationService =
+                mock(PersonalizedTrainingGenerationService.class);
+        ObjectMapper objectMapper = JsonMapper.builder().build();
+
+        StudentEntity student = StudentEntity.builder().name("샛별").build();
+        ReflectionTestUtils.setField(student, "id", 2001L);
+        List<TrainingTemplateEntity> templates = IntStream.rangeClosed(1, 34)
+                .mapToObj(index -> {
+                    TrainingTemplateEntity template = mock(TrainingTemplateEntity.class);
+                    when(template.getId()).thenReturn((long) index);
+                    return template;
+                })
+                .toList();
+        DailyCurriculumEntity curriculum = new DailyCurriculumEntity(student, templates);
+        ReflectionTestUtils.setField(
+                curriculum,
+                "id",
+                DemoAllTrainingCurriculumInitializer.SHOWCASE_CURRICULUM_ID
+        );
+        for (int index = 0; index < curriculum.getTrainings().size(); index++) {
+            ReflectionTestUtils.setField(
+                    curriculum.getTrainings().get(index),
+                    "id",
+                    100L + index
+            );
+        }
+        Map<Long, TrainingDataEntity> dataByTrainingId = curriculum.getTrainings().stream()
+                .collect(Collectors.toMap(
+                        training -> training.getId(),
+                        training -> new TrainingDataEntity(training, "{\"questions\":[]}")
+                ));
+        when(curriculumRepository.findForGeneration(
+                DemoAllTrainingCurriculumInitializer.SHOWCASE_CURRICULUM_ID
+        )).thenReturn(Optional.of(curriculum));
+        when(dataRepository.findByTrainingId(any())).thenAnswer(invocation ->
+                Optional.ofNullable(dataByTrainingId.get(invocation.getArgument(0)))
+        );
+        ObjectNode generated = objectMapper.createObjectNode();
+        generated.putArray("questions")
+                .addObject().put("questionNo", 1).put("type", "FINAL_CONSONANT_DELETE");
+        generated.withArray("questions")
+                .addObject().put("questionNo", 2).put("type", "FINAL_CONSONANT_DELETE");
+        when(generationService.generate(curriculum.getTrainings().get(18)))
+                .thenReturn(generated);
+
+        DemoAllTrainingCurriculumInitializer initializer =
+                new DemoAllTrainingCurriculumInitializer(
+                        curriculumRepository,
+                        templateRepository,
+                        dataRepository,
+                        generationService,
+                        objectMapper
+                );
+
+        initializer.run(mock(org.springframework.boot.ApplicationArguments.class));
+
+        TrainingDataEntity refreshed = dataByTrainingId.get(118L);
+        assertThat(objectMapper.readTree(refreshed.getGeneratedData()).path("questions"))
+                .hasSize(1);
+        assertThat(objectMapper.readTree(refreshed.getGeneratedData())
+                .path("questions").get(0).path("type").asText())
+                .isEqualTo("FINAL_CONSONANT_DELETE");
+        verify(generationService).generate(curriculum.getTrainings().get(18));
         verify(dataRepository).flush();
     }
 }

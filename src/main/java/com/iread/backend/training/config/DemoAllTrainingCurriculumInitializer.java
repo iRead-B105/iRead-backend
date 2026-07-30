@@ -32,6 +32,7 @@ public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
 
     static final long SHOWCASE_CURRICULUM_ID = 190001L;
     static final int EXPECTED_TEMPLATE_COUNT = 34;
+    static final long FINAL_CONSONANT_DELETE_TEMPLATE_ID = 19L;
 
     private final DailyCurriculumRepository dailyCurriculumRepository;
     private final TrainingTemplateRepository trainingTemplateRepository;
@@ -45,7 +46,11 @@ public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
         DailyCurriculumEntity curriculum = dailyCurriculumRepository
                 .findForGeneration(SHOWCASE_CURRICULUM_ID)
                 .orElse(null);
-        if (curriculum == null || isAlreadyInitialized(curriculum)) {
+        if (curriculum == null) {
+            return;
+        }
+        if (isAlreadyInitialized(curriculum)) {
+            refreshFinalConsonantDeleteQuestion(curriculum);
             return;
         }
 
@@ -70,6 +75,24 @@ public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
             );
         }
         trainings.getFirst().markReady();
+        trainingDataRepository.flush();
+    }
+
+    private void refreshFinalConsonantDeleteQuestion(DailyCurriculumEntity curriculum) {
+        TrainingEntity training = curriculum.getTrainings().stream()
+                .filter(value -> value.getTrainingTemplate().getId()
+                        .equals(FINAL_CONSONANT_DELETE_TEMPLATE_ID))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "전체 훈련 체험 커리큘럼에 받침 빼기 훈련이 없습니다."
+                ));
+        TrainingDataEntity data = trainingDataRepository.findByTrainingId(training.getId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "받침 빼기 체험 문항 데이터가 없습니다."
+                ));
+        ObjectNode generated = generationService.generate(training);
+        keepFirstQuestion(generated);
+        data.updateGeneratedData(writeJson(generated));
         trainingDataRepository.flush();
     }
 
