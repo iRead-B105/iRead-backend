@@ -143,13 +143,15 @@ public class GazeService {
         GazeAnalysisResultEntity result = gazeAnalysisResultRepository.saveAndFlush(
                 new GazeAnalysisResultEntity(
                         gazeSession,
-                        request.totalVisitedDuration(),
-                        request.totalVisitedCount(),
-                        request.reverseReadCount(),
-                        request.avgVisitedDuration()
+                        resolveTotalVisitedDuration(request),
+                        resolveTotalVisitedCount(request),
+                        resolveReverseReadCount(request),
+                        resolveAvgVisitedDuration(request),
+                        toJson(request.sentenceMetrics()),
+                        toJson(request.regressions()),
+                        toJson(request.analysisMeta())
                 )
         );
-
         return new GazeAnalysisResultResponse(result.getId(), result.getCreatedAt());
     }
 
@@ -197,7 +199,7 @@ public class GazeService {
         if (gazeSession.getData() != null && !gazeSession.getData().isBlank()) {
             combinedData.set("rawData", objectMapper.readTree(gazeSession.getData()));
         }
-        combinedData.set("sentenceMetrics", request.sentenceMetrics());
+        combinedData.set("sentenceMetrics", objectMapper.valueToTree(request.sentenceMetrics()));
         gazeSession.updateData(combinedData.toString());
     }
 
@@ -247,6 +249,77 @@ public class GazeService {
                 result.getReverseReadCount(),
                 result.getAvgVisitedDuration()
         );
+    }
+
+    private Integer resolveTotalVisitedDuration(GazeAnalysisResultRequest request) {
+        if (request.totalVisitedDuration() != null) {
+            return request.totalVisitedDuration();
+        }
+        if (request.wordAttempts() == null) {
+            return 0;
+        }
+        return request.wordAttempts().stream()
+                .map(GazeAnalysisResultRequest.WordAttempt::fixationDurationMs)
+                .filter(value -> value != null)
+                .mapToInt(Integer::intValue)
+                .sum();
+    }
+
+    private Integer resolveTotalVisitedCount(GazeAnalysisResultRequest request) {
+        if (request.totalVisitedCount() != null) {
+            return request.totalVisitedCount();
+        }
+        if (request.wordAttempts() == null) {
+            return 0;
+        }
+        return request.wordAttempts().stream()
+                .map(GazeAnalysisResultRequest.WordAttempt::fixationCount)
+                .filter(value -> value != null)
+                .mapToInt(Integer::intValue)
+                .sum();
+    }
+
+    private Integer resolveReverseReadCount(GazeAnalysisResultRequest request) {
+        if (request.reverseReadCount() != null) {
+            return request.reverseReadCount();
+        }
+        if (request.regressions() != null) {
+            return request.regressions().size();
+        }
+        if (request.wordAttempts() == null) {
+            return 0;
+        }
+        return request.wordAttempts().stream()
+                .map(GazeAnalysisResultRequest.WordAttempt::regressionCount)
+                .filter(value -> value != null)
+                .mapToInt(Integer::intValue)
+                .sum();
+    }
+
+    private Integer resolveAvgVisitedDuration(GazeAnalysisResultRequest request) {
+        if (request.avgVisitedDuration() != null) {
+            return request.avgVisitedDuration();
+        }
+        Integer totalDuration = resolveTotalVisitedDuration(request);
+        Integer totalCount = resolveTotalVisitedCount(request);
+        if (totalCount == null || totalCount == 0) {
+            return 0;
+        }
+        return totalDuration / totalCount;
+    }
+
+    private String toJson(Object value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception exception) {
+            throw new IllegalArgumentException(
+                    "시선 분석 요청을 JSON으로 변환할 수 없습니다.",
+                    exception
+            );
+        }
     }
 
     private GazeSessionEntity findOwnedGazeSessionForUpdate(Long gazeSessionId, Long studentId) {

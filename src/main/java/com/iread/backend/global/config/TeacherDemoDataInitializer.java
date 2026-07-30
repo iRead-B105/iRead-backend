@@ -24,8 +24,8 @@ public class TeacherDemoDataInitializer implements ApplicationRunner {
     private static final String SHOWCASE_SEED_RESOURCE = "db/demo-data/teacher-showcase.sql";
 
     private static final String PERSONA_MARKER_QUERY =
-            "SELECT COUNT(*) FROM reports WHERE id = ?";
-    private static final long PERSONA_MARKER_ID = 170121L;
+            "SELECT COUNT(*) FROM trainings WHERE id = ? AND accuracy > 100";
+    private static final long PERSONA_MARKER_ID = 230101L;
     private static final String PERSONA_SEED_RESOURCE = "db/demo-data/teacher-personas.sql";
 
     private final JdbcTemplate jdbcTemplate;

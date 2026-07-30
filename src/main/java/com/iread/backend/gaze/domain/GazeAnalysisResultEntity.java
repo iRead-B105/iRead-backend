@@ -32,17 +32,30 @@ public class GazeAnalysisResultEntity {
     @Column(name = "avg_visited_duration")
     private Integer avgVisitedDuration;
 
+    @Column(name = "sentence_metrics", columnDefinition = "json")
+    private String sentenceMetrics;
+
+    @Column(name = "regressions", columnDefinition = "json")
+    private String regressions;
+
+    @Column(name = "analysis_meta", columnDefinition = "json")
+    private String analysisMeta;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     public GazeAnalysisResultEntity(GazeSessionEntity gazeSession, Integer totalVisitedDuration,
                                     Integer totalVisitedCount, Integer reverseReadCount,
-                                    Integer avgVisitedDuration) {
+                                    Integer avgVisitedDuration, String sentenceMetrics,
+                                    String regressions, String analysisMeta) {
         this.gazeSession = gazeSession;
         this.totalVisitedDuration = totalVisitedDuration;
         this.totalVisitedCount = totalVisitedCount;
         this.reverseReadCount = reverseReadCount;
         this.avgVisitedDuration = avgVisitedDuration;
+        this.sentenceMetrics = sentenceMetrics;
+        this.regressions = regressions;
+        this.analysisMeta = analysisMeta;
     }
 }

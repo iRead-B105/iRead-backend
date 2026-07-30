@@ -40,6 +40,9 @@ class MySqlDemoSeedIntegrationTest {
         assertThat(count("gaze_analysis_results", 7302L)).isEqualTo(1);
         assertThat(count("reports", 9101L)).isEqualTo(1);
         assertThat(tableCount("training_templates")).isEqualTo(34);
+        assertThat(demoStudentCount()).isEqualTo(13);
+        assertThat(trainingCount(2001L)).isGreaterThanOrEqualTo(50);
+        assertThat(trainingCount(2002L)).isGreaterThanOrEqualTo(50);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM students WHERE teacher_id = 1001",
                 Integer.class
@@ -174,7 +177,7 @@ class MySqlDemoSeedIntegrationTest {
                 ) persona_students
                 """,
                 Integer.class
-        )).isEqualTo(12);
+        )).isEqualTo(13);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -187,7 +190,99 @@ class MySqlDemoSeedIntegrationTest {
                 ) persona_students
                 """,
                 Integer.class
-        )).isEqualTo(12);
+        )).isEqualTo(13);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM students
+                 WHERE (id IN (2001, 2002) OR id BETWEEN 2101 AND 2111)
+                   AND teacher_memo IS NOT NULL
+                   AND guardian IS NOT NULL
+                   AND guardian_contact IS NOT NULL
+                   AND guardian_email IS NOT NULL
+                   AND address IS NOT NULL
+                   AND image_url IS NOT NULL
+                """,
+                Integer.class
+        )).isEqualTo(13);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM (
+                        SELECT curriculum.student_id
+                          FROM trainings training
+                          JOIN daily_curriculums curriculum
+                            ON curriculum.id = training.daily_curriculum_id
+                         WHERE training.status = 'COMPLETED'
+                         GROUP BY curriculum.student_id
+                        HAVING COUNT(DISTINCT training.training_template_id) = 34
+                  ) catalog_coverage
+                """,
+                Integer.class
+        )).isEqualTo(13);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM (
+                        SELECT student_id
+                          FROM word_attempt_logs
+                         WHERE id BETWEEN 300000 AND 399999
+                         GROUP BY student_id
+                        HAVING COUNT(DISTINCT DATE(created_at)) = 3
+                  ) trend_coverage
+                """,
+                Integer.class
+        )).isEqualTo(13);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM tests
+                 WHERE id BETWEEN 141000 AND 141999
+                   AND JSON_LENGTH(JSON_EXTRACT(result, '$.areaScores')) = 3
+                   AND JSON_LENGTH(JSON_EXTRACT(result, '$.strengthAreas')) >= 1
+                   AND JSON_LENGTH(JSON_EXTRACT(result, '$.improvementAreas')) >= 1
+                """,
+                Integer.class
+        )).isEqualTo(39);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM reports
+                 WHERE id BETWEEN 170000 AND 170999
+                   AND JSON_UNQUOTE(
+                         JSON_EXTRACT(snapshot_data, '$.gazeTrend.training.status')
+                       ) = 'AVAILABLE'
+                   AND JSON_LENGTH(
+                         JSON_EXTRACT(snapshot_data, '$.gazeTrend.training.points')
+                       ) >= 2
+                """,
+                Integer.class
+        )).isEqualTo(26);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(DISTINCT curriculum.student_id)
+                  FROM gaze_analysis_results analysis
+                  JOIN gaze_sessions session ON session.id = analysis.gaze_session_id
+                  JOIN trainings training ON training.id = session.training_id
+                  JOIN daily_curriculums curriculum
+                    ON curriculum.id = training.daily_curriculum_id
+                 WHERE session.content_type = 'TRAINING'
+                   AND session.status = 'COMPLETED'
+                   AND training.finished_at >= '2026-07-27 00:00:00'
+                """,
+                Integer.class
+        )).isEqualTo(13);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT MAX(training.accuracy)
+                  FROM trainings training
+                  JOIN daily_curriculums curriculum
+                    ON curriculum.id = training.daily_curriculum_id
+                 WHERE curriculum.student_id IN (2001, 2002)
+                    OR curriculum.student_id BETWEEN 2101 AND 2111
+                """,
+                java.math.BigDecimal.class
+        )).isLessThanOrEqualTo(new java.math.BigDecimal("1000"));
     }
 
     private Integer count(String table, Long id) {
@@ -202,6 +297,32 @@ class MySqlDemoSeedIntegrationTest {
         return jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM " + table,
                 Integer.class
+        );
+    }
+
+    private Integer demoStudentCount() {
+        return jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM students
+                 WHERE id IN (2001, 2002)
+                    OR id BETWEEN 2101 AND 2111
+                """,
+                Integer.class
+        );
+    }
+
+    private Integer trainingCount(Long studentId) {
+        return jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM trainings training
+                  JOIN daily_curriculums curriculum
+                    ON curriculum.id = training.daily_curriculum_id
+                 WHERE curriculum.student_id = ?
+                """,
+                Integer.class,
+                studentId
         );
     }
 
