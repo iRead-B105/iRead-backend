@@ -18,14 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "iread.teacher-demo-seed.enabled=false"
 })
 @ActiveProfiles("demo")
-@Sql({
-        "/db/demo/V2__demo_seed.sql",
-        "/db/demo/V3__fix_demo_student_gender.sql",
-        "/db/demo/V4__complete_demo_training_questions.sql",
-        "/db/demo/V5__add_second_demo_student.sql",
-        "/db/demo/V6__expand_demo_daily_curriculums.sql",
-        "/db/demo/V7__add_teacher_demo_data.sql"
-})
+@Sql("/db/demo/V2__demo_seed.sql")
 class DemoSeedIntegrationTest {
 
     @Autowired JdbcTemplate jdbcTemplate;
@@ -47,8 +40,8 @@ class DemoSeedIntegrationTest {
         assertThat(count("stories", 6001L)).isEqualTo(1);
         assertThat(count("trainings", 4001L)).isEqualTo(1);
         assertThat(count("tests", 5101L)).isEqualTo(1);
-        assertThat(trainingCount(2001L)).isEqualTo(5);
-        assertThat(trainingDataCount(2001L)).isEqualTo(5);
+        assertThat(trainingCount(2001L)).isEqualTo(10);
+        assertThat(trainingDataCount(2001L)).isEqualTo(10);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT training.training_template_id
@@ -73,8 +66,8 @@ class DemoSeedIntegrationTest {
                 "SELECT gender FROM students WHERE id = 2002",
                 String.class
         )).isEqualTo("Boy");
-        assertThat(trainingCount(2002L)).isEqualTo(5);
-        assertThat(trainingDataCount(2002L)).isEqualTo(5);
+        assertThat(trainingCount(2002L)).isEqualTo(10);
+        assertThat(trainingDataCount(2002L)).isEqualTo(10);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM stories WHERE student_id = 2002",
                 Integer.class

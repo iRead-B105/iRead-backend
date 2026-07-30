@@ -29,6 +29,16 @@ class MySqlDemoSeedIntegrationTest {
 
     @Test
     void appliesDemoSeedToMySqlAndKeepsDemoLoginUsable() {
+        assertThat(jdbcTemplate.queryForList(
+                """
+                SELECT version
+                  FROM flyway_schema_history
+                 WHERE success = true
+                 ORDER BY installed_rank
+                """,
+                String.class
+        )).containsExactly("1", "2");
+
         String passwordHash = jdbcTemplate.queryForObject(
                 "SELECT password FROM teachers WHERE id = 1001",
                 String.class
