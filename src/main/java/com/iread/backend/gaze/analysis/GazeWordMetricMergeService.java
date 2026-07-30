@@ -91,7 +91,8 @@ public class GazeWordMetricMergeService {
                             metric.targetIndex()
                     )
                     .stream()
-                    .filter(attempt -> metric.tokenIndex().equals(
+                    .filter(attempt -> sameTokenPosition(
+                            metric.tokenIndex(),
                             attempt.getTokenIndex()
                     ))
                     .filter(attempt -> sameText(
@@ -124,9 +125,9 @@ public class GazeWordMetricMergeService {
                             attempt.getTargetIndex(),
                             metric.targetIndex()
                     ))
-                    .filter(attempt -> java.util.Objects.equals(
-                            attempt.getTokenIndex(),
-                            metric.tokenIndex()
+                    .filter(attempt -> sameTokenPosition(
+                            metric.tokenIndex(),
+                            attempt.getTokenIndex()
                     ))
                     .filter(attempt -> sameText(
                             metric.text(),
@@ -263,6 +264,13 @@ public class GazeWordMetricMergeService {
 
     private boolean sameText(String first, String second) {
         return normalize(first).equals(normalize(second));
+    }
+
+    private boolean sameTokenPosition(Integer metricTokenIndex, Integer attemptTokenIndex) {
+        return java.util.Objects.equals(metricTokenIndex, attemptTokenIndex)
+                || (metricTokenIndex != null
+                && metricTokenIndex == 0
+                && attemptTokenIndex == null);
     }
 
     private String normalize(String value) {
