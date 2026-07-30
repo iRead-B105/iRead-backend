@@ -47,6 +47,22 @@ class MySqlDemoSeedIntegrationTest {
                 "SELECT training_template_id FROM trainings WHERE id = 4001",
                 Long.class
         )).isEqualTo(29L);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT JSON_UNQUOTE(JSON_EXTRACT(generated_data, '$.questions[0].type'))
+                  FROM training_datas
+                 WHERE train_id = 130109
+                """,
+                String.class
+        )).isEqualTo("SENTENCE_READING");
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT JSON_UNQUOTE(JSON_EXTRACT(generated_data, '$.questions[0].answer.expectedText'))
+                  FROM training_datas
+                 WHERE train_id = 130109
+                """,
+                String.class
+        )).isEqualTo("국물");
         assertThat(count("reports", 170121L)).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
                 """
