@@ -64,17 +64,17 @@ class DemoTrainingProgressResetInitializerTest {
     void restoresSeededCurriculumAndDeletesTrainingProgress() throws Exception {
         jdbcTemplate.update("""
                 INSERT INTO daily_curriculums (id, student_id, status, completed_at)
-                VALUES (3001, 2001, 'COMPLETED', CURRENT_TIMESTAMP),
-                       (3099, 2001, 'IN_PROGRESS', NULL)
+                VALUES (190001, 2001, 'COMPLETED', CURRENT_TIMESTAMP),
+                       (190099, 2001, 'IN_PROGRESS', NULL)
                 """);
         jdbcTemplate.update("""
                 INSERT INTO trainings
                     (id, daily_curriculum_id, sequence_no, status, started_at,
                      finished_at, result, accuracy)
                 VALUES
-                    (1, 3001, 1, 'COMPLETED', CURRENT_TIMESTAMP,
+                    (1, 190001, 1, 'COMPLETED', CURRENT_TIMESTAMP,
                      CURRENT_TIMESTAMP, '{"done":true}', 1000),
-                    (2, 3001, 2, 'IN_PROGRESS', CURRENT_TIMESTAMP,
+                    (2, 190001, 2, 'IN_PROGRESS', CURRENT_TIMESTAMP,
                      NULL, '{"question":1}', NULL)
                 """);
         jdbcTemplate.update(
@@ -90,26 +90,26 @@ class DemoTrainingProgressResetInitializerTest {
         new DemoTrainingProgressResetInitializer(jdbcTemplate).run(null);
 
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT status FROM daily_curriculums WHERE id = 3001",
+                "SELECT status FROM daily_curriculums WHERE id = 190001",
                 String.class
         )).isEqualTo("NOT_STARTED");
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT completed_at FROM daily_curriculums WHERE id = 3001",
+                "SELECT completed_at FROM daily_curriculums WHERE id = 190001",
                 Object.class
         )).isNull();
         assertThat(jdbcTemplate.queryForObject(
-                "SELECT status FROM daily_curriculums WHERE id = 3099",
+                "SELECT status FROM daily_curriculums WHERE id = 190099",
                 String.class
         )).isEqualTo("COMPLETED");
         assertThat(jdbcTemplate.queryForList(
-                "SELECT status FROM trainings WHERE daily_curriculum_id = 3001 ORDER BY sequence_no",
+                "SELECT status FROM trainings WHERE daily_curriculum_id = 190001 ORDER BY sequence_no",
                 String.class
         )).containsExactly("NOT_STARTED", "NOT_READY");
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
                   FROM trainings
-                 WHERE daily_curriculum_id = 3001
+                 WHERE daily_curriculum_id = 190001
                    AND (started_at IS NOT NULL OR finished_at IS NOT NULL
                         OR result IS NOT NULL OR accuracy IS NOT NULL)
                 """,

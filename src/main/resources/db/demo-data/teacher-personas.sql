@@ -225,22 +225,31 @@ SELECT
     135000 + persona.persona_no * 100 + number.seq,
     130000 + persona.persona_no * 100 + number.seq,
     JSON_OBJECT(
-        'version', 2,
+        'schemaVersion', 2,
         'trainingType', template.name,
         'personaFocus', persona.weakness_area,
         'questions', JSON_ARRAY(
             JSON_OBJECT('questionId', CONCAT('persona-', persona.persona_no, '-', number.seq, '-1'),
                         'questionNo', 1,
-                        'problem', JSON_OBJECT('targetText', CONCAT(persona.weakness_area, '에 유의하여 「국물」을 읽어 보세요.')),
-                        'answer', JSON_OBJECT('correctText', '국물')),
+                        'type', 'SENTENCE_READING',
+                        'requiredInputs', JSON_ARRAY('VOICE'),
+                        'content', JSON_OBJECT('tokens', JSON_ARRAY('국물')),
+                        'analysisTargets', JSON_ARRAY(JSON_OBJECT('text', '국물')),
+                        'answer', JSON_OBJECT('expectedText', '국물')),
             JSON_OBJECT('questionId', CONCAT('persona-', persona.persona_no, '-', number.seq, '-2'),
                         'questionNo', 2,
-                        'problem', JSON_OBJECT('targetText', CONCAT(template.name, ': 친구와 도서관에 갑니다.')),
-                        'answer', JSON_OBJECT('correctText', '친구와 도서관에 갑니다.')),
+                        'type', 'SENTENCE_READING',
+                        'requiredInputs', JSON_ARRAY('VOICE'),
+                        'content', JSON_OBJECT('tokens', JSON_ARRAY('친구와', '도서관에', '갑니다.')),
+                        'analysisTargets', JSON_ARRAY(JSON_OBJECT('text', '친구와 도서관에 갑니다.')),
+                        'answer', JSON_OBJECT('expectedText', '친구와 도서관에 갑니다.')),
             JSON_OBJECT('questionId', CONCAT('persona-', persona.persona_no, '-', number.seq, '-3'),
                         'questionNo', 3,
-                        'problem', JSON_OBJECT('targetText', CONCAT(persona.strength_area, '을 활용해 문장의 뜻을 말해 보세요.')),
-                        'answer', JSON_OBJECT('correctText', '친구와 함께 책을 읽는 내용입니다.'))
+                        'type', 'SENTENCE_READING',
+                        'requiredInputs', JSON_ARRAY('VOICE'),
+                        'content', JSON_OBJECT('tokens', JSON_ARRAY('친구와', '함께', '책을', '읽는', '내용입니다.')),
+                        'analysisTargets', JSON_ARRAY(JSON_OBJECT('text', '친구와 함께 책을 읽는 내용입니다.')),
+                        'answer', JSON_OBJECT('expectedText', '친구와 함께 책을 읽는 내용입니다.'))
         )
     ),
     TIMESTAMPADD(MINUTE, 1, training.created_at)
@@ -858,18 +867,27 @@ SELECT
     145000 + persona.persona_no * 10 + number.seq,
     141000 + persona.persona_no * 10 + number.seq,
     JSON_OBJECT(
-        'version', 2,
+        'schemaVersion', 2,
         'personaFocus', persona.weakness_area,
         'questions', JSON_ARRAY(
             JSON_OBJECT('questionNo', 1,
-                        'problem', JSON_OBJECT('targetText', '도서관에서 책을 읽었습니다.'),
-                        'answer', JSON_OBJECT('correctText', '도서관에서 책을 읽었습니다.')),
+                        'type', 'SENTENCE_READING',
+                        'requiredInputs', JSON_ARRAY('VOICE'),
+                        'content', JSON_OBJECT('tokens', JSON_ARRAY('도서관에서', '책을', '읽었습니다.')),
+                        'analysisTargets', JSON_ARRAY(JSON_OBJECT('text', '도서관에서 책을 읽었습니다.')),
+                        'answer', JSON_OBJECT('expectedText', '도서관에서 책을 읽었습니다.')),
             JSON_OBJECT('questionNo', 2,
-                        'problem', JSON_OBJECT('targetText', CONCAT(persona.weakness_area, '에 유의하여 문장을 읽어 보세요.')),
-                        'answer', JSON_OBJECT('correctText', '친구와 함께 길을 찾았습니다.')),
+                        'type', 'SENTENCE_READING',
+                        'requiredInputs', JSON_ARRAY('VOICE'),
+                        'content', JSON_OBJECT('tokens', JSON_ARRAY('친구와', '함께', '길을', '찾았습니다.')),
+                        'analysisTargets', JSON_ARRAY(JSON_OBJECT('text', '친구와 함께 길을 찾았습니다.')),
+                        'answer', JSON_OBJECT('expectedText', '친구와 함께 길을 찾았습니다.')),
             JSON_OBJECT('questionNo', 3,
-                        'problem', JSON_OBJECT('targetText', '이야기의 중심 내용을 말해 보세요.'),
-                        'answer', JSON_OBJECT('correctText', '서로 도와 문제를 해결했습니다.'))
+                        'type', 'SENTENCE_READING',
+                        'requiredInputs', JSON_ARRAY('VOICE'),
+                        'content', JSON_OBJECT('tokens', JSON_ARRAY('서로', '도와', '문제를', '해결했습니다.')),
+                        'analysisTargets', JSON_ARRAY(JSON_OBJECT('text', '서로 도와 문제를 해결했습니다.')),
+                        'answer', JSON_OBJECT('expectedText', '서로 도와 문제를 해결했습니다.'))
         )
     ),
     test.created_at

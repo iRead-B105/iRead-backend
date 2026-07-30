@@ -551,7 +551,7 @@ public class AppTrainingService {
                     null,
                     null,
                     analyzed.isOmission(),
-                    0,
+                    gazeRequired ? 0 : null,
                     pronunciationAccuracyScore,
                     speechStartOffsetMs,
                     speechEndOffsetMs,

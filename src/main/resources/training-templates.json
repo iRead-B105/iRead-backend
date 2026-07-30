@@ -196,7 +196,7 @@
       "prompt": {
         "trainingType": "FINAL_CONSONANT_DELETE",
         "requiredInputs": ["VOICE"],
-        "additionalPrompt": "받침 있는 한글 음절 source에서 종성만 제거한다. targetAudioText와 result는 제거 결과와 같고 removableUnits에는 실제 받침과 방해 자음을 넣는다.",
+        "additionalPrompt": "받침 있는 한글 음절 source에서 종성만 제거한다. removableUnits에는 방해 자음 없이 source를 분해한 초성, 중성, 종성을 순서대로 넣고 answerIndex는 종성 위치를 가리킨다. targetAudioText와 result는 종성을 제거한 음절로 같아야 한다.",
         "outputTemplate": {"type": "FINAL_CONSONANT_DELETE", "data": [{"source": "<string>", "targetAudioText": "<string>", "removableUnits": ["<string>"], "answerIndex": "<integer>", "result": "<string>"}]},
         "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
       }

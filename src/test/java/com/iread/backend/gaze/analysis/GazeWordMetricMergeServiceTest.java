@@ -229,4 +229,63 @@ class GazeWordMetricMergeServiceTest {
         assertThat(attempt.getSkipped()).isTrue();
         assertThat(attempt.getTotalScore()).isEqualTo(530);
     }
+
+    @Test
+    void mergesZeroBasedGazeTokenWithSingleTargetAttempt() throws Exception {
+        TrainingEntity training = mock(TrainingEntity.class);
+        GazeSessionEntity session = mock(GazeSessionEntity.class);
+        when(session.getContentType()).thenReturn(GazeContentType.TRAINING);
+        when(session.getTraining()).thenReturn(training);
+        when(training.getId()).thenReturn(30L);
+        when(trainingInputRequirementService.inputsForQuestion(30L, 1))
+                .thenReturn(Set.of(
+                        TrainingInputType.VOICE,
+                        TrainingInputType.GAZE
+                ));
+        WordAttemptLogEntity attempt = new WordAttemptLogEntity(
+                mock(StudentEntity.class),
+                mock(WordEntity.class),
+                training,
+                "ㅏ",
+                true,
+                null,
+                null,
+                null,
+                null,
+                false,
+                0,
+                950,
+                0,
+                400,
+                true,
+                null,
+                1,
+                0,
+                null,
+                true
+        );
+        when(wordAttemptLogRepository
+                .findAllByTrainingIdAndQuestionNoAndTargetIndex(30L, 1, 0))
+                .thenReturn(List.of(attempt));
+
+        service.merge(session, objectMapper.readTree("""
+                {
+                  "words": [{
+                    "questionNo": 1,
+                    "targetIndex": 0,
+                    "tokenIndex": 0,
+                    "text": "ㅏ",
+                    "dwellMs": 420,
+                    "visitCount": 1,
+                    "regressionCount": 0,
+                    "firstSeenMs": 0,
+                    "lastSeenMs": 420
+                  }]
+                }
+                """));
+
+        assertThat(attempt.getFixationDurationMs()).isEqualTo(420);
+        assertThat(attempt.getFixationCount()).isEqualTo(1);
+        assertThat(attempt.getTotalScore()).isEqualTo(975);
+    }
 }

@@ -372,10 +372,16 @@ public class AppTestService {
             if (!sameSubmission(existing, questionNumber, submissionRequest)) {
                 throw new ConflictException("같은 submissionId를 다른 제출에 재사용할 수 없습니다.");
             }
-            return readProgress(existing.path("progress"));
+            return progressForExistingSubmission(existing, submissions, questions.size());
         }
-        if (hasQuestionSubmission(submissions, questionNumber)) {
-            throw new ConflictException("검사 문항은 최초 제출만 인정됩니다.");
+        JsonNode existingQuestionSubmission =
+                findQuestionSubmission(submissions, questionNumber);
+        if (existingQuestionSubmission != null) {
+            return progressForExistingSubmission(
+                    existingQuestionSubmission,
+                    submissions,
+                    questions.size()
+            );
         }
 
         AppLearningQuestionSupport.Evaluation evaluation =
@@ -1253,13 +1259,38 @@ public class AppTestService {
         return null;
     }
 
-    private boolean hasQuestionSubmission(ArrayNode submissions, int questionNumber) {
+    private JsonNode findQuestionSubmission(ArrayNode submissions, int questionNumber) {
         for (JsonNode submission : submissions) {
             if (submission.path("questionNo").asInt() == questionNumber) {
-                return true;
+                return submission;
             }
         }
-        return false;
+        return null;
+    }
+
+    private TestProgressResponse progressForExistingSubmission(
+            JsonNode existing,
+            ArrayNode submissions,
+            int totalQuestions
+    ) {
+        JsonNode savedProgress = existing.path("progress");
+        if (savedProgress.isObject() && savedProgress.hasNonNull("submissionId")) {
+            return readProgress(savedProgress);
+        }
+
+        int questionNumber = existing.path("questionNo").asInt();
+        int completedQuestions = completedQuestionNumbers(submissions).size();
+        return new TestProgressResponse(
+                "TEST_PROGRESS",
+                UUID.fromString(existing.path("submissionId").asText()),
+                true,
+                questionNumber,
+                completedQuestions,
+                totalQuestions,
+                completedQuestions * 100 / totalQuestions,
+                nextQuestionNumber(submissions, totalQuestions),
+                completedQuestions == totalQuestions
+        );
     }
 
     private boolean sameSubmission(

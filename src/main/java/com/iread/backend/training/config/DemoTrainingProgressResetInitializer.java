@@ -21,8 +21,9 @@ import java.util.Map;
 public class DemoTrainingProgressResetInitializer implements ApplicationRunner {
 
     static final Map<Long, Long> RESET_CURRICULUM_BY_STUDENT = Map.of(
-            2001L, 3001L,
-            2002L, 3002L
+            2001L, 190001L,
+            2002L, 180002L,
+            2103L, 180003L
     );
 
     private final JdbcTemplate jdbcTemplate;
