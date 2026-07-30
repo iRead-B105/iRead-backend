@@ -2,10 +2,12 @@ package com.iread.backend.student.repository;
 
 import com.iread.backend.student.domain.StudentEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import jakarta.persistence.LockModeType;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -15,6 +17,14 @@ import java.util.Optional;
 public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
     List<StudentEntity> findAllByTeacherIdOrderByIdAsc(Long teacherId);
     Optional<StudentEntity> findByIdAndTeacherId(Long id, Long teacherId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select student from StudentEntity student where student.id = :id and student.teacher.id = :teacherId")
+    Optional<StudentEntity> findByIdAndTeacherIdForUpdate(
+            @Param("id") Long id,
+            @Param("teacherId") Long teacherId
+    );
+
     long countByTeacherId(Long teacherId);
 
     @Query(value = """
@@ -37,7 +47,24 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
                       JOIN training_templates tt2 ON tt2.id = t2.training_template_id
                      WHERE dc2.student_id = s.id AND t2.status = 'COMPLETED'
                      ORDER BY t2.finished_at DESC, t2.id DESC
-                     LIMIT 1) AS recentTrainingName
+                     LIMIT 1) AS recentTrainingName,
+                   (SELECT COUNT(*)
+                      FROM daily_curriculums weekly_dc
+                     WHERE weekly_dc.student_id = s.id
+                       AND weekly_dc.created_at >=
+                           CURRENT_DATE - INTERVAL WEEKDAY(CURRENT_DATE) DAY
+                       AND weekly_dc.created_at <
+                           CURRENT_DATE - INTERVAL WEEKDAY(CURRENT_DATE) DAY
+                           + INTERVAL 7 DAY) AS weeklyScheduledCount,
+                   (SELECT COUNT(*)
+                      FROM daily_curriculums weekly_dc
+                     WHERE weekly_dc.student_id = s.id
+                       AND weekly_dc.status = 'COMPLETED'
+                       AND weekly_dc.created_at >=
+                           CURRENT_DATE - INTERVAL WEEKDAY(CURRENT_DATE) DAY
+                       AND weekly_dc.created_at <
+                           CURRENT_DATE - INTERVAL WEEKDAY(CURRENT_DATE) DAY
+                           + INTERVAL 7 DAY) AS weeklyCompletedCount
               FROM students s
               LEFT JOIN daily_curriculums dc ON dc.student_id = s.id
               LEFT JOIN trainings t ON t.daily_curriculum_id = dc.id AND t.status = 'COMPLETED'
@@ -243,6 +270,60 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
     );
 
     @Query(value = """
+            SELECT recent.eventId AS eventId,
+                   recent.eventType AS eventType,
+                   recent.occurredAt AS occurredAt,
+                   recent.accuracy AS accuracy
+              FROM (
+                    SELECT t.id AS eventId,
+                           'test' AS eventType,
+                           COALESCE(t.finished_at, t.started_at, t.created_at) AS occurredAt,
+                           t.accuracy AS accuracy
+                      FROM tests t
+                      JOIN test_curriculums tc ON tc.id = t.test_curriculum_id
+                     WHERE tc.student_id = :studentId
+                       AND t.status = 'COMPLETED'
+                    UNION ALL
+                    SELECT t.id AS eventId,
+                           'training' AS eventType,
+                           COALESCE(t.finished_at, t.started_at, t.created_at) AS occurredAt,
+                           t.accuracy / 10 AS accuracy
+                      FROM trainings t
+                      JOIN daily_curriculums dc ON dc.id = t.daily_curriculum_id
+                     WHERE dc.student_id = :studentId
+                       AND t.status = 'COMPLETED'
+                    UNION ALL
+                    SELECT s.id AS eventId,
+                           'story' AS eventType,
+                           s.created_at AS occurredAt,
+                           AVG(wal.total_score) / 10 AS accuracy
+                      FROM stories s
+                      LEFT JOIN story_scenes ss ON ss.story_id = s.id
+                      LEFT JOIN story_lines sl ON sl.scene_id = ss.scene_id
+                      LEFT JOIN word_attempt_logs wal ON wal.story_line_id = sl.id
+                     WHERE s.student_id = :studentId
+                       AND s.status = 'COMPLETED'
+                     GROUP BY s.id, s.created_at
+                    UNION ALL
+                    SELECT gs.id AS eventId,
+                           'gaze' AS eventType,
+                           COALESCE(gs.ended_at, gs.created_at) AS occurredAt,
+                           NULL AS accuracy
+                      FROM gaze_sessions gs
+                     WHERE gs.student_id = :studentId
+                       AND gs.status IN ('COMPLETED', 'FAILED')
+              ) recent
+             ORDER BY recent.occurredAt DESC,
+                      recent.eventType ASC,
+                      recent.eventId DESC
+             LIMIT :limit
+            """, nativeQuery = true)
+    List<RecentLearningEventProjection> findRecentLearningEvents(
+            @Param("studentId") Long studentId,
+            @Param("limit") int limit
+    );
+
+    @Query(value = """
             SELECT tt.id AS trainingTemplateId,
                    cu.id AS curriculumUnitId,
                    cu.unit_name AS curriculumUnitName,
@@ -379,6 +460,8 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
         LocalDateTime getRecentFinishedAt();
         Long getTotalLearningMinutes();
         String getRecentTrainingName();
+        Long getWeeklyScheduledCount();
+        Long getWeeklyCompletedCount();
     }
 
     interface AccuracyTrendProjection {
@@ -420,6 +503,13 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
         BigDecimal getAccuracy();
         Long getRetryCount();
         String getProblemSegments();
+    }
+
+    interface RecentLearningEventProjection {
+        Long getEventId();
+        String getEventType();
+        LocalDateTime getOccurredAt();
+        BigDecimal getAccuracy();
     }
 
     interface TrainingRecommendationProjection {

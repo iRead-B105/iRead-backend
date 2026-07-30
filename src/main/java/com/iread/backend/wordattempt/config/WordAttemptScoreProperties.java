@@ -5,23 +5,32 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "word-attempt.score")
 public record WordAttemptScoreProperties(
         int retryPenalty,
-        int lowPronunciationPenalty,
         int pronunciationThreshold,
         int incorrectPenalty,
         int skippedPenalty,
-        int missingAudioPenalty
+        int gazeRegressionPenalty,
+        int pronunciationWeight,
+        int gazeWeight,
+        int taskWeight
 ) {
     public WordAttemptScoreProperties {
         requireNonNegative(retryPenalty, "retry-penalty");
-        requireNonNegative(lowPronunciationPenalty, "low-pronunciation-penalty");
-        if (pronunciationThreshold < 0 || pronunciationThreshold > 1000) {
+        if (pronunciationThreshold < 0 || pronunciationThreshold > 100) {
             throw new IllegalArgumentException(
-                    "word-attempt.score.pronunciation-threshold는 0~1000이어야 합니다."
+                    "word-attempt.score.pronunciation-threshold는 0~100이어야 합니다."
             );
         }
         requireNonNegative(incorrectPenalty, "incorrect-penalty");
         requireNonNegative(skippedPenalty, "skipped-penalty");
-        requireNonNegative(missingAudioPenalty, "missing-audio-penalty");
+        requireNonNegative(gazeRegressionPenalty, "gaze-regression-penalty");
+        requireNonNegative(pronunciationWeight, "pronunciation-weight");
+        requireNonNegative(gazeWeight, "gaze-weight");
+        requireNonNegative(taskWeight, "task-weight");
+        if (taskWeight == 0) {
+            throw new IllegalArgumentException(
+                    "word-attempt.score.task-weight는 0보다 커야 합니다."
+            );
+        }
     }
 
     private static void requireNonNegative(int value, String propertyName) {

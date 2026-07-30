@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -23,6 +24,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @ActiveProfiles("mysql-test")
@@ -43,9 +45,9 @@ class MySqlFlywayIntegrationTest {
 
     @Test
     void appliesAllMigrationsAndValidatesJpaMappings() {
-        assertThat(applicationTableCount()).isEqualTo(25);
-        assertThat(constraintCount("FOREIGN KEY")).isEqualTo(34);
-        assertThat(constraintCount("UNIQUE")).isEqualTo(11);
+        assertThat(applicationTableCount()).isEqualTo(26);
+        assertThat(constraintCount("FOREIGN KEY")).isEqualTo(35);
+        assertThat(constraintCount("UNIQUE")).isEqualTo(13);
         assertThat(constraintCount("CHECK")).isEqualTo(11);
 
         assertThat(tableExists("training_datas")).isTrue();
@@ -63,8 +65,35 @@ class MySqlFlywayIntegrationTest {
         assertThat(columnExists("word_attempt_logs", "is_final")).isTrue();
         assertThat(columnExists("word_attempt_logs", "recognized_text")).isFalse();
         assertThat(columnExists("word_attempt_logs", "has_gaze_data")).isFalse();
+        assertThat(constraintExists(
+                "word_attempt_logs",
+                "CHK_WORD_ATTEMPT_LOGS_PRONUNCIATION_ACCURACY_SCORE",
+                "CHECK"
+        )).isTrue();
+        assertThat(constraintExists(
+                "word_attempt_logs",
+                "CHK_WORD_ATTEMPT_LOGS_TOTAL_SCORE",
+                "CHECK"
+        )).isTrue();
+        assertThat(constraintExists(
+                "word_attempt_logs",
+                "CHK_WORD_ATTEMPT_LOGS_QUESTION_NO",
+                "CHECK"
+        )).isTrue();
+        assertThat(constraintExists(
+                "word_attempt_logs",
+                "CHK_WORD_ATTEMPT_LOGS_TARGET_INDEX",
+                "CHECK"
+        )).isTrue();
+        assertThat(constraintExists(
+                "word_attempt_logs",
+                "CHK_WORD_ATTEMPT_LOGS_TOKEN_INDEX",
+                "CHECK"
+        )).isTrue();
         assertThat(tableExists("test_datas")).isTrue();
         assertThat(tableExists("auth_refresh_sessions")).isTrue();
+        assertThat(tableExists("password_reset_tokens")).isTrue();
+        assertThat(columnExists("password_reset_tokens", "teacher_id")).isTrue();
         assertThat(constraintExists(
                 "auth_refresh_sessions",
                 "CHK_AUTH_REFRESH_SESSIONS_AUDIENCE",
@@ -85,10 +114,77 @@ class MySqlFlywayIntegrationTest {
                 "UK_GAZE_ANALYSIS_RESULTS_SESSION",
                 "UNIQUE"
         )).isTrue();
+        assertThat(constraintExists(
+                "reports",
+                "UQ_REPORTS_STUDENT_PERIOD",
+                "UNIQUE"
+        )).isTrue();
 
         assertThat(tableExists("training_contents")).isFalse();
         assertThat(tableExists("test_questions")).isFalse();
         assertThat(tableExists("auth_revoked_access_tokens")).isFalse();
+    }
+
+    @Test
+    void wordAttemptLogSchemaEnforcesScoresPositionsAndFinalDefault() {
+        long teacherId = insertAndReturnKey(
+                "INSERT INTO teachers(email, password, name, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+                "word-" + UUID.randomUUID().toString().substring(0, 12) + "@x.io",
+                "password",
+                "교사"
+        );
+        long studentId = insertAndReturnKey(
+                "INSERT INTO students(teacher_id, name, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+                teacherId, "학생"
+        );
+        String wordText = "검증" + UUID.randomUUID().toString().substring(0, 8);
+        long wordId = insertAndReturnKey(
+                "INSERT INTO words(content, length) VALUES (?, ?)",
+                wordText, wordText.length()
+        );
+        long curriculumUnitId = insertAndReturnKey(
+                "INSERT INTO curriculum_units(unit_name, sequence_no) VALUES (?, ?)",
+                "단어 수행 검증", 1
+        );
+        long templateId = insertAndReturnKey(
+                """
+                INSERT INTO training_templates(curriculum_unit_id, name, prompt, sequence_no)
+                VALUES (?, ?, JSON_OBJECT('trainingType', 'WORD_READING'), 1)
+                """,
+                curriculumUnitId, "단어 수행 검증"
+        );
+        long dailyCurriculumId = insertAndReturnKey(
+                """
+                INSERT INTO daily_curriculums(student_id, status, created_at)
+                VALUES (?, 'IN_PROGRESS', CURRENT_TIMESTAMP)
+                """,
+                studentId
+        );
+        long trainingId = insertAndReturnKey(
+                """
+                INSERT INTO trainings(
+                    training_template_id, daily_curriculum_id, sequence_no,
+                    created_at, status
+                )
+                VALUES (?, ?, 1, CURRENT_TIMESTAMP, 'IN_PROGRESS')
+                """,
+                templateId, dailyCurriculumId
+        );
+
+        long attemptId = insertWordAttempt(
+                studentId, wordId, trainingId, 1000, 1000, 1, 0, 0
+        );
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT is_final FROM word_attempt_logs WHERE id = ?",
+                Boolean.class,
+                attemptId
+        )).isTrue();
+        assertWordAttemptRejected(studentId, wordId, trainingId, 1001, 1000, 1, 0, 0);
+        assertWordAttemptRejected(studentId, wordId, trainingId, 1000, -1, 1, 0, 0);
+        assertWordAttemptRejected(studentId, wordId, trainingId, 1000, 1000, 0, 0, 0);
+        assertWordAttemptRejected(studentId, wordId, trainingId, 1000, 1000, 1, -1, 0);
+        assertWordAttemptRejected(studentId, wordId, trainingId, 1000, 1000, 1, 0, -1);
     }
 
     @Test
@@ -321,6 +417,52 @@ class MySqlFlywayIntegrationTest {
                 columnName
         );
         return count != null && count > 0;
+    }
+
+    private long insertWordAttempt(
+            long studentId,
+            long wordId,
+            long trainingId,
+            int pronunciationAccuracyScore,
+            int totalScore,
+            int questionNo,
+            int targetIndex,
+            int tokenIndex
+    ) {
+        return insertAndReturnKey(
+                """
+                INSERT INTO word_attempt_logs(
+                    student_id, word_id, training_id, use_location,
+                    surface_text, has_audio_data, pronunciation_accuracy_score,
+                    total_score, question_no, target_index, token_index
+                )
+                VALUES (?, ?, ?, 'TRAINING', '검증', true, ?, ?, ?, ?, ?)
+                """,
+                studentId, wordId, trainingId, pronunciationAccuracyScore,
+                totalScore, questionNo, targetIndex, tokenIndex
+        );
+    }
+
+    private void assertWordAttemptRejected(
+            long studentId,
+            long wordId,
+            long trainingId,
+            int pronunciationAccuracyScore,
+            int totalScore,
+            int questionNo,
+            int targetIndex,
+            int tokenIndex
+    ) {
+        assertThatThrownBy(() -> insertWordAttempt(
+                studentId,
+                wordId,
+                trainingId,
+                pronunciationAccuracyScore,
+                totalScore,
+                questionNo,
+                targetIndex,
+                tokenIndex
+        )).isInstanceOf(DataAccessException.class);
     }
 
     private long insertAndReturnKey(String sql, Object... arguments) {

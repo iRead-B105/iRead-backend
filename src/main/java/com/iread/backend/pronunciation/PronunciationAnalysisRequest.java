@@ -4,6 +4,7 @@ public record PronunciationAnalysisRequest(
         String requestId,
         String expectedText,
         String originalFilename,
+        String contentType,
         byte[] audio
 ) {
     public PronunciationAnalysisRequest {

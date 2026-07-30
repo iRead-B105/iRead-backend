@@ -5,6 +5,7 @@ import com.iread.backend.readingfeature.repository.StudentFeatureProfileReposito
 import com.iread.backend.training.analysis.KoreanG2pEngine;
 import com.iread.backend.training.analysis.KoreanTextAnalyzer;
 import com.iread.backend.training.domain.TrainingEntity;
+import com.iread.backend.training.domain.TrainingTemplateEntity;
 import com.iread.backend.training.input.TrainingInputPolicy;
 import com.iread.backend.training.input.TrainingInputType;
 import lombok.RequiredArgsConstructor;
@@ -128,6 +129,84 @@ public class PersonalizedTrainingGenerationService {
         return envelope(training, prompt, profiles, accepted);
     }
 
+    public ObjectNode generateTestQuestion(
+            Long studentId,
+            TrainingTemplateEntity template,
+            String requestId
+    ) {
+        ObjectNode prompt = parsePrompt(template.getPrompt());
+        TrainingType type = TrainingType.from(prompt.path("trainingType").asText());
+        Set<TrainingInputType> requiredInputs = TrainingInputPolicy.resolve(
+                type,
+                prompt.path("requiredInputs")
+        );
+        List<StudentFeatureProfileEntity> profiles = compatibleWeakProfiles(
+                studentId,
+                prompt
+        );
+        List<TrainingTargetFeature> targets = profiles.stream()
+                .limit(2)
+                .map(this::toTarget)
+                .toList();
+        List<String> targetCodes = targets.stream()
+                .map(TrainingTargetFeature::featureCode)
+                .toList();
+        List<String> excluded = stringValues(prompt.path("excludedFeatures"));
+        List<CandidateValidationIssue> allIssues = new ArrayList<>();
+
+        for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+            TrainingCandidateRequest request = new TrainingCandidateRequest(
+                    requestId + "-attempt-" + attempt,
+                    GENERATED_DATA_SCHEMA_VERSION,
+                    type,
+                    QUESTION_COUNT,
+                    difficulty(profiles),
+                    targets,
+                    excluded,
+                    prompt.path("additionalPrompt").asText(),
+                    prompt.path("outputTemplate")
+            );
+            TrainingCandidateResponse response = candidateProvider.generate(request);
+            CandidateValidationResult structure = candidateValidator.validate(request, response);
+            allIssues.addAll(structure.issues());
+            if (structure.issues().stream().anyMatch(issue -> issue.dataIndex() < 0)) {
+                continue;
+            }
+            Set<Integer> invalidIndices = structure.issues().stream()
+                    .filter(issue -> issue.dataIndex() >= 0)
+                    .map(CandidateValidationIssue::dataIndex)
+                    .collect(java.util.stream.Collectors.toSet());
+            for (int index = 0; index < response.data().size(); index++) {
+                if (invalidIndices.contains(index)) {
+                    continue;
+                }
+                TrainingQuestionAssembler.AssembledQuestion assembled =
+                        questionAssembler.assemble(
+                                1,
+                                type,
+                                response.data().get(index),
+                                targetCodes,
+                                requiredInputs
+                        );
+                List<CandidateValidationIssue> featureIssues = featureIssues(
+                        index,
+                        assembled.featureCodes(),
+                        targetCodes,
+                        excluded
+                );
+                if (!featureIssues.isEmpty()) {
+                    allIssues.addAll(featureIssues);
+                    continue;
+                }
+                return testEnvelope(template, prompt, profiles, assembled.question());
+            }
+        }
+        throw new TrainingGenerationException(
+                "검증을 통과한 실력도전 문항을 생성하지 못했습니다.",
+                allIssues
+        );
+    }
+
     private ObjectNode envelope(
             TrainingEntity training,
             ObjectNode prompt,
@@ -153,6 +232,38 @@ public class PersonalizedTrainingGenerationService {
         ArrayNode questionArray = root.putArray("questions");
         questions.forEach(questionArray::add);
 
+        ObjectNode validation = root.putObject("validationResult");
+        validation.put("passed", true);
+        validation.put("analyzerVersion", KoreanTextAnalyzer.ANALYZER_VERSION);
+        validation.put("g2pVersion", KoreanG2pEngine.G2P_VERSION);
+        validation.put("ruleEngineVersion", KoreanG2pEngine.RULE_ENGINE_VERSION);
+        validation.putArray("issues");
+        return root;
+    }
+
+    private ObjectNode testEnvelope(
+            TrainingTemplateEntity template,
+            ObjectNode prompt,
+            List<StudentFeatureProfileEntity> profiles,
+            ObjectNode question
+    ) {
+        ObjectNode root = objectMapper.createObjectNode();
+        root.put("schemaVersion", GENERATED_DATA_SCHEMA_VERSION);
+
+        ObjectNode metadata = root.putObject("generationMetadata");
+        metadata.put("source", "AI");
+        metadata.put("provider", "MOCK");
+        metadata.put("model", "DETERMINISTIC_TRAINING_MOCK_V1");
+        metadata.put("promptVersion", prompt.path("promptVersion").asText("TRAINING_PROMPT_V1"));
+        metadata.put("generatedAt", LocalDateTime.now().toString());
+        metadata.put("trainingTemplateId", template.getId());
+
+        ObjectNode snapshot = root.putObject("profileSnapshot");
+        snapshot.put("analysisVersion", WEAKNESS_VERSION);
+        ArrayNode features = snapshot.putArray("features");
+        profiles.stream().limit(2).forEach(profile -> features.add(profileSnapshot(profile)));
+
+        root.putArray("questions").add(question);
         ObjectNode validation = root.putObject("validationResult");
         validation.put("passed", true);
         validation.put("analyzerVersion", KoreanTextAnalyzer.ANALYZER_VERSION);

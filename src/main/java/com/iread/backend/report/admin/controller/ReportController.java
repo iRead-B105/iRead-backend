@@ -2,10 +2,9 @@ package com.iread.backend.report.admin.controller;
 
 import com.iread.backend.auth.annotation.CurrentTeacherId;
 import com.iread.backend.report.admin.dto.req.CreateReportRequest;
-import com.iread.backend.report.admin.dto.req.ApplyReportGazeAnalysisRequest;
 import com.iread.backend.report.admin.dto.req.UpdateReportMemoRequest;
 import com.iread.backend.report.admin.dto.res.CreateReportResponse;
-import com.iread.backend.report.admin.dto.res.ApplyReportGazeAnalysisResponse;
+import com.iread.backend.report.admin.dto.res.RefreshReportGazeTrendResponse;
 import com.iread.backend.report.admin.dto.res.ReportListResponse;
 import com.iread.backend.report.admin.dto.res.ReportResponse;
 import com.iread.backend.report.admin.dto.res.UpdateReportMemoResponse;
@@ -16,7 +15,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -70,21 +68,13 @@ public class ReportController {
         return reportService.updateReportMemo(teacherId, reportId, request.teacherMemo());
     }
 
-    @Operation(summary = "시선 분석 결과를 보고서 스냅샷에 반영")
+    @Operation(summary = "보고서 기간의 시선 분석 추이 갱신")
     @PostMapping("/{reportId}/gaze-analysis")
-    public ApplyReportGazeAnalysisResponse applyGazeAnalysis(
+    public RefreshReportGazeTrendResponse refreshGazeTrend(
             @CurrentTeacherId Long teacherId,
-            @PathVariable Long reportId,
-            @Valid @RequestBody ApplyReportGazeAnalysisRequest request
+            @PathVariable Long reportId
     ) {
-        return reportService.applyGazeAnalysis(
-                teacherId, reportId, request.gazeAnalysisResultId()
-        );
+        return reportService.refreshGazeTrend(teacherId, reportId);
     }
 
-    @Operation(summary = "리포트 삭제")
-    @DeleteMapping("/{reportId}")
-    public void deleteReport(@CurrentTeacherId Long teacherId, @PathVariable Long reportId) {
-        reportService.deleteReport(teacherId, reportId);
-    }
 }

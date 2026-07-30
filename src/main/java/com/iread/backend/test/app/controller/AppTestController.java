@@ -19,11 +19,33 @@ public class AppTestController {
     private final AppTestService testService;
     private final StudentResourceAccessPolicy studentResourceAccessPolicy;
 
+    @GetMapping("/challenge")
+    public SkillChallengePlanResponse getChallenge(
+            @CurrentTeacherId Long teacherId,
+            @CurrentStudentId Long authenticatedStudentId,
+            @PathVariable Long studentId
+    ) {
+        requireSameStudent(authenticatedStudentId, studentId);
+        return testService.getChallengePlan(teacherId, studentId);
+    }
+
     @GetMapping("/intro")
     public TestIntroResponse getIntro(
             @CurrentTeacherId Long teacherId,
             @CurrentStudentId Long authenticatedStudentId,
-            @PathVariable Long studentId
+            @PathVariable Long studentId,
+            @RequestParam(required = false) Long testId
+    ) {
+        requireSameStudent(authenticatedStudentId, studentId);
+        return testId == null
+                ? testService.getIntro(teacherId, studentId)
+                : testService.getIntro(teacherId, studentId, testId);
+    }
+
+    public TestIntroResponse getIntro(
+            Long teacherId,
+            Long authenticatedStudentId,
+            Long studentId
     ) {
         requireSameStudent(authenticatedStudentId, studentId);
         return testService.getIntro(teacherId, studentId);
@@ -45,10 +67,11 @@ public class AppTestController {
     public TestStartResponse start(
             @CurrentTeacherId Long teacherId,
             @CurrentStudentId Long authenticatedStudentId,
-            @PathVariable Long studentId
+            @PathVariable Long studentId,
+            @Valid @RequestBody TestIdRequest request
     ) {
         requireSameStudent(authenticatedStudentId, studentId);
-        return testService.start(teacherId, studentId);
+        return testService.start(teacherId, studentId, request.testId());
     }
 
     @PostMapping("/session-reset")
@@ -80,27 +103,15 @@ public class AppTestController {
 
     @PostMapping("/questions/{questionNumber}/responses")
     @ResponseStatus(HttpStatus.CREATED)
-    public TestSelectionResponse saveSelection(
+    public TestProgressResponse saveSelection(
             @CurrentTeacherId Long teacherId,
             @CurrentStudentId Long authenticatedStudentId,
             @PathVariable Long studentId,
             @PathVariable int questionNumber,
-            @Valid @RequestBody TestSelectionRequest request
+            @Valid @RequestBody TestSubmissionRequest request
     ) {
         requireSameStudent(authenticatedStudentId, studentId);
         return testService.saveSelection(teacherId, studentId, questionNumber, request);
-    }
-
-    @PostMapping("/questions/{questionNumber}/complete")
-    public TestQuestionCompleteResponse completeQuestion(
-            @CurrentTeacherId Long teacherId,
-            @CurrentStudentId Long authenticatedStudentId,
-            @PathVariable Long studentId,
-            @PathVariable int questionNumber,
-            @Valid @RequestBody TestQuestionCompleteRequest request
-    ) {
-        requireSameStudent(authenticatedStudentId, studentId);
-        return testService.completeQuestion(teacherId, studentId, questionNumber, request);
     }
 
     @PostMapping("/complete")

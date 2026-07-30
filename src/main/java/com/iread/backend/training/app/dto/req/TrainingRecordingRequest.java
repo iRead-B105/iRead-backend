@@ -6,8 +6,8 @@ import jakarta.validation.constraints.NotNull;
 import org.springframework.web.multipart.MultipartFile;
 
 public record TrainingRecordingRequest(
-        @NotNull Long wordId,
-        @NotNull @Min(0) Integer targetIndex,
+        Long wordId,
+        @Min(0) Integer targetIndex,
         @Min(0) Integer tokenIndex,
         @NotBlank String expectedText,
         @NotNull MultipartFile audioFile,

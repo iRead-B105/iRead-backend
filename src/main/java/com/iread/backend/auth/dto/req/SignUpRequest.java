@@ -20,9 +20,6 @@ public record SignUpRequest(
 
         @NotBlank
         @Size(max = 100)
-        String organization,
-
-        @Size(max = 255)
-        String profileImage
+        String organization
 ) {
 }

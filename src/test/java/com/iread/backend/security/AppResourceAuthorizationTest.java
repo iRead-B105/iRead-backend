@@ -11,7 +11,9 @@ import com.iread.backend.story.app.controller.StoryController;
 import com.iread.backend.story.app.service.StoryService;
 import com.iread.backend.test.app.controller.AppTestController;
 import com.iread.backend.test.app.service.AppTestService;
+import com.iread.backend.training.app.controller.AppTrainingCatalogController;
 import com.iread.backend.training.app.controller.AppTrainingController;
+import com.iread.backend.training.app.service.AppTrainingCatalogService;
 import com.iread.backend.training.app.service.AppTrainingService;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.access.AccessDeniedException;
@@ -40,6 +42,17 @@ class AppResourceAuthorizationTest {
         AppTrainingController controller = new AppTrainingController(service, policy);
 
         assertThatThrownBy(() -> controller.getIntro(1L, 20L, 21L, 30L))
+                .isInstanceOf(AccessDeniedException.class);
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void 현재훈련목록에서다른학생경로접근을차단한다() {
+        AppTrainingCatalogService service = mock(AppTrainingCatalogService.class);
+        AppTrainingCatalogController controller =
+                new AppTrainingCatalogController(service, policy);
+
+        assertThatThrownBy(() -> controller.getCurrentTrainingList(1L, 20L, 21L))
                 .isInstanceOf(AccessDeniedException.class);
         verifyNoInteractions(service);
     }

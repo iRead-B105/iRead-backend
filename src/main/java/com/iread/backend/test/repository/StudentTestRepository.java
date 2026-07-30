@@ -41,6 +41,10 @@ public interface StudentTestRepository extends JpaRepository<StudentTestEntity, 
 
     Optional<StudentTestEntity> findByIdAndTestCurriculumStudentId(Long id, Long studentId);
 
+    List<StudentTestEntity> findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(
+            Long testCurriculumId
+    );
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             SELECT test

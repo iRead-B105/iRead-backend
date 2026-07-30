@@ -8,9 +8,12 @@ import com.iread.backend.student.domain.LearningEventType;
 import com.iread.backend.student.dto.req.StudentRequest;
 import com.iread.backend.student.dto.res.AccuracyTrendResponse;
 import com.iread.backend.student.dto.res.LearningEventResponse;
+import com.iread.backend.student.dto.res.LearningEventListItemResponse;
+import com.iread.backend.student.dto.res.LearningEventListResponse;
 import com.iread.backend.student.dto.res.LearningSummaryResponse;
 import com.iread.backend.student.dto.res.ReadingSpeedTrendResponse;
 import com.iread.backend.student.dto.res.StudentListResponse;
+import com.iread.backend.student.dto.res.StudentListDataResponse;
 import com.iread.backend.student.dto.res.StudentResponse;
 import com.iread.backend.student.dto.res.StudentSummaryResponse;
 import com.iread.backend.student.dto.res.TrainingHistoryResponse;
@@ -50,16 +53,16 @@ public class StudentServiceImpl implements StudentService {
     private final ObjectMapper objectMapper;
 
     @Override
-    public List<StudentListResponse> getStudents(
+    public StudentListDataResponse getStudents(
             Long teacherId,
             String keyword,
-            Integer minAge,
-            Integer maxAge,
-            LocalDate learnedFrom,
-            LocalDate learnedTo
+            Integer age,
+            Integer recentDays,
+            int page,
+            int size
     ) {
         validateTeacher(teacherId);
-        validateStudentFilters(minAge, maxAge, learnedFrom, learnedTo);
+        validateStudentListQuery(age, recentDays, page, size);
 
         Map<Long, StudentRepository.StudentLearningSummaryProjection> summaries =
                 studentRepository.findLearningSummaries(teacherId).stream()
@@ -68,18 +71,32 @@ public class StudentServiceImpl implements StudentService {
                                 Function.identity()
                         ));
 
-        return studentRepository.findAllByTeacherIdOrderByIdAsc(teacherId).stream()
+        LocalDate today = LocalDate.now();
+        List<StudentListResponse> filtered =
+                studentRepository.findAllByTeacherIdOrderByIdAsc(teacherId).stream()
                 .map(student -> toListResponse(student, summaries.get(student.getId())))
                 .filter(student -> matchesKeyword(student, keyword))
-                .filter(student -> minAge == null || student.age() != null && student.age() >= minAge)
-                .filter(student -> maxAge == null || student.age() != null && student.age() <= maxAge)
-                .filter(student -> learnedFrom == null
-                        || student.lastLearningDate() != null
-                        && !student.lastLearningDate().isBefore(learnedFrom))
-                .filter(student -> learnedTo == null
-                        || student.lastLearningDate() != null
-                        && !student.lastLearningDate().isAfter(learnedTo))
+                .filter(student -> age == null || age.equals(student.age()))
+                .filter(student -> isWithinRecentDays(student, recentDays, today))
                 .toList();
+        long totalElements = filtered.size();
+        int totalPages = totalElements == 0
+                ? 0 : Math.toIntExact((totalElements + size - 1L) / size);
+        long start = (long) page * size;
+        List<StudentListResponse> students = start >= totalElements
+                ? List.of()
+                : filtered.subList(
+                        Math.toIntExact(start),
+                        Math.min(Math.toIntExact(start + size), filtered.size())
+                );
+
+        return new StudentListDataResponse(
+                List.copyOf(students),
+                page,
+                size,
+                totalElements,
+                totalPages
+        );
     }
 
     @Override
@@ -222,7 +239,13 @@ public class StudentServiceImpl implements StudentService {
                         row.getLearningCategory(),
                         row.getStartedAt(),
                         row.getFinishedAt(),
-                        row.getAchievement(),
+                        row.getAchievement() == null
+                                ? null
+                                : row.getAchievement().divide(
+                                        BigDecimal.TEN,
+                                        2,
+                                        RoundingMode.HALF_UP
+                                ),
                         parseTrainingQuestions(row.getResult())
                 ))
                 .toList();
@@ -241,6 +264,34 @@ public class StudentServiceImpl implements StudentService {
                 attentionReasons.size(),
                 attentionReasons
         );
+    }
+
+    @Override
+    public LearningEventListResponse getRecentLearningEvents(
+            Long teacherId,
+            Long studentId,
+            int limit
+    ) {
+        findOwnedStudent(teacherId, studentId);
+        if (limit < 1 || limit > 20) {
+            throw new IllegalArgumentException("limit은 1 이상 20 이하여야 합니다.");
+        }
+        StudentRepository.LearningOverviewProjection overview =
+                studentRepository.findLearningOverview(studentId);
+        List<String> attentionReasons = attentionReasons(overview);
+        List<LearningEventListItemResponse> events =
+                studentRepository.findRecentLearningEvents(studentId, limit).stream()
+                        .map(event -> new LearningEventListItemResponse(
+                                event.getEventId(),
+                                event.getEventType(),
+                                event.getOccurredAt(),
+                                event.getEventId(),
+                                event.getAccuracy(),
+                                !attentionReasons.isEmpty(),
+                                attentionReasons
+                        ))
+                        .toList();
+        return new LearningEventListResponse(events);
     }
 
     @Override
@@ -370,20 +421,23 @@ public class StudentServiceImpl implements StudentService {
                 .orElseThrow(() -> new ResourceNotFoundException("교사를 찾을 수 없습니다."));
     }
 
-    private void validateStudentFilters(
-            Integer minAge,
-            Integer maxAge,
-            LocalDate learnedFrom,
-            LocalDate learnedTo
+    private void validateStudentListQuery(
+            Integer age,
+            Integer recentDays,
+            int page,
+            int size
     ) {
-        if (minAge != null && minAge < 0 || maxAge != null && maxAge < 0) {
-            throw new IllegalArgumentException("나이는 0 이상이어야 합니다.");
+        if (age != null && (age < 6 || age > 12)) {
+            throw new IllegalArgumentException("age는 6 이상 12 이하여야 합니다.");
         }
-        if (minAge != null && maxAge != null && minAge > maxAge) {
-            throw new IllegalArgumentException("최소 나이는 최대 나이보다 클 수 없습니다.");
+        if (recentDays != null && recentDays != 7 && recentDays != 30) {
+            throw new IllegalArgumentException("recentDays는 7 또는 30이어야 합니다.");
         }
-        if (learnedFrom != null && learnedTo != null && learnedFrom.isAfter(learnedTo)) {
-            throw new IllegalArgumentException("최근 학습 시작일은 종료일보다 늦을 수 없습니다.");
+        if (page < 0) {
+            throw new IllegalArgumentException("page는 0 이상이어야 합니다.");
+        }
+        if (size < 1 || size > 100) {
+            throw new IllegalArgumentException("size는 1 이상 100 이하여야 합니다.");
         }
     }
 
@@ -397,7 +451,24 @@ public class StudentServiceImpl implements StudentService {
         if (keyword == null || keyword.isBlank()) {
             return true;
         }
-        return student.name().toLowerCase().contains(keyword.trim().toLowerCase());
+        String normalized = keyword.trim().toLowerCase();
+        return student.name().toLowerCase().contains(normalized)
+                || student.school() != null
+                && student.school().toLowerCase().contains(normalized);
+    }
+
+    private boolean isWithinRecentDays(
+            StudentListResponse student,
+            Integer recentDays,
+            LocalDate today
+    ) {
+        if (recentDays == null) {
+            return true;
+        }
+        LocalDate learnedAt = student.recentLearningDate();
+        return learnedAt != null
+                && !learnedAt.isAfter(today)
+                && learnedAt.isAfter(today.minusDays(recentDays));
     }
 
     private List<String> attentionReasons(
@@ -497,15 +568,28 @@ public class StudentServiceImpl implements StudentService {
         Integer age = student.getBirthday() == null
                 ? null
                 : Period.between(student.getBirthday(), LocalDate.now()).getYears();
+        long weeklyScheduledCount = summary == null || summary.getWeeklyScheduledCount() == null
+                ? 0 : summary.getWeeklyScheduledCount();
+        long weeklyCompletedCount = summary == null || summary.getWeeklyCompletedCount() == null
+                ? 0 : summary.getWeeklyCompletedCount();
+        Integer weeklyParticipationRate = weeklyScheduledCount == 0
+                ? null
+                : Math.toIntExact(Math.round(weeklyCompletedCount * 100.0 / weeklyScheduledCount));
 
         return new StudentListResponse(
                 student.getId(),
                 student.getName(),
+                student.getSchool(),
                 age,
+                student.getImageUrl(),
+                summary == null ? null : summary.getRecentTrainingName(),
                 summary == null || summary.getRecentFinishedAt() == null
                         ? null : summary.getRecentFinishedAt().toLocalDate(),
-                summary == null ? 0L : summary.getTotalLearningMinutes(),
-                summary == null ? null : summary.getRecentTrainingName()
+                weeklyScheduledCount,
+                weeklyCompletedCount,
+                weeklyParticipationRate,
+                summary == null || summary.getTotalLearningMinutes() == null
+                        ? 0L : summary.getTotalLearningMinutes()
         );
     }
 

@@ -4,6 +4,7 @@ import com.iread.backend.ai.client.AiClient;
 import com.iread.backend.ai.dto.req.EvaluateTrainingRequest;
 import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
 import com.iread.backend.gaze.analysis.GazeWordAnalysisAdapter;
+import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
@@ -29,6 +30,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -38,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -71,7 +74,16 @@ class TrainingServiceTest {
                 wordRepository,
                 wordAttemptLogRepository,
                 new WordAttemptScoreCalculator(
-                        new WordAttemptScoreProperties(100, 300, 700, 200, 600, 250)
+                        new WordAttemptScoreProperties(
+                                100,
+                                70,
+                                200,
+                                600,
+                                100,
+                                50,
+                                30,
+                                20
+                        )
                 ),
                 gazeWordAnalysisAdapter,
                 aiClient,
@@ -91,14 +103,43 @@ class TrainingServiceTest {
         curriculum.getTrainings().addAll(List.of(first, second));
         ReflectionTestUtils.setField(curriculum, "completedAt", LocalDateTime.of(2026, 7, 20, 12, 0));
         allowStudent();
-        when(dailyCurriculumRepository.findAllByStudentIdAndCompletedAtIsNotNullOrderByCompletedAtDesc(10L))
+        when(dailyCurriculumRepository.findCompletedByStudentIdWithin(
+                10L,
+                LocalDateTime.of(2026, 7, 1, 0, 0),
+                LocalDateTime.of(2026, 8, 1, 0, 0)
+        ))
                 .thenReturn(List.of(curriculum));
 
-        var result = trainingService.getCurriculumLogs(1L, 10L);
+        var result = trainingService.getCurriculumLogs(
+                1L,
+                10L,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        );
 
         assertThat(result).hasSize(1);
         assertThat(result.getFirst().achievementRate()).isEqualByComparingTo("85.00");
         assertThat(result.getFirst().trainings()).hasSize(2);
+    }
+
+    @Test
+    void 커리큘럼_조회_시작일은_종료일보다_늦을_수_없다() {
+        allowStudent();
+
+        assertThatThrownBy(() -> trainingService.getCurriculumLogs(
+                1L,
+                10L,
+                LocalDate.of(2026, 7, 31),
+                LocalDate.of(2026, 7, 1)
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("시작일은 종료일보다 늦을 수 없습니다.");
+
+        verify(dailyCurriculumRepository, never()).findCompletedByStudentIdWithin(
+                any(),
+                any(),
+                any()
+        );
     }
 
     @Test
@@ -127,6 +168,20 @@ class TrainingServiceTest {
     }
 
     @Test
+    void currentCurriculumUsesDomainSpecificNotFoundCode() {
+        allowStudent();
+        when(dailyCurriculumRepository.findByStudentIdAndStatus(
+                10L,
+                DailyCurriculumStatus.NOT_STARTED
+        )).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> trainingService.getCurrentDailyCurriculum(1L, 10L))
+                .isInstanceOfSatisfying(ResourceNotFoundException.class, exception ->
+                        assertThat(exception.code()).isEqualTo("NEXT_CURRICULUM_NOT_FOUND"));
+    }
+
+
+    @Test
     void 진행중인_훈련이_있으면_차회_커리큘럼을_수정할_수_없다() {
         DailyCurriculumEntity curriculum = curriculum(100L);
         TrainingEntity training = training(1L, curriculum, template(11L, "훈련"), null);
@@ -138,8 +193,67 @@ class TrainingServiceTest {
         assertThatThrownBy(() -> trainingService.updateDailyCurriculum(
                 1L, 10L, 100L, new UpdateCurriculumRequest(List.of(11L))))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessage("시작했거나 완료된 커리큘럼은 수정할 수 없습니다.");
+                .hasMessage("진행 중이거나 완료된 커리큘럼은 수정할 수 없습니다.");
         verify(trainingTemplateRepository, never()).findAllById(any());
+    }
+
+    @Test
+    void 생성_전_커리큘럼은_순번_충돌_없이_수정할_수_있다() {
+        DailyCurriculumEntity curriculum = curriculum(100L);
+        TrainingEntity training = training(1L, curriculum, template(11L, "기존 훈련"), null);
+        ReflectionTestUtils.setField(training, "status", TrainingStatus.NOT_READY);
+        curriculum.getTrainings().add(training);
+        TrainingTemplateEntity replacement = template(12L, "교체 훈련");
+        allowStudent();
+        when(dailyCurriculumRepository.findForUpdate(100L, 10L))
+                .thenReturn(Optional.of(curriculum));
+        when(trainingTemplateRepository.findAllById(List.of(12L)))
+                .thenReturn(List.of(replacement));
+
+        trainingService.updateDailyCurriculum(
+                1L,
+                10L,
+                100L,
+                new UpdateCurriculumRequest(List.of(12L))
+        );
+
+        verify(trainingDataRepository).deleteByTrainingId(1L);
+        verify(trainingDataRepository).flush();
+        verify(dailyCurriculumRepository, times(2)).flush();
+        assertThat(curriculum.getTrainings()).hasSize(1);
+        assertThat(curriculum.getTrainings().getFirst().getTrainingTemplate())
+                .isSameAs(replacement);
+        assertThat(curriculum.getTrainings().getFirst().getStatus())
+                .isEqualTo(TrainingStatus.NOT_READY);
+    }
+
+    @Test
+    void 생성_완료된_훈련도_학습_시작_전이면_수정할_수_있다() {
+        DailyCurriculumEntity curriculum = curriculum(100L);
+        TrainingEntity training = training(1L, curriculum, template(11L, "생성 완료 훈련"), null);
+        ReflectionTestUtils.setField(training, "status", TrainingStatus.NOT_STARTED);
+        curriculum.getTrainings().add(training);
+        TrainingTemplateEntity replacement = template(12L, "교체 훈련");
+        allowStudent();
+        when(dailyCurriculumRepository.findForUpdate(100L, 10L)).thenReturn(Optional.of(curriculum));
+        when(trainingTemplateRepository.findAllById(List.of(12L)))
+                .thenReturn(List.of(replacement));
+
+        trainingService.updateDailyCurriculum(
+                1L,
+                10L,
+                100L,
+                new UpdateCurriculumRequest(List.of(12L))
+        );
+
+        verify(trainingDataRepository).deleteByTrainingId(1L);
+        verify(trainingDataRepository).flush();
+        verify(dailyCurriculumRepository, times(2)).flush();
+        assertThat(curriculum.getTrainings()).hasSize(1);
+        assertThat(curriculum.getTrainings().getFirst().getTrainingTemplate())
+                .isSameAs(replacement);
+        assertThat(curriculum.getTrainings().getFirst().getStatus())
+                .isEqualTo(TrainingStatus.NOT_READY);
     }
 
     @Test
@@ -225,6 +339,24 @@ class TrainingServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("이미 추가된 예정 단어입니다.");
         verify(wordRepository, never()).save(any());
+    }
+
+    @Test
+    void 진행중인_훈련의_예정_단어는_수정할_수_없다() {
+        TrainingEntity training = ownedTraining(1L);
+        ReflectionTestUtils.setField(training, "status", TrainingStatus.IN_PROGRESS);
+        allowStudent();
+        when(trainingRepository.findByIdAndDailyCurriculumStudentId(1L, 10L))
+                .thenReturn(Optional.of(training));
+
+        assertThatThrownBy(() -> trainingService.addExpectedWord(
+                1L, 10L, 1L, new ExpectedWordRequest("사과")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("진행 중이거나 완료된 훈련은 수정할 수 없습니다.");
+        assertThatThrownBy(() -> trainingService.deleteExpectedWord(1L, 10L, 1L, 101L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("진행 중이거나 완료된 훈련은 수정할 수 없습니다.");
+        verify(trainingDataRepository, never()).findByTrainingId(any());
     }
 
     @Test
@@ -409,9 +541,36 @@ class TrainingServiceTest {
         assertThat(logs.getFirst().getGazeEndOffsetMs()).isEqualTo(500);
         assertThat(logs.getFirst().getRegressionCount()).isEqualTo(2);
         assertThat(logs.getFirst().getCorrect()).isTrue();
-        assertThat(logs.getFirst().getTotalScore()).isEqualTo(800);
+        assertThat(logs.getFirst().getTotalScore()).isEqualTo(850);
         assertThat(training.getResult()).contains("\"wordAttemptLogId\":501");
         assertThat(training.getResult()).contains("\"isFinal\":true");
+    }
+
+    @Test
+    void completeTrainingActivatesGeneratedNextTraining() throws Exception {
+        DailyCurriculumEntity curriculum = curriculum(100L);
+        TrainingEntity training = training(1L, curriculum, template(11L, "현재 훈련"), null);
+        TrainingEntity nextTraining = training(2L, curriculum, template(12L, "다음 훈련"), null);
+        ReflectionTestUtils.setField(training, "sequenceNo", 1);
+        ReflectionTestUtils.setField(nextTraining, "sequenceNo", 2);
+        ReflectionTestUtils.setField(training, "status", TrainingStatus.NOT_STARTED);
+        curriculum.getTrainings().add(training);
+        curriculum.getTrainings().add(nextTraining);
+        allowStudent();
+        when(trainingRepository.findForUpdate(1L, 10L)).thenReturn(Optional.of(training));
+        when(trainingDataRepository.findByTrainingId(2L))
+                .thenReturn(Optional.of(org.mockito.Mockito.mock(TrainingDataEntity.class)));
+        when(aiClient.evaluateTraining(any(EvaluateTrainingRequest.class)))
+                .thenReturn(new EvaluateTrainingResponse(
+                        "training-evaluation-1", 1, new BigDecimal("100.00")
+                ));
+        var resultJson = JsonMapper.builder().build().readTree("{}");
+
+        trainingService.completeTraining(1L, 10L, 1L, resultJson, null);
+
+        assertThat(training.getStatus()).isEqualTo(TrainingStatus.COMPLETED);
+        assertThat(nextTraining.getStatus()).isEqualTo(TrainingStatus.NOT_STARTED);
+        verify(personalizedCurriculumPlanner, never()).createNextIfAbsent(any());
     }
 
     @Test

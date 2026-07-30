@@ -5,9 +5,11 @@ import com.iread.backend.training.domain.TrainingStatus;
 import java.time.LocalDateTime;
 
 public record TrainingCompleteResponse(
+        String completionType,
         Long trainingId,
         TrainingStatus status,
-        Integer accuracy,
-        LocalDateTime completedAt
+        LocalDateTime completedAt,
+        String messageKey,
+        String nextAction
 ) {
 }

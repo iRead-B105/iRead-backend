@@ -1,15 +1,20 @@
 package com.iread.backend.report.admin.service;
 
 import com.iread.backend.gaze.domain.GazeAnalysisResultEntity;
+import com.iread.backend.gaze.domain.GazeContentType;
 import com.iread.backend.gaze.domain.GazeSessionEntity;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
+import com.iread.backend.gaze.repository.GazeSessionRepository;
 import com.iread.backend.report.admin.dto.req.CreateReportRequest;
+import com.iread.backend.report.admin.dto.res.ReportSnapshot;
+import com.iread.backend.report.admin.exception.ReportCreationException;
 import com.iread.backend.report.domain.ReportEntity;
 import com.iread.backend.report.repository.ReportRepository;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.test.repository.StudentTestRepository;
 import com.iread.backend.training.repository.TrainingRepository;
+import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +22,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -27,6 +33,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.groups.Tuple.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
@@ -40,6 +47,7 @@ class ReportServiceTest {
     @Mock StudentTestRepository testRepository;
     @Mock WordAttemptLogRepository wordAttemptLogRepository;
     @Mock GazeAnalysisResultRepository gazeAnalysisResultRepository;
+    @Mock GazeSessionRepository gazeSessionRepository;
 
     private ReportService reportService;
 
@@ -47,15 +55,19 @@ class ReportServiceTest {
     void setUp() {
         reportService = new ReportService(reportRepository, studentRepository, trainingRepository,
                 testRepository, wordAttemptLogRepository, gazeAnalysisResultRepository,
+                gazeSessionRepository,
                 JsonMapper.builder().build());
     }
 
     @Test
-    void 데이터가_없는_기간도_빈_스냅샷으로_저장한다() {
+    void 완료_학습이_있는_기간의_보고서를_저장한다() {
         StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
+        TrainingEntity training = org.mockito.Mockito.mock(TrainingEntity.class);
+        when(training.getStartedAt()).thenReturn(LocalDateTime.of(2026, 7, 10, 10, 0));
+        when(training.getFinishedAt()).thenReturn(LocalDateTime.of(2026, 7, 10, 10, 5));
         when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
         when(trainingRepository.findAllByDailyCurriculumStudentIdAndStatusAndFinishedAtBetweenOrderByFinishedAtAsc(
-                any(), any(), any(), any())).thenReturn(List.of());
+                any(), any(), any(), any())).thenReturn(List.of(training));
         when(testRepository.findAllByTestCurriculumStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
                 any(), any(), any(), any())).thenReturn(List.of());
         when(wordAttemptLogRepository.findIncorrectWordStats(any(), any(), any()))
@@ -79,8 +91,84 @@ class ReportServiceTest {
         ArgumentCaptor<ReportEntity> captor = ArgumentCaptor.forClass(ReportEntity.class);
         verify(reportRepository).saveAndFlush(captor.capture());
         assertThat(captor.getValue().getSnapshotData())
-                .contains("\"learningDays\":0")
+                .contains("\"learningDays\":1")
                 .contains("\"improvedPatterns\":[]");
+    }
+
+    @Test
+    void 완료_학습이_없는_기간은_보고서를_저장하지_않는다() {
+        StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(trainingRepository.findAllByDailyCurriculumStudentIdAndStatusAndFinishedAtBetweenOrderByFinishedAtAsc(
+                any(), any(), any(), any())).thenReturn(List.of());
+        when(testRepository.findAllByTestCurriculumStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
+                any(), any(), any(), any())).thenReturn(List.of());
+
+        assertThatThrownBy(() -> reportService.createReport(
+                1L,
+                new CreateReportRequest(
+                        10L,
+                        LocalDate.of(2026, 7, 1),
+                        LocalDate.of(2026, 7, 31),
+                        null
+                )
+        )).isInstanceOfSatisfying(ReportCreationException.class, exception ->
+                assertThat(exception.code()).isEqualTo("REPORT_DATA_NOT_FOUND"));
+        verify(reportRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void 동일_아동과_기간의_보고서는_기존_식별자와_함께_차단한다() {
+        StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
+        ReportEntity existing = report(student, 25L, null);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(reportRepository.findByStudentIdAndStartDateAndEndDate(
+                10L,
+                LocalDateTime.of(2026, 7, 1, 0, 0),
+                LocalDateTime.of(2026, 7, 31, 23, 59, 59, 999_999_999)
+        )).thenReturn(Optional.of(existing));
+
+        assertThatThrownBy(() -> reportService.createReport(
+                1L,
+                new CreateReportRequest(
+                        10L,
+                        LocalDate.of(2026, 7, 1),
+                        LocalDate.of(2026, 7, 31),
+                        null
+                )
+        )).isInstanceOfSatisfying(ReportCreationException.class, exception -> {
+            assertThat(exception.code()).isEqualTo("REPORT_PERIOD_ALREADY_EXISTS");
+            assertThat(exception.details()).containsEntry("existingReportId", 25L);
+        });
+        verify(reportRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void 동시_중복_저장은_기간_중복_오류로_변환한다() {
+        StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
+        TrainingEntity training = org.mockito.Mockito.mock(TrainingEntity.class);
+        when(training.getStartedAt()).thenReturn(LocalDateTime.of(2026, 7, 10, 10, 0));
+        when(training.getFinishedAt()).thenReturn(LocalDateTime.of(2026, 7, 10, 10, 5));
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(trainingRepository.findAllByDailyCurriculumStudentIdAndStatusAndFinishedAtBetweenOrderByFinishedAtAsc(
+                any(), any(), any(), any())).thenReturn(List.of(training));
+        when(testRepository.findAllByTestCurriculumStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
+                any(), any(), any(), any())).thenReturn(List.of());
+        when(wordAttemptLogRepository.findIncorrectWordStats(any(), any(), any()))
+                .thenReturn(List.of());
+        when(reportRepository.saveAndFlush(any()))
+                .thenThrow(new DataIntegrityViolationException("duplicate"));
+
+        assertThatThrownBy(() -> reportService.createReport(
+                1L,
+                new CreateReportRequest(
+                        10L,
+                        LocalDate.of(2026, 7, 1),
+                        LocalDate.of(2026, 7, 31),
+                        null
+                )
+        )).isInstanceOfSatisfying(ReportCreationException.class, exception ->
+                assertThat(exception.code()).isEqualTo("REPORT_PERIOD_ALREADY_EXISTS"));
     }
 
     @Test
@@ -121,8 +209,9 @@ class ReportServiceTest {
     }
 
     @Test
-    void 저장된_스냅샷을_계약_응답으로_평탄화한다() {
+    void 저장된_스냅샷을_중첩_계약으로_반환한다() {
         StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
+        when(student.getId()).thenReturn(10L);
         ReportEntity report = report(student, 25L, "메모");
         ReflectionTestUtils.setField(report, "snapshotData", snapshotJson());
         ReflectionTestUtils.setField(
@@ -133,63 +222,63 @@ class ReportServiceTest {
 
         var result = reportService.getReport(1L, 25L);
 
-        assertThat(result.learningDays()).isEqualTo(3);
-        assertThat(result.totalTrainingTime()).isEqualTo(45);
-        assertThat(result.achievementByDomain()).containsEntry(
-                "낱말 읽기", new java.math.BigDecimal("82.50")
-        );
-        assertThat(result.frequentErrorWords()).containsExactly("사과");
+        assertThat(result.studentId()).isEqualTo(10L);
+        assertThat(result.snapshot().learningDays()).isEqualTo(3);
+        assertThat(result.snapshot().totalTrainingTimeMinutes()).isEqualTo(45);
+        assertThat(result.snapshot().areaAchievements())
+                .extracting("area", "achievement")
+                .containsExactly(tuple("낱말 읽기", new java.math.BigDecimal("82.50")));
+        assertThat(result.snapshot().frequentlyIncorrectWords())
+                .extracting("wordName")
+                .containsExactly("사과");
         assertThat(result.teacherMemo()).isEqualTo("메모");
     }
 
     @Test
-    void 같은_아동의_시선_분석을_보고서_스냅샷에_반영한다() {
+    void 보고서_기간의_훈련_시선_분석을_추이로_갱신한다() throws Exception {
         StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
         when(student.getId()).thenReturn(10L);
         ReportEntity report = report(student, 25L, null);
         ReflectionTestUtils.setField(report, "snapshotData", snapshotJson());
-        GazeAnalysisResultEntity analysis = org.mockito.Mockito.mock(
-                GazeAnalysisResultEntity.class
+        TrainingEntity firstTraining = org.mockito.Mockito.mock(TrainingEntity.class);
+        TrainingEntity latestTraining = org.mockito.Mockito.mock(TrainingEntity.class);
+        when(firstTraining.getId()).thenReturn(101L);
+        when(latestTraining.getId()).thenReturn(102L);
+        GazeSessionEntity firstSession = gazeSession(201L, firstTraining);
+        GazeSessionEntity latestSession = gazeSession(202L, latestTraining);
+        GazeAnalysisResultEntity first = gazeResult(
+                301L, firstSession, LocalDateTime.of(2026, 7, 10, 10, 0),
+                42000, 68, 7, 617
         );
-        GazeSessionEntity session = org.mockito.Mockito.mock(GazeSessionEntity.class);
-        when(analysis.getId()).thenReturn(50L);
-        when(analysis.getGazeSession()).thenReturn(session);
-        when(analysis.getTotalVisitedDuration()).thenReturn(1200);
-        when(analysis.getTotalVisitedCount()).thenReturn(8);
-        when(analysis.getReverseReadCount()).thenReturn(2);
-        when(analysis.getAvgVisitedDuration()).thenReturn(150);
-        when(session.getStudent()).thenReturn(student);
+        GazeAnalysisResultEntity latest = gazeResult(
+                302L, latestSession, LocalDateTime.of(2026, 7, 20, 10, 0),
+                35000, 58, 5, 603
+        );
         when(reportRepository.findByIdAndStudentTeacherId(25L, 1L))
                 .thenReturn(Optional.of(report));
-        when(gazeAnalysisResultRepository.findByIdAndGazeSessionStudentTeacherId(50L, 1L))
-                .thenReturn(Optional.of(analysis));
+        when(gazeAnalysisResultRepository
+                .findAllByGazeSessionStudentIdAndGazeSessionContentTypeAndGazeSessionStartedAtGreaterThanEqualAndGazeSessionStartedAtLessThanOrderByCreatedAtAscIdAsc(
+                        10L,
+                        GazeContentType.TRAINING,
+                        LocalDateTime.of(2026, 7, 1, 0, 0),
+                        LocalDateTime.of(2026, 8, 1, 0, 0)
+                ))
+                .thenReturn(List.of(first, latest));
 
-        var result = reportService.applyGazeAnalysis(1L, 25L, 50L);
+        var result = reportService.refreshGazeTrend(1L, 25L);
+        reportService.refreshGazeTrend(1L, 25L);
 
         assertThat(result.reportId()).isEqualTo(25L);
-        assertThat(report.getSnapshotData())
-                .contains("\"gazeAnalysisResultId\":50")
-                .contains("\"regressionCount\":2");
-    }
-
-    @Test
-    void 소유한_리포트를_삭제한다() {
-        StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
-        ReportEntity report = report(student, 25L, null);
-        when(reportRepository.findByIdAndStudentTeacherId(25L, 1L)).thenReturn(Optional.of(report));
-
-        reportService.deleteReport(1L, 25L);
-
-        verify(reportRepository).delete(report);
-    }
-
-    @Test
-    void 다른_교사의_리포트는_삭제할_수_없다() {
-        when(reportRepository.findByIdAndStudentTeacherId(25L, 1L)).thenReturn(Optional.empty());
-
-        assertThatThrownBy(() -> reportService.deleteReport(1L, 25L))
-                .isInstanceOf(IllegalArgumentException.class);
-        verify(reportRepository, never()).delete(any());
+        ReportSnapshot stored = JsonMapper.builder().build()
+                .readValue(report.getSnapshotData(), ReportSnapshot.class);
+        assertThat(stored.gazeTrend().training().points())
+                .extracting(ReportSnapshot.GazePoint::gazeAnalysisResultId)
+                .containsExactly(301L, 302L);
+        assertThat(stored.gazeTrend().training().changes().reverseReadCount())
+                .isEqualTo(new ReportSnapshot.GazeMetricChange(7, 5, -2));
+        assertThat(stored.gazeTrend().training().points()).hasSize(2);
+        assertThat(stored.gazeTrend().test().status())
+                .isEqualTo(ReportSnapshot.GazeSeriesStatus.NO_DATA);
     }
 
     private ReportEntity report(StudentEntity student, Long id, String memo) {
@@ -202,6 +291,35 @@ class ReportServiceTest {
         );
         ReflectionTestUtils.setField(report, "id", id);
         return report;
+    }
+
+    private GazeSessionEntity gazeSession(Long id, TrainingEntity training) {
+        GazeSessionEntity session = org.mockito.Mockito.mock(GazeSessionEntity.class);
+        when(session.getId()).thenReturn(id);
+        when(session.getTraining()).thenReturn(training);
+        return session;
+    }
+
+    private GazeAnalysisResultEntity gazeResult(
+            Long id,
+            GazeSessionEntity session,
+            LocalDateTime createdAt,
+            int totalVisitedDuration,
+            int totalVisitedCount,
+            int reverseReadCount,
+            int avgVisitedDuration
+    ) {
+        GazeAnalysisResultEntity result = org.mockito.Mockito.mock(
+                GazeAnalysisResultEntity.class
+        );
+        when(result.getId()).thenReturn(id);
+        when(result.getGazeSession()).thenReturn(session);
+        when(result.getCreatedAt()).thenReturn(createdAt);
+        when(result.getTotalVisitedDuration()).thenReturn(totalVisitedDuration);
+        when(result.getTotalVisitedCount()).thenReturn(totalVisitedCount);
+        when(result.getReverseReadCount()).thenReturn(reverseReadCount);
+        when(result.getAvgVisitedDuration()).thenReturn(avgVisitedDuration);
+        return result;
     }
 
     private String snapshotJson() {

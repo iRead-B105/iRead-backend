@@ -4,17 +4,24 @@ import com.iread.backend.ai.dto.req.ContinueStoryRequest;
 import com.iread.backend.ai.dto.req.EvaluateTrainingRequest;
 import com.iread.backend.ai.dto.req.GenerateStoryRequest;
 import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
+import com.iread.backend.ai.dto.req.GenerateImageRequest;
 import com.iread.backend.ai.dto.req.SpeechSynthesisRequest;
 import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
 import com.iread.backend.ai.dto.res.GenerateStoryResponse;
 import com.iread.backend.ai.dto.res.GenerateTrainingResponse;
+import com.iread.backend.ai.dto.res.GenerateImageResponse;
 import com.iread.backend.ai.dto.res.SpeechSynthesisResponse;
 import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
 import com.iread.backend.ai.config.AiClientProperties;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.global.audio.TemporaryAudioStorage;
+import com.iread.backend.pronunciation.DeterministicPronunciationAnalysisAdapter;
+import com.iread.backend.pronunciation.PronunciationAnalysisRequest;
+import com.iread.backend.pronunciation.PronunciationAnalysisResult;
+import com.iread.backend.pronunciation.PronunciationWordResult;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
@@ -24,6 +31,8 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Objects;
 
 @Component
@@ -34,7 +43,9 @@ public class HttpAiClient implements AiClient {
     static final String GENERATE_STORY_PATH = "/api/v1/story/generate";
     static final String CONTINUE_STORY_PATH = "/api/v1/story/continue";
     static final String TRANSCRIBE_SPEECH_PATH = "/api/v1/speech/transcribe";
+    static final String ANALYZE_PRONUNCIATION_PATH = "/api/v1/speech/pronunciation/analyze";
     static final String SYNTHESIZE_SPEECH_PATH = "/api/v1/speech/synthesize";
+    static final String GENERATE_IMAGE_PATH = "/api/v1/images/generate";
 
     private final RestClient restClient;
     private final AiClientProperties properties;
@@ -43,6 +54,8 @@ public class HttpAiClient implements AiClient {
     private final MockStoryGenerator mockStoryGenerator;
     private final MockSpeechProcessor mockSpeechProcessor;
     private final TemporaryAudioStorage temporaryAudioStorage;
+    private final DeterministicPronunciationAnalysisAdapter mockPronunciationAnalyzer =
+            new DeterministicPronunciationAnalysisAdapter();
 
     public HttpAiClient(
             @Qualifier("aiRestClient") RestClient restClient,
@@ -151,6 +164,90 @@ public class HttpAiClient implements AiClient {
     }
 
     @Override
+    public GenerateImageResponse generateImage(GenerateImageRequest request) {
+        if (properties.mockGenerate()) {
+            return mockImage(request);
+        }
+        try {
+            GenerateImageResponse response = restClient.post()
+                    .uri(GENERATE_IMAGE_PATH)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .header("Idempotency-Key", request.requestId())
+                    .body(request)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (httpRequest, httpResponse) -> {
+                        throw new AiClientException(
+                                "AI 서버가 이미지 생성 오류를 반환했습니다.",
+                                httpResponse.getStatusCode().value()
+                        );
+                    })
+                    .requiredBody(GenerateImageResponse.class);
+            if (!Objects.equals(request.requestId(), response.requestId())
+                    || response.imageUrl() == null
+                    || response.imageUrl().isBlank()) {
+                throw new AiClientException("AI 이미지 생성 응답 값이 유효하지 않습니다.");
+            }
+            String publicImageUrl = properties.baseUrl()
+                    .resolve(response.imageUrl())
+                    .toString();
+            return new GenerateImageResponse(
+                    response.requestId(),
+                    publicImageUrl,
+                    response.provider()
+            );
+        } catch (AiClientException exception) {
+            throw exception;
+        } catch (RestClientException exception) {
+            throw new AiClientException("AI 서버와 이미지 생성 통신 중 실패했습니다.", exception);
+        }
+    }
+
+    private GenerateImageResponse mockImage(GenerateImageRequest request) {
+        String prompt = Objects.toString(request.prompt(), "그림").strip();
+        if (prompt.length() > 42) {
+            prompt = prompt.substring(0, 42) + "…";
+        }
+        String escapedPrompt = prompt
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;")
+                .replace("'", "&apos;");
+        String svg = """
+                <svg xmlns="http://www.w3.org/2000/svg" width="960" height="540"
+                     viewBox="0 0 960 540">
+                  <defs>
+                    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" stop-color="#dff4ff"/>
+                      <stop offset="1" stop-color="#fff8dc"/>
+                    </linearGradient>
+                  </defs>
+                  <rect width="960" height="540" rx="32" fill="url(#sky)"/>
+                  <circle cx="790" cy="105" r="58" fill="#ffd86b"/>
+                  <path d="M0 390 Q180 300 360 390 T720 390 T1080 390 V540 H0Z"
+                        fill="#9ed98f"/>
+                  <rect x="120" y="145" width="720" height="230" rx="28"
+                        fill="#ffffff" fill-opacity=".9"/>
+                  <text x="480" y="245" text-anchor="middle"
+                        font-family="sans-serif" font-size="38" font-weight="700"
+                        fill="#31506b">그림과 문장을 연결해요</text>
+                  <text x="480" y="305" text-anchor="middle"
+                        font-family="sans-serif" font-size="25"
+                        fill="#526b7f">%s</text>
+                </svg>
+                """.formatted(escapedPrompt);
+        String encoded = Base64.getEncoder().encodeToString(
+                svg.getBytes(StandardCharsets.UTF_8)
+        );
+        return new GenerateImageResponse(
+                request.requestId(),
+                "data:image/svg+xml;base64," + encoded,
+                "BACKEND_MOCK_IMAGE_V1"
+        );
+    }
+
+    @Override
     public SpeechTranscriptionResponse transcribeSpeech(
             String requestId, Long studentId, String expectedText, MultipartFile audioFile
     ) {
@@ -203,6 +300,47 @@ public class HttpAiClient implements AiClient {
     }
 
     @Override
+    public PronunciationAnalysisResult analyzePronunciation(
+            PronunciationAnalysisRequest request
+    ) {
+        if (properties.mockSpeech()) {
+            return mockPronunciationAnalyzer.analyze(request);
+        }
+        try {
+            MultipartBodyBuilder body = new MultipartBodyBuilder();
+            body.part("requestId", request.requestId());
+            body.part("expectedText", request.expectedText());
+            body.part("audioFile", new ByteArrayResource(request.audio()) {
+                @Override
+                public String getFilename() {
+                    return request.originalFilename();
+                }
+            }).contentType(MediaType.parseMediaType(request.contentType()));
+
+            PronunciationAnalysisResult response = restClient.post()
+                    .uri(ANALYZE_PRONUNCIATION_PATH)
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .header("Idempotency-Key", request.requestId())
+                    .body(body.build())
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (httpRequest, httpResponse) -> {
+                        throw new AiClientException(
+                                "AI 서버가 발음 분석 오류를 반환했습니다.",
+                                httpResponse.getStatusCode().value()
+                        );
+                    })
+                    .requiredBody(PronunciationAnalysisResult.class);
+            validatePronunciationResponse(request, response);
+            return response;
+        } catch (AiClientException exception) {
+            throw exception;
+        } catch (RestClientException exception) {
+            throw new AiClientException("AI 서버와 발음 분석 통신 중 실패했습니다.", exception);
+        }
+    }
+
+    @Override
     public SpeechSynthesisResponse synthesizeSpeech(SpeechSynthesisRequest request) {
         if (properties.mockSpeech()) {
             return mockSpeechProcessor.synthesize(request);
@@ -239,6 +377,21 @@ public class HttpAiClient implements AiClient {
             throw exception;
         } catch (NumberFormatException | RestClientException exception) {
             throw new AiClientException("AI 서버와 TTS 통신 중 실패했습니다.", exception);
+        }
+    }
+
+    private void validatePronunciationResponse(
+            PronunciationAnalysisRequest request,
+            PronunciationAnalysisResult response
+    ) {
+        if (!Objects.equals(request.requestId(), response.requestId())) {
+            throw new AiClientException("AI 발음 분석 응답의 requestId가 요청과 일치하지 않습니다.");
+        }
+        int expectedIndex = 0;
+        for (PronunciationWordResult word : response.words()) {
+            if (word.resultIndex() != expectedIndex++) {
+                throw new AiClientException("AI 발음 분석 단어 결과 순서가 올바르지 않습니다.");
+            }
         }
     }
 

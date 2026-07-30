@@ -4,9 +4,11 @@ import com.iread.backend.student.dto.req.StudentRequest;
 import com.iread.backend.student.domain.LearningEventType;
 import com.iread.backend.student.dto.res.AccuracyTrendResponse;
 import com.iread.backend.student.dto.res.LearningEventResponse;
+import com.iread.backend.student.dto.res.LearningEventListResponse;
 import com.iread.backend.student.dto.res.LearningSummaryResponse;
 import com.iread.backend.student.dto.res.ReadingSpeedTrendResponse;
 import com.iread.backend.student.dto.res.StudentListResponse;
+import com.iread.backend.student.dto.res.StudentListDataResponse;
 import com.iread.backend.student.dto.res.StudentResponse;
 import com.iread.backend.student.dto.res.StudentSummaryResponse;
 import com.iread.backend.student.dto.res.TrainingHistoryResponse;
@@ -16,13 +18,13 @@ import java.time.LocalDate;
 import java.util.List;
 
 public interface StudentService {
-    List<StudentListResponse> getStudents(
+    StudentListDataResponse getStudents(
             Long teacherId,
             String keyword,
-            Integer minAge,
-            Integer maxAge,
-            LocalDate learnedFrom,
-            LocalDate learnedTo
+            Integer age,
+            Integer recentDays,
+            int page,
+            int size
     );
     StudentSummaryResponse getStudentSummary(Long teacherId);
     StudentResponse getStudent(Long teacherId, Long studentId);
@@ -40,6 +42,11 @@ public interface StudentService {
             LocalDate to
     );
     LearningSummaryResponse getLearningSummary(Long teacherId, Long studentId);
+    LearningEventListResponse getRecentLearningEvents(
+            Long teacherId,
+            Long studentId,
+            int limit
+    );
     LearningEventResponse getLearningEvent(
             Long teacherId,
             Long studentId,

@@ -64,6 +64,19 @@ class TestServiceTest {
 
         assertThat(result.currentTest().readingTimeSeconds()).isEqualTo(120L);
         assertThat(result.currentTest().accuracy()).isEqualByComparingTo("85.50");
+        assertThat(result.currentTest().overallScore()).isEqualByComparingTo("86.00");
+        assertThat(result.currentTest().changeFromPrevious()).isEqualByComparingTo("5.50");
+        assertThat(result.currentTest().strengthAreas()).containsExactly("음절 읽기");
+        assertThat(result.currentTest().improvementAreas()).containsExactly("긴 문장 호흡");
+        assertThat(result.currentTest().recommendedCourse()).isEqualTo("긴 문장 호흡 집중 훈련");
+        assertThat(result.currentTest().nextTestRecommendation()).contains("2주 후");
+        assertThat(result.currentTest().areaScores())
+                .extracting(com.iread.backend.test.admin.dto.res.TestCompareResponse.AreaScore::area)
+                .containsExactly("음절 읽기", "긴 문장 호흡");
+        assertThat(result.currentTest().areaScores().getFirst().score())
+                .isEqualByComparingTo("91.00");
+        assertThat(result.currentTest().areaScores().get(1).score())
+                .isEqualByComparingTo("74.00");
         assertThat(result.currentTest().questions().getFirst().isCorrect()).isTrue();
         assertThat(result.comparisonTests().getFirst().testId()).isEqualTo(9L);
     }
@@ -137,6 +150,16 @@ class TestServiceTest {
                 {
                   "readingTimeSeconds":%d,
                   "solvingTimeSeconds":%d,
+                  "overallScore":86,
+                  "changeFromPrevious":5.5,
+                  "strengthAreas":["음절 읽기"],
+                  "improvementAreas":["긴 문장 호흡"],
+                  "recommendedCourse":"긴 문장 호흡 집중 훈련",
+                  "nextTestRecommendation":"2주 후 재검사를 권장합니다.",
+                  "areaScores":[
+                    {"area":"음절 읽기","score":91},
+                    {"area":"긴 문장 호흡","score":74}
+                  ],
                   "gazeDepartureCount":3,
                   "questions":[{
                     "questionNumber":1,

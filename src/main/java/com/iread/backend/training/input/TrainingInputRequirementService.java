@@ -14,6 +14,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -29,12 +30,20 @@ public class TrainingInputRequirementService {
             int questionNumber,
             TrainingInputType inputType
     ) {
-        JsonNode question = findQuestion(trainingId, questionNumber);
-        if (!TrainingInputPolicy.forQuestion(question).contains(inputType)) {
+        if (!inputsForQuestion(trainingId, questionNumber).contains(inputType)) {
             throw new ConflictException(
                     "이 훈련 문항은 " + inputType + " 입력을 사용하지 않습니다."
             );
         }
+    }
+
+    public Set<TrainingInputType> inputsForQuestion(
+            Long trainingId,
+            int questionNumber
+    ) {
+        return TrainingInputPolicy.forQuestion(
+                findQuestion(trainingId, questionNumber)
+        );
     }
 
     public void requireTrainingInput(Long trainingId, TrainingInputType inputType) {
@@ -79,6 +88,14 @@ public class TrainingInputRequirementService {
                         GazeSessionStatus.COMPLETED
                 )) {
             throw new ConflictException("완료된 시선 입력이 필요합니다.");
+        }
+        if (gazeRequired && wordAttemptLogRepository
+                .findAllByTrainingIdAndFinalAttemptTrueOrderByIdAsc(trainingId)
+                .stream()
+                .anyMatch(attempt -> attempt.getTotalScore() == null)) {
+            throw new ConflictException(
+                    "단어별 시선 지표가 모두 연결된 후 훈련을 완료할 수 있습니다."
+            );
         }
     }
 

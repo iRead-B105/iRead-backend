@@ -1,6 +1,7 @@
 package com.iread.backend.exception;
 
 import com.iread.backend.ai.exception.AiClientException;
+import com.iread.backend.report.admin.exception.ReportCreationException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
@@ -24,6 +25,19 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void preservesDomainSpecificMissingResourceCode() {
+        var response = handler.handleNotFound(
+                new ResourceNotFoundException(
+                        "NEXT_CURRICULUM_NOT_FOUND",
+                        "수정 가능한 커리큘럼을 찾을 수 없습니다."
+                )
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        assertThat(response.getBody().error().code()).isEqualTo("NEXT_CURRICULUM_NOT_FOUND");
+    }
+
+    @Test
     void mapsStateConflictToConflictInsteadOfUnauthorized() {
         var response = handler.handleConflict(
                 new ConflictException("이미 시작한 훈련입니다.")
@@ -31,6 +45,19 @@ class GlobalExceptionHandlerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(response.getBody().error().code()).isEqualTo("CONFLICT");
+    }
+
+    @Test
+    void mapsDuplicateReportToSpecificCodeAndExistingReportId() {
+        var response = handler.handleReportCreation(
+                ReportCreationException.periodAlreadyExists(25L)
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(response.getBody().error().code())
+                .isEqualTo("REPORT_PERIOD_ALREADY_EXISTS");
+        assertThat(response.getBody().error().details())
+                .containsEntry("existingReportId", 25L);
     }
 
     @Test

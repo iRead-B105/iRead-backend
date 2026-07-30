@@ -1,11 +1,8 @@
 package com.iread.backend.auth.service;
 
-import com.iread.backend.auth.config.AuthSettings;
 import com.iread.backend.auth.domain.AuthAudience;
 import com.iread.backend.auth.domain.AuthRefreshSessionEntity;
-import com.iread.backend.auth.dto.req.FindIdRequest;
 import com.iread.backend.auth.dto.req.LoginRequest;
-import com.iread.backend.auth.dto.req.ResetPasswordRequest;
 import com.iread.backend.auth.dto.req.SignUpRequest;
 import com.iread.backend.auth.dto.req.StudentLoginRequest;
 import com.iread.backend.auth.exception.AuthException;
@@ -24,7 +21,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.util.ReflectionTestUtils;
 
-import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -51,22 +47,13 @@ class AuthServiceTest {
 
     @BeforeEach
     void setUp() {
-        AuthSettings settings = new AuthSettings(
-                "test-secret-that-is-at-least-32-bytes-long",
-                Duration.ofMinutes(15),
-                Duration.ofMinutes(5),
-                Duration.ofDays(14),
-                false,
-                "123456"
-        );
         authService = new AuthService(
                 teacherRepository,
                 studentRepository,
                 passwordEncoder,
                 jwtTokenService,
                 refreshTokenService,
-                loginAttemptService,
-                settings
+                loginAttemptService
         );
         teacher = new TeacherEntity(
                 "teacher@example.com",
@@ -85,8 +72,7 @@ class AuthServiceTest {
                 "teacher02@example.com",
                 "password123",
                 "새교사",
-                "기관",
-                null
+                "기관"
         );
         when(passwordEncoder.encode("password123")).thenReturn("encoded");
         when(teacherRepository.save(any(TeacherEntity.class))).thenAnswer(invocation -> {
@@ -169,51 +155,6 @@ class AuthServiceTest {
                 .extracting("code")
                 .isEqualTo("STUDENT_NOT_FOUND");
         verify(refreshTokenService, never()).issue(any(), any(), any());
-    }
-
-    @Test
-    void passwordResetRejectsWrongDemoCode() {
-        ResetPasswordRequest request = new ResetPasswordRequest(
-                "teacher@example.com",
-                "wrong-code",
-                "new-password"
-        );
-
-        assertThatThrownBy(() -> authService.resetPassword(request))
-                .isInstanceOf(AuthException.class)
-                .extracting("code")
-                .isEqualTo("INVALID_VERIFICATION_CODE");
-        verify(teacherRepository, never()).findByEmail(any());
-    }
-
-    @Test
-    void passwordResetUpdatesHashAndRevokesAllSessions() {
-        ResetPasswordRequest request = new ResetPasswordRequest(
-                "teacher@example.com",
-                "123456",
-                "new-password"
-        );
-        when(teacherRepository.findByEmail("teacher@example.com"))
-                .thenReturn(Optional.of(teacher));
-        when(passwordEncoder.encode("new-password")).thenReturn("new-encoded-password");
-
-        var response = authService.resetPassword(request);
-
-        assertThat(response.resetStatus()).isEqualTo("COMPLETED");
-        assertThat(teacher.getPassword()).isEqualTo("new-encoded-password");
-        verify(refreshTokenService).revokeAll(10L);
-    }
-
-    @Test
-    void findIdReturnsMaskedLoginEmail() {
-        when(teacherRepository.findByNameAndEmail("교사", "teacher@example.com"))
-                .thenReturn(Optional.of(teacher));
-
-        var response = authService.findId(
-                new FindIdRequest("교사", "teacher@example.com")
-        );
-
-        assertThat(response.maskedEmail()).isEqualTo("tea****@example.com");
     }
 
     @Test

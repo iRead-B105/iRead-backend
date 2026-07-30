@@ -284,8 +284,8 @@ public class DeterministicTrainingCandidateProvider implements TrainingCandidate
         ObjectNode node = objectMapper.createObjectNode();
         node.put("source", source);
         node.put("targetAudioText", result);
-        node.putArray("removableUnits").add(parts.get(2)).add("ㄴ").add("ㅁ");
-        node.put("answerIndex", 0);
+        parts.forEach(node.putArray("removableUnits")::add);
+        node.put("answerIndex", parts.size() - 1);
         node.put("result", result);
         return node;
     }

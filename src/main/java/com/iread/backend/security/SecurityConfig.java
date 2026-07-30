@@ -47,9 +47,9 @@ public class SecurityConfig {
         http.authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                         "/",
-                        "/api/auth/admin/find-id",
                         "/api/auth/admin/login",
-                        "/api/auth/admin/password-reset",
+                        "/api/auth/admin/password-reset/request",
+                        "/api/auth/admin/password-reset/confirm",
                         "/api/auth/admin/refresh",
                         "/api/auth/admin/sign-up",
                         "/api/auth/app/refresh",

@@ -148,4 +148,122 @@ class StudentFeatureProfileServiceTest {
         assertThat(saved.getAvgPronunciationScore()).isEqualTo(500);
         assertThat(saved.getEvidenceCount()).isEqualTo(1);
     }
+
+    @Test
+    void voiceOnlyAttemptIgnoresMissingGazeMetricsDuringProfileRecalculation() {
+        StudentEntity student = mock(StudentEntity.class);
+        when(student.getId()).thenReturn(15L);
+        TrainingEntity training = mock(TrainingEntity.class);
+        when(training.getId()).thenReturn(120L);
+        when(training.getResult()).thenReturn("""
+                {
+                  "wordAttempts":[{
+                    "wordAttemptLogId":99,
+                    "questionNo":1,
+                    "targetIndex":0,
+                    "isFinal":true,
+                    "pronunciationAccuracyScore":95.0,
+                    "pronunciationConfidence":0.96,
+                    "wordReadTimeMs":400
+                  }]
+                }
+                """);
+        TrainingDataEntity trainingData = new TrainingDataEntity(training, """
+                {
+                  "questions":[{
+                    "questionNo":1,
+                    "analysisTargets":[{
+                      "featureCodes":["VOICE_ONLY"]
+                    }]
+                  }]
+                }
+                """);
+        WordEntity word = mock(WordEntity.class);
+        WordAttemptLogEntity log = new WordAttemptLogEntity(
+                student, word, training, "가",
+                true, null, null, null, null,
+                false, 0, 950, 0, 400,
+                true, 950, 1, 0, null, true
+        );
+        ReflectionTestUtils.setField(log, "id", 99L);
+        ReflectionTestUtils.setField(log, "createdAt", LocalDateTime.of(2026, 7, 30, 12, 0));
+        ReadingFeatureEntity feature = new ReadingFeatureEntity(
+                10L, null, "VOICE_ONLY", "음성 전용",
+                ReadingFeatureCategory.PHONOLOGY, ReadingFeatureScope.WORD
+        );
+
+        when(trainingRepository.findAllByDailyCurriculumStudentIdAndStatus(
+                15L, TrainingStatus.COMPLETED
+        )).thenReturn(List.of(training));
+        when(trainingDataRepository.findByTrainingId(120L)).thenReturn(Optional.of(trainingData));
+        when(wordAttemptLogRepository.findAllById(List.of(99L))).thenReturn(List.of(log));
+        when(readingFeatureRepository.findAllByFeatureCodeIn(any()))
+                .thenReturn(List.of(feature));
+        when(profileRepository.findMaxId()).thenReturn(40L);
+        when(profileRepository.findByStudentIdAndReadingFeatureId(15L, 10L))
+                .thenReturn(Optional.empty());
+
+        var result = service.recalculate(student);
+
+        assertThat(result).singleElement().satisfies(profile -> {
+            assertThat(profile.avgFixationDurationMs()).isNull();
+            assertThat(profile.avgFixationCount()).isNull();
+            assertThat(profile.avgRegressionCount()).isZero();
+            assertThat(profile.avgPronunciationScore()).isEqualTo(95.0);
+        });
+    }
+
+    @Test
+    void nonAudioQuestionResultContributesFeatureAccuracyEvidence() {
+        StudentEntity student = mock(StudentEntity.class);
+        when(student.getId()).thenReturn(15L);
+        TrainingEntity training = mock(TrainingEntity.class);
+        when(training.getId()).thenReturn(120L);
+        when(training.getFinishedAt())
+                .thenReturn(LocalDateTime.of(2026, 7, 28, 15, 0));
+        when(training.getResult()).thenReturn("""
+                {
+                  "questions":[{
+                    "questionNo":1,
+                    "isCorrect":false,
+                    "totalScore":0
+                  }]
+                }
+                """);
+        TrainingDataEntity trainingData = new TrainingDataEntity(training, """
+                {
+                  "questions":[{
+                    "questionNo":1,
+                    "type":"CONSONANT_SOUND_CHOICE",
+                    "targetFeatureCodes":["GRAPHEME.CONSONANT.ㄱ"]
+                  }]
+                }
+                """);
+        ReadingFeatureEntity feature = new ReadingFeatureEntity(
+                10L,
+                null,
+                "GRAPHEME.CONSONANT.ㄱ",
+                "기역",
+                ReadingFeatureCategory.GRAPHEME,
+                ReadingFeatureScope.CHARACTER
+        );
+        when(trainingRepository.findAllByDailyCurriculumStudentIdAndStatus(
+                15L, TrainingStatus.COMPLETED
+        )).thenReturn(List.of(training));
+        when(trainingDataRepository.findByTrainingId(120L)).thenReturn(Optional.of(trainingData));
+        when(readingFeatureRepository.findAllByFeatureCodeIn(any()))
+                .thenReturn(List.of(feature));
+        when(profileRepository.findMaxId()).thenReturn(40L);
+        when(profileRepository.findByStudentIdAndReadingFeatureId(15L, 10L))
+                .thenReturn(Optional.empty());
+
+        var result = service.recalculate(student);
+
+        assertThat(result).singleElement().satisfies(profile -> {
+            assertThat(profile.featureCode()).isEqualTo("GRAPHEME.CONSONANT.ㄱ");
+            assertThat(profile.accuracyRate()).isZero();
+            assertThat(profile.weaknessScore()).isEqualTo(0.4);
+            assertThat(profile.evidenceCount()).isEqualTo(1);
+        });
+    }
 }
