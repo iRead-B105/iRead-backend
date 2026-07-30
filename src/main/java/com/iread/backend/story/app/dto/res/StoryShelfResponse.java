@@ -14,13 +14,15 @@ public record StoryShelfResponse(
             Long teacherId,
             Long storyTemplateId,
             LocalDateTime createdAt,
-            StoryStatus storyStatus
+            StoryStatus storyStatus,
+            int progress
     ) {
     }
 
     public record StoryTemplateItem(
             Long storyTemplateId,
-            String templateTitle
+            String templateTitle,
+            String imageUrl
     ) {
     }
 }

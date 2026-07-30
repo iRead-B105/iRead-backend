@@ -55,6 +55,7 @@ class StoryServiceTest {
         lenient().when(template.getId()).thenReturn(30L);
         lenient().when(template.getTitle()).thenReturn("신비한 숲");
         lenient().when(template.getContent()).thenReturn("숲에서 친구를 만나는 이야기");
+        lenient().when(template.getImageUrl()).thenReturn("/images/mystic-forest.png");
     }
 
     @Test
@@ -69,8 +70,11 @@ class StoryServiceTest {
 
         assertThat(response.stories()).hasSize(1);
         assertThat(response.stories().getFirst().storyId()).isEqualTo(100L);
+        assertThat(response.stories().getFirst().progress()).isZero();
         assertThat(response.storyTemplates()).hasSize(1);
         assertThat(response.storyTemplates().getFirst().storyTemplateId()).isEqualTo(30L);
+        assertThat(response.storyTemplates().getFirst().imageUrl())
+                .isEqualTo("/images/mystic-forest.png");
     }
 
     @Test
