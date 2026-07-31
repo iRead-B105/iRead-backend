@@ -322,8 +322,9 @@ public class AppLearningQuestionSupport {
             throw new IllegalArgumentException("roundOrders는 하나 이상이어야 합니다.");
         }
         rounds.forEach(round -> {
-            if (!round.isArray() || round.isEmpty()) {
-                throw new IllegalArgumentException("roundOrders의 각 라운드는 하나 이상이어야 합니다.");
+            // 상대가 먼저 이기면 타일을 하나도 못 놓을 수 있어 빈 라운드를 허용한다.
+            if (!round.isArray()) {
+                throw new IllegalArgumentException("roundOrders의 각 라운드는 배열이어야 합니다.");
             }
             round.forEach(value -> {
                 if (!value.isTextual() || value.asText().isBlank()) {
