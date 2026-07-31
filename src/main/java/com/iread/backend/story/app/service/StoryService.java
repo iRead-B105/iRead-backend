@@ -10,19 +10,33 @@ import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.exception.ConflictException;
 import com.iread.backend.mypage.domain.CharacterEntity;
 import com.iread.backend.mypage.repository.CharacterRepository;
+import com.iread.backend.pronunciation.PronunciationAnalysisAdapter;
+import com.iread.backend.pronunciation.PronunciationAnalysisRequest;
+import com.iread.backend.pronunciation.PronunciationAnalysisResult;
+import com.iread.backend.pronunciation.PronunciationReferenceWord;
+import com.iread.backend.pronunciation.PronunciationWordAligner;
+import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
 import com.iread.backend.realtime.RealtimeEventPublisher;
 import com.iread.backend.realtime.RealtimeResource;
+import com.iread.backend.story.analysis.StoryLineContentService;
 import com.iread.backend.story.app.dto.req.StoryTtsRequest;
 import com.iread.backend.story.app.dto.res.*;
 import com.iread.backend.story.domain.*;
 import com.iread.backend.story.repository.*;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
+import com.iread.backend.training.domain.WordEntity;
+import com.iread.backend.training.repository.WordRepository;
+import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
+import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
+import com.iread.backend.wordattempt.service.WordAttemptScoreCalculator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.databind.JsonNode;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -43,8 +57,15 @@ public class StoryService {
     private final StoryLineRepository storyLineRepository;
     private final StoryChoiceRepository storyChoiceRepository;
     private final CharacterRepository characterRepository;
+    private final WordRepository wordRepository;
+    private final WordAttemptLogRepository wordAttemptLogRepository;
     private final AiClient aiClient;
     private final StoryAudioStorage storyAudioStorage;
+    private final StoryLineContentService storyLineContentService;
+    private final PronunciationAnalysisAdapter pronunciationAnalysisAdapter;
+    private final PronunciationWordAligner pronunciationWordAligner;
+    private final WordAttemptScoreCalculator wordAttemptScoreCalculator;
+    private final StudentFeatureProfileService studentFeatureProfileService;
     private final RealtimeEventPublisher realtimeEventPublisher;
 
     public StoryShelfResponse getStoryShelf(Long teacherId, Long studentId) {
@@ -81,6 +102,7 @@ public class StoryService {
         return new StoryTemplateResponse(template.getId(), template.getTitle(), template.getContent());
     }
 
+    @Transactional
     public StoryResumeResponse resumeStory(Long teacherId, Long studentId, Long storyId) {
         StoryEntity story = findOwnedStory(teacherId, studentId, storyId);
 
@@ -105,6 +127,7 @@ public class StoryService {
         return toLineResponse(line);
     }
 
+    @Transactional
     public StoryLinesResponse getStoryLines(Long teacherId, Long studentId, Long storyId) {
         StoryEntity story = findOwnedStory(teacherId, studentId, storyId);
         return new StoryLinesResponse(toLineResponses(
@@ -223,22 +246,147 @@ public class StoryService {
         );
     }
 
+    /**
+     * 대사 읽기 음성을 받아 훈련과 같은 순서로 처리한다.
+     * 음성 인식 → 발음 분석 → 기준 단어 정렬 → 단어별 시도 로그 적재 → 약점 프로파일 갱신.
+     */
+    @Transactional
     public StorySpeechResponse transcribeStoryLine(Long teacherId, Long studentId, Long storyId,
                                                    Long lineId, MultipartFile audioFile) {
-        StoryEntity story = findOwnedStory(teacherId, studentId, storyId);
+        StudentEntity student = findStudentOwner(teacherId, studentId);
+        StoryEntity story = storyRepository.findByIdAndStudentId(storyId, studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("스토리를 찾을 수 없습니다."));
         StoryLineEntity line = findLine(story.getId(), lineId);
         storyAudioStorage.store(studentId, audioFile);
+
+        String referenceText = storyLineContentService.textOf(line);
+        JsonNode analysis = storyLineContentService.ensureAnalysis(line);
+        List<PronunciationReferenceWord> references =
+                storyLineContentService.referenceWords(referenceText);
+
         SpeechTranscriptionResponse speech = aiClient.transcribeSpeech(
-                UUID.randomUUID().toString(), studentId, line.getContent(), audioFile
+                UUID.randomUUID().toString(), studentId, referenceText, audioFile
         );
         String readingStatus = speech.transcript() == null || speech.transcript().isBlank()
                 ? "failed"
                 : speech.confidence() < 0.6 ? "low_confidence" : "recognized";
+
+        PronunciationAnalysisResult pronunciation = pronunciationAnalysisAdapter.analyze(
+                new PronunciationAnalysisRequest(
+                        "story-speech-" + storyId + "-" + lineId + "-" + System.nanoTime(),
+                        referenceText,
+                        audioFile.getOriginalFilename(),
+                        audioFile.getContentType(),
+                        audioBytes(audioFile)
+                )
+        );
+        PronunciationWordAligner.Alignment alignment = pronunciationWordAligner.align(
+                references,
+                pronunciation.words()
+        );
+        Map<Integer, List<String>> featureCodes =
+                storyLineContentService.featureCodesByTokenIndex(analysis, references);
+        List<StorySpeechResponse.WordResult> words = storeWordAttempts(
+                student, line, alignment, featureCodes
+        );
+        studentFeatureProfileService.recalculate(student);
+
         return new StorySpeechResponse(
                 speech.transcript(),
                 Math.round(speech.confidence() * 10_000.0) / 100.0,
-                readingStatus
+                readingStatus,
+                pronunciation.pronunciationAccuracyScore(),
+                pronunciation.fluencyScore(),
+                pronunciation.completenessScore(),
+                pronunciation.pronScore(),
+                pronunciation.analysisVersion(),
+                words
         );
+    }
+
+    /** 정렬된 단어를 단어 시도 로그로 적재한다. 같은 대사를 다시 읽으면 이전 시도는 최종이 아니게 된다. */
+    private List<StorySpeechResponse.WordResult> storeWordAttempts(
+            StudentEntity student,
+            StoryLineEntity line,
+            PronunciationWordAligner.Alignment alignment,
+            Map<Integer, List<String>> featureCodes
+    ) {
+        markPreviousAttemptsNotFinal(line.getId());
+        List<WordAttemptLogEntity> attempts = new ArrayList<>();
+        for (PronunciationWordAligner.AlignedWord aligned : alignment.words()) {
+            PronunciationReferenceWord reference = aligned.reference();
+            var analyzed = aligned.analyzed();
+            int accuracyScore = (int) Math.round(analyzed.scoreOrZero() * 10);
+            boolean correct = wordAttemptScoreCalculator
+                    .meetsPronunciationThreshold(accuracyScore)
+                    && "NONE".equalsIgnoreCase(analyzed.errorType());
+            Integer totalScore = wordAttemptScoreCalculator.calculate(
+                    accuracyScore,
+                    true,
+                    true,
+                    analyzed.isOmission(),
+                    false,
+                    false,
+                    null,
+                    null,
+                    0,
+                    correct
+            );
+            attempts.add(WordAttemptLogEntity.forStory(
+                    student,
+                    resolveWord(reference.surface()),
+                    line,
+                    reference.surface(),
+                    true,
+                    accuracyScore,
+                    analyzed.offsetMs(),
+                    analyzed.offsetMs() + analyzed.durationMs(),
+                    analyzed.isOmission(),
+                    correct,
+                    totalScore,
+                    reference.tokenIndex()
+            ));
+        }
+        List<WordAttemptLogEntity> saved = wordAttemptLogRepository.saveAllAndFlush(attempts);
+
+        List<StorySpeechResponse.WordResult> results = new ArrayList<>();
+        for (int index = 0; index < saved.size(); index++) {
+            WordAttemptLogEntity attempt = saved.get(index);
+            var analyzed = alignment.words().get(index).analyzed();
+            results.add(new StorySpeechResponse.WordResult(
+                    attempt.getId(),
+                    attempt.getTokenIndex(),
+                    attempt.getSurfaceText(),
+                    attempt.getPronunciationAccuracyScore(),
+                    analyzed.errorType(),
+                    analyzed.durationMs(),
+                    attempt.getCorrect(),
+                    attempt.getTotalScore(),
+                    featureCodes.getOrDefault(attempt.getTokenIndex(), List.of())
+            ));
+        }
+        return List.copyOf(results);
+    }
+
+    private void markPreviousAttemptsNotFinal(Long storyLineId) {
+        wordAttemptLogRepository.findAllByStoryLineIdAndFinalAttemptTrue(storyLineId)
+                .forEach(WordAttemptLogEntity::markNotFinal);
+    }
+
+    private WordEntity resolveWord(String surface) {
+        return wordRepository.findByContent(surface)
+                .orElseGet(() -> wordRepository.save(new WordEntity(surface)));
+    }
+
+    private byte[] audioBytes(MultipartFile audioFile) {
+        try {
+            if (audioFile.isEmpty()) {
+                throw new IllegalArgumentException("audioFile은 비어 있을 수 없습니다.");
+            }
+            return audioFile.getBytes();
+        } catch (IOException exception) {
+            throw new IllegalArgumentException("audioFile을 읽을 수 없습니다.", exception);
+        }
     }
 
     public StoryTtsResponse synthesizeStoryLine(Long teacherId, Long studentId, Long storyId,
@@ -246,7 +394,7 @@ public class StoryService {
         StoryEntity story = findOwnedStory(teacherId, studentId, storyId);
         StoryLineEntity line = findLine(story.getId(), request.lineId());
         var speech = aiClient.synthesizeSpeech(new SpeechSynthesisRequest(
-                UUID.randomUUID().toString(), line.getContent(), null
+                UUID.randomUUID().toString(), storyLineContentService.textOf(line), null
         ));
         String fileName = storyAudioStorage.storeGenerated(studentId, speech.audio());
         return new StoryTtsResponse(
@@ -275,7 +423,7 @@ public class StoryService {
             StoryLineEntity line = new StoryLineEntity(
                     previous, scene,
                     generated.requiresBranchInput(),
-                    generated.content(),
+                    storyLineContentService.buildContent(generated.content()),
                     index + 1
             );
             lines.add(line);
@@ -312,7 +460,7 @@ public class StoryService {
 
     private String joinContent(List<StoryLineEntity> lines) {
         return lines.stream()
-                .map(StoryLineEntity::getContent)
+                .map(storyLineContentService::textOf)
                 .collect(java.util.stream.Collectors.joining("\n"));
     }
 
@@ -351,7 +499,7 @@ public class StoryService {
         StoryTemplateEntity template = story.getStoryTemplate();
         String characterName = truncate(template.getTitle() + " 주인공", MAX_CHARACTER_NAME_LENGTH);
         String storyText = java.util.stream.Stream.concat(
-                        historyLines.stream().map(StoryLineEntity::getContent),
+                        historyLines.stream().map(storyLineContentService::textOf),
                         generated.lines().stream().map(GeneratedStoryLine::content)
                 )
                 .collect(java.util.stream.Collectors.joining(" "));
@@ -387,7 +535,7 @@ public class StoryService {
     private StoryHistoryLine toHistoryLine(StoryLineEntity line) {
         return new StoryHistoryLine(
                 line.getId(),
-                line.getContent(),
+                storyLineContentService.textOf(line),
                 line.isRequiresBranchInput()
         );
     }
@@ -417,7 +565,8 @@ public class StoryService {
                 line.getStory().getId(),
                 line.getImageUrl(),
                 line.isRequiresBranchInput(),
-                line.getContent(),
+                storyLineContentService.textOf(line),
+                storyLineContentService.ensureAnalysis(line),
                 line.getScene().getSequenceNo(),
                 line.getSequenceNo(),
                 line.getCreatedAt(),

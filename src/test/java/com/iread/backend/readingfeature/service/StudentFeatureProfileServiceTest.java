@@ -6,7 +6,10 @@ import com.iread.backend.readingfeature.domain.ReadingFeatureScope;
 import com.iread.backend.readingfeature.domain.StudentFeatureProfileEntity;
 import com.iread.backend.readingfeature.repository.ReadingFeatureRepository;
 import com.iread.backend.readingfeature.repository.StudentFeatureProfileRepository;
+import com.iread.backend.story.analysis.StoryLineContentService;
 import com.iread.backend.student.domain.StudentEntity;
+import com.iread.backend.training.analysis.KoreanG2pEngine;
+import com.iread.backend.training.analysis.KoreanTextAnalyzer;
 import com.iread.backend.training.domain.TrainingDataEntity;
 import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.domain.TrainingStatus;
@@ -47,13 +50,17 @@ class StudentFeatureProfileServiceTest {
 
     @BeforeEach
     void setUp() {
+        JsonMapper objectMapper = JsonMapper.builder().build();
         service = new StudentFeatureProfileService(
                 trainingRepository,
                 trainingDataRepository,
                 wordAttemptLogRepository,
                 readingFeatureRepository,
                 profileRepository,
-                JsonMapper.builder().build()
+                new StoryLineContentService(new KoreanTextAnalyzer(
+                        new KoreanG2pEngine()
+                ), objectMapper),
+                objectMapper
         );
     }
 

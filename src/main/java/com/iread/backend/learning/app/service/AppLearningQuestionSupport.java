@@ -79,6 +79,7 @@ public class AppLearningQuestionSupport {
             case SINGLE_CHOICE -> evaluateSingleChoice(question, submission, answer);
             case ORDERING -> evaluateOrdering(submission, answer);
             case COMPONENT_BUILD -> evaluateComponentBuild(submission, answer);
+            case BATTLE_ROUNDS -> evaluateBattleRounds(submission, answer);
             case TEXT_INPUT -> evaluateTextInput(submission, answer);
             case AUDIO -> throw new IllegalArgumentException("음성 문항은 recordings API로 제출해야 합니다.");
         };
@@ -108,6 +109,8 @@ public class AppLearningQuestionSupport {
                     LearningResponseType.ORDERING;
             case "BASIC_SYLLABLE_BUILD", "FINAL_SYLLABLE_BUILD", "DOUBLE_FINAL_BUILD" ->
                     LearningResponseType.COMPONENT_BUILD;
+            case "HANGUL_BATTLE_BASIC", "HANGUL_BATTLE_FINAL", "HANGUL_BATTLE_DOUBLE_FINAL" ->
+                    LearningResponseType.BATTLE_ROUNDS;
             case "WORD_READING", "NONWORD_READING", "DIFFICULT_WORD_PREVIEW",
                     "SENTENCE_READING", "SHORT_PASSAGE_READING", "SENTENCE_REPEAT",
                     "WORD_CHAIN_READING", "PHRASE_READING", "REPEATED_SENTENCE_READING",
@@ -194,6 +197,28 @@ public class AppLearningQuestionSupport {
         return new Evaluation(correct, correct ? 1000 : 0, List.copyOf(errors), correctResponse);
     }
 
+    /**
+     * 한글 대결은 라운드마다 자모를 순서대로 모은다. 라운드 전체를 맞혀야 정답이며
+     * 틀린 라운드는 인덱스로 알려 준다.
+     */
+    private Evaluation evaluateBattleRounds(LearningSubmission submission, JsonNode answer) {
+        JsonNode expected = answer.path("answerOrders");
+        requireExpected(expected.isArray() && !expected.isEmpty(), "한글 대결 문항 정답");
+        JsonNode submitted = submission.response().path("roundOrders");
+
+        List<LearningErrorLocation> errors = new ArrayList<>();
+        boolean correct = submitted.size() == expected.size();
+        for (int index = 0; index < expected.size(); index++) {
+            if (!expected.path(index).equals(submitted.path(index))) {
+                correct = false;
+                errors.add(new LearningErrorLocation(index, null, "INCORRECT_ORDER"));
+            }
+        }
+        ObjectNode correctResponse = responseValue(LearningResponseType.BATTLE_ROUNDS);
+        correctResponse.withObject("response").set("roundOrders", expected.deepCopy());
+        return new Evaluation(correct, correct ? 1000 : 0, List.copyOf(errors), correctResponse);
+    }
+
     private Evaluation evaluateTextInput(LearningSubmission submission, JsonNode answer) {
         String submitted = normalizeText(submission.response().path("text").asText());
         JsonNode acceptedAnswers = answer.path("acceptedAnswers");
@@ -235,6 +260,7 @@ public class AppLearningQuestionSupport {
             }
             case ORDERING -> validateOrdering(response);
             case COMPONENT_BUILD -> validateSelections(response);
+            case BATTLE_ROUNDS -> validateBattleRounds(response);
             case TEXT_INPUT -> {
                 requireOnlyFields(response, Set.of("text"));
                 String text = response.path("text").asText();
@@ -286,6 +312,25 @@ public class AppLearningQuestionSupport {
             if (!value.isIntegralNumber() || value.asInt() < 0 || !unique.add(value.asInt())) {
                 throw new IllegalArgumentException("orderedIndexes는 중복 없는 0 이상의 정수 배열이어야 합니다.");
             }
+        });
+    }
+
+    private void validateBattleRounds(JsonNode response) {
+        requireOnlyFields(response, Set.of("roundOrders"));
+        JsonNode rounds = response.path("roundOrders");
+        if (!rounds.isArray() || rounds.isEmpty()) {
+            throw new IllegalArgumentException("roundOrders는 하나 이상이어야 합니다.");
+        }
+        rounds.forEach(round -> {
+            // 상대가 먼저 이기면 타일을 하나도 못 놓을 수 있어 빈 라운드를 허용한다.
+            if (!round.isArray()) {
+                throw new IllegalArgumentException("roundOrders의 각 라운드는 배열이어야 합니다.");
+            }
+            round.forEach(value -> {
+                if (!value.isTextual() || value.asText().isBlank()) {
+                    throw new IllegalArgumentException("roundOrders에는 자모 문자열만 넣을 수 있습니다.");
+                }
+            });
         });
     }
 
