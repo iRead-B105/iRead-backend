@@ -18,12 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "iread.teacher-demo-seed.enabled=false"
 })
 @ActiveProfiles("demo")
-@Sql(statements = "ALTER TABLE characters RENAME TO `character`")
-@Sql({
-        "/db/demo/V2__demo_seed.sql",
-        "/db/demo/V3__remove_preseeded_saetbyeol_story.sql",
-        "/sql/rename-character-to-characters.sql"
-})
+@Sql("/db/demo/V2__demo_seed.sql")
 class DemoSeedIntegrationTest {
 
     @Autowired JdbcTemplate jdbcTemplate;

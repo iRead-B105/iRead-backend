@@ -6,6 +6,7 @@ import com.iread.backend.pronunciation.PronunciationAnalysisRequest;
 import com.iread.backend.pronunciation.PronunciationAnalysisResult;
 import com.iread.backend.pronunciation.PronunciationWordAligner;
 import com.iread.backend.pronunciation.PronunciationWordResult;
+import com.iread.backend.realtime.RealtimeEventPublisher;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.learning.app.service.AppLearningQuestionSupport;
@@ -67,6 +68,7 @@ class AppTestServiceTest {
     @Mock AudioUploadPolicy audioUploadPolicy;
     @Mock WordAttemptScoreCalculator wordAttemptScoreCalculator;
     @Mock ObjectMapper objectMapper;
+    @Mock RealtimeEventPublisher realtimeEventPublisher;
     @InjectMocks AppTestService appTestService;
 
     @Test
@@ -171,7 +173,8 @@ class AppTestServiceTest {
                 audioUploadPolicy,
                 wordAttemptScoreCalculator,
                 mapper,
-                new AppLearningQuestionSupport(mapper)
+                new AppLearningQuestionSupport(mapper),
+                realtimeEventPublisher
         );
 
         var result = service.complete(
@@ -235,7 +238,8 @@ class AppTestServiceTest {
                 audioUploadPolicy,
                 wordAttemptScoreCalculator,
                 mapper,
-                new AppLearningQuestionSupport(mapper)
+                new AppLearningQuestionSupport(mapper),
+                realtimeEventPublisher
         );
 
         var progress = service.saveSelection(
@@ -341,7 +345,8 @@ class AppTestServiceTest {
                 audioUploadPolicy,
                 wordAttemptScoreCalculator,
                 mapper,
-                new AppLearningQuestionSupport(mapper)
+                new AppLearningQuestionSupport(mapper),
+                realtimeEventPublisher
         );
 
         var response = service.saveRecording(
@@ -443,7 +448,8 @@ class AppTestServiceTest {
                 audioUploadPolicy,
                 wordAttemptScoreCalculator,
                 mapper,
-                new AppLearningQuestionSupport(mapper)
+                new AppLearningQuestionSupport(mapper),
+                realtimeEventPublisher
         );
 
         assertThatThrownBy(() -> service.saveRecording(

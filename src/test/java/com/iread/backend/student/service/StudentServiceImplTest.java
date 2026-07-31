@@ -2,6 +2,7 @@ package com.iread.backend.student.service;
 
 import com.iread.backend.global.storage.FileStorage;
 import com.iread.backend.global.storage.StoredFile;
+import com.iread.backend.realtime.RealtimeEventPublisher;
 import com.iread.backend.student.domain.Gender;
 import com.iread.backend.student.domain.LearningEventType;
 import com.iread.backend.student.domain.StudentEntity;
@@ -37,6 +38,7 @@ class StudentServiceImplTest {
     @Mock StudentRepository studentRepository;
     @Mock TeacherRepository teacherRepository;
     @Mock FileStorage fileStorage;
+    @Mock RealtimeEventPublisher realtimeEventPublisher;
 
     private StudentServiceImpl studentService;
     private TeacherEntity teacher;
@@ -47,6 +49,7 @@ class StudentServiceImplTest {
                 studentRepository,
                 teacherRepository,
                 fileStorage,
+                realtimeEventPublisher,
                 JsonMapper.builder().build()
         );
         teacher = new TeacherEntity(

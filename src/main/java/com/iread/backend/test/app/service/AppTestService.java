@@ -11,6 +11,8 @@ import com.iread.backend.pronunciation.PronunciationAnalysisResult;
 import com.iread.backend.pronunciation.PronunciationReferenceWord;
 import com.iread.backend.pronunciation.PronunciationWordAligner;
 import com.iread.backend.pronunciation.PronunciationWordResult;
+import com.iread.backend.realtime.RealtimeEventPublisher;
+import com.iread.backend.realtime.RealtimeResource;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.test.app.dto.req.*;
@@ -76,6 +78,7 @@ public class AppTestService {
     private final WordAttemptScoreCalculator wordAttemptScoreCalculator;
     private final ObjectMapper objectMapper;
     private final AppLearningQuestionSupport learningQuestionSupport;
+    private final RealtimeEventPublisher realtimeEventPublisher;
 
     @Autowired
     public AppTestService(
@@ -92,7 +95,8 @@ public class AppTestService {
             AudioUploadPolicy audioUploadPolicy,
             WordAttemptScoreCalculator wordAttemptScoreCalculator,
             ObjectMapper objectMapper,
-            AppLearningQuestionSupport learningQuestionSupport
+            AppLearningQuestionSupport learningQuestionSupport,
+            RealtimeEventPublisher realtimeEventPublisher
     ) {
         this.studentRepository = studentRepository;
         this.testRepository = testRepository;
@@ -108,6 +112,7 @@ public class AppTestService {
         this.wordAttemptScoreCalculator = wordAttemptScoreCalculator;
         this.objectMapper = objectMapper;
         this.learningQuestionSupport = learningQuestionSupport;
+        this.realtimeEventPublisher = realtimeEventPublisher;
     }
 
     AppTestService(
@@ -121,14 +126,15 @@ public class AppTestService {
             AudioUploadPolicy audioUploadPolicy,
             WordAttemptScoreCalculator wordAttemptScoreCalculator,
             ObjectMapper objectMapper,
-            AppLearningQuestionSupport learningQuestionSupport
+            AppLearningQuestionSupport learningQuestionSupport,
+            RealtimeEventPublisher realtimeEventPublisher
     ) {
         this(
                 studentRepository, testRepository, null, testDataRepository,
                 null, null, wordRepository, wordAttemptLogRepository,
                 pronunciationAnalysisAdapter, pronunciationWordAligner,
                 audioUploadPolicy, wordAttemptScoreCalculator, objectMapper,
-                learningQuestionSupport
+                learningQuestionSupport, realtimeEventPublisher
         );
     }
 
@@ -225,6 +231,13 @@ public class AppTestService {
         if (test.getTestCurriculum() != null) {
             test.getTestCurriculum().start();
         }
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.TEST,
+                testId,
+                "STARTED"
+        );
         return new TestStartResponse(test.getId(), startedAt, test.getStatus());
     }
 
@@ -237,6 +250,13 @@ public class AppTestService {
         StudentTestEntity test = findTestForUpdate(studentId, current.getId());
         LocalDateTime startedAt = LocalDateTime.now();
         test.start(startedAt);
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.TEST,
+                test.getId(),
+                "STARTED"
+        );
         return new TestStartResponse(test.getId(), startedAt, test.getStatus());
     }
 
@@ -245,6 +265,13 @@ public class AppTestService {
         StudentTestEntity test = findOwnedTestForUpdate(teacherId, studentId, testId);
         test.reset();
         wordAttemptLogRepository.deleteAllByTestId(testId);
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.TEST,
+                testId,
+                "RESET"
+        );
         return new TestResetResponse(testId, test.getStatus(), LocalDateTime.now());
     }
 
@@ -323,6 +350,13 @@ public class AppTestService {
                 attemptNo,
                 passed,
                 questionCompleted
+        );
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.TEST,
+                test.getId(),
+                "PROGRESS_UPDATED"
         );
         LocalDateTime createdAt = storedWords.stream()
                 .map(value -> value.attempt().getCreatedAt())
@@ -414,6 +448,13 @@ public class AppTestService {
         );
         stored.set("progress", writeProgress(progress));
         test.updateResult(writeJson(result));
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.TEST,
+                test.getId(),
+                "PROGRESS_UPDATED"
+        );
         return progress;
     }
 
@@ -491,6 +532,13 @@ public class AppTestService {
                 test.getTestCurriculum().complete(completedAt);
             }
         }
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.TEST,
+                test.getId(),
+                "COMPLETED"
+        );
         return completionResponse(test);
     }
 

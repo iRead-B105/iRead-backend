@@ -12,6 +12,7 @@ import com.iread.backend.gaze.app.dto.req.StartGazeSessionRequest;
 import com.iread.backend.gaze.analysis.GazeWordMetricMergeService;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
+import com.iread.backend.realtime.RealtimeEventPublisher;
 import com.iread.backend.story.repository.StoryRepository;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
@@ -23,11 +24,15 @@ import com.iread.backend.training.input.TrainingInputRequirementService;
 import com.iread.backend.training.input.TrainingInputType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 
@@ -49,6 +54,9 @@ class GazeServiceTest {
     @Mock GazeAnalysisResultRepository gazeAnalysisResultRepository;
     @Mock TrainingInputRequirementService trainingInputRequirementService;
     @Mock GazeWordMetricMergeService gazeWordMetricMergeService;
+    @Mock RealtimeEventPublisher realtimeEventPublisher;
+
+    @TempDir Path gazeStorageRoot;
 
     private GazeService gazeService;
 
@@ -63,6 +71,8 @@ class GazeServiceTest {
                 gazeAnalysisResultRepository,
                 trainingInputRequirementService,
                 gazeWordMetricMergeService,
+                new GazeDataStorage(gazeStorageRoot.toString(), "/gaze"),
+                realtimeEventPublisher,
                 new JsonMapper()
         );
     }
@@ -188,6 +198,41 @@ class GazeServiceTest {
     }
 
     @Test
+    void storesRawGazeDataAsFileAndKeepsOnlyUrlOnSession() {
+        StudentEntity student = mock(StudentEntity.class);
+        GazeSessionEntity session = mock(GazeSessionEntity.class);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(gazeSessionRepository.findByIdAndStudentIdForUpdate(30L, 10L))
+                .thenReturn(Optional.of(session));
+        when(session.getStatus()).thenReturn(GazeSessionStatus.RUNNING);
+        when(session.getId()).thenReturn(30L);
+
+        gazeService.endSession(
+                1L,
+                30L,
+                new EndGazeSessionRequest(
+                        10L,
+                        GazeSessionStatus.COMPLETED,
+                        new JsonMapper().readTree("[{\"offsetMs\":120,\"x\":0.32,\"y\":0.41}]")
+                )
+        );
+
+        ArgumentCaptor<String> dataUrl = ArgumentCaptor.forClass(String.class);
+        verify(session).end(
+                org.mockito.ArgumentMatchers.eq(GazeSessionStatus.COMPLETED),
+                org.mockito.ArgumentMatchers.any(),
+                dataUrl.capture()
+        );
+        assertThat(dataUrl.getValue())
+                .matches("/gaze/10/gaze-30-[0-9a-f-]{36}\\.json");
+        Path stored = gazeStorageRoot.resolve("10")
+                .resolve(dataUrl.getValue().substring(dataUrl.getValue().lastIndexOf('/') + 1));
+        assertThat(stored).exists();
+        assertThat(stored).content(StandardCharsets.UTF_8)
+                .isEqualTo("[{\"offsetMs\":120,\"x\":0.32,\"y\":0.41}]");
+    }
+
+    @Test
     void acceptsStructuredWordMetricsAndMergesThemAfterSessionEnd() {
         StudentEntity student = mock(StudentEntity.class);
         GazeSessionEntity session = mock(GazeSessionEntity.class);
@@ -211,6 +256,7 @@ class GazeServiceTest {
         when(gazeSessionRepository.findByIdAndStudentIdForUpdate(30L, 10L))
                 .thenReturn(Optional.of(session));
         when(session.getStatus()).thenReturn(GazeSessionStatus.RUNNING);
+        when(session.getId()).thenReturn(30L);
 
         gazeService.endSession(
                 1L,
@@ -225,7 +271,7 @@ class GazeServiceTest {
         verify(session).end(
                 org.mockito.ArgumentMatchers.eq(GazeSessionStatus.COMPLETED),
                 org.mockito.ArgumentMatchers.any(),
-                org.mockito.ArgumentMatchers.eq(data.toString())
+                org.mockito.ArgumentMatchers.matches("/gaze/10/gaze-30-[0-9a-f-]{36}\\.json")
         );
         verify(gazeWordMetricMergeService).merge(session, data);
     }

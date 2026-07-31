@@ -178,7 +178,7 @@ public class GazeWordMetricMergeService {
             );
         }
         WordAttemptLogEntity attempt = attempts.getFirst();
-        boolean gazeSkipped = metric.visitCount() == 0;
+        boolean gazeSkipped = resolveGazeSkipped(metric);
         // 스토리는 다시 읽어도 재시도로 감점하지 않는다.
         int retryCount = session.getContentType() == GazeContentType.STORY
                 ? 0
@@ -237,6 +237,8 @@ public class GazeWordMetricMergeService {
         }
         int dwellMs = requiredNonNegative(word, "dwellMs");
         int visitCount = requiredNonNegative(word, "visitCount");
+        Integer readCount = nullableNonNegative(word, "readCount");
+        Boolean skipped = nullableBoolean(word, "skipped");
         int regressionCount = requiredNonNegative(word, "regressionCount");
         Integer firstSeenMs = nullableNonNegative(word, "firstSeenMs");
         Integer lastSeenMs = nullableNonNegative(word, "lastSeenMs");
@@ -254,6 +256,8 @@ public class GazeWordMetricMergeService {
                 text,
                 dwellMs,
                 visitCount,
+                readCount,
+                skipped,
                 regressionCount,
                 firstSeenMs,
                 lastSeenMs
@@ -282,6 +286,8 @@ public class GazeWordMetricMergeService {
         }
         int dwellMs = requiredNonNegative(word, "dwellMs");
         int visitCount = requiredNonNegative(word, "visitCount");
+        Integer readCount = nullableNonNegative(word, "readCount");
+        Boolean skipped = nullableBoolean(word, "skipped");
         int regressionCount = requiredNonNegative(word, "regressionCount");
         Integer firstSeenMs = nullableNonNegative(word, "firstSeenMs");
         Integer lastSeenMs = nullableNonNegative(word, "lastSeenMs");
@@ -299,10 +305,22 @@ public class GazeWordMetricMergeService {
                 text,
                 dwellMs,
                 visitCount,
+                readCount,
+                skipped,
                 regressionCount,
                 firstSeenMs,
                 lastSeenMs
         );
+    }
+
+    private boolean resolveGazeSkipped(WordMetric metric) {
+        if (metric.skipped() != null) {
+            return metric.skipped();
+        }
+        if (metric.readCount() != null) {
+            return metric.readCount() == 0;
+        }
+        return metric.visitCount() == 0;
     }
 
     private int requiredPositive(JsonNode node, String field) {
@@ -331,6 +349,16 @@ public class GazeWordMetricMergeService {
             return null;
         }
         return requiredNonNegative(node, field);
+    }
+
+    private Boolean nullableBoolean(JsonNode node, String field) {
+        if (!node.hasNonNull(field)) {
+            return null;
+        }
+        if (!node.path(field).isBoolean()) {
+            throw new IllegalArgumentException(field + " must be a boolean.");
+        }
+        return node.path(field).asBoolean();
     }
 
     private JsonNode readJson(String value) {
@@ -372,6 +400,8 @@ public class GazeWordMetricMergeService {
             String text,
             int dwellMs,
             int visitCount,
+            Integer readCount,
+            Boolean skipped,
             int regressionCount,
             Integer firstSeenMs,
             Integer lastSeenMs

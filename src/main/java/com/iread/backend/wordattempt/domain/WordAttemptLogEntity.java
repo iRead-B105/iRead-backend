@@ -60,6 +60,13 @@ public class WordAttemptLogEntity {
     @Column(name = "surface_text", length = 50)
     private String surfaceText;
 
+    @Column(
+            name = "has_gaze_data",
+            nullable = false,
+            columnDefinition = "boolean not null default false"
+    )
+    private boolean hasGazeData;
+
     @Column(name = "has_audio_data", nullable = false)
     private boolean hasAudioData;
 
@@ -117,6 +124,7 @@ public class WordAttemptLogEntity {
             WordEntity word,
             TrainingEntity training,
             String surfaceText,
+            boolean hasGazeData,
             boolean hasAudioData,
             Integer fixationDurationMs,
             Integer fixationCount,
@@ -142,6 +150,7 @@ public class WordAttemptLogEntity {
         this.training = training;
         this.useLocation = WordAttemptUseLocation.TRAINING;
         this.surfaceText = surfaceText;
+        this.hasGazeData = hasGazeData;
         this.hasAudioData = hasAudioData;
         this.fixationDurationMs = fixationDurationMs;
         this.fixationCount = fixationCount;
@@ -185,6 +194,7 @@ public class WordAttemptLogEntity {
         attempt.test = test;
         attempt.useLocation = WordAttemptUseLocation.TEST;
         attempt.surfaceText = surfaceText;
+        attempt.hasGazeData = false;
         attempt.hasAudioData = hasAudioData;
         attempt.skipped = skipped;
         attempt.regressionCount = 0;

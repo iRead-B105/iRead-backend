@@ -22,7 +22,7 @@ import tools.jackson.databind.node.ObjectNode;
 import java.util.List;
 
 @Component
-@Order(30)
+@Order(50)
 @RequiredArgsConstructor
 @ConditionalOnProperty(
         name = "iread.all-training-showcase.enabled",

@@ -39,12 +39,46 @@ public class ReadingFeatureDataInitializer implements ApplicationRunner {
             "ㄳ", "ㄵ", "ㄶ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ", "ㅄ"
     );
 
+    /**
+     * 폐기한 특징 접두사. 분석기가 만들지 않는 코드가 프로필에 남으면 목표 특징으로 선택돼
+     * `TARGET_FEATURE_MISSING`으로 생성이 실패하므로 초기화 때 함께 정리한다.
+     */
+    private static final List<String> RETIRED_FEATURE_PREFIXES = List.of("MORPH");
+
     private final JdbcTemplate jdbcTemplate;
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
+        RETIRED_FEATURE_PREFIXES.forEach(this::removeRetiredFeatures);
         features().forEach(this::insertWhenMissing);
+    }
+
+    private void removeRetiredFeatures(String prefix) {
+        List<Long> ids = jdbcTemplate.queryForList(
+                "SELECT id FROM reading_features WHERE feature_code = ? OR feature_code LIKE ?",
+                Long.class,
+                prefix,
+                prefix + ".%"
+        );
+        if (ids.isEmpty()) {
+            return;
+        }
+        String placeholders = String.join(",", ids.stream().map(id -> "?").toList());
+        Object[] parameters = ids.toArray();
+        jdbcTemplate.update(
+                "DELETE FROM student_feature_profiles WHERE reading_features_id IN (" + placeholders + ")",
+                parameters
+        );
+        jdbcTemplate.update(
+                "UPDATE reading_features SET parent_feature_id = NULL"
+                        + " WHERE parent_feature_id IN (" + placeholders + ")",
+                parameters
+        );
+        jdbcTemplate.update(
+                "DELETE FROM reading_features WHERE id IN (" + placeholders + ")",
+                parameters
+        );
     }
 
     private void insertWhenMissing(FeatureSeed seed) {
@@ -114,14 +148,6 @@ public class ReadingFeatureDataInitializer implements ApplicationRunner {
         long phonology = seeds.add(null, "PHONOLOGY", "음운 규칙", ReadingFeatureCategory.PHONOLOGY,
                 ReadingFeatureScope.WORD_BOUNDARY);
         addPhonology(seeds, phonology);
-
-        long morph = seeds.add(null, "MORPH", "형태소", ReadingFeatureCategory.MORPH,
-                ReadingFeatureScope.WORD);
-        seeds.add(morph, "MORPH.NOUN", "명사", ReadingFeatureCategory.MORPH, ReadingFeatureScope.WORD);
-        seeds.add(morph, "MORPH.VERB", "동사", ReadingFeatureCategory.MORPH, ReadingFeatureScope.WORD);
-        seeds.add(morph, "MORPH.ADJECTIVE", "형용사", ReadingFeatureCategory.MORPH, ReadingFeatureScope.WORD);
-        seeds.add(morph, "MORPH.PARTICLE", "조사", ReadingFeatureCategory.MORPH, ReadingFeatureScope.WORD);
-        seeds.add(morph, "MORPH.ENDING", "어미", ReadingFeatureCategory.MORPH, ReadingFeatureScope.WORD);
 
         long word = seeds.add(null, "WORD", "단어", ReadingFeatureCategory.WORD, ReadingFeatureScope.WORD);
         for (int count = 1; count <= 5; count++) {

@@ -103,6 +103,12 @@ SET student.teacher_memo = persona.teacher_memo,
     student.address = COALESCE(student.address, '서울시 데모구 읽기마을'),
     student.image_url = COALESCE(student.image_url, '/images/student-profile.png');
 
+UPDATE daily_curriculums curriculum
+JOIN demo_personas persona ON persona.student_id = curriculum.student_id
+SET curriculum.status = 'IN_PROGRESS',
+    curriculum.completed_at = NULL
+WHERE curriculum.status = 'NOT_STARTED';
+
 INSERT INTO daily_curriculums (id, student_id, status, created_at, completed_at)
 SELECT
     120000 + persona.persona_no * 10 + number.seq,
@@ -124,13 +130,6 @@ WHERE NOT EXISTS (
     SELECT 1 FROM daily_curriculums existing
     WHERE existing.id = 120000 + persona.persona_no * 10 + number.seq
 );
-
-UPDATE daily_curriculums curriculum
-JOIN demo_personas persona ON persona.student_id = curriculum.student_id
-SET curriculum.status = 'IN_PROGRESS',
-    curriculum.completed_at = NULL
-WHERE curriculum.status = 'NOT_STARTED'
-  AND curriculum.id <> 120000 + persona.persona_no * 10 + 3;
 
 UPDATE daily_curriculums curriculum
 JOIN demo_personas persona
@@ -592,7 +591,7 @@ WHERE NOT EXISTS (
 
 INSERT INTO gaze_sessions
     (id, student_id, test_id, training_id, story_id, content_type, started_at,
-     ended_at, data, status, calibration_status, created_at)
+     ended_at, data_url, status, calibration_status, created_at)
 SELECT
     260000 + persona.persona_no * 10 + number.seq,
     persona.student_id,
@@ -602,10 +601,10 @@ SELECT
     'TRAINING',
     training.started_at,
     training.finished_at,
-    JSON_ARRAY(
-        JSON_OBJECT('timestampMs', 0, 'x', 0.22 + persona.persona_no * 0.01, 'y', 0.39),
-        JSON_OBJECT('timestampMs', 240, 'x', 0.41, 'y', 0.42),
-        JSON_OBJECT('timestampMs', 480, 'x', 0.57, 'y', 0.44)
+    CONCAT(
+        '/gaze/', persona.student_id,
+        '/gaze-', 260000 + persona.persona_no * 10 + number.seq,
+        '-00000000-0000-0000-0000-000000000000.json'
     ),
     CASE
         WHEN number.seq = 1 AND persona.past_gaze_failure THEN 'FAILED'
@@ -654,7 +653,7 @@ WHERE session.status = 'COMPLETED'
 -- 교수자가 어떤 완료 훈련을 먼저 열어도 시선 분석 예시를 확인할 수 있게 누락 세션을 보강한다.
 INSERT INTO gaze_sessions
     (id, student_id, test_id, training_id, story_id, content_type, started_at,
-     ended_at, data, status, calibration_status, created_at)
+     ended_at, data_url, status, calibration_status, created_at)
 SELECT
     400000 + training.id,
     persona.student_id,
@@ -664,10 +663,10 @@ SELECT
     'TRAINING',
     training.started_at,
     training.finished_at,
-    JSON_ARRAY(
-        JSON_OBJECT('timestampMs', 0, 'x', 0.18 + persona.persona_no * 0.01, 'y', 0.38),
-        JSON_OBJECT('timestampMs', 260, 'x', 0.39, 'y', 0.41),
-        JSON_OBJECT('timestampMs', 520, 'x', 0.61, 'y', 0.43)
+    CONCAT(
+        '/gaze/', persona.student_id,
+        '/gaze-', 400000 + training.id,
+        '-00000000-0000-0000-0000-000000000000.json'
     ),
     'COMPLETED',
     'SUCCESS',
@@ -901,7 +900,7 @@ WHERE NOT EXISTS (
 
 INSERT INTO gaze_sessions
     (id, student_id, test_id, training_id, story_id, content_type, started_at,
-     ended_at, data, status, calibration_status, created_at)
+     ended_at, data_url, status, calibration_status, created_at)
 SELECT
     150000 + persona.persona_no * 10 + number.seq,
     persona.student_id,
@@ -921,10 +920,10 @@ SELECT
         WHEN 2 THEN TIMESTAMPADD(HOUR, persona.persona_no, '2026-07-28 09:13:00')
         ELSE TIMESTAMPADD(DAY, persona.persona_no, '2026-07-08 09:12:00')
     END,
-    JSON_ARRAY(
-        JSON_OBJECT('timestampMs', 0, 'x', 0.24 + persona.persona_no * 0.01, 'y', 0.38),
-        JSON_OBJECT('timestampMs', 200, 'x', 0.40, 'y', 0.41),
-        JSON_OBJECT('timestampMs', 400, 'x', 0.54, 'y', 0.43)
+    CONCAT(
+        '/gaze/', persona.student_id,
+        '/gaze-', 150000 + persona.persona_no * 10 + number.seq,
+        '-00000000-0000-0000-0000-000000000000.json'
     ),
     CASE WHEN number.seq = 3 AND persona.past_gaze_failure THEN 'FAILED' ELSE 'COMPLETED' END,
     CASE WHEN number.seq = 3 AND persona.past_gaze_failure THEN 'FAILED' ELSE 'SUCCESS' END,
@@ -1440,3 +1439,7 @@ DROP TEMPORARY TABLE demo_scene_numbers;
 DROP TEMPORARY TABLE demo_story_numbers;
 DROP TEMPORARY TABLE demo_numbers;
 DROP TEMPORARY TABLE demo_personas;
+
+-- 시선 지표가 있는 단어 시도만 시선 사용으로 표시한다.
+UPDATE word_attempt_logs
+SET has_gaze_data = (fixation_duration_ms IS NOT NULL OR fixation_count IS NOT NULL);

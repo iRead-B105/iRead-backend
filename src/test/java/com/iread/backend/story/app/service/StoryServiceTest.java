@@ -15,12 +15,12 @@ import com.iread.backend.pronunciation.PronunciationAnalysisResult;
 import com.iread.backend.pronunciation.PronunciationWordAligner;
 import com.iread.backend.pronunciation.PronunciationWordResult;
 import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
+import com.iread.backend.realtime.RealtimeEventPublisher;
 import com.iread.backend.story.analysis.StoryLineContentService;
 import com.iread.backend.story.domain.*;
 import com.iread.backend.story.repository.*;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
-import com.iread.backend.training.analysis.KomoranMorphAnalyzer;
 import com.iread.backend.training.analysis.KoreanG2pEngine;
 import com.iread.backend.training.analysis.KoreanTextAnalyzer;
 import com.iread.backend.training.domain.WordEntity;
@@ -69,9 +69,10 @@ class StoryServiceTest {
     @Mock PronunciationAnalysisAdapter pronunciationAnalysisAdapter;
     @Mock WordAttemptScoreCalculator wordAttemptScoreCalculator;
     @Mock StudentFeatureProfileService studentFeatureProfileService;
+    @Mock RealtimeEventPublisher realtimeEventPublisher;
     @Spy PronunciationWordAligner pronunciationWordAligner = new PronunciationWordAligner();
     @Spy StoryLineContentService storyLineContentService = new StoryLineContentService(
-            new KoreanTextAnalyzer(new KomoranMorphAnalyzer(), new KoreanG2pEngine()),
+            new KoreanTextAnalyzer(new KoreanG2pEngine()),
             JsonMapper.builder().build()
     );
     @InjectMocks StoryService storyService;
@@ -300,7 +301,6 @@ class StoryServiceTest {
         assertThat(analysis.path("words")).hasSize(3);
         assertThat(analysis.path("words").get(0).path("surface").asText()).isEqualTo("토끼가");
         assertThat(analysis.path("words").get(0).path("featureCodes")).isNotEmpty();
-        assertThat(analysis.path("morphemes")).isNotEmpty();
     }
 
     @Test

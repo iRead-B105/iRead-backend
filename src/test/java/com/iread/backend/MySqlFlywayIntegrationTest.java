@@ -47,7 +47,7 @@ class MySqlFlywayIntegrationTest {
     void appliesAllMigrationsAndValidatesJpaMappings() {
         assertThat(applicationTableCount()).isEqualTo(26);
         assertThat(constraintCount("FOREIGN KEY")).isEqualTo(35);
-        assertThat(constraintCount("UNIQUE")).isEqualTo(13);
+        assertThat(constraintCount("UNIQUE")).isEqualTo(15);
         assertThat(constraintCount("CHECK")).isEqualTo(11);
 
         assertThat(tableExists("training_datas")).isTrue();
@@ -64,7 +64,9 @@ class MySqlFlywayIntegrationTest {
         assertThat(columnExists("word_attempt_logs", "token_index")).isTrue();
         assertThat(columnExists("word_attempt_logs", "is_final")).isTrue();
         assertThat(columnExists("word_attempt_logs", "recognized_text")).isFalse();
-        assertThat(columnExists("word_attempt_logs", "has_gaze_data")).isFalse();
+        assertThat(columnExists("word_attempt_logs", "has_gaze_data")).isTrue();
+        assertThat(columnExists("gaze_sessions", "data_url")).isTrue();
+        assertThat(columnExists("gaze_sessions", "data")).isFalse();
         assertThat(constraintExists(
                 "word_attempt_logs",
                 "CHK_WORD_ATTEMPT_LOGS_PRONUNCIATION_ACCURACY_SCORE",
@@ -119,10 +121,79 @@ class MySqlFlywayIntegrationTest {
                 "UQ_REPORTS_STUDENT_PERIOD",
                 "UNIQUE"
         )).isTrue();
+        assertThat(columnExists(
+                "daily_curriculums",
+                "not_started_student_id"
+        )).isTrue();
+        assertThat(columnExists(
+                "daily_curriculums",
+                "in_progress_student_id"
+        )).isTrue();
+        assertThat(constraintExists(
+                "daily_curriculums",
+                "UQ_DAILY_CURRICULUMS_NOT_STARTED_STUDENT",
+                "UNIQUE"
+        )).isTrue();
+        assertThat(constraintExists(
+                "daily_curriculums",
+                "UQ_DAILY_CURRICULUMS_IN_PROGRESS_STUDENT",
+                "UNIQUE"
+        )).isTrue();
 
         assertThat(tableExists("training_contents")).isFalse();
         assertThat(tableExists("test_questions")).isFalse();
         assertThat(tableExists("auth_revoked_access_tokens")).isFalse();
+    }
+
+    @Test
+    void dailyCurriculumAllowsOneQueuedAndOneActiveRowPerStudent() {
+        long teacherId = insertAndReturnKey(
+                "INSERT INTO teachers(email, password, name, created_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+                "dc-" + UUID.randomUUID() + "@x.io", "password", "교사"
+        );
+        long studentId = insertAndReturnKey(
+                "INSERT INTO students(teacher_id, name, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)",
+                teacherId, "학생"
+        );
+
+        jdbcTemplate.update(
+                """
+                INSERT INTO daily_curriculums(student_id, status, created_at)
+                VALUES (?, 'IN_PROGRESS', CURRENT_TIMESTAMP)
+                """,
+                studentId
+        );
+        jdbcTemplate.update(
+                """
+                INSERT INTO daily_curriculums(student_id, status, created_at)
+                VALUES (?, 'NOT_STARTED', CURRENT_TIMESTAMP)
+                """,
+                studentId
+        );
+        jdbcTemplate.update(
+                """
+                INSERT INTO daily_curriculums(student_id, status, created_at, completed_at)
+                VALUES (?, 'COMPLETED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                       (?, 'COMPLETED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """,
+                studentId,
+                studentId
+        );
+
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                """
+                INSERT INTO daily_curriculums(student_id, status, created_at)
+                VALUES (?, 'IN_PROGRESS', CURRENT_TIMESTAMP)
+                """,
+                studentId
+        )).isInstanceOf(DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                """
+                INSERT INTO daily_curriculums(student_id, status, created_at)
+                VALUES (?, 'NOT_STARTED', CURRENT_TIMESTAMP)
+                """,
+                studentId
+        )).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test

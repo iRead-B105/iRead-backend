@@ -47,8 +47,8 @@ public class GazeSessionEntity {
     @Column(name = "ended_at")
     private LocalDateTime endedAt;
 
-    @Column(columnDefinition = "json")
-    private String data;
+    @Column(name = "data_url", length = 255)
+    private String dataUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -75,20 +75,20 @@ public class GazeSessionEntity {
         this.status = GazeSessionStatus.RUNNING;
     }
 
-    public void end(GazeSessionStatus status, LocalDateTime endedAt, String data) {
+    public void end(GazeSessionStatus status, LocalDateTime endedAt, String dataUrl) {
         if (this.status != GazeSessionStatus.RUNNING) {
             throw new ConflictException("실행 중인 시선 세션만 종료할 수 있습니다.");
         }
         this.status = status;
         this.endedAt = endedAt;
-        this.data = data;
+        this.dataUrl = dataUrl;
     }
 
     public void fail(LocalDateTime endedAt) {
-        end(GazeSessionStatus.FAILED, endedAt, data);
+        end(GazeSessionStatus.FAILED, endedAt, dataUrl);
     }
 
-    public void updateData(String data) {
-        this.data = data;
+    public void updateDataUrl(String dataUrl) {
+        this.dataUrl = dataUrl;
     }
 }

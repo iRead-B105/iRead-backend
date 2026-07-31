@@ -8,7 +8,6 @@ import com.iread.backend.readingfeature.repository.ReadingFeatureRepository;
 import com.iread.backend.readingfeature.repository.StudentFeatureProfileRepository;
 import com.iread.backend.story.analysis.StoryLineContentService;
 import com.iread.backend.student.domain.StudentEntity;
-import com.iread.backend.training.analysis.KomoranMorphAnalyzer;
 import com.iread.backend.training.analysis.KoreanG2pEngine;
 import com.iread.backend.training.analysis.KoreanTextAnalyzer;
 import com.iread.backend.training.domain.TrainingDataEntity;
@@ -59,7 +58,7 @@ class StudentFeatureProfileServiceTest {
                 readingFeatureRepository,
                 profileRepository,
                 new StoryLineContentService(new KoreanTextAnalyzer(
-                        new KomoranMorphAnalyzer(), new KoreanG2pEngine()
+                        new KoreanG2pEngine()
                 ), objectMapper),
                 objectMapper
         );
@@ -109,7 +108,7 @@ class StudentFeatureProfileServiceTest {
         WordEntity word = mock(WordEntity.class);
         WordAttemptLogEntity log = new WordAttemptLogEntity(
                 student, word, training, "먹는다",
-                true, 1200, 3, 100, 2600,
+                true, true, 1200, 3, 100, 2600,
                 false, 2, 500, 100, 2600,
                 false, 500, 1, 0, null, true
         );
@@ -189,7 +188,7 @@ class StudentFeatureProfileServiceTest {
         WordEntity word = mock(WordEntity.class);
         WordAttemptLogEntity log = new WordAttemptLogEntity(
                 student, word, training, "가",
-                true, null, null, null, null,
+                false, true, null, null, null, null,
                 false, 0, 950, 0, 400,
                 true, 950, 1, 0, null, true
         );

@@ -35,6 +35,12 @@ public class DailyCurriculumEntity {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @Column(name = "not_started_student_id", insertable = false, updatable = false)
+    private Long notStartedStudentId;
+
+    @Column(name = "in_progress_student_id", insertable = false, updatable = false)
+    private Long inProgressStudentId;
+
     @OneToMany(mappedBy = "dailyCurriculum", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sequenceNo ASC")
     private List<TrainingEntity> trainings = new ArrayList<>();

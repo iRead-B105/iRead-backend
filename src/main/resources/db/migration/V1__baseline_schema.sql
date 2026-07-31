@@ -29,7 +29,7 @@ CREATE TABLE `reading_features` (
 	`parent_feature_id` bigint NULL,
 	`feature_code` varchar(150) NOT NULL,
 	`feature_name` varchar(150) NOT NULL,
-	`category` varchar(30) NOT NULL COMMENT 'Enum: GRAPHEME, SYLLABLE, PHONOLOGY, MORPH, WORD, SENTENCE',
+	`category` varchar(30) NOT NULL COMMENT 'Enum: GRAPHEME, SYLLABLE, PHONOLOGY, WORD, SENTENCE',
 	`scope` varchar(30) NOT NULL COMMENT 'Enum: CHARACTER, SYLLABLE, WORD, WORD_BOUNDARY, SENTENCE',
 	`created_at` timestamp NULL,
 	CONSTRAINT `PK_READING_FEATURES` PRIMARY KEY (`id`)
@@ -151,7 +151,7 @@ CREATE TABLE `gaze_sessions` (
 	`content_type` varchar(20) NOT NULL COMMENT 'TEST, TRAINING, STORY',
 	`started_at` timestamp NOT NULL,
 	`ended_at` timestamp NULL,
-	`data` json NULL COMMENT '초당 5~10프레임 수집 데이터',
+	`data_url` varchar(255) NULL COMMENT '초당 5~10프레임 수집 데이터를 저장한 파일 URL',
 	`status` varchar(20) NOT NULL COMMENT 'READY, RUNNING, COMPLETED, FAILED',
 	`calibration_status` varchar(20) NOT NULL COMMENT 'NOT_STARTED, SUCCESS, FAILED, SKIPPED',
 	`created_at` timestamp NOT NULL,
@@ -209,6 +209,7 @@ CREATE TABLE `word_attempt_logs` (
 	`test_id` bigint NULL,
 	`use_location` varchar(10) NOT NULL COMMENT 'Enum: TEST, TRAINING, STORY',
 	`surface_text` varchar(50) NULL COMMENT '문장 안에서 사용된 단어 형태',
+	`has_gaze_data` boolean NOT NULL DEFAULT false COMMENT '시선 사용 여부',
 	`has_audio_data` boolean NOT NULL,
 	`fixation_duration_ms` int NULL,
 	`fixation_count` int NULL,
@@ -240,11 +241,11 @@ CREATE TABLE `word_attempt_logs` (
 		CHECK (`token_index` IS NULL OR `token_index` >= 0)
 );
 
-CREATE TABLE `character` (
+CREATE TABLE `characters` (
 	`id` bigint NOT NULL AUTO_INCREMENT,
 	`student_id` bigint NOT NULL,
 	`story_id` bigint NOT NULL,
-	`image_url` varchar(255) NULL,
+	`image_url` text NULL,
 	`created_at` timestamp NOT NULL,
 	`name` varchar(50) NULL,
 	CONSTRAINT `PK_CHARACTER` PRIMARY KEY (`id`)
@@ -280,7 +281,19 @@ CREATE TABLE `daily_curriculums` (
 	`status` varchar(20) NOT NULL COMMENT 'Enum: NOT_STARTED, IN_PROGRESS, COMPLETED',
 	`created_at` timestamp NOT NULL,
 	`completed_at` timestamp NULL,
-	CONSTRAINT `PK_DAILY_CURRICULUMS` PRIMARY KEY (`id`)
+	`not_started_student_id` bigint
+		GENERATED ALWAYS AS (
+			CASE WHEN `status` = 'NOT_STARTED' THEN `student_id` ELSE NULL END
+		) STORED,
+	`in_progress_student_id` bigint
+		GENERATED ALWAYS AS (
+			CASE WHEN `status` = 'IN_PROGRESS' THEN `student_id` ELSE NULL END
+		) STORED,
+	CONSTRAINT `PK_DAILY_CURRICULUMS` PRIMARY KEY (`id`),
+	CONSTRAINT `UQ_DAILY_CURRICULUMS_NOT_STARTED_STUDENT`
+		UNIQUE (`not_started_student_id`),
+	CONSTRAINT `UQ_DAILY_CURRICULUMS_IN_PROGRESS_STUDENT`
+		UNIQUE (`in_progress_student_id`)
 );
 
 CREATE TABLE `tests` (
@@ -487,7 +500,7 @@ ALTER TABLE `word_attempt_logs`
 	ADD CONSTRAINT `FK_WORD_ATTEMPT_LOGS_TEST`
 		FOREIGN KEY (`test_id`) REFERENCES `tests` (`id`);
 
-ALTER TABLE `character`
+ALTER TABLE `characters`
 	ADD CONSTRAINT `FK_CHARACTER_STUDENT`
 		FOREIGN KEY (`student_id`) REFERENCES `students` (`id`),
 	ADD CONSTRAINT `FK_CHARACTER_STORY`

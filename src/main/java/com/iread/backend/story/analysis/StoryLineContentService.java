@@ -6,7 +6,6 @@ import com.iread.backend.training.analysis.AnalyzedWord;
 import com.iread.backend.training.analysis.FeatureOccurrence;
 import com.iread.backend.training.analysis.KoreanTextAnalysis;
 import com.iread.backend.training.analysis.KoreanTextAnalyzer;
-import com.iread.backend.training.analysis.MorphemeAnalysis;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
@@ -205,14 +204,6 @@ public class StoryLineContentService {
                 occurrenceNode.put("orthographicForm", occurrence.orthographicForm());
                 occurrenceNode.put("pronunciationForm", occurrence.pronunciationForm());
             }
-        }
-        ArrayNode morphemes = node.putArray("morphemes");
-        for (MorphemeAnalysis morpheme : analysis.morphemes()) {
-            ObjectNode morphemeNode = morphemes.addObject();
-            morphemeNode.put("surface", morpheme.surface());
-            morphemeNode.put("pos", morpheme.pos());
-            morphemeNode.put("beginIndex", morpheme.beginIndex());
-            morphemeNode.put("endIndex", morpheme.endIndex());
         }
         node.put("analyzerVersion", analysis.analyzerVersion());
         node.put("g2pVersion", analysis.g2pVersion());
