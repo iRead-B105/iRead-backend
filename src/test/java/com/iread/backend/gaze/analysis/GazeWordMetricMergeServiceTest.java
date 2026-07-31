@@ -172,6 +172,68 @@ class GazeWordMetricMergeServiceTest {
     }
 
     @Test
+    void keepsReadWordUnskippedWhenFixationThresholdIsNotMet() throws Exception {
+        TrainingEntity training = mock(TrainingEntity.class);
+        GazeSessionEntity session = mock(GazeSessionEntity.class);
+        when(session.getContentType()).thenReturn(GazeContentType.TRAINING);
+        when(session.getTraining()).thenReturn(training);
+        when(training.getId()).thenReturn(30L);
+        when(trainingInputRequirementService.inputsForQuestion(30L, 1))
+                .thenReturn(Set.of(
+                        TrainingInputType.VOICE,
+                        TrainingInputType.GAZE
+                ));
+        WordAttemptLogEntity attempt = new WordAttemptLogEntity(
+                mock(StudentEntity.class),
+                mock(WordEntity.class),
+                training,
+                "beta",
+                true,
+                null,
+                null,
+                null,
+                null,
+                false,
+                0,
+                900,
+                0,
+                500,
+                true,
+                null,
+                1,
+                0,
+                1,
+                true
+        );
+        when(wordAttemptLogRepository
+                .findAllByTrainingIdAndQuestionNoAndTargetIndex(30L, 1, 0))
+                .thenReturn(List.of(attempt));
+
+        service.merge(session, objectMapper.readTree("""
+                {
+                  "words": [{
+                    "questionNo": 1,
+                    "targetIndex": 0,
+                    "tokenIndex": 1,
+                    "text": "beta",
+                    "dwellMs": 0,
+                    "visitCount": 0,
+                    "readCount": 1,
+                    "skipped": false,
+                    "regressionCount": 0,
+                    "firstSeenMs": 1000,
+                    "lastSeenMs": 2200
+                  }]
+                }
+                """));
+
+        assertThat(attempt.getSkipped()).isFalse();
+        assertThat(attempt.getFixationDurationMs()).isZero();
+        assertThat(attempt.getFixationCount()).isZero();
+        assertThat(attempt.getTotalScore()).isEqualTo(950);
+    }
+
+    @Test
     void marksUnvisitedWordAsSkippedAndAppliesZeroGazeComponent() {
         TrainingEntity training = mock(TrainingEntity.class);
         GazeSessionEntity session = mock(GazeSessionEntity.class);
