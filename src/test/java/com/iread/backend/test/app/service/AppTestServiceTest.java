@@ -35,6 +35,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.util.unit.DataSize;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -342,7 +343,10 @@ class AppTestServiceTest {
                 wordAttemptLogRepository,
                 pronunciationAnalysisAdapter,
                 new PronunciationWordAligner(),
-                audioUploadPolicy,
+                new AudioUploadPolicy(
+                        DataSize.ofMegabytes(20),
+                        "audio/webm,audio/wav,audio/mpeg,audio/mp4"
+                ),
                 wordAttemptScoreCalculator,
                 mapper,
                 new AppLearningQuestionSupport(mapper),
@@ -445,7 +449,10 @@ class AppTestServiceTest {
                 wordAttemptLogRepository,
                 pronunciationAnalysisAdapter,
                 new PronunciationWordAligner(),
-                audioUploadPolicy,
+                new AudioUploadPolicy(
+                        DataSize.ofMegabytes(20),
+                        "audio/webm,audio/wav,audio/mpeg,audio/mp4"
+                ),
                 wordAttemptScoreCalculator,
                 mapper,
                 new AppLearningQuestionSupport(mapper),
