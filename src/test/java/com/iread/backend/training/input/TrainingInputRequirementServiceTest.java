@@ -91,7 +91,7 @@ class TrainingInputRequirementServiceTest {
                         30L,
                         2
                 )).thenReturn(true);
-        when(gazeSessionRepository.existsByTrainingIdAndStatusAndDataIsNotNull(
+        when(gazeSessionRepository.existsByTrainingIdAndStatusAndDataUrlIsNotNull(
                 30L,
                 GazeSessionStatus.COMPLETED
         )).thenReturn(true);

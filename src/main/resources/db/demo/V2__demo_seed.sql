@@ -243,26 +243,26 @@ VALUES
 
 INSERT INTO `gaze_sessions`
     (`id`, `student_id`, `test_id`, `training_id`, `story_id`, `content_type`,
-     `started_at`, `ended_at`, `data`, `status`, `calibration_status`, `created_at`)
+     `started_at`, `ended_at`, `data_url`, `status`, `calibration_status`, `created_at`)
 VALUES
     (7201, 2101, NULL, 4201, NULL, 'TRAINING', '2026-07-05 09:01:00', '2026-07-05 09:07:00',
-     '[]', 'COMPLETED', 'SUCCESS', '2026-07-05 09:01:00'),
+     '/gaze/2101/gaze-7201-00000000-0000-0000-0000-000000000000.json', 'COMPLETED', 'SUCCESS', '2026-07-05 09:01:00'),
     (7202, 2101, NULL, 4203, NULL, 'TRAINING', '2026-07-24 09:01:00', '2026-07-24 09:07:00',
-     '[]', 'COMPLETED', 'SUCCESS', '2026-07-24 09:01:00'),
+     '/gaze/2101/gaze-7202-00000000-0000-0000-0000-000000000000.json', 'COMPLETED', 'SUCCESS', '2026-07-24 09:01:00'),
     (7203, 2103, NULL, 4210, NULL, 'TRAINING', '2026-07-27 10:01:00', '2026-07-27 10:08:00',
-     '[]', 'FAILED', 'SUCCESS', '2026-07-27 10:01:00'),
+     '/gaze/2103/gaze-7203-00000000-0000-0000-0000-000000000000.json', 'FAILED', 'SUCCESS', '2026-07-27 10:01:00'),
     (7204, 2104, NULL, 4212, NULL, 'TRAINING', '2026-07-18 11:01:00', '2026-07-18 11:06:00',
-     '[]', 'COMPLETED', 'SUCCESS', '2026-07-18 11:01:00'),
+     '/gaze/2104/gaze-7204-00000000-0000-0000-0000-000000000000.json', 'COMPLETED', 'SUCCESS', '2026-07-18 11:01:00'),
     (7211, 2101, 5501, NULL, NULL, 'TEST', '2026-05-30 10:01:00', '2026-05-30 10:10:00',
-     '[]', 'COMPLETED', 'SUCCESS', '2026-05-30 10:01:00'),
+     '/gaze/2101/gaze-7211-00000000-0000-0000-0000-000000000000.json', 'COMPLETED', 'SUCCESS', '2026-05-30 10:01:00'),
     (7212, 2101, 5502, NULL, NULL, 'TEST', '2026-06-28 10:01:00', '2026-06-28 10:09:00',
-     '[]', 'FAILED', 'SUCCESS', '2026-06-28 10:01:00'),
+     '/gaze/2101/gaze-7212-00000000-0000-0000-0000-000000000000.json', 'FAILED', 'SUCCESS', '2026-06-28 10:01:00'),
     (7213, 2101, 5503, NULL, NULL, 'TEST', '2026-07-24 10:01:00', '2026-07-24 10:08:00',
-     '[]', 'COMPLETED', 'SUCCESS', '2026-07-24 10:01:00'),
+     '/gaze/2101/gaze-7213-00000000-0000-0000-0000-000000000000.json', 'COMPLETED', 'SUCCESS', '2026-07-24 10:01:00'),
     (7214, 2103, 5505, NULL, NULL, 'TEST', '2026-07-10 11:01:00', '2026-07-10 11:10:00',
-     '[]', 'FAILED', 'FAILED', '2026-07-10 11:01:00'),
+     '/gaze/2103/gaze-7214-00000000-0000-0000-0000-000000000000.json', 'FAILED', 'FAILED', '2026-07-10 11:01:00'),
     (7215, 2104, 5506, NULL, NULL, 'TEST', '2026-07-18 12:01:00', '2026-07-18 12:08:00',
-     '[]', 'COMPLETED', 'SUCCESS', '2026-07-18 12:01:00');
+     '/gaze/2104/gaze-7215-00000000-0000-0000-0000-000000000000.json', 'COMPLETED', 'SUCCESS', '2026-07-18 12:01:00');
 
 INSERT INTO `gaze_analysis_results`
     (`id`, `gaze_session_id`, `total_visited_duration`, `total_visited_count`,
@@ -1005,3 +1005,7 @@ INSERT INTO `daily_curriculums`
     (`id`, `student_id`, `status`, `created_at`, `completed_at`)
 VALUES
     (190001, 2001, 'NOT_STARTED', '2026-07-30 11:16:00', NULL);
+
+-- 시선 지표가 있는 단어 시도만 시선 사용으로 표시한다.
+UPDATE `word_attempt_logs`
+SET `has_gaze_data` = (`fixation_duration_ms` IS NOT NULL OR `fixation_count` IS NOT NULL);

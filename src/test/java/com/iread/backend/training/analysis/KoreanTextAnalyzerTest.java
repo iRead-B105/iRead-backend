@@ -6,17 +6,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class KoreanTextAnalyzerTest {
 
-    private final KoreanTextAnalyzer analyzer = new KoreanTextAnalyzer(
-            new KomoranMorphAnalyzer(),
-            new KoreanG2pEngine()
-    );
+    private final KoreanTextAnalyzer analyzer = new KoreanTextAnalyzer(new KoreanG2pEngine());
 
     @Test
     void createsWordFeaturesOccurrencesAndVersionedAnalysis() {
         KoreanTextAnalysis result = analyzer.analyze("아기는 국물을 먹는다.");
 
         assertThat(result.words()).hasSize(3);
-        assertThat(result.morphemes()).isNotEmpty();
         assertThat(result.analyzerVersion()).isEqualTo("KOREAN_ANALYZER_V1");
         assertThat(result.g2pVersion()).isEqualTo("G2P_V1");
         assertThat(result.ruleEngineVersion()).isEqualTo("READING_RULE_V1");

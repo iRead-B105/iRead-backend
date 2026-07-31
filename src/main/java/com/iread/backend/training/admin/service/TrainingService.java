@@ -466,6 +466,7 @@ public class TrainingService {
                     word,
                     training,
                     surfaceText,
+                    hasGazeData,
                     hasAudioData,
                     fixationDurationMs,
                     fixationCount,
