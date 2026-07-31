@@ -31,7 +31,7 @@ import java.util.List;
 public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
 
     static final long SHOWCASE_CURRICULUM_ID = 190001L;
-    static final int EXPECTED_TEMPLATE_COUNT = 37;
+    static final int EXPECTED_TEMPLATE_COUNT = 34;
 
     private final DailyCurriculumRepository dailyCurriculumRepository;
     private final TrainingTemplateRepository trainingTemplateRepository;
@@ -58,7 +58,7 @@ public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
                         .findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc();
         if (templates.size() != EXPECTED_TEMPLATE_COUNT) {
             throw new IllegalStateException(
-                    "전체 훈련 체험 커리큘럼에는 37개 템플릿이 필요합니다."
+                    "전체 훈련 체험 커리큘럼에는 34개 템플릿이 필요합니다."
             );
         }
 

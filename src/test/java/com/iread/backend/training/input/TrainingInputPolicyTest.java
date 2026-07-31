@@ -22,7 +22,7 @@ class TrainingInputPolicyTest {
             root = objectMapper.readTree(input);
         }
 
-        assertThat(root.path("templates")).hasSize(37);
+        assertThat(root.path("templates")).hasSize(34);
         for (JsonNode template : root.path("templates")) {
             JsonNode prompt = template.path("prompt");
             TrainingType type = TrainingType.from(prompt.path("trainingType").asText());
