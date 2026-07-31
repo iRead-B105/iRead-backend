@@ -42,3 +42,6 @@ src/main/resources/application-local.properties
 ### Uploaded files ###
 /uploads/
 /audio/
+
+### Local run logs ###
+/.tmp/
