@@ -1342,10 +1342,10 @@ SELECT
     182000 + persona.persona_no * 1000 + story_no.seq * 100 + scene_no.seq * 10 + line_no.seq,
     181000 + persona.persona_no * 100 + story_no.seq * 10 + scene_no.seq,
     line_no.seq = 2,
-    CASE line_no.seq
+    JSON_OBJECT('text', CASE line_no.seq
         WHEN 1 THEN CONCAT(persona.persona_title, '가 숲속 도서관에서 빛나는 지도를 발견했습니다.')
         ELSE CONCAT('지도에는 ', persona.strength_area, '을 활용해야 열리는 길이 그려져 있었습니다.')
-    END,
+    END),
     line_no.seq,
     TIMESTAMPADD(MINUTE, scene_no.seq * 5 + line_no.seq,
         CASE story_no.seq

@@ -43,6 +43,20 @@ public interface WordAttemptLogRepository extends JpaRepository<WordAttemptLogEn
             Integer questionNo
     );
 
+    List<WordAttemptLogEntity> findAllByStoryLineIdAndFinalAttemptTrue(Long storyLineId);
+
+    List<WordAttemptLogEntity> findAllByStoryLineId(Long storyLineId);
+
+    @Query("""
+            select attempt from WordAttemptLogEntity attempt
+              join fetch attempt.storyLine line
+             where attempt.student.id = :studentId
+               and attempt.useLocation = com.iread.backend.wordattempt.domain.WordAttemptUseLocation.STORY
+               and attempt.finalAttempt = true
+             order by attempt.id asc
+            """)
+    List<WordAttemptLogEntity> findAllStoryAttemptsByStudentId(@Param("studentId") Long studentId);
+
     boolean
     existsByTrainingIdAndQuestionNoAndFinalAttemptTrueAndHasAudioDataTrueAndPronunciationAccuracyScoreIsNotNull(
             Long trainingId,
