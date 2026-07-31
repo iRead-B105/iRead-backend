@@ -1,6 +1,7 @@
 package com.iread.backend.global.api;
 
 import org.springframework.core.MethodParameter;
+import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.server.ServerHttpRequest;
@@ -28,7 +29,10 @@ public class ApiResponseAdvice implements ResponseBodyAdvice<Object> {
             ServerHttpRequest request,
             ServerHttpResponse response
     ) {
-        if (MediaType.APPLICATION_OCTET_STREAM.includes(selectedContentType)) {
+        // 오디오처럼 바이너리로 내려보내는 응답은 감싸면 컨버터가 캐스팅에 실패한다.
+        if (MediaType.APPLICATION_OCTET_STREAM.includes(selectedContentType)
+                || body instanceof byte[]
+                || body instanceof Resource) {
             return body;
         }
         if (body instanceof ApiSuccessResponse || body instanceof ApiErrorResponse) {
