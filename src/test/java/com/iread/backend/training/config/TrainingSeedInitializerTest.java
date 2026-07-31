@@ -33,7 +33,7 @@ class TrainingSeedInitializerTest {
     void initializesAllReadingFeaturesAndTrainingTypes() throws Exception {
         assertThat(count("reading_features")).isEqualTo(113);
         assertThat(count("curriculum_units")).isEqualTo(8);
-        assertThat(count("training_templates")).isEqualTo(37);
+        assertThat(count("training_templates")).isEqualTo(34);
 
         String prompt = jdbcTemplate.queryForObject(
                 "SELECT prompt FROM training_templates WHERE id = 34",
@@ -86,7 +86,7 @@ class TrainingSeedInitializerTest {
                 objectMapper.getNodeFactory().textNode("GAZE")
         );
         assertThat(count("reading_features")).isEqualTo(113);
-        assertThat(count("training_templates")).isEqualTo(37);
+        assertThat(count("training_templates")).isEqualTo(34);
     }
 
     private int count(String table) {

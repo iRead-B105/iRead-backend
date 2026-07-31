@@ -350,36 +350,6 @@
         "outputTemplate": {"type": "SHORT_STORY_READING", "data": [{"title": "<string>", "sentences": [{"speaker": "<string>", "text": "<string>", "emotion": "<string>"}]}]},
         "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE", "PHONOLOGY", "WORD", "SENTENCE"], "supportedScopes": ["SYLLABLE", "WORD", "WORD_BOUNDARY", "SENTENCE"]
       }
-    },
-    {
-      "id": 35, "curriculumUnitId": 3, "sequenceNo": 6, "name": "기본 글자 대결",
-      "prompt": {
-        "trainingType": "HANGUL_BATTLE_BASIC",
-        "requiredInputs": [],
-        "additionalPrompt": "낱말을 자모 타일로 흩어 두고 제한 시간 안에 순서대로 모으는 대결 문항을 만든다. rounds는 3개이며 각 round의 tiles에는 answerOrders의 같은 인덱스 자모를 모두 포함하고 혼동용 자모를 더해 8개 이상으로 만든다. answerOrders[i]를 순서대로 결합하면 rounds[i].word와 같아야 한다. opponentDurationMs는 라운드가 진행될수록 짧아진다. opponent는 RABBIT으로 고정한다. word는 받침이 없는 2음절 낱말만 사용한다.",
-        "outputTemplate": {"type": "HANGUL_BATTLE_BASIC", "data": [{"opponent": "<string>", "rounds": [{"word": "<string>", "tiles": ["<string>"], "opponentDurationMs": "<integer>"}], "answerOrders": [["<string>"]]}]},
-        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
-      }
-    },
-    {
-      "id": 36, "curriculumUnitId": 3, "sequenceNo": 7, "name": "받침 글자 대결",
-      "prompt": {
-        "trainingType": "HANGUL_BATTLE_FINAL",
-        "requiredInputs": [],
-        "additionalPrompt": "낱말을 자모 타일로 흩어 두고 제한 시간 안에 순서대로 모으는 대결 문항을 만든다. rounds는 3개이며 각 round의 tiles에는 answerOrders의 같은 인덱스 자모를 모두 포함하고 혼동용 자모를 더해 8개 이상으로 만든다. answerOrders[i]를 순서대로 결합하면 rounds[i].word와 같아야 한다. opponentDurationMs는 라운드가 진행될수록 짧아진다. opponent는 TURTLE로 고정한다. word에는 홑받침이 하나 이상 들어간 낱말만 사용한다.",
-        "outputTemplate": {"type": "HANGUL_BATTLE_FINAL", "data": [{"opponent": "<string>", "rounds": [{"word": "<string>", "tiles": ["<string>"], "opponentDurationMs": "<integer>"}], "answerOrders": [["<string>"]]}]},
-        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
-      }
-    },
-    {
-      "id": 37, "curriculumUnitId": 3, "sequenceNo": 8, "name": "겹받침 글자 대결",
-      "prompt": {
-        "trainingType": "HANGUL_BATTLE_DOUBLE_FINAL",
-        "requiredInputs": [],
-        "additionalPrompt": "낱말을 자모 타일로 흩어 두고 제한 시간 안에 순서대로 모으는 대결 문항을 만든다. rounds는 3개이며 각 round의 tiles에는 answerOrders의 같은 인덱스 자모를 모두 포함하고 혼동용 자모를 더해 8개 이상으로 만든다. answerOrders[i]를 순서대로 결합하면 rounds[i].word와 같아야 한다. opponentDurationMs는 라운드가 진행될수록 짧아진다. opponent는 ANT로 고정한다. word에는 겹받침이 하나 이상 들어간 낱말만 사용한다.",
-        "outputTemplate": {"type": "HANGUL_BATTLE_DOUBLE_FINAL", "data": [{"opponent": "<string>", "rounds": [{"word": "<string>", "tiles": ["<string>"], "opponentDurationMs": "<integer>"}], "answerOrders": [["<string>"]]}]},
-        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
-      }
     }
   ]
 }

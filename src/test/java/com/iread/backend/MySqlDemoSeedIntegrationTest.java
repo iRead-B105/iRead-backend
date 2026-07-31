@@ -62,7 +62,7 @@ class MySqlDemoSeedIntegrationTest {
         assertThat(count("tests", 5503L)).isEqualTo(1);
         assertThat(count("gaze_analysis_results", 7302L)).isEqualTo(1);
         assertThat(count("reports", 9101L)).isEqualTo(1);
-        assertThat(tableCount("training_templates")).isEqualTo(37);
+        assertThat(tableCount("training_templates")).isEqualTo(34);
         assertThat(demoStudentCount()).isEqualTo(13);
         assertThat(trainingCount(2001L)).isGreaterThanOrEqualTo(50);
         assertThat(trainingCount(2002L)).isGreaterThanOrEqualTo(50);
@@ -116,7 +116,7 @@ class MySqlDemoSeedIntegrationTest {
                  WHERE daily_curriculum_id = 190001
                 """,
                 Integer.class
-        )).isEqualTo(37);
+        )).isEqualTo(34);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -142,7 +142,7 @@ class MySqlDemoSeedIntegrationTest {
                  WHERE daily_curriculum_id = 190001
                 """,
                 Integer.class
-        )).isEqualTo(37);
+        )).isEqualTo(34);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -154,7 +154,7 @@ class MySqlDemoSeedIntegrationTest {
                        ) = 1
                 """,
                 Integer.class
-        )).isEqualTo(37);
+        )).isEqualTo(34);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -166,7 +166,7 @@ class MySqlDemoSeedIntegrationTest {
                        )
                 """,
                 Integer.class
-        )).isEqualTo(37);
+        )).isEqualTo(34);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT training_template_id FROM trainings WHERE id = 4001",
                 Long.class
@@ -238,7 +238,7 @@ class MySqlDemoSeedIntegrationTest {
                             ON curriculum.id = training.daily_curriculum_id
                          WHERE training.status = 'COMPLETED'
                          GROUP BY curriculum.student_id
-                        HAVING COUNT(DISTINCT training.training_template_id) = 37
+                        HAVING COUNT(DISTINCT training.training_template_id) = 34
                   ) catalog_coverage
                 """,
                 Integer.class
