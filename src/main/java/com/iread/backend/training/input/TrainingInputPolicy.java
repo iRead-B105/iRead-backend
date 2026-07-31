@@ -86,7 +86,9 @@ public final class TrainingInputPolicy {
                     CONSONANT_VOWEL_CLASSIFICATION, SYLLABLE_INITIAL_CHOICE,
                     WORD_INITIAL_CHOICE, SAME_INITIAL_WORD_CHOICE,
                     FINAL_CONSONANT_CHOICE, WORD_FINAL_SOUND_CHOICE,
-                    FINAL_CONSONANT_COMPARISON, SIMILAR_SOUND_CHOICE -> false;
+                    FINAL_CONSONANT_COMPARISON, SIMILAR_SOUND_CHOICE,
+                    HANGUL_BATTLE_BASIC, HANGUL_BATTLE_FINAL,
+                    HANGUL_BATTLE_DOUBLE_FINAL -> false;
             default -> true;
         };
     }

@@ -7,6 +7,9 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
+import com.iread.backend.training.analysis.HangulSyllable;
+
+import java.util.ArrayList;
 import java.util.List;
 
 @Component
@@ -28,6 +31,29 @@ public class DeterministicTrainingCandidateProvider implements TrainingCandidate
     );
     private static final List<String> SYLLABLES = List.of("가", "너", "도", "무", "비");
     private static final List<String> FINALS = List.of("각", "난", "달", "밤", "집");
+    private static final List<List<String>> BATTLE_BASIC_WORDS = List.of(
+            List.of("나비", "모자", "가위"),
+            List.of("두부", "라디", "머루"),
+            List.of("고기", "누나", "바지"),
+            List.of("이마", "포도", "치마"),
+            List.of("허리", "다리", "코트")
+    );
+    private static final List<List<String>> BATTLE_FINAL_WORDS = List.of(
+            List.of("감자", "문어", "달빛"),
+            List.of("눈물", "산길", "밤길"),
+            List.of("곰돌", "박수", "발등"),
+            List.of("햇살", "손목", "국물"),
+            List.of("동생", "정문", "강물")
+    );
+    private static final List<List<String>> BATTLE_DOUBLE_FINAL_WORDS = List.of(
+            List.of("닭", "값", "삶"),
+            List.of("몫", "흙", "앉다"),
+            List.of("읽다", "젊다", "밟다"),
+            List.of("넓다", "짧다", "핥다"),
+            List.of("옳다", "싫다", "많다")
+    );
+    private static final List<String> BATTLE_DISTRACTORS =
+            List.of("ㄱ", "ㄴ", "ㄷ", "ㅁ", "ㅂ", "ㅅ", "ㅇ", "ㅏ", "ㅓ", "ㅗ", "ㅜ", "ㅣ");
 
     private final ObjectMapper objectMapper;
 
@@ -66,6 +92,10 @@ public class DeterministicTrainingCandidateProvider implements TrainingCandidate
             case BASIC_SYLLABLE_BUILD -> basicBuild(index);
             case FINAL_SYLLABLE_BUILD -> finalBuild(index, false);
             case DOUBLE_FINAL_BUILD -> finalBuild(index, true);
+            case HANGUL_BATTLE_BASIC -> hangulBattle(index, "RABBIT", BATTLE_BASIC_WORDS);
+            case HANGUL_BATTLE_FINAL -> hangulBattle(index, "TURTLE", BATTLE_FINAL_WORDS);
+            case HANGUL_BATTLE_DOUBLE_FINAL ->
+                    hangulBattle(index, "ANT", BATTLE_DOUBLE_FINAL_WORDS);
             case FINAL_CONSONANT_DELETE -> finalDelete(index);
             case SYLLABLE_DELETE -> syllableDelete(index);
             case SYLLABLE_REPLACE -> syllableReplace(index);
@@ -83,6 +113,53 @@ public class DeterministicTrainingCandidateProvider implements TrainingCandidate
             case REPEATED_SENTENCE_READING -> repeatedSentence(index);
             case SHORT_STORY_READING -> shortStory(index);
         };
+    }
+
+    /**
+     * 낱말을 자모로 흩어 놓고 제한 시간 안에 순서대로 모으는 대결 문항을 만든다.
+     * tiles에는 정답 자모를 모두 넣고 혼동용 자모를 더해 8개 이상으로 채운다.
+     */
+    private ObjectNode hangulBattle(int index, String opponent, List<List<String>> pool) {
+        List<String> words = pool.get(index);
+        ObjectNode node = objectMapper.createObjectNode();
+        node.put("opponent", opponent);
+        ArrayNode rounds = node.putArray("rounds");
+        ArrayNode answerOrders = node.putArray("answerOrders");
+        for (int roundIndex = 0; roundIndex < words.size(); roundIndex++) {
+            String word = words.get(roundIndex);
+            List<String> jamo = decomposeToJamo(word);
+            ObjectNode round = rounds.addObject();
+            round.put("word", word);
+            ArrayNode tiles = round.putArray("tiles");
+            jamo.forEach(tiles::add);
+            for (int fill = 0; tiles.size() < 8; fill++) {
+                tiles.add(BATTLE_DISTRACTORS.get(
+                        (index + roundIndex + fill) % BATTLE_DISTRACTORS.size()
+                ));
+            }
+            // 라운드가 진행될수록 상대가 빨라진다.
+            round.put("opponentDurationMs", 22_000 - roundIndex * 1_000 - index * 500);
+            ArrayNode order = answerOrders.addArray();
+            jamo.forEach(order::add);
+        }
+        return node;
+    }
+
+    private List<String> decomposeToJamo(String word) {
+        List<String> jamo = new ArrayList<>();
+        for (char letter : word.toCharArray()) {
+            if (!HangulSyllable.isHangulSyllable(letter)) {
+                jamo.add(String.valueOf(letter));
+                continue;
+            }
+            HangulSyllable syllable = HangulSyllable.decompose(letter);
+            jamo.add(syllable.onset());
+            jamo.add(syllable.vowel());
+            if (syllable.coda() != null) {
+                jamo.add(syllable.coda());
+            }
+        }
+        return jamo;
     }
 
     private ObjectNode traceVowel(int index) {
