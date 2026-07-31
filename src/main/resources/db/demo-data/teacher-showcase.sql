@@ -173,20 +173,20 @@ VALUES
 
 INSERT INTO gaze_sessions
     (id, student_id, test_id, training_id, story_id, content_type, started_at,
-     ended_at, data, status, calibration_status, created_at)
+     ended_at, data_url, status, calibration_status, created_at)
 VALUES
     (7401, 2103, NULL, 43022, NULL, 'TRAINING', '2026-05-18 10:01:00', '2026-05-18 10:06:00',
-     '[{"timestampMs":0,"x":0.31,"y":0.42},{"timestampMs":200,"x":0.36,"y":0.43},{"timestampMs":400,"x":0.44,"y":0.44}]',
+     '/gaze/2103/gaze-7401-00000000-0000-0000-0000-000000000000.json',
      'COMPLETED', 'SUCCESS', '2026-05-18 10:01:00'),
     (7402, 2103, NULL, 43025, NULL, 'TRAINING', '2026-05-18 10:08:00', '2026-05-18 10:13:00',
-     '[]', 'FAILED', 'SUCCESS', '2026-05-18 10:08:00'),
+     '/gaze/2103/gaze-7402-00000000-0000-0000-0000-000000000000.json', 'FAILED', 'SUCCESS', '2026-05-18 10:08:00'),
     (7403, 2103, 5701, NULL, NULL, 'TEST', '2026-04-20 11:01:00', '2026-04-20 11:12:00',
-     '[{"timestampMs":0,"x":0.24,"y":0.38},{"timestampMs":200,"x":0.55,"y":0.41}]',
+     '/gaze/2103/gaze-7403-00000000-0000-0000-0000-000000000000.json',
      'COMPLETED', 'SUCCESS', '2026-04-20 11:01:00'),
     (7404, 2103, 5702, NULL, NULL, 'TEST', '2026-06-29 11:01:00', '2026-06-29 11:11:00',
-     '[]', 'FAILED', 'FAILED', '2026-06-29 11:01:00'),
+     '/gaze/2103/gaze-7404-00000000-0000-0000-0000-000000000000.json', 'FAILED', 'FAILED', '2026-06-29 11:01:00'),
     (7405, 2103, 5703, NULL, NULL, 'TEST', '2026-07-29 11:01:00', '2026-07-29 11:09:00',
-     '[{"timestampMs":0,"x":0.28,"y":0.40},{"timestampMs":200,"x":0.40,"y":0.41},{"timestampMs":400,"x":0.52,"y":0.42}]',
+     '/gaze/2103/gaze-7405-00000000-0000-0000-0000-000000000000.json',
      'COMPLETED', 'SUCCESS', '2026-07-29 11:01:00');
 
 INSERT INTO gaze_analysis_results
@@ -257,10 +257,10 @@ VALUES (6841, 2103, 6801, NULL, '2026-07-29 15:01:00', '지도 요정 루미');
 
 INSERT INTO gaze_sessions
     (id, student_id, test_id, training_id, story_id, content_type, started_at,
-     ended_at, data, status, calibration_status, created_at)
+     ended_at, data_url, status, calibration_status, created_at)
 VALUES
     (7406, 2103, NULL, NULL, 6801, 'STORY', '2026-07-29 15:00:00', NULL,
-     '[{"timestampMs":0,"x":0.30,"y":0.39},{"timestampMs":200,"x":0.42,"y":0.40}]',
+     '/gaze/2103/gaze-7406-00000000-0000-0000-0000-000000000000.json',
      'RUNNING', 'SUCCESS', '2026-07-29 15:00:00');
 
 -- Keep the hand-authored report fixtures aligned with ReportSnapshot.
@@ -275,3 +275,7 @@ WHERE id = 9202;
 UPDATE reports
 SET snapshot_data = '{"learningDays":2,"totalTrainingTimeMinutes":48,"completedTrainingCount":4,"averageAccuracy":86,"averageReadingSpeed":72,"readingSpeedUnit":"CPM","growthHistory":[{"date":"2026-07-28","accuracy":82,"readingSpeed":69,"pronunciationScore":81},{"date":"2026-07-29","accuracy":86,"readingSpeed":72,"pronunciationScore":85}],"areaAchievements":[{"area":"짧은 글 읽기","achievement":84},{"area":"문장 유창성","achievement":86},{"area":"내용 이해","achievement":88}],"frequentlyIncorrectWords":[{"wordId":10005,"wordName":"국물","attemptCount":3,"incorrectCount":1,"incorrectRate":33.33}],"improvedPatterns":["문장 유창성","내용 이해"],"persistentDifficultyPatterns":["비음화 음절"],"gazeAnalysis":{"gazeAnalysisResultId":7503,"totalDwellTime":38900,"dwellCount":62,"regressionCount":3,"averageFixationTime":627},"gazeTrend":{"generatedAt":"2026-07-29T17:00:00","training":{"status":"AVAILABLE","comparisonAvailable":false,"points":[{"gazeAnalysisResultId":7501,"gazeSessionId":7401,"sourceType":"TRAINING","sourceId":43022,"analyzedAt":"2026-05-18T10:07:00","totalVisitedDurationMs":48600,"totalVisitedCount":76,"reverseReadCount":9,"avgVisitedDurationMs":639}],"changes":null,"descriptions":["훈련 시선 기준 기록을 제공합니다."],"failedSessionCount":1},"test":{"status":"AVAILABLE","comparisonAvailable":true,"points":[{"gazeAnalysisResultId":7502,"gazeSessionId":7403,"sourceType":"TEST","sourceId":5701,"analyzedAt":"2026-04-20T11:13:00","totalVisitedDurationMs":62400,"totalVisitedCount":96,"reverseReadCount":12,"avgVisitedDurationMs":650},{"gazeAnalysisResultId":7503,"gazeSessionId":7405,"sourceType":"TEST","sourceId":5703,"analyzedAt":"2026-07-29T11:10:00","totalVisitedDurationMs":38900,"totalVisitedCount":62,"reverseReadCount":3,"avgVisitedDurationMs":627}],"changes":{"totalVisitedDurationMs":{"first":62400,"latest":38900,"delta":-23500},"totalVisitedCount":{"first":96,"latest":62,"delta":-34},"reverseReadCount":{"first":12,"latest":3,"delta":-9},"avgVisitedDurationMs":{"first":650,"latest":627,"delta":-23}},"descriptions":["검사 중 시선 체류와 되돌아보기가 감소했습니다."],"failedSessionCount":1}}}'
 WHERE id = 9203;
+
+-- 시선 지표가 있는 단어 시도만 시선 사용으로 표시한다.
+UPDATE word_attempt_logs
+SET has_gaze_data = (fixation_duration_ms IS NOT NULL OR fixation_count IS NOT NULL);

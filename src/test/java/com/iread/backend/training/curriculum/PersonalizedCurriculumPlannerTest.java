@@ -84,8 +84,8 @@ class PersonalizedCurriculumPlannerTest {
                    "supportedScopes":["CHARACTER"]}
                   """
                 : """
-                  {"supportedFeatureCategories":["MORPH"],
-                   "supportedScopes":["WORD"]}
+                  {"supportedFeatureCategories":["SENTENCE"],
+                   "supportedScopes":["SENTENCE"]}
                   """);
         return template;
     }

@@ -101,7 +101,7 @@ class StudentFeatureProfileServiceTest {
         WordEntity word = mock(WordEntity.class);
         WordAttemptLogEntity log = new WordAttemptLogEntity(
                 student, word, training, "먹는다",
-                true, 1200, 3, 100, 2600,
+                true, true, 1200, 3, 100, 2600,
                 false, 2, 500, 100, 2600,
                 false, 500, 1, 0, null, true
         );

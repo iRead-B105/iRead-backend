@@ -4,7 +4,6 @@ public enum ReadingFeatureCategory {
     GRAPHEME,
     SYLLABLE,
     PHONOLOGY,
-    MORPH,
     WORD,
     SENTENCE
 }

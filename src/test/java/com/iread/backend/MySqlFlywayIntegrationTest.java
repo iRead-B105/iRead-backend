@@ -62,7 +62,9 @@ class MySqlFlywayIntegrationTest {
         assertThat(columnExists("word_attempt_logs", "token_index")).isTrue();
         assertThat(columnExists("word_attempt_logs", "is_final")).isTrue();
         assertThat(columnExists("word_attempt_logs", "recognized_text")).isFalse();
-        assertThat(columnExists("word_attempt_logs", "has_gaze_data")).isFalse();
+        assertThat(columnExists("word_attempt_logs", "has_gaze_data")).isTrue();
+        assertThat(columnExists("gaze_sessions", "data_url")).isTrue();
+        assertThat(columnExists("gaze_sessions", "data")).isFalse();
         assertThat(tableExists("test_datas")).isTrue();
         assertThat(tableExists("auth_refresh_sessions")).isTrue();
         assertThat(tableExists("password_reset_tokens")).isTrue();

@@ -38,6 +38,7 @@ public class GazeService {
     private final GazeSessionRepository gazeSessionRepository;
     private final GazeAnalysisResultRepository gazeAnalysisResultRepository;
     private final TrainingInputRequirementService trainingInputRequirementService;
+    private final GazeDataStorage gazeDataStorage;
     private final ObjectMapper objectMapper;
 
     public GazeDeviceStatusResponse getDeviceStatus(Long teacherId, Long studentId) {
@@ -116,11 +117,14 @@ public class GazeService {
         }
         GazeSessionEntity gazeSession = findOwnedGazeSessionForUpdate(gazeSessionId, request.studentId());
         requireRunning(gazeSession);
-        gazeSession.end(
-                request.endStatus(),
-                LocalDateTime.now(),
-                request.data() == null ? null : request.data().toString()
-        );
+        String dataUrl = request.data() == null
+                ? null
+                : gazeDataStorage.store(
+                        request.studentId(),
+                        gazeSession.getId(),
+                        request.data().toString()
+                );
+        gazeSession.end(request.endStatus(), LocalDateTime.now(), dataUrl);
         return toSessionResponse(gazeSession);
     }
 
@@ -191,11 +195,22 @@ public class GazeService {
             throw new IllegalArgumentException("문장별 시선 지표는 이야기 세션에서만 저장할 수 있습니다.");
         }
         var combinedData = objectMapper.createObjectNode();
-        if (gazeSession.getData() != null && !gazeSession.getData().isBlank()) {
-            combinedData.set("rawData", objectMapper.readTree(gazeSession.getData()));
+        String storedData = gazeSession.getDataUrl() == null
+                ? null
+                : gazeDataStorage.load(gazeSession.getDataUrl());
+        if (storedData != null && !storedData.isBlank()) {
+            combinedData.set("rawData", objectMapper.readTree(storedData));
         }
         combinedData.set("sentenceMetrics", request.sentenceMetrics());
-        gazeSession.updateData(combinedData.toString());
+        if (gazeSession.getDataUrl() == null) {
+            gazeSession.updateDataUrl(gazeDataStorage.store(
+                    gazeSession.getStudent().getId(),
+                    gazeSession.getId(),
+                    combinedData.toString()
+            ));
+            return;
+        }
+        gazeDataStorage.overwrite(gazeSession.getDataUrl(), combinedData.toString());
     }
 
     private void validateContentReference(StartGazeSessionRequest request) {

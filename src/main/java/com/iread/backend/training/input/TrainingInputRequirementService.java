@@ -74,7 +74,7 @@ public class TrainingInputRequirementService {
             );
         }
         if (gazeRequired && !gazeSessionRepository
-                .existsByTrainingIdAndStatusAndDataIsNotNull(
+                .existsByTrainingIdAndStatusAndDataUrlIsNotNull(
                         trainingId,
                         GazeSessionStatus.COMPLETED
                 )) {

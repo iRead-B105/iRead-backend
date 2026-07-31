@@ -506,6 +506,7 @@ public class AppTrainingService {
                     word,
                     training,
                     reference.surface(),
+                    false,
                     true,
                     null,
                     null,
