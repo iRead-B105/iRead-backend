@@ -81,6 +81,15 @@ public class TrainingController {
         return trainingService.getCurrentDailyCurriculum(teacherId, studentId);
     }
 
+    @Operation(summary = "아동의 활성 커리큘럼 조회")
+    @GetMapping("/{studentId}/active")
+    public DailyCurriculumResponse getActiveDailyCurriculum(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId
+    ) {
+        return trainingService.getActiveDailyCurriculum(teacherId, studentId);
+    }
+
     @Operation(summary = "학생의 일일 커리큘럼 생성")
     @PostMapping("/{studentId}/curriculum")
     public DailyCurriculumResponse createDailyCurriculum(

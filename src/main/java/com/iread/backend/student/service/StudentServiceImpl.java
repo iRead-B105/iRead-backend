@@ -3,6 +3,8 @@ package com.iread.backend.student.service;
 import com.iread.backend.global.storage.FileStorage;
 import com.iread.backend.global.storage.StoredFile;
 import com.iread.backend.exception.ResourceNotFoundException;
+import com.iread.backend.realtime.RealtimeEventPublisher;
+import com.iread.backend.realtime.RealtimeResource;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.domain.LearningEventType;
 import com.iread.backend.student.dto.req.StudentRequest;
@@ -50,6 +52,7 @@ public class StudentServiceImpl implements StudentService {
     private final StudentRepository studentRepository;
     private final TeacherRepository teacherRepository;
     private final FileStorage fileStorage;
+    private final RealtimeEventPublisher realtimeEventPublisher;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -145,6 +148,13 @@ public class StudentServiceImpl implements StudentService {
 
         try {
             studentRepository.save(student);
+            realtimeEventPublisher.publishAfterCommit(
+                    teacherId,
+                    student.getId(),
+                    RealtimeResource.STUDENT,
+                    student.getId(),
+                    "CREATED"
+            );
             return student.getId();
         } catch (RuntimeException exception) {
             if (storedFile != null) fileStorage.delete(storedFile.storeFileName());
@@ -160,6 +170,13 @@ public class StudentServiceImpl implements StudentService {
         studentRepository.deleteTrainingsByStudentId(studentId);
         studentRepository.deleteDailyCurriculumsByStudentId(studentId);
         studentRepository.delete(student);
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.STUDENT,
+                studentId,
+                "DELETED"
+        );
     }
 
     @Override
@@ -202,6 +219,13 @@ public class StudentServiceImpl implements StudentService {
         if (uploaded && oldImageUrl != null) {
             fileStorage.delete(fileNameOf(oldImageUrl));
         }
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.STUDENT,
+                studentId,
+                "UPDATED"
+        );
     }
 
     @Override
@@ -209,6 +233,13 @@ public class StudentServiceImpl implements StudentService {
     public void updateTeacherMemo(Long teacherId, Long studentId, String teacherMemo) {
         StudentEntity student = findOwnedStudent(teacherId, studentId);
         student.updateTeacherMemo(teacherMemo);
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.STUDENT,
+                studentId,
+                "MEMO_UPDATED"
+        );
     }
 
     @Override

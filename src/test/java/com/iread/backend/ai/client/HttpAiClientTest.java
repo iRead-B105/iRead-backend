@@ -66,7 +66,10 @@ class HttpAiClientTest {
                         "",
                         false,
                         false,
-                        false
+                        false,
+                        null,
+                        null,
+                        null
                 ),
                 new MockTrainingGenerator(objectMapper),
                 new MockTrainingEvaluator(),
@@ -408,6 +411,113 @@ class HttpAiClientTest {
     }
 
     @Test
+    void 발음_분석_기준_문장을_UTF_8로_전송한다() {
+        // 기준 문장이 깨져 전달되면 Azure가 전부 Omission으로 채점한다.
+        server.expect(once(), requestTo(
+                        "http://localhost:8081/api/v1/speech/pronunciation/analyze"
+                ))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("아기는 사과를")))
+                .andRespond(withSuccess("""
+                        {
+                          "requestId": "utf8-request",
+                          "pronunciationAccuracyScore": 88.0,
+                          "confidence": 0.95,
+                          "analysisVersion": "AZURE_SPEECH_KO_KR_WORD_V1",
+                          "words": [
+                            {
+                              "resultIndex": 0,
+                              "word": "아기는",
+                              "accuracyScore": 91.0,
+                              "errorType": "None",
+                              "offsetMs": 0,
+                              "durationMs": 400
+                            }
+                          ]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var response = aiClient.analyzePronunciation(new PronunciationAnalysisRequest(
+                "utf8-request", "아기는 사과를", "sentence.webm", "audio/webm", new byte[]{1, 2, 3}
+        ));
+
+        assertThat(response.words().getFirst().word()).isEqualTo("아기는");
+        server.verify();
+    }
+
+    @Test
+    void 발음_평가만_AI_서버로_보내고_STT와_TTS는_mock을_유지한다() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer speechServer = MockRestServiceServer.bindTo(builder).build();
+        HttpAiClient client = new HttpAiClient(
+                builder.baseUrl("http://localhost:8081").build(),
+                new AiClientProperties(
+                        URI.create("http://localhost:8081"),
+                        Duration.ofSeconds(1),
+                        Duration.ofSeconds(1),
+                        "",
+                        true,
+                        true,
+                        true,
+                        false,
+                        null,
+                        null
+                ),
+                new MockTrainingGenerator(objectMapper),
+                new MockTrainingEvaluator(),
+                new MockStoryGenerator(),
+                new MockSpeechProcessor(),
+                new TemporaryAudioStorage(
+                        tempDir.resolve("mixed-audio").toString(),
+                        new AudioUploadPolicy(
+                                DataSize.ofMegabytes(20),
+                                "audio/webm,audio/wav,audio/mpeg,audio/mp4"
+                        )
+                )
+        );
+        speechServer.expect(once(), requestTo(
+                        "http://localhost:8081/api/v1/speech/pronunciation/analyze"
+                ))
+                .andRespond(withSuccess("""
+                        {
+                          "requestId": "mixed-mode-1",
+                          "pronunciationAccuracyScore": 88.0,
+                          "confidence": 0.95,
+                          "analysisVersion": "AZURE_SPEECH_KO_KR_WORD_V1",
+                          "words": [
+                            {
+                              "resultIndex": 0,
+                              "word": "사과",
+                              "accuracyScore": 88.0,
+                              "errorType": "None",
+                              "offsetMs": 0,
+                              "durationMs": 400
+                            }
+                          ]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var analysis = client.analyzePronunciation(new PronunciationAnalysisRequest(
+                "mixed-mode-1", "사과", "word.wav", "audio/wav", new byte[]{1, 2, 3}
+        ));
+        var transcription = client.transcribeSpeech(
+                "mixed-mode-2",
+                20L,
+                "책을 읽어요",
+                new MockMultipartFile(
+                        "audioFile", "reading.webm", "audio/webm", new byte[]{1, 2, 3}
+                )
+        );
+        var tts = client.synthesizeSpeech(
+                new SpeechSynthesisRequest("mixed-mode-3", "책을 읽어요", null)
+        );
+
+        assertThat(analysis.analysisVersion()).isEqualTo("AZURE_SPEECH_KO_KR_WORD_V1");
+        assertThat(transcription.transcript()).isEqualTo("책을 읽어요");
+        assertThat(tts.audio()).startsWith((byte) 'I', (byte) 'D', (byte) '3');
+        speechServer.verify();
+    }
+
+    @Test
     void 잘못된_JSON_응답은_통신_예외로_변환하고_재시도하지_않는다() throws Exception {
         server.expect(once(), requestTo("http://localhost:8081/api/v1/trainings/generate"))
                 .andRespond(withSuccess("{invalid-json", MediaType.APPLICATION_JSON));
@@ -555,7 +665,10 @@ class HttpAiClientTest {
                         "",
                         mockGenerate,
                         false,
-                        false
+                        false,
+                        null,
+                        null,
+                        null
                 ),
                 new MockTrainingGenerator(objectMapper),
                 new MockTrainingEvaluator(),

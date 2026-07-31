@@ -10,6 +10,7 @@ import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
 import com.iread.backend.exception.ConflictException;
 import com.iread.backend.mypage.domain.CharacterEntity;
 import com.iread.backend.mypage.repository.CharacterRepository;
+import com.iread.backend.realtime.RealtimeEventPublisher;
 import com.iread.backend.story.domain.*;
 import com.iread.backend.story.repository.*;
 import com.iread.backend.student.domain.StudentEntity;
@@ -47,6 +48,7 @@ class StoryServiceTest {
     @Mock CharacterRepository characterRepository;
     @Mock AiClient aiClient;
     @Mock StoryAudioStorage storyAudioStorage;
+    @Mock RealtimeEventPublisher realtimeEventPublisher;
     @InjectMocks StoryService storyService;
 
     private StudentEntity student;

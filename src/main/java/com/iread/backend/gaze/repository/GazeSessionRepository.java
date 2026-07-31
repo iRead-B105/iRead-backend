@@ -14,7 +14,7 @@ import java.util.Optional;
 import java.time.LocalDateTime;
 
 public interface GazeSessionRepository extends JpaRepository<GazeSessionEntity, Long> {
-    boolean existsByTrainingIdAndStatusAndDataIsNotNull(
+    boolean existsByTrainingIdAndStatusAndDataUrlIsNotNull(
             Long trainingId,
             GazeSessionStatus status
     );

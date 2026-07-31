@@ -14,7 +14,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 import java.util.Optional;
@@ -29,6 +32,7 @@ import static org.mockito.Mockito.when;
 class AppTrainingCatalogServiceTest {
     @Mock StudentRepository studentRepository;
     @Mock DailyCurriculumRepository dailyCurriculumRepository;
+    @Spy ObjectMapper objectMapper = JsonMapper.builder().build();
     @InjectMocks AppTrainingCatalogService service;
 
     @Test
@@ -40,15 +44,14 @@ class AppTrainingCatalogServiceTest {
         CurriculumUnitEntity unit = mock(CurriculumUnitEntity.class);
         when(studentRepository.findByIdAndTeacherId(20L, 1L))
                 .thenReturn(Optional.of(student));
-        when(dailyCurriculumRepository
-                .findFirstByStudentIdAndStatusInOrderByCreatedAtDesc(
-                        20L,
-                        List.of(
-                                DailyCurriculumStatus.NOT_STARTED,
-                                DailyCurriculumStatus.IN_PROGRESS
-                        )
-                ))
-                .thenReturn(Optional.of(curriculum));
+        when(dailyCurriculumRepository.findByStudentIdAndStatus(
+                20L,
+                DailyCurriculumStatus.IN_PROGRESS
+        )).thenReturn(Optional.empty());
+        when(dailyCurriculumRepository.findByStudentIdAndStatus(
+                20L,
+                DailyCurriculumStatus.NOT_STARTED
+        )).thenReturn(Optional.of(curriculum));
         when(curriculum.getId()).thenReturn(30L);
         when(curriculum.getStatus()).thenReturn(DailyCurriculumStatus.NOT_STARTED);
         when(curriculum.getTrainings()).thenReturn(List.of(training));
@@ -58,6 +61,7 @@ class AppTrainingCatalogServiceTest {
         when(training.getTrainingTemplate()).thenReturn(template);
         when(template.getId()).thenReturn(50L);
         when(template.getName()).thenReturn("문장 따라 읽기");
+        when(template.getPrompt()).thenReturn("{\"trainingType\":\"SENTENCE_REPEAT\"}");
         when(template.getCurriculumUnit()).thenReturn(unit);
         when(unit.getUnitName()).thenReturn("유창성");
 
@@ -69,11 +73,32 @@ class AppTrainingCatalogServiceTest {
         assertThat(response.trainings()).singleElement().satisfies(item -> {
             assertThat(item.trainingId()).isEqualTo(40L);
             assertThat(item.trainingTemplateId()).isEqualTo(50L);
+            assertThat(item.trainingType().name()).isEqualTo("SENTENCE_REPEAT");
             assertThat(item.sequenceNo()).isEqualTo(1);
             assertThat(item.unitName()).isEqualTo("유창성");
             assertThat(item.trainingName()).isEqualTo("문장 따라 읽기");
             assertThat(item.status()).isEqualTo(TrainingStatus.NOT_STARTED);
         });
+    }
+
+    @Test
+    void prefersInProgressCurriculumOverNotStartedCurriculum() {
+        StudentEntity student = mock(StudentEntity.class);
+        DailyCurriculumEntity inProgress = mock(DailyCurriculumEntity.class);
+        when(studentRepository.findByIdAndTeacherId(20L, 1L))
+                .thenReturn(Optional.of(student));
+        when(dailyCurriculumRepository.findByStudentIdAndStatus(
+                20L,
+                DailyCurriculumStatus.IN_PROGRESS
+        )).thenReturn(Optional.of(inProgress));
+        when(inProgress.getId()).thenReturn(31L);
+        when(inProgress.getStatus()).thenReturn(DailyCurriculumStatus.IN_PROGRESS);
+        when(inProgress.getTrainings()).thenReturn(List.of());
+
+        var response = service.getCurrentTrainingList(1L, 20L);
+
+        assertThat(response.curriculumId()).isEqualTo(31L);
+        assertThat(response.curriculumStatus()).isEqualTo(DailyCurriculumStatus.IN_PROGRESS);
     }
 
     @Test

@@ -323,7 +323,7 @@ public class HttpAiClient implements AiClient {
     public SpeechTranscriptionResponse transcribeSpeech(
             String requestId, Long studentId, String expectedText, MultipartFile audioFile
     ) {
-        if (properties.mockSpeech()) {
+        if (properties.transcribeMocked()) {
             return mockSpeechProcessor.transcribe(requestId, expectedText);
         }
         try (TemporaryAudioStorage.StagedAudio stagedAudio = temporaryAudioStorage.stage(audioFile)) {
@@ -375,7 +375,7 @@ public class HttpAiClient implements AiClient {
     public PronunciationAnalysisResult analyzePronunciation(
             PronunciationAnalysisRequest request
     ) {
-        if (properties.mockSpeech()) {
+        if (properties.pronunciationMocked()) {
             return mockPronunciationAnalyzer.analyze(request);
         }
         try {
@@ -414,7 +414,7 @@ public class HttpAiClient implements AiClient {
 
     @Override
     public SpeechSynthesisResponse synthesizeSpeech(SpeechSynthesisRequest request) {
-        if (properties.mockSpeech()) {
+        if (properties.ttsMocked()) {
             return mockSpeechProcessor.synthesize(request);
         }
         try {

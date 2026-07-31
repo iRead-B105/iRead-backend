@@ -7,6 +7,7 @@ import com.iread.backend.gaze.domain.GazeCalibrationStatus;
 import com.iread.backend.gaze.domain.GazeContentType;
 import com.iread.backend.student.app.controller.AppStudentController;
 import com.iread.backend.student.app.service.GrowthService;
+import com.iread.backend.student.app.service.AppStudentProfileService;
 import com.iread.backend.story.app.controller.StoryController;
 import com.iread.backend.story.app.service.StoryService;
 import com.iread.backend.test.app.controller.AppTestController;
@@ -29,7 +30,11 @@ class AppResourceAuthorizationTest {
     @Test
     void 성장조회에서다른학생경로접근을차단한다() {
         GrowthService service = mock(GrowthService.class);
-        AppStudentController controller = new AppStudentController(service, policy);
+        AppStudentController controller = new AppStudentController(
+                service,
+                mock(AppStudentProfileService.class),
+                policy
+        );
 
         assertThatThrownBy(() -> controller.getGrowth(1L, 20L, 21L))
                 .isInstanceOf(AccessDeniedException.class);

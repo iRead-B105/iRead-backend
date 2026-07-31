@@ -6,23 +6,19 @@ import com.iread.backend.training.app.dto.res.CurrentTrainingListResponse;
 import com.iread.backend.training.domain.DailyCurriculumEntity;
 import com.iread.backend.training.domain.DailyCurriculumStatus;
 import com.iread.backend.training.repository.DailyCurriculumRepository;
+import com.iread.backend.training.generation.TrainingTemplateContract;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AppTrainingCatalogService {
-    private static final List<DailyCurriculumStatus> ACTIVE_STATUSES = List.of(
-            DailyCurriculumStatus.NOT_STARTED,
-            DailyCurriculumStatus.IN_PROGRESS
-    );
-
     private final StudentRepository studentRepository;
     private final DailyCurriculumRepository dailyCurriculumRepository;
+    private final ObjectMapper objectMapper;
 
     public CurrentTrainingListResponse getCurrentTrainingList(
             Long teacherId,
@@ -30,10 +26,11 @@ public class AppTrainingCatalogService {
     ) {
         requireOwnedStudent(teacherId, studentId);
         DailyCurriculumEntity curriculum = dailyCurriculumRepository
-                .findFirstByStudentIdAndStatusInOrderByCreatedAtDesc(
+                .findByStudentIdAndStatus(studentId, DailyCurriculumStatus.IN_PROGRESS)
+                .or(() -> dailyCurriculumRepository.findByStudentIdAndStatus(
                         studentId,
-                        ACTIVE_STATUSES
-                )
+                        DailyCurriculumStatus.NOT_STARTED
+                ))
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "현재 진행 가능한 커리큘럼을 찾을 수 없습니다."
                 ));
@@ -44,6 +41,10 @@ public class AppTrainingCatalogService {
                         .map(training -> new CurrentTrainingListResponse.TrainingItem(
                                 training.getId(),
                                 training.getTrainingTemplate().getId(),
+                                TrainingTemplateContract.trainingType(
+                                        training.getTrainingTemplate(),
+                                        objectMapper
+                                ),
                                 training.getSequenceNo(),
                                 training.getTrainingTemplate()
                                         .getCurriculumUnit()

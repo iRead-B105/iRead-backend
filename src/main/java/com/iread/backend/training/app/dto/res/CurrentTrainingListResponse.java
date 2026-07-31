@@ -2,6 +2,7 @@ package com.iread.backend.training.app.dto.res;
 
 import com.iread.backend.training.domain.DailyCurriculumStatus;
 import com.iread.backend.training.domain.TrainingStatus;
+import com.iread.backend.training.generation.TrainingType;
 
 import java.util.List;
 
@@ -17,6 +18,7 @@ public record CurrentTrainingListResponse(
     public record TrainingItem(
             Long trainingId,
             Long trainingTemplateId,
+            TrainingType trainingType,
             Integer sequenceNo,
             String unitName,
             String trainingName,

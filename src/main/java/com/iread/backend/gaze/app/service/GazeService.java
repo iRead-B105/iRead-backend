@@ -11,6 +11,8 @@ import com.iread.backend.gaze.analysis.GazeWordMetricMergeService;
 import com.iread.backend.gaze.domain.*;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
+import com.iread.backend.realtime.RealtimeEventPublisher;
+import com.iread.backend.realtime.RealtimeResource;
 import com.iread.backend.story.domain.StoryEntity;
 import com.iread.backend.story.repository.StoryRepository;
 import com.iread.backend.student.domain.StudentEntity;
@@ -40,6 +42,8 @@ public class GazeService {
     private final GazeAnalysisResultRepository gazeAnalysisResultRepository;
     private final TrainingInputRequirementService trainingInputRequirementService;
     private final GazeWordMetricMergeService gazeWordMetricMergeService;
+    private final GazeDataStorage gazeDataStorage;
+    private final RealtimeEventPublisher realtimeEventPublisher;
     private final ObjectMapper objectMapper;
 
     public GazeDeviceStatusResponse getDeviceStatus(Long teacherId, Long studentId) {
@@ -89,6 +93,13 @@ public class GazeService {
                 request.calibrationStatus(),
                 LocalDateTime.now()
         ));
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                request.studentId(),
+                RealtimeResource.GAZE,
+                gazeSession.getId(),
+                "STARTED"
+        );
         return toSessionResponse(gazeSession);
     }
 
@@ -98,6 +109,13 @@ public class GazeService {
         GazeSessionEntity gazeSession = findOwnedGazeSessionForUpdate(gazeSessionId, request.studentId());
         requireRunning(gazeSession);
         gazeSession.fail(LocalDateTime.now());
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                request.studentId(),
+                RealtimeResource.GAZE,
+                gazeSessionId,
+                "FAILED"
+        );
         return toSessionResponse(gazeSession);
     }
 
@@ -116,14 +134,24 @@ public class GazeService {
         }
         GazeSessionEntity gazeSession = findOwnedGazeSessionForUpdate(gazeSessionId, request.studentId());
         requireRunning(gazeSession);
-        gazeSession.end(
-                request.endStatus(),
-                LocalDateTime.now(),
-                request.data() == null ? null : request.data().toString()
-        );
+        String dataUrl = request.data() == null
+                ? null
+                : gazeDataStorage.store(
+                        request.studentId(),
+                        gazeSession.getId(),
+                        request.data().toString()
+                );
+        gazeSession.end(request.endStatus(), LocalDateTime.now(), dataUrl);
         if (request.endStatus() == GazeSessionStatus.COMPLETED) {
             gazeWordMetricMergeService.merge(gazeSession, request.data());
         }
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                request.studentId(),
+                RealtimeResource.GAZE,
+                gazeSessionId,
+                request.endStatus().name()
+        );
         return toSessionResponse(gazeSession);
     }
 
@@ -151,6 +179,13 @@ public class GazeService {
                         toJson(request.regressions()),
                         toJson(request.analysisMeta())
                 )
+        );
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                request.studentId(),
+                RealtimeResource.GAZE,
+                gazeSessionId,
+                "ANALYSIS_AVAILABLE"
         );
         return new GazeAnalysisResultResponse(result.getId(), result.getCreatedAt());
     }
@@ -196,11 +231,22 @@ public class GazeService {
             throw new IllegalArgumentException("문장별 시선 지표는 이야기 세션에서만 저장할 수 있습니다.");
         }
         var combinedData = objectMapper.createObjectNode();
-        if (gazeSession.getData() != null && !gazeSession.getData().isBlank()) {
-            combinedData.set("rawData", objectMapper.readTree(gazeSession.getData()));
+        String storedData = gazeSession.getDataUrl() == null
+                ? null
+                : gazeDataStorage.load(gazeSession.getDataUrl());
+        if (storedData != null && !storedData.isBlank()) {
+            combinedData.set("rawData", objectMapper.readTree(storedData));
         }
         combinedData.set("sentenceMetrics", objectMapper.valueToTree(request.sentenceMetrics()));
-        gazeSession.updateData(combinedData.toString());
+        if (gazeSession.getDataUrl() == null) {
+            gazeSession.updateDataUrl(gazeDataStorage.store(
+                    gazeSession.getStudent().getId(),
+                    gazeSession.getId(),
+                    combinedData.toString()
+            ));
+            return;
+        }
+        gazeDataStorage.overwrite(gazeSession.getDataUrl(), combinedData.toString());
     }
 
     private void validateContentReference(StartGazeSessionRequest request) {

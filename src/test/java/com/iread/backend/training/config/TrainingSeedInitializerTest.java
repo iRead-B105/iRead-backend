@@ -31,7 +31,7 @@ class TrainingSeedInitializerTest {
 
     @Test
     void initializesAllReadingFeaturesAndTrainingTypes() throws Exception {
-        assertThat(count("reading_features")).isEqualTo(119);
+        assertThat(count("reading_features")).isEqualTo(113);
         assertThat(count("curriculum_units")).isEqualTo(8);
         assertThat(count("training_templates")).isEqualTo(37);
 
@@ -85,7 +85,7 @@ class TrainingSeedInitializerTest {
                 objectMapper.getNodeFactory().textNode("VOICE"),
                 objectMapper.getNodeFactory().textNode("GAZE")
         );
-        assertThat(count("reading_features")).isEqualTo(119);
+        assertThat(count("reading_features")).isEqualTo(113);
         assertThat(count("training_templates")).isEqualTo(37);
     }
 
