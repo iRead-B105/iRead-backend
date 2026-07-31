@@ -49,7 +49,7 @@ public class AudioUploadPolicy {
             throw new IllegalArgumentException("음성 파일은 20MB를 초과할 수 없습니다.");
         }
 
-        String contentType = audioFile.getContentType();
+        String contentType = baseType(audioFile.getContentType());
         if (contentType == null || !allowedContentTypes.contains(contentType)) {
             throw new IllegalArgumentException("지원하지 않는 음성 파일 형식입니다.");
         }
@@ -73,6 +73,19 @@ public class AudioUploadPolicy {
 
     public Set<String> allowedContentTypes() {
         return allowedContentTypes;
+    }
+
+    /**
+     * 브라우저 MediaRecorder는 audio/webm;codecs=opus처럼 파라미터가 붙은 Content-Type을
+     * 보낸다. 형식 판정에는 타입과 서브타입만 사용한다.
+     */
+    private String baseType(String contentType) {
+        if (contentType == null) {
+            return null;
+        }
+        int parameterIndex = contentType.indexOf(';');
+        String base = parameterIndex < 0 ? contentType : contentType.substring(0, parameterIndex);
+        return base.trim().toLowerCase(Locale.ROOT);
     }
 
     private String extensionOf(String fileName) {

@@ -315,14 +315,15 @@ public class AppTestService {
                 expectedText
         );
         validateSpeechOffsets(request.speechStartOffsetMs(), request.speechEndOffsetMs());
-        audioUploadPolicy.validate(request.audioFile());
+        AudioUploadPolicy.ValidatedAudio validatedAudio =
+                audioUploadPolicy.validate(request.audioFile());
         PronunciationAnalysisResult analysis = pronunciationAnalysisAdapter.analyze(
                 new PronunciationAnalysisRequest(
                         "test-recording-" + request.testId() + "-" + questionNumber
                                 + "-" + target.targetIndex() + "-" + System.nanoTime(),
                         target.referenceText(),
-                        request.audioFile().getOriginalFilename(),
-                        request.audioFile().getContentType(),
+                        validatedAudio.originalFilename(),
+                        validatedAudio.contentType(),
                         audioBytes(request)
                 )
         );
