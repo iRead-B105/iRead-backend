@@ -12,6 +12,7 @@ import com.iread.backend.ai.dto.res.GeneratedStoryLine;
 import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
 import com.iread.backend.exception.ConflictException;
 import com.iread.backend.mypage.domain.CharacterEntity;
+import com.iread.backend.story.app.dto.res.StoryLineResponse;
 import com.iread.backend.mypage.repository.CharacterRepository;
 import com.iread.backend.pronunciation.PronunciationAnalysisAdapter;
 import com.iread.backend.pronunciation.PronunciationAnalysisResult;
@@ -497,6 +498,72 @@ class StoryServiceTest {
                 .hasMessage("장면을 읽은 후 선택지를 제출할 수 있습니다.");
 
         verifyNoInteractions(aiClient, storyAudioStorage);
+    }
+
+    @Test
+    void 완료한_이야기를_대사와_고른_답과_이야기_친구로_다시_읽는다() {
+        StoryEntity story = story(100L);
+        ReflectionTestUtils.setField(story, "status", StoryStatus.COMPLETED);
+        StoryLineEntity firstLine = line(1000L, story, null, false, "숲에 도착했어요.", 1,
+                LocalDateTime.of(2026, 7, 22, 10, 5));
+        StoryLineEntity choiceLine = line(1001L, story, firstLine, true, "어떻게 할까요?", 2,
+                LocalDateTime.of(2026, 7, 22, 10, 10));
+        ownedStory(story);
+        when(storyLineRepository.findAllByStoryIdOrderBySequenceNoAsc(100L))
+                .thenReturn(List.of(firstLine, choiceLine));
+        StoryChoiceEntity choice = new StoryChoiceEntity(choiceLine, "작은 친구가 가리킨 숲길로 간다");
+        ReflectionTestUtils.setField(choice, "createdAt", LocalDateTime.of(2026, 7, 22, 10, 11));
+        when(storyChoiceRepository.findAllByStoryLineIdIn(List.of(1001L)))
+                .thenReturn(List.of(choice));
+        CharacterEntity friend = new CharacterEntity(
+                student, story, "data:image/svg+xml;base64,bW9jaw==", "별빛 숲 주인공"
+        );
+        ReflectionTestUtils.setField(friend, "id", 400L);
+        when(characterRepository.findFirstByStoryIdOrderByCreatedAtDesc(100L))
+                .thenReturn(Optional.of(friend));
+
+        var response = storyService.reviewStory(1L, 20L, 100L);
+
+        assertThat(response.status()).isEqualTo(StoryStatus.COMPLETED);
+        assertThat(response.title()).isEqualTo(template.getTitle());
+        assertThat(response.storyLines()).extracting(StoryLineResponse::lineId)
+                .containsExactly(1000L, 1001L);
+        assertThat(response.branchChoices()).singleElement().satisfies(branch -> {
+            assertThat(branch.lineId()).isEqualTo(1001L);
+            assertThat(branch.selectedText()).isEqualTo("작은 친구가 가리킨 숲길로 간다");
+        });
+        assertThat(response.storyFriend().characterId()).isEqualTo(400L);
+        assertThat(response.storyFriend().name()).isEqualTo("별빛 숲 주인공");
+        // 다시 읽기는 조회일 뿐이므로 실시간 이벤트를 일으키지 않는다.
+        verifyNoInteractions(realtimeEventPublisher);
+    }
+
+    @Test
+    void 진행_중인_이야기는_다시_읽기를_거부한다() {
+        StoryEntity story = story(100L);
+        ownedStory(story);
+
+        assertThatThrownBy(() -> storyService.reviewStory(1L, 20L, 100L))
+                .isInstanceOf(ConflictException.class)
+                .hasMessage("완료된 스토리만 다시 볼 수 있습니다.");
+    }
+
+    @Test
+    void 이야기_친구가_없어도_다시_읽기는_가능하다() {
+        StoryEntity story = story(100L);
+        ReflectionTestUtils.setField(story, "status", StoryStatus.COMPLETED);
+        StoryLineEntity firstLine = line(1000L, story, null, false, "숲에 도착했어요.", 1,
+                LocalDateTime.of(2026, 7, 22, 10, 5));
+        ownedStory(story);
+        when(storyLineRepository.findAllByStoryIdOrderBySequenceNoAsc(100L))
+                .thenReturn(List.of(firstLine));
+        when(characterRepository.findFirstByStoryIdOrderByCreatedAtDesc(100L))
+                .thenReturn(Optional.empty());
+
+        var response = storyService.reviewStory(1L, 20L, 100L);
+
+        assertThat(response.storyFriend()).isNull();
+        assertThat(response.branchChoices()).isEmpty();
     }
 
     private void ownedStory(StoryEntity story) {

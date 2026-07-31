@@ -123,6 +123,55 @@ public class StoryService {
         return new StoryResumeResponse(story.getId(), story.getStatus(), storyLines);
     }
 
+    /**
+     * 완료한 이야기를 다시 읽는다. 대사 전체와 분기에서 실제로 고른 답, 이야기 친구를 돌려준다.
+     *
+     * <p>다시 읽기는 조회일 뿐이므로 읽음 처리나 실시간 이벤트를 일으키지 않는다.
+     * 진행 중인 이야기는 이어 읽기(resume)를 쓰도록 거부한다.
+     */
+    @Transactional
+    public StoryReviewResponse reviewStory(Long teacherId, Long studentId, Long storyId) {
+        StoryEntity story = findOwnedStory(teacherId, studentId, storyId);
+        if (story.getStatus() != StoryStatus.COMPLETED) {
+            throw new ConflictException("완료된 스토리만 다시 볼 수 있습니다.");
+        }
+
+        List<StoryLineEntity> lines =
+                storyLineRepository.findAllByStoryIdOrderBySequenceNoAsc(storyId);
+        List<Long> branchLineIds = lines.stream()
+                .filter(StoryLineEntity::isRequiresBranchInput)
+                .map(StoryLineEntity::getId)
+                .toList();
+        List<StoryReviewResponse.BranchChoice> branchChoices = branchLineIds.isEmpty()
+                ? List.of()
+                : storyChoiceRepository.findAllByStoryLineIdIn(branchLineIds).stream()
+                        .map(choice -> new StoryReviewResponse.BranchChoice(
+                                choice.getStoryLine().getId(),
+                                choice.getContent(),
+                                choice.getCreatedAt()
+                        ))
+                        .toList();
+        StoryReviewResponse.StoryFriend storyFriend = characterRepository
+                .findFirstByStoryIdOrderByCreatedAtDesc(storyId)
+                .map(character -> new StoryReviewResponse.StoryFriend(
+                        character.getId(),
+                        character.getName(),
+                        character.getImageUrl()
+                ))
+                .orElse(null);
+
+        return new StoryReviewResponse(
+                story.getId(),
+                story.getStoryTemplate().getId(),
+                story.getStoryTemplate().getTitle(),
+                story.getStatus(),
+                story.getCreatedAt(),
+                toLineResponses(lines),
+                branchChoices,
+                storyFriend
+        );
+    }
+
     @Transactional
     public StoryLineResponse getStoryLine(Long teacherId, Long studentId, Long storyId, Long storyLineId) {
         StoryEntity story = findOwnedStory(teacherId, studentId, storyId);

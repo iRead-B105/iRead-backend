@@ -47,6 +47,16 @@ public class StoryController {
         return storyService.getStoryTemplate(teacherId, studentId, storyTemplateId);
     }
 
+    @Operation(summary = "완료한 이야기 다시 읽기")
+    @GetMapping("/{studentId}/{storyId}/review")
+    public StoryReviewResponse reviewStory(@CurrentTeacherId Long teacherId,
+                                           @CurrentStudentId Long authenticatedStudentId,
+                                           @PathVariable Long studentId,
+                                           @PathVariable Long storyId) {
+        authorizeStudent(authenticatedStudentId, studentId);
+        return storyService.reviewStory(teacherId, studentId, storyId);
+    }
+
     @Operation(summary = "진행 중인 스토리 재개")
     @GetMapping("/{studentId}/{storyId}/resume")
     public StoryResumeResponse resumeStory(@CurrentTeacherId Long teacherId,
