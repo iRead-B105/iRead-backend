@@ -93,7 +93,10 @@ class HttpAiClientTimeoutTest {
                 "",
                 false,
                 false,
-                false
+                false,
+                null,
+                null,
+                null
         );
         RestClient restClient = new AiClientConfig().aiRestClient(RestClient.builder(), properties);
         JsonMapper objectMapper = new JsonMapper();
