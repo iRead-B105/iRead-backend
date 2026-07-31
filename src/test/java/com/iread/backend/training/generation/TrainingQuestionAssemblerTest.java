@@ -187,7 +187,8 @@ class TrainingQuestionAssemblerTest {
         assertThat(paths(question)).containsExactly(
                 "$.content.words[0]",
                 "$.content.words[1]",
-                "$.content.words[2]"
+                "$.content.words[2]",
+                "$.answer.recordingText"
         );
         assertThat(question.path("words")).hasSize(3);
     }

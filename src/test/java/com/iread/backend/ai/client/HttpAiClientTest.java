@@ -4,6 +4,7 @@ import com.iread.backend.ai.dto.req.ContinueStoryRequest;
 import com.iread.backend.ai.dto.req.EvaluateTrainingRequest;
 import com.iread.backend.ai.dto.req.GenerateStoryRequest;
 import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
+import com.iread.backend.ai.dto.req.GenerateImageRequest;
 import com.iread.backend.ai.dto.req.StoryHistoryLine;
 import com.iread.backend.ai.dto.req.StoryTemplateData;
 import com.iread.backend.ai.dto.req.SpeechSynthesisRequest;
@@ -26,9 +27,11 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Base64;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -63,7 +66,10 @@ class HttpAiClientTest {
                         "",
                         false,
                         false,
-                        false
+                        false,
+                        null,
+                        null,
+                        null
                 ),
                 new MockTrainingGenerator(objectMapper),
                 new MockTrainingEvaluator(),
@@ -114,6 +120,80 @@ class HttpAiClientTest {
         assertThat(response.schemaVersion()).isEqualTo(1);
         assertThat(response.generatedData().path("questions").get(0).path("question").asString())
                 .isEqualTo("사과를 읽어보세요.");
+        server.verify();
+    }
+
+    @Test
+    void 이미지_생성_요청의_상대_URL을_공개_URL로_변환한다() {
+        server.expect(once(), requestTo("http://localhost:8081/api/v1/images/generate"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Idempotency-Key", "image-request-1"))
+                .andRespond(withSuccess("""
+                        {
+                          "requestId": "image-request-1",
+                          "imageUrl": "/api/v1/images/mock/example.svg",
+                          "provider": "MOCK_IMAGE_V1"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var response = aiClient.generateImage(new GenerateImageRequest(
+                "image-request-1",
+                "우산을 쓰는 아이"
+        ));
+
+        assertThat(response.imageUrl())
+                .isEqualTo("http://localhost:8081/api/v1/images/mock/example.svg");
+        assertThat(response.provider()).isEqualTo("MOCK_IMAGE_V1");
+        server.verify();
+    }
+
+    @Test
+    void mockGenerate이면_외부_AI_호출_없이_인라인_이미지를_반환한다() {
+        HttpAiClient mockClient = client(
+                RestClient.builder().baseUrl("http://localhost:8081").build(),
+                true
+        );
+
+        var response = mockClient.generateImage(new GenerateImageRequest(
+                "image-request-mock",
+                "우산을 쓰는 아이"
+        ));
+
+        assertThat(response.requestId()).isEqualTo("image-request-mock");
+        assertThat(response.provider()).isEqualTo("BACKEND_MOCK_IMAGE_V1");
+        assertThat(response.imageUrl()).startsWith("data:image/svg+xml;base64,");
+        String svg = new String(
+                Base64.getDecoder().decode(response.imageUrl().substring(
+                        "data:image/svg+xml;base64,".length()
+                )),
+                StandardCharsets.UTF_8
+        );
+        assertThat(svg).contains("우산을 쓰는 아이");
+        server.verify();
+    }
+
+    @Test
+    void 이야기_주인공_요청이면_이야기_친구용_목_이미지를_반환한다() {
+        HttpAiClient mockClient = client(
+                RestClient.builder().baseUrl("http://localhost:8081").build(),
+                true
+        );
+
+        var response = mockClient.generateImage(new GenerateImageRequest(
+                "story-character-image",
+                "[STORY_CHARACTER] 별빛 숲의 친구 주인공"
+        ));
+
+        assertThat(response.provider()).isEqualTo("BACKEND_MOCK_STORY_CHARACTER_V1");
+        String svg = new String(
+                Base64.getDecoder().decode(response.imageUrl().substring(
+                        "data:image/svg+xml;base64,".length()
+                )),
+                StandardCharsets.UTF_8
+        );
+        assertThat(svg)
+                .contains("별빛 숲의 친구 주인공")
+                .contains("#f3aa59");
         server.verify();
     }
 
@@ -331,6 +411,79 @@ class HttpAiClientTest {
     }
 
     @Test
+    void 발음_평가만_AI_서버로_보내고_STT와_TTS는_mock을_유지한다() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer speechServer = MockRestServiceServer.bindTo(builder).build();
+        HttpAiClient client = new HttpAiClient(
+                builder.baseUrl("http://localhost:8081").build(),
+                new AiClientProperties(
+                        URI.create("http://localhost:8081"),
+                        Duration.ofSeconds(1),
+                        Duration.ofSeconds(1),
+                        "",
+                        true,
+                        true,
+                        true,
+                        false,
+                        null,
+                        null
+                ),
+                new MockTrainingGenerator(objectMapper),
+                new MockTrainingEvaluator(),
+                new MockStoryGenerator(),
+                new MockSpeechProcessor(),
+                new TemporaryAudioStorage(
+                        tempDir.resolve("mixed-audio").toString(),
+                        new AudioUploadPolicy(
+                                DataSize.ofMegabytes(20),
+                                "audio/webm,audio/wav,audio/mpeg,audio/mp4"
+                        )
+                )
+        );
+        speechServer.expect(once(), requestTo(
+                        "http://localhost:8081/api/v1/speech/pronunciation/analyze"
+                ))
+                .andRespond(withSuccess("""
+                        {
+                          "requestId": "mixed-mode-1",
+                          "pronunciationAccuracyScore": 88.0,
+                          "confidence": 0.95,
+                          "analysisVersion": "AZURE_SPEECH_KO_KR_WORD_V1",
+                          "words": [
+                            {
+                              "resultIndex": 0,
+                              "word": "사과",
+                              "accuracyScore": 88.0,
+                              "errorType": "None",
+                              "offsetMs": 0,
+                              "durationMs": 400
+                            }
+                          ]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var analysis = client.analyzePronunciation(new PronunciationAnalysisRequest(
+                "mixed-mode-1", "사과", "word.wav", "audio/wav", new byte[]{1, 2, 3}
+        ));
+        var transcription = client.transcribeSpeech(
+                "mixed-mode-2",
+                20L,
+                "책을 읽어요",
+                new MockMultipartFile(
+                        "audioFile", "reading.webm", "audio/webm", new byte[]{1, 2, 3}
+                )
+        );
+        var tts = client.synthesizeSpeech(
+                new SpeechSynthesisRequest("mixed-mode-3", "책을 읽어요", null)
+        );
+
+        assertThat(analysis.analysisVersion()).isEqualTo("AZURE_SPEECH_KO_KR_WORD_V1");
+        assertThat(transcription.transcript()).isEqualTo("책을 읽어요");
+        assertThat(tts.audio()).startsWith((byte) 'I', (byte) 'D', (byte) '3');
+        speechServer.verify();
+    }
+
+    @Test
     void 잘못된_JSON_응답은_통신_예외로_변환하고_재시도하지_않는다() throws Exception {
         server.expect(once(), requestTo("http://localhost:8081/api/v1/trainings/generate"))
                 .andRespond(withSuccess("{invalid-json", MediaType.APPLICATION_JSON));
@@ -465,6 +618,35 @@ class HttpAiClientTest {
                 30L,
                 1,
                 objectMapper.readTree("{\"expectedWords\":[\"사과\",\"바나나\"]}")
+        );
+    }
+
+    private HttpAiClient client(RestClient restClient, boolean mockGenerate) {
+        return new HttpAiClient(
+                restClient,
+                new AiClientProperties(
+                        URI.create("http://localhost:8081"),
+                        Duration.ofSeconds(1),
+                        Duration.ofSeconds(1),
+                        "",
+                        mockGenerate,
+                        false,
+                        false,
+                        null,
+                        null,
+                        null
+                ),
+                new MockTrainingGenerator(objectMapper),
+                new MockTrainingEvaluator(),
+                new MockStoryGenerator(),
+                new MockSpeechProcessor(),
+                new TemporaryAudioStorage(
+                        tempDir.resolve("audio").toString(),
+                        new AudioUploadPolicy(
+                                DataSize.ofMegabytes(20),
+                                "audio/webm,audio/wav,audio/mpeg,audio/mp4"
+                        )
+                )
         );
     }
 }

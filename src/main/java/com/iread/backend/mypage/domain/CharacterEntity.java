@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 
 @Getter
 @Entity
-@Table(name = "character")
+@Table(name = "characters")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CharacterEntity {
     @Id
@@ -23,7 +23,7 @@ public class CharacterEntity {
     @JoinColumn(name = "student_id", nullable = false)
     private StudentEntity student;
 
-    @Column(name = "image_url", length = 255)
+    @Column(name = "image_url", columnDefinition = "TEXT")
     private String imageUrl;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -36,4 +36,11 @@ public class CharacterEntity {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    public CharacterEntity(StudentEntity student, StoryEntity story, String imageUrl, String name) {
+        this.student = student;
+        this.story = story;
+        this.imageUrl = imageUrl;
+        this.name = name;
+    }
 }

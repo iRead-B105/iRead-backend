@@ -1,9 +1,11 @@
 package com.iread.backend.learning.app.service;
 
+import com.iread.backend.ai.client.AiClient;
+import com.iread.backend.ai.dto.req.GenerateImageRequest;
 import com.iread.backend.learning.app.dto.LearningErrorLocation;
 import com.iread.backend.learning.app.dto.LearningResponseType;
 import com.iread.backend.learning.app.dto.LearningSubmission;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -15,9 +17,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 @Component
-@RequiredArgsConstructor
 public class AppLearningQuestionSupport {
 
     private static final Set<String> ANSWER_FIELDS = Set.of(
@@ -33,16 +36,31 @@ public class AppLearningQuestionSupport {
     );
 
     private final ObjectMapper objectMapper;
+    private final AiClient aiClient;
+
+    @Autowired
+    public AppLearningQuestionSupport(ObjectMapper objectMapper, AiClient aiClient) {
+        this.objectMapper = objectMapper;
+        this.aiClient = aiClient;
+    }
+
+    public AppLearningQuestionSupport(ObjectMapper objectMapper) {
+        this(objectMapper, null);
+    }
 
     public ObjectNode toStudentQuestion(JsonNode question) {
         String questionType = questionType(question);
         ObjectNode result = objectMapper.createObjectNode();
         result.put("questionType", questionType);
         result.put("responseType", responseType(question).name());
-        result.set("content", studentContent(question));
+        ObjectNode content = studentContent(question);
+        enrichImageUrls(content);
+        result.set("content", content);
+        result.set("answer", answer(question).deepCopy());
         if (question.has("requiredInputs")) {
             result.set("requiredInputs", question.path("requiredInputs").deepCopy());
         }
+        addRecordingTargets(result, question);
         return result;
     }
 
@@ -322,6 +340,71 @@ public class AppLearningQuestionSupport {
             return question.path("answer");
         }
         return question.path("content");
+    }
+
+    private void enrichImageUrls(ObjectNode content) {
+        if (aiClient == null) {
+            return;
+        }
+        addImageUrl(content);
+        JsonNode choices = content.path("choices");
+        if (choices.isArray()) {
+            choices.forEach(choice -> {
+                if (choice instanceof ObjectNode object) {
+                    addImageUrl(object);
+                }
+            });
+        }
+    }
+
+    private void addImageUrl(ObjectNode value) {
+        String prompt = value.path("imagePrompt").asText();
+        if (prompt.isBlank() || value.hasNonNull("imageUrl")) {
+            return;
+        }
+        String requestId = "training-image-" + UUID.nameUUIDFromBytes(
+                prompt.getBytes(StandardCharsets.UTF_8)
+        );
+        value.put(
+                "imageUrl",
+                aiClient.generateImage(new GenerateImageRequest(requestId, prompt)).imageUrl()
+        );
+    }
+
+    private void addRecordingTargets(ObjectNode result, JsonNode question) {
+        boolean voiceRequired = false;
+        for (JsonNode input : question.path("requiredInputs")) {
+            voiceRequired |= "VOICE".equals(input.asText());
+        }
+        if (!voiceRequired) {
+            return;
+        }
+        ArrayNode targets = result.putArray("recordingTargets");
+        JsonNode sourceTargets = question.path("analysisTargets");
+        for (int index = 0; index < sourceTargets.size(); index++) {
+            ObjectNode target = targets.addObject();
+            target.put("targetIndex", index);
+            target.put("text", sourceTargets.path(index).path("text").asText());
+        }
+        String recommendedText = recommendedRecordingText(answer(question));
+        for (int index = 0; index < targets.size(); index++) {
+            if (recommendedText.equals(targets.path(index).path("text").asText())) {
+                result.put("recommendedRecordingTargetIndex", index);
+                return;
+            }
+        }
+        if (!targets.isEmpty()) {
+            result.put("recommendedRecordingTargetIndex", 0);
+        }
+    }
+
+    private String recommendedRecordingText(JsonNode answer) {
+        for (String field : List.of("expectedText", "result", "completedSentence", "target")) {
+            if (answer.path(field).isTextual() && !answer.path(field).asText().isBlank()) {
+                return answer.path(field).asText();
+            }
+        }
+        return "";
     }
 
     private String questionType(JsonNode question) {

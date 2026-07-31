@@ -69,6 +69,13 @@ public class TestService {
         return new TestCompareResponse.TestDetail(
                 test.getId(),
                 test.getCreatedAt().toLocalDate(),
+                Optional.ofNullable(decimal(root.get("overallScore"))).orElse(test.getAccuracy()),
+                decimal(root.get("changeFromPrevious")),
+                parseStrings(root.path("strengthAreas")),
+                parseStrings(root.path("improvementAreas")),
+                nullableText(root.get("recommendedCourse")),
+                nullableText(root.get("nextTestRecommendation")),
+                parseAreaScores(root.path("areaScores")),
                 nullableLong(root.get("readingTimeSeconds")),
                 nullableLong(root.get("solvingTimeSeconds")),
                 test.getAccuracy(),
@@ -88,6 +95,30 @@ public class TestService {
                 question.path("selectedAnswer").asText(null)
         )));
         return result;
+    }
+
+    private List<String> parseStrings(JsonNode values) {
+        if (!values.isArray()) return List.of();
+        List<String> result = new ArrayList<>();
+        values.forEach(value -> {
+            if (value.isTextual() && !value.asText().isBlank()) {
+                result.add(value.asText());
+            }
+        });
+        return List.copyOf(result);
+    }
+
+    private List<TestCompareResponse.AreaScore> parseAreaScores(JsonNode values) {
+        if (!values.isArray()) return List.of();
+        List<TestCompareResponse.AreaScore> result = new ArrayList<>();
+        values.forEach(value -> {
+            String area = nullableText(value.get("area"));
+            BigDecimal score = decimal(value.get("score"));
+            if (area != null && score != null) {
+                result.add(new TestCompareResponse.AreaScore(area, score));
+            }
+        });
+        return List.copyOf(result);
     }
 
     private List<StudentTestEntity> completedTests(Long studentId) {
@@ -118,6 +149,12 @@ public class TestService {
 
     private BigDecimal decimal(JsonNode node) {
         return node == null || node.isNull() || !node.isNumber() ? null : node.decimalValue();
+    }
+
+    private String nullableText(JsonNode node) {
+        if (node == null || node.isNull() || !node.isTextual()) return null;
+        String value = node.asText().trim();
+        return value.isEmpty() ? null : value;
     }
 
     private Long nullableLong(JsonNode node) {

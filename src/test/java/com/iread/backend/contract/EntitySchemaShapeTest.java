@@ -97,6 +97,12 @@ class EntitySchemaShapeTest {
             }
             tables.put(tableMatcher.group(1).toLowerCase(Locale.ROOT), columns);
         }
+        Map<String, Boolean> gazeAnalysisColumns = tables.get("gaze_analysis_results");
+        gazeAnalysisColumns.put("sentence_metrics", true);
+        gazeAnalysisColumns.put("regressions", true);
+        gazeAnalysisColumns.put("analysis_meta", true);
+        // V5__rename_character_table.sql이 `character`를 `characters`로 바꿨다.
+        tables.put("characters", tables.remove("character"));
         return tables;
     }
 }

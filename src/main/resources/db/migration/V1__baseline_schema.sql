@@ -135,6 +135,9 @@ CREATE TABLE `gaze_analysis_results` (
 	`total_visited_count` int NOT NULL,
 	`reverse_read_count` int NOT NULL,
 	`avg_visited_duration` int NULL,
+	`sentence_metrics` json NULL,
+	`regressions` json NULL,
+	`analysis_meta` json NULL,
 	`created_at` timestamp NOT NULL,
 	CONSTRAINT `PK_GAZE_ANALYSIS_RESULTS` PRIMARY KEY (`id`)
 );

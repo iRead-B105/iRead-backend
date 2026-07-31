@@ -1,6 +1,7 @@
 package com.iread.backend.training.generation;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
@@ -10,6 +11,11 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(
+        name = "ai.mock-generate",
+        havingValue = "true",
+        matchIfMissing = true
+)
 public class DeterministicTrainingCandidateProvider implements TrainingCandidateProvider {
 
     private static final List<String> WORDS = List.of("사과", "나무", "바다", "토끼", "모자");
@@ -147,7 +153,7 @@ public class DeterministicTrainingCandidateProvider implements TrainingCandidate
         node.put("targetAudioText", target);
         node.put("choiceType", "WORD");
         ArrayNode choices = node.putArray("choices");
-        List<String> values = rotated(List.of(correct, "기차", "연필", "하늘"), index);
+        List<String> values = rotated(List.of(correct, "기차", "연필"), index);
         values.forEach(value -> choices.addObject().put("text", value).put("imagePrompt", ""));
         node.put("answerIndex", values.indexOf(correct));
         return node;
@@ -184,7 +190,7 @@ public class DeterministicTrainingCandidateProvider implements TrainingCandidate
         choiceSet.add(String.valueOf((char) (0xAC00 + onsetMedial + base % 28)));
         for (int codaIndex : List.of(1, 4, 7, 8, 16, 17, 21)) {
             choiceSet.add(String.valueOf((char) (0xAC00 + onsetMedial + codaIndex)));
-            if (choiceSet.size() == 4) {
+            if (choiceSet.size() == 3) {
                 break;
             }
         }
@@ -284,8 +290,8 @@ public class DeterministicTrainingCandidateProvider implements TrainingCandidate
         ObjectNode node = objectMapper.createObjectNode();
         node.put("source", source);
         node.put("targetAudioText", result);
-        node.putArray("removableUnits").add(parts.get(2)).add("ㄴ").add("ㅁ");
-        node.put("answerIndex", 0);
+        parts.forEach(node.putArray("removableUnits")::add);
+        node.put("answerIndex", parts.size() - 1);
         node.put("result", result);
         return node;
     }
@@ -463,7 +469,7 @@ public class DeterministicTrainingCandidateProvider implements TrainingCandidate
     private List<String> choiceValues(String correct, List<String> pool, int index) {
         java.util.LinkedHashSet<String> values = new java.util.LinkedHashSet<>();
         values.add(correct);
-        pool.stream().filter(value -> !value.equals(correct)).limit(3).forEach(values::add);
+        pool.stream().filter(value -> !value.equals(correct)).limit(2).forEach(values::add);
         return rotated(List.copyOf(values), index);
     }
 

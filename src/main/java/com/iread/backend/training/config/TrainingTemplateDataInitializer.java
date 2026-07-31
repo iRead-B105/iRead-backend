@@ -24,7 +24,7 @@ import java.io.IOException;
 public class TrainingTemplateDataInitializer implements ApplicationRunner {
 
     private static final String SEED_RESOURCE = "training-templates.json";
-    private static final String PROMPT_VERSION = "TRAINING_PROMPT_V1";
+    private static final String PROMPT_VERSION = "TRAINING_PROMPT_V2";
 
     private final JdbcTemplate jdbcTemplate;
     private final ObjectMapper objectMapper;
@@ -66,7 +66,7 @@ public class TrainingTemplateDataInitializer implements ApplicationRunner {
         ((tools.jackson.databind.node.ObjectNode) prompt).put("promptVersion", PROMPT_VERSION);
         String serializedPrompt = writePrompt(prompt);
         if (exists("training_templates", id)) {
-            addInputContractToExistingPrompt(id, type, prompt);
+            synchronizeSeedContract(id, type, prompt);
             return;
         }
         jdbcTemplate.update("""
@@ -81,7 +81,7 @@ public class TrainingTemplateDataInitializer implements ApplicationRunner {
         );
     }
 
-    private void addInputContractToExistingPrompt(
+    private void synchronizeSeedContract(
             long id,
             TrainingType expectedType,
             JsonNode seedPrompt
@@ -103,10 +103,15 @@ public class TrainingTemplateDataInitializer implements ApplicationRunner {
                     "기존 훈련 템플릿의 trainingType이 seed와 일치하지 않습니다: " + id
             );
         }
-        currentPrompt.set(
+        for (String field : new String[]{
                 "requiredInputs",
-                seedPrompt.path("requiredInputs").deepCopy()
-        );
+                "additionalPrompt",
+                "outputTemplate",
+                "supportedFeatureCategories",
+                "supportedScopes"
+        }) {
+            currentPrompt.set(field, seedPrompt.path(field).deepCopy());
+        }
         currentPrompt.put("promptVersion", PROMPT_VERSION);
         jdbcTemplate.update(
                 "UPDATE training_templates SET prompt = ? WHERE id = ?",

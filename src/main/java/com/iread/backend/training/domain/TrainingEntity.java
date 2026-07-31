@@ -63,7 +63,9 @@ public class TrainingEntity {
     }
 
     public boolean isCompleted() { return status == TrainingStatus.COMPLETED; }
-    public boolean isEditable() { return status == TrainingStatus.NOT_READY; }
+    public boolean isEditable() {
+        return status == TrainingStatus.NOT_READY || status == TrainingStatus.NOT_STARTED;
+    }
     public boolean isCompletable() {
         return status == TrainingStatus.NOT_STARTED || status == TrainingStatus.IN_PROGRESS;
     }

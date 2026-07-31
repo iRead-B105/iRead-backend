@@ -30,4 +30,19 @@ public class TestDataEntity {
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    public TestDataEntity(
+            Long id,
+            StudentTestEntity test,
+            String generatedData,
+            LocalDateTime createdAt
+    ) {
+        if (id == null || id < 1) {
+            throw new IllegalArgumentException("검사 데이터 ID는 1 이상이어야 합니다.");
+        }
+        this.id = id;
+        this.test = test;
+        this.generatedData = generatedData;
+        this.createdAt = createdAt;
+    }
 }

@@ -1,5 +1,6 @@
 package com.iread.backend.training.generation;
 
+import com.iread.backend.training.analysis.HangulSyllable;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 
@@ -12,6 +13,17 @@ import java.util.Set;
 
 @Component
 public class TrainingCandidateValidator {
+
+    private static final Set<TrainingType> THREE_CHOICE_TYPES = Set.of(
+            TrainingType.CONSONANT_SOUND_CHOICE,
+            TrainingType.VOWEL_SOUND_CHOICE,
+            TrainingType.SYLLABLE_INITIAL_CHOICE,
+            TrainingType.WORD_INITIAL_CHOICE,
+            TrainingType.SAME_INITIAL_WORD_CHOICE,
+            TrainingType.FINAL_CONSONANT_CHOICE,
+            TrainingType.WORD_FINAL_SOUND_CHOICE,
+            TrainingType.FINAL_CONSONANT_COMPARISON
+    );
 
     public CandidateValidationResult validate(
             TrainingCandidateRequest request,
@@ -176,7 +188,12 @@ public class TrainingCandidateValidator {
     }
 
     private void validateTypeRules(TrainingType type, int index, String path, JsonNode candidate,
-                                   List<CandidateValidationIssue> issues) {
+                                    List<CandidateValidationIssue> issues) {
+        if (THREE_CHOICE_TYPES.contains(type)
+                && candidate.path("choices").size() != 3) {
+            issues.add(issue(index, path + ".choices", "INVALID_CHOICE_COUNT",
+                    "choices는 정답 1개와 오답 2개를 포함해 정확히 3개여야 합니다."));
+        }
         switch (type) {
             case CONSONANT_VOWEL_CLASSIFICATION -> {
                 JsonNode choices = candidate.path("choices");
@@ -187,6 +204,8 @@ public class TrainingCandidateValidator {
                             "choices는 CONSONANT과 VOWEL 두 값이어야 합니다."));
                 }
             }
+            case FINAL_CONSONANT_DELETE ->
+                    validateFinalConsonantDelete(index, path, candidate, issues);
             case WORD_CHAIN_READING -> requireText(index, path, candidate, "requiredOrder",
                     "SEQUENTIAL", issues);
             case FILL_IN_THE_BLANK -> {
@@ -204,6 +223,53 @@ public class TrainingCandidateValidator {
             }
             default -> {
             }
+        }
+    }
+
+    private void validateFinalConsonantDelete(
+            int index,
+            String path,
+            JsonNode candidate,
+            List<CandidateValidationIssue> issues
+    ) {
+        String source = candidate.path("source").asText();
+        if (source.length() != 1 || !HangulSyllable.isHangulSyllable(source.charAt(0))) {
+            issues.add(issue(index, path + ".source", "INVALID_FINAL_DELETE_SOURCE",
+                    "source는 받침이 있는 한글 한 음절이어야 합니다."));
+            return;
+        }
+        HangulSyllable syllable = HangulSyllable.decompose(source.charAt(0));
+        if (syllable.coda() == null) {
+            issues.add(issue(index, path + ".source", "INVALID_FINAL_DELETE_SOURCE",
+                    "source는 받침이 있는 한글 한 음절이어야 합니다."));
+            return;
+        }
+        List<String> expectedUnits = List.of(
+                syllable.onset(),
+                syllable.vowel(),
+                syllable.coda()
+        );
+        JsonNode units = candidate.path("removableUnits");
+        boolean unitsMatch = units.isArray() && units.size() == expectedUnits.size();
+        for (int unitIndex = 0; unitsMatch && unitIndex < expectedUnits.size(); unitIndex++) {
+            unitsMatch = expectedUnits.get(unitIndex).equals(units.get(unitIndex).asText());
+        }
+        if (!unitsMatch || candidate.path("answerIndex").asInt(-1) != 2) {
+            issues.add(issue(index, path + ".removableUnits", "INVALID_FINAL_DELETE_UNITS",
+                    "removableUnits는 source의 초성, 중성, 종성 순서이고 정답은 종성이어야 합니다."));
+        }
+        String expectedResult = Character.toString(
+                new HangulSyllable(
+                        syllable.character(),
+                        syllable.onset(),
+                        syllable.vowel(),
+                        null
+                ).compose()
+        );
+        if (!expectedResult.equals(candidate.path("result").asText())
+                || !expectedResult.equals(candidate.path("targetAudioText").asText())) {
+            issues.add(issue(index, path + ".result", "INVALID_FINAL_DELETE_RESULT",
+                    "result와 targetAudioText는 source에서 종성을 제거한 음절이어야 합니다."));
         }
     }
 

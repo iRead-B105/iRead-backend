@@ -19,6 +19,7 @@ import com.iread.backend.training.domain.*;
 import com.iread.backend.training.curriculum.PersonalizedCurriculumPlanner;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
 import com.iread.backend.training.input.TrainingInputRequirementService;
+import com.iread.backend.training.input.TrainingInputType;
 import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.admin.dto.res.*;
@@ -173,14 +174,17 @@ public class TrainingService {
                         "일일 커리큘럼을 찾을 수 없습니다."
                 ));
         if (curriculum.getTrainings().stream().anyMatch(training -> !training.isEditable())) {
-            throw new ConflictException("시작했거나 완료된 커리큘럼은 수정할 수 없습니다.");
+            throw new ConflictException("진행 중이거나 완료된 커리큘럼은 수정할 수 없습니다.");
         }
         List<Long> ids = request.trainingTemplateIds();
         List<TrainingTemplateEntity> templates = resolveTemplates(ids);
 
         curriculum.getTrainings().forEach(t -> trainingDataRepository.deleteByTrainingId(t.getId()));
         trainingDataRepository.flush();
+        curriculum.getTrainings().clear();
+        dailyCurriculumRepository.flush();
         curriculum.replaceTrainings(templates);
+        dailyCurriculumRepository.flush();
     }
 
     public List<ExpectedWordResponse> getExpectedWords(Long teacherId, Long studentId, Long trainingId) {
@@ -241,9 +245,7 @@ public class TrainingService {
     @Transactional
     public JsonNode generateTraining(Long teacherId, Long studentId, Long trainingId) {
         TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
-        if (!training.isEditable()) {
-            throw new ConflictException("시작했거나 완료한 훈련은 다시 생성할 수 없습니다.");
-        }
+        validateEditable(training);
 
         TrainingDataEntity data = findOrCreateTrainingData(training);
         ObjectNode generatedData = personalizedTrainingGenerationService.generate(training);
@@ -298,6 +300,7 @@ public class TrainingService {
         }
         saveWordAttemptLogs(student, training, finalResult.path("wordAttempts"));
         training.complete(writeJson(finalResult), accuracy, finishedAt);
+        activateNextTraining(training);
         studentFeatureProfileService.recalculate(student);
         if (training.getDailyCurriculum().getStatus() == DailyCurriculumStatus.COMPLETED) {
             personalizedCurriculumPlanner.createNextIfAbsent(student);
@@ -305,9 +308,24 @@ public class TrainingService {
         return accuracy;
     }
 
+    private void activateNextTraining(TrainingEntity completedTraining) {
+        Integer completedSequence = completedTraining.getSequenceNo();
+        if (completedSequence == null) {
+            return;
+        }
+        completedTraining.getDailyCurriculum().getTrainings().stream()
+                .filter(training -> training.getSequenceNo() != null)
+                .filter(training -> training.getSequenceNo() > completedSequence)
+                .min(Comparator.comparingInt(TrainingEntity::getSequenceNo))
+                .filter(TrainingEntity::isEditable)
+                .filter(training -> trainingDataRepository.findByTrainingId(training.getId()).isPresent())
+                .ifPresent(TrainingEntity::markReady);
+    }
+
     @Transactional
     public void addExpectedWord(Long teacherId, Long studentId, Long trainingId, ExpectedWordRequest request) {
         TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
+        validateEditable(training);
         TrainingDataEntity data = findOrCreateTrainingData(training);
         ObjectNode root = parseObject(data.getGeneratedData());
         ArrayNode words = root.withArray("expectedWords");
@@ -326,6 +344,7 @@ public class TrainingService {
     @Transactional
     public void deleteExpectedWord(Long teacherId, Long studentId, Long trainingId, Long wordId) {
         TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
+        validateEditable(training);
         TrainingDataEntity data = trainingDataRepository.findByTrainingId(trainingId)
                 .orElseThrow(() -> new ResourceNotFoundException("예정 단어를 찾을 수 없습니다."));
         ObjectNode root = parseObject(data.getGeneratedData());
@@ -345,6 +364,12 @@ public class TrainingService {
     private StudentEntity validateStudentOwner(Long teacherId, Long studentId) {
         return studentRepository.findByIdAndTeacherId(studentId, teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException("학생을 찾을 수 없습니다."));
+    }
+
+    private void validateEditable(TrainingEntity training) {
+        if (!training.isEditable()) {
+            throw new ConflictException("진행 중이거나 완료된 훈련은 수정할 수 없습니다.");
+        }
     }
 
     private void saveWordAttemptLogs(StudentEntity student, TrainingEntity training, JsonNode attempts) {
@@ -408,10 +433,28 @@ public class TrainingService {
             if (retryCount != null && retryCount < 0) {
                 throw new IllegalArgumentException("단어 재응시 횟수는 0 이상이어야 합니다.");
             }
-            int totalScore = wordAttemptScoreCalculator.calculate(
+            Integer questionNo = nullableInteger(attempt, "questionNo");
+            var requiredInputs = questionNo == null
+                    ? java.util.Set.<TrainingInputType>of()
+                    : trainingInputRequirementService.inputsForQuestion(
+                            training.getId(),
+                            questionNo
+                    );
+            boolean pronunciationRequired = requiredInputs.isEmpty()
+                    ? hasAudioData
+                    : requiredInputs.contains(TrainingInputType.VOICE);
+            boolean gazeRequired = requiredInputs.isEmpty()
+                    ? hasGazeData
+                    : requiredInputs.contains(TrainingInputType.GAZE);
+            Integer totalScore = wordAttemptScoreCalculator.calculate(
                     pronunciationAccuracyScore,
+                    pronunciationRequired,
                     hasAudioData,
                     skipped,
+                    gazeRequired,
+                    hasGazeData,
+                    skipped,
+                    regressionCount,
                     retryCount,
                     correct
             );
@@ -436,7 +479,7 @@ public class TrainingService {
                     nullableInteger(attempt, "speechEndOffsetMs"),
                     correct,
                     totalScore,
-                    nullableInteger(attempt, "questionNo"),
+                    questionNo,
                     nullableInteger(attempt, "targetIndex"),
                     nullableInteger(attempt, "tokenIndex"),
                     attempt.path("isFinal").asBoolean(true)

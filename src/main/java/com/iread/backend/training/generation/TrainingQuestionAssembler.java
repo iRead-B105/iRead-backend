@@ -43,6 +43,12 @@ public class TrainingQuestionAssembler {
         List<TextTarget> textTargets = new ArrayList<>();
         collectTextTargets(content, "$.content", textTargets);
         collectAnswerTextTargets(answer, content, textTargets);
+        if (requiredInputs.contains(TrainingInputType.VOICE)) {
+            String primary = primaryText(type, candidate);
+            if (textTargets.stream().noneMatch(target -> target.text().equals(primary))) {
+                textTargets.add(new TextTarget("$.answer.recordingText", primary));
+            }
+        }
 
         ArrayNode analysisTargets = objectMapper.createArrayNode();
         LinkedHashSet<String> allFeatureCodes = new LinkedHashSet<>();
@@ -193,6 +199,12 @@ public class TrainingQuestionAssembler {
     }
 
     private String primaryText(TrainingType type, JsonNode candidate) {
+        if (type == TrainingType.IMAGE_SENTENCE_MATCH) {
+            int answerIndex = candidate.path("answerIndex").asInt(-1);
+            if (answerIndex >= 0 && candidate.path("choices").path(answerIndex).isTextual()) {
+                return candidate.path("choices").path(answerIndex).asText();
+            }
+        }
         if (candidate.hasNonNull("sentence")) {
             return candidate.path("sentence").asText();
         }

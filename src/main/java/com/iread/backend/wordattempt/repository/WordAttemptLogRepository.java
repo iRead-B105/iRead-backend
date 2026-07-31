@@ -12,7 +12,17 @@ public interface WordAttemptLogRepository extends JpaRepository<WordAttemptLogEn
     List<WordAttemptLogEntity> findAllByTestIdAndFinalAttemptTrueOrderByIdAsc(Long testId);
 
     List<WordAttemptLogEntity>
+    findAllByTrainingIdAndFinalAttemptTrueOrderByIdAsc(Long trainingId);
+
+    List<WordAttemptLogEntity>
     findAllByTrainingIdAndQuestionNoAndTargetIndexAndFinalAttemptTrue(
+            Long trainingId,
+            Integer questionNo,
+            Integer targetIndex
+    );
+
+    List<WordAttemptLogEntity>
+    findAllByTrainingIdAndQuestionNoAndTargetIndex(
             Long trainingId,
             Integer questionNo,
             Integer targetIndex
@@ -20,6 +30,11 @@ public interface WordAttemptLogRepository extends JpaRepository<WordAttemptLogEn
 
     List<WordAttemptLogEntity> findAllByTrainingIdAndQuestionNoAndFinalAttemptTrue(
             Long trainingId,
+            Integer questionNo
+    );
+
+    List<WordAttemptLogEntity> findAllByTestIdAndQuestionNo(
+            Long testId,
             Integer questionNo
     );
 
