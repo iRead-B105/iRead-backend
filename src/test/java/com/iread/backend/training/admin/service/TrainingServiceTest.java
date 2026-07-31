@@ -6,6 +6,7 @@ import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
 import com.iread.backend.gaze.analysis.GazeWordAnalysisAdapter;
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
+import com.iread.backend.realtime.RealtimeEventPublisher;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.*;
@@ -60,6 +61,7 @@ class TrainingServiceTest {
     @Mock StudentFeatureProfileService studentFeatureProfileService;
     @Mock PersonalizedCurriculumPlanner personalizedCurriculumPlanner;
     @Mock TrainingInputRequirementService trainingInputRequirementService;
+    @Mock RealtimeEventPublisher realtimeEventPublisher;
 
     private TrainingService trainingService;
 
@@ -91,6 +93,7 @@ class TrainingServiceTest {
                 studentFeatureProfileService,
                 personalizedCurriculumPlanner,
                 trainingInputRequirementService,
+                realtimeEventPublisher,
                 JsonMapper.builder().build()
         );
     }
@@ -198,6 +201,27 @@ class TrainingServiceTest {
     }
 
     @Test
+    void 진행중인_커리큘럼은_내부_훈련이_시작전이어도_수정할_수_없다() {
+        DailyCurriculumEntity curriculum = curriculum(100L);
+        ReflectionTestUtils.setField(
+                curriculum,
+                "status",
+                DailyCurriculumStatus.IN_PROGRESS
+        );
+        TrainingEntity training = training(1L, curriculum, template(11L, "훈련"), null);
+        ReflectionTestUtils.setField(training, "status", TrainingStatus.NOT_STARTED);
+        curriculum.getTrainings().add(training);
+        allowStudent();
+        when(dailyCurriculumRepository.findForUpdate(100L, 10L)).thenReturn(Optional.of(curriculum));
+
+        assertThatThrownBy(() -> trainingService.updateDailyCurriculum(
+                1L, 10L, 100L, new UpdateCurriculumRequest(List.of(11L))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("진행 중이거나 완료된 커리큘럼은 수정할 수 없습니다.");
+        verify(trainingTemplateRepository, never()).findAllById(any());
+    }
+
+    @Test
     void 생성_전_커리큘럼은_순번_충돌_없이_수정할_수_있다() {
         DailyCurriculumEntity curriculum = curriculum(100L);
         TrainingEntity training = training(1L, curriculum, template(11L, "기존 훈련"), null);
@@ -263,7 +287,8 @@ class TrainingServiceTest {
                 template(11L, "훈련1"),
                 template(12L, "훈련2")
         );
-        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(studentRepository.findByIdAndTeacherIdForUpdate(10L, 1L))
+                .thenReturn(Optional.of(student));
         when(dailyCurriculumRepository.findByStudentIdAndStatus(10L, DailyCurriculumStatus.NOT_STARTED))
                 .thenReturn(Optional.empty());
         when(trainingTemplateRepository.findAllById(List.of(11L, 12L))).thenReturn(templates);
@@ -290,7 +315,8 @@ class TrainingServiceTest {
     @Test
     void 수정_가능한_커리큘럼은_한_개만_생성할_수_있다() {
         StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
-        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(studentRepository.findByIdAndTeacherIdForUpdate(10L, 1L))
+                .thenReturn(Optional.of(student));
         when(dailyCurriculumRepository.findByStudentIdAndStatus(10L, DailyCurriculumStatus.NOT_STARTED))
                 .thenReturn(Optional.of(curriculum(100L)));
 

@@ -82,26 +82,8 @@ INSERT INTO `test_datas` (`id`, `test_id`, `generated_data`, `created_at`) VALUE
     (5201, 5101, '{"questions":[{"questionNumber":1,"text":"학교를 읽어보세요."}]}',
      '2026-07-28 09:00:00');
 
-INSERT INTO `stories`
-    (`id`, `student_id`, `story_template_id`, `created_at`, `status`, `progress`)
-VALUES
-    (6001, 2001, 1, '2026-07-20 10:00:00', 'COMPLETED', 100);
-
-INSERT INTO `story_scenes`
-    (`scene_id`, `story_id`, `image_url`, `sequence_no`, `created_at`)
-VALUES
-    (6101, 6001, NULL, 1, '2026-07-20 10:00:00');
-
-INSERT INTO `story_lines`
-    (`id`, `scene_id`, `has_choices`, `content`, `sequence_no`, `created_at`, `read_at`)
-VALUES
-    (6201, 6101, FALSE, '샛별이는 별빛 숲에서 작은 토끼를 만났어요.', 1,
-     '2026-07-20 10:00:00', '2026-07-20 10:01:00');
-
-INSERT INTO `character`
-    (`id`, `student_id`, `story_id`, `image_url`, `created_at`, `name`)
-VALUES
-    (6301, 2001, 6001, NULL, '2026-07-20 10:05:00', '별빛 토끼');
+-- 샛별의 이야기는 이야기 세션 API와 AI mock을 통해 생성하므로
+-- 완성된 이야기를 미리 넣지 않고 이야기 템플릿만 제공한다.
 
 -- Expanded, non-identifying teacher demo data.
 -- IDs use dedicated ranges so the base and expanded demo scenarios can coexist.
@@ -329,7 +311,7 @@ VALUES
     (6603, 6503, TRUE, '우진이는 두 갈래 길 앞에서 잠시 생각했어요.', 1, '2026-07-18 16:00:00', NULL),
     (6604, 6504, FALSE, '지민이는 반짝이는 구름 기차에 올라탔어요.', 1, '2026-07-24 16:00:00', '2026-07-24 16:02:00');
 
-INSERT INTO `character`
+INSERT INTO `characters`
     (`id`, `student_id`, `story_id`, `image_url`, `created_at`, `name`)
 VALUES
     (6701, 2101, 6401, NULL, '2026-07-20 16:05:00', '별빛 토끼'),
@@ -337,14 +319,14 @@ VALUES
     (6703, 2104, 6403, NULL, '2026-07-18 16:05:00', '숲길 여우'),
     (6704, 2107, 6404, NULL, '2026-07-24 16:05:00', '구름 기관사');
 
--- Consolidated from V3__fix_demo_student_gender.sql before initial DB rollout.
+-- Normalize demo student gender values.
 UPDATE students
 SET gender = 'Girl'
 WHERE id = 2001
   AND gender = 'girl';
 
 
--- Consolidated from V4__complete_demo_training_questions.sql before initial DB rollout.
+-- Complete demo training questions.
 UPDATE `training_datas`
 SET `generated_data` = '{
   "schemaVersion": 2,
@@ -400,7 +382,7 @@ ON DUPLICATE KEY UPDATE
   `generated_data` = VALUES(`generated_data`);
 
 
--- Consolidated from V5__add_second_demo_student.sql before initial DB rollout.
+-- Add the second demo learner.
 INSERT INTO `students`
     (`id`, `teacher_id`, `name`, `birthday`, `gender`, `school`, `guardian`,
      `guardian_contact`, `guardian_email`, `address`, `created_at`, `image_url`, `teacher_memo`)
@@ -500,13 +482,13 @@ VALUES
     (6202, 6102, FALSE, '한결이는 구름 우체국에서 파란 편지의 주인을 찾았어요.', 1,
      '2026-07-22 10:00:00', '2026-07-22 10:01:00');
 
-INSERT INTO `character`
+INSERT INTO `characters`
     (`id`, `student_id`, `story_id`, `image_url`, `created_at`, `name`)
 VALUES
     (6302, 2002, 6002, NULL, '2026-07-22 10:05:00', '구름 우체부');
 
 
--- Consolidated from V6__expand_demo_daily_curriculums.sql before initial DB rollout.
+-- Expand demo daily curricula.
 -- Demo daily curricula mirror the production planner's five-training policy.
 -- Templates referenced here must exist before the demo rows are inserted because
 -- Flyway runs before TrainingTemplateDataInitializer on a fresh database.
@@ -799,10 +781,10 @@ WHERE training.`daily_curriculum_id` = 3002
       SELECT 1 FROM `training_datas` data WHERE data.`train_id` = training.`id`
   );
 
--- Consolidated effect from V8__normalize_teacher_persona_learning_questions.sql.
+-- Normalize teacher persona learning questions.
 -- Fresh persona fixtures already use the accepted learner question JSON contract,
 -- so the historical in-place JSON conversion is intentionally omitted from V2.
--- Consolidated from V9__limit_learner_demo_to_three_students.sql before the demo baseline rollout.
+-- Limit the learner demo to three students.
 -- Keep the learner app focused on three students without deleting the richer
 -- teacher-dashboard history for the remaining demo personas.
 INSERT INTO `teachers`
@@ -991,7 +973,7 @@ CROSS JOIN (
         )
 ) questions;
 
--- Consolidated from V10__add_saetbyeol_all_training_curriculum.sql before the demo baseline rollout.
+-- Add Saetbyeol's all-training showcase curriculum.
 -- Replace Saetbyeol's active five-item curriculum with a showcase curriculum.
 -- Training rows and their single generated questions are populated after the
 -- 34 canonical templates have been initialized by DemoAllTrainingCurriculumInitializer.

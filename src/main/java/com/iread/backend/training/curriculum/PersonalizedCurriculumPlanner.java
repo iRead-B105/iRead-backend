@@ -3,6 +3,7 @@ package com.iread.backend.training.curriculum;
 import com.iread.backend.readingfeature.domain.StudentFeatureProfileEntity;
 import com.iread.backend.readingfeature.repository.StudentFeatureProfileRepository;
 import com.iread.backend.student.domain.StudentEntity;
+import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.DailyCurriculumEntity;
 import com.iread.backend.training.domain.DailyCurriculumStatus;
 import com.iread.backend.training.domain.TrainingTemplateEntity;
@@ -32,10 +33,13 @@ public class PersonalizedCurriculumPlanner {
     private final DailyCurriculumRepository curriculumRepository;
     private final TrainingTemplateRepository templateRepository;
     private final StudentFeatureProfileRepository profileRepository;
+    private final StudentRepository studentRepository;
     private final ObjectMapper objectMapper;
 
     @Transactional
     public DailyCurriculumEntity createNextIfAbsent(StudentEntity student) {
+        studentRepository.findByIdForUpdate(student.getId())
+                .orElseThrow(() -> new IllegalStateException("학생을 찾을 수 없습니다."));
         return curriculumRepository.findByStudentIdAndStatus(
                         student.getId(), DailyCurriculumStatus.NOT_STARTED
                 )

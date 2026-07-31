@@ -241,11 +241,11 @@ CREATE TABLE `word_attempt_logs` (
 		CHECK (`token_index` IS NULL OR `token_index` >= 0)
 );
 
-CREATE TABLE `character` (
+CREATE TABLE `characters` (
 	`id` bigint NOT NULL AUTO_INCREMENT,
 	`student_id` bigint NOT NULL,
 	`story_id` bigint NOT NULL,
-	`image_url` varchar(255) NULL,
+	`image_url` text NULL,
 	`created_at` timestamp NOT NULL,
 	`name` varchar(50) NULL,
 	CONSTRAINT `PK_CHARACTER` PRIMARY KEY (`id`)
@@ -281,7 +281,19 @@ CREATE TABLE `daily_curriculums` (
 	`status` varchar(20) NOT NULL COMMENT 'Enum: NOT_STARTED, IN_PROGRESS, COMPLETED',
 	`created_at` timestamp NOT NULL,
 	`completed_at` timestamp NULL,
-	CONSTRAINT `PK_DAILY_CURRICULUMS` PRIMARY KEY (`id`)
+	`not_started_student_id` bigint
+		GENERATED ALWAYS AS (
+			CASE WHEN `status` = 'NOT_STARTED' THEN `student_id` ELSE NULL END
+		) STORED,
+	`in_progress_student_id` bigint
+		GENERATED ALWAYS AS (
+			CASE WHEN `status` = 'IN_PROGRESS' THEN `student_id` ELSE NULL END
+		) STORED,
+	CONSTRAINT `PK_DAILY_CURRICULUMS` PRIMARY KEY (`id`),
+	CONSTRAINT `UQ_DAILY_CURRICULUMS_NOT_STARTED_STUDENT`
+		UNIQUE (`not_started_student_id`),
+	CONSTRAINT `UQ_DAILY_CURRICULUMS_IN_PROGRESS_STUDENT`
+		UNIQUE (`in_progress_student_id`)
 );
 
 CREATE TABLE `tests` (
@@ -488,7 +500,7 @@ ALTER TABLE `word_attempt_logs`
 	ADD CONSTRAINT `FK_WORD_ATTEMPT_LOGS_TEST`
 		FOREIGN KEY (`test_id`) REFERENCES `tests` (`id`);
 
-ALTER TABLE `character`
+ALTER TABLE `characters`
 	ADD CONSTRAINT `FK_CHARACTER_STUDENT`
 		FOREIGN KEY (`student_id`) REFERENCES `students` (`id`),
 	ADD CONSTRAINT `FK_CHARACTER_STORY`

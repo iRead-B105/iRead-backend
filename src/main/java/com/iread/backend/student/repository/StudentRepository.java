@@ -25,6 +25,10 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
             @Param("teacherId") Long teacherId
     );
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select student from StudentEntity student where student.id = :id")
+    Optional<StudentEntity> findByIdForUpdate(@Param("id") Long id);
+
     long countByTeacherId(Long teacherId);
 
     @Query(value = """
