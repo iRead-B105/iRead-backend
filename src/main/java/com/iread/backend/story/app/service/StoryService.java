@@ -2,6 +2,7 @@ package com.iread.backend.story.app.service;
 
 import com.iread.backend.ai.client.AiClient;
 import com.iread.backend.ai.dto.req.*;
+import com.iread.backend.ai.dto.res.GenerateImageResponse;
 import com.iread.backend.ai.dto.res.GeneratedStoryBranchOption;
 import com.iread.backend.ai.dto.res.GeneratedStoryBranchPrompt;
 import com.iread.backend.ai.dto.res.GenerateStoryResponse;
@@ -34,6 +35,8 @@ import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
 import com.iread.backend.wordattempt.service.WordAttemptScoreCalculator;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -50,7 +53,10 @@ import java.util.*;
 public class StoryService {
 
     private static final int STORY_SCHEMA_VERSION = 1;
+    private static final Logger log = LoggerFactory.getLogger(StoryService.class);
+
     private static final String STORY_CHARACTER_PROMPT_PREFIX = "[STORY_CHARACTER] ";
+    private static final String STORY_SCENE_PROMPT_PREFIX = "[STORY_SCENE] ";
     private static final int MAX_IMAGE_PROMPT_LENGTH = 1_000;
     private static final int MAX_CHARACTER_NAME_LENGTH = 50;
 
@@ -432,7 +438,7 @@ public class StoryService {
         validateGeneratedSegment(response);
         int sceneSequence = Math.toIntExact(storySceneRepository.countByStoryId(story.getId()) + 1);
         StorySceneEntity scene = storySceneRepository.saveAndFlush(
-                new StorySceneEntity(story, null, sceneSequence)
+                new StorySceneEntity(story, sceneImageUrl(story, response), sceneSequence)
         );
         List<StoryLineEntity> lines = new ArrayList<>();
         StoryLineEntity previous = previousLine;
@@ -516,6 +522,36 @@ public class StoryService {
             throw new AiClientException("AI 서버 응답의 완료 상태와 진행률이 일치하지 않습니다.");
         }
         story.updateProgress(response.nextProgress());
+    }
+
+    /**
+     * 장면 삽화를 대사와 함께 만든다.
+     *
+     * <p>삽화가 없다고 읽기 학습을 막을 이유는 없으므로, AI 서버가 실패하면 URL 없이 장면을
+     * 저장하고 이야기를 계속 진행한다.
+     */
+    private String sceneImageUrl(StoryEntity story, GenerateStoryResponse response) {
+        String sceneText = response.lines().stream()
+                .map(GeneratedStoryLine::content)
+                .collect(java.util.stream.Collectors.joining(" "));
+        String prompt = truncate(
+                STORY_SCENE_PROMPT_PREFIX
+                        + "어린이 이야기 '" + story.getStoryTemplate().getTitle()
+                        + "'의 장면 삽화. 장면 내용: " + sceneText,
+                MAX_IMAGE_PROMPT_LENGTH
+        );
+        try {
+            GenerateImageResponse image = aiClient.generateImage(new GenerateImageRequest(
+                    UUID.randomUUID().toString(),
+                    prompt
+            ));
+            String imageUrl = image == null ? null : image.imageUrl();
+            return imageUrl == null || imageUrl.isBlank() ? null : imageUrl;
+        } catch (RuntimeException exception) {
+            // 삽화가 없다고 읽기를 막지 않는다.
+            log.warn("장면 삽화를 만들지 못해 이미지 없이 진행합니다. storyId={}", story.getId(), exception);
+            return null;
+        }
     }
 
     private void createStoryCharacter(StoryEntity story, List<StoryLineEntity> historyLines,

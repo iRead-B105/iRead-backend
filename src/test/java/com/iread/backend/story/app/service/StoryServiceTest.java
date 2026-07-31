@@ -3,6 +3,7 @@ package com.iread.backend.story.app.service;
 import com.iread.backend.ai.client.AiClient;
 import com.iread.backend.ai.dto.req.ContinueStoryRequest;
 import com.iread.backend.ai.dto.req.GenerateImageRequest;
+import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.ai.dto.res.GenerateImageResponse;
 import com.iread.backend.ai.dto.res.GenerateStoryResponse;
 import com.iread.backend.ai.dto.res.GeneratedStoryBranchOption;
@@ -253,10 +254,15 @@ class StoryServiceTest {
         verifyNoInteractions(storyAudioStorage);
         assertThat(requestCaptor.getValue().currentStoryLineId()).isEqualTo(1001L);
 
+        // 장면 삽화와 주인공 초상화를 각각 만든다.
         ArgumentCaptor<GenerateImageRequest> imageRequestCaptor =
                 ArgumentCaptor.forClass(GenerateImageRequest.class);
-        verify(aiClient).generateImage(imageRequestCaptor.capture());
-        assertThat(imageRequestCaptor.getValue().prompt())
+        verify(aiClient, times(2)).generateImage(imageRequestCaptor.capture());
+        assertThat(imageRequestCaptor.getAllValues().get(0).prompt())
+                .startsWith("[STORY_SCENE]")
+                .contains(template.getTitle())
+                .contains("선택한 길로 걸었어요.");
+        assertThat(imageRequestCaptor.getAllValues().get(1).prompt())
                 .startsWith("[STORY_CHARACTER]")
                 .contains(template.getTitle());
         ArgumentCaptor<CharacterEntity> characterCaptor =
@@ -545,6 +551,78 @@ class StoryServiceTest {
             });
             return lines;
         });
+    }
+
+    @Test
+    void 장면을_만들_때_대사로_삽화를_함께_생성한다() {
+        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        when(storyTemplateRepository.findById(30L)).thenReturn(Optional.of(template));
+        when(storyRepository.saveAndFlush(any(StoryEntity.class))).thenAnswer(invocation -> {
+            StoryEntity saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 100L);
+            return saved;
+        });
+        when(aiClient.generateStory(any())).thenReturn(new GenerateStoryResponse(
+                "ignored", 1, 50, false,
+                List.of(
+                        new GeneratedStoryLine("토끼가 깡충 뛰었어요.", false),
+                        new GeneratedStoryLine("어디로 갈까요?", true, branchPrompt())
+                )
+        ));
+        when(aiClient.generateImage(any())).thenAnswer(invocation -> new GenerateImageResponse(
+                ((GenerateImageRequest) invocation.getArgument(0)).requestId(),
+                "https://images.example.invalid/scene.png",
+                "MOCK_IMAGE_V1"
+        ));
+        mockSceneSave(200L);
+        mockLineSave(1000L);
+
+        storyService.startStory(1L, 20L, 30L);
+
+        ArgumentCaptor<StorySceneEntity> sceneCaptor =
+                ArgumentCaptor.forClass(StorySceneEntity.class);
+        verify(storySceneRepository).saveAndFlush(sceneCaptor.capture());
+        assertThat(sceneCaptor.getValue().getImageUrl())
+                .isEqualTo("https://images.example.invalid/scene.png");
+
+        ArgumentCaptor<GenerateImageRequest> imageCaptor =
+                ArgumentCaptor.forClass(GenerateImageRequest.class);
+        verify(aiClient).generateImage(imageCaptor.capture());
+        assertThat(imageCaptor.getValue().prompt())
+                .startsWith("[STORY_SCENE]")
+                .contains(template.getTitle())
+                .contains("토끼가 깡충 뛰었어요.");
+    }
+
+    @Test
+    void 삽화_생성이_실패해도_이야기는_진행한다() {
+        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        when(storyTemplateRepository.findById(30L)).thenReturn(Optional.of(template));
+        when(storyRepository.saveAndFlush(any(StoryEntity.class))).thenAnswer(invocation -> {
+            StoryEntity saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 100L);
+            return saved;
+        });
+        when(aiClient.generateStory(any())).thenReturn(new GenerateStoryResponse(
+                "ignored", 1, 50, false,
+                List.of(
+                        new GeneratedStoryLine("토끼가 깡충 뛰었어요.", false),
+                        new GeneratedStoryLine("어디로 갈까요?", true, branchPrompt())
+                )
+        ));
+        when(aiClient.generateImage(any()))
+                .thenThrow(new AiClientException("이미지 서버가 응답하지 않습니다."));
+        mockSceneSave(200L);
+        mockLineSave(1000L);
+
+        // 삽화 한 장 때문에 읽기 학습이 막히면 안 된다.
+        storyService.startStory(1L, 20L, 30L);
+
+        ArgumentCaptor<StorySceneEntity> sceneCaptor =
+                ArgumentCaptor.forClass(StorySceneEntity.class);
+        verify(storySceneRepository).saveAndFlush(sceneCaptor.capture());
+        assertThat(sceneCaptor.getValue().getImageUrl()).isNull();
+        verify(storyLineRepository).saveAllAndFlush(any());
     }
 
     private void mockSceneSave(long id) {
