@@ -126,6 +126,8 @@ public class TrainingQuestionAssembler {
             case FINAL_SYLLABLE_BUILD, DOUBLE_FINAL_BUILD -> Set.of(
                     "initialAnswerIndex", "medialAnswerIndex", "finalAnswerIndex", "result"
             );
+            case HANGUL_BATTLE_BASIC, HANGUL_BATTLE_FINAL,
+                    HANGUL_BATTLE_DOUBLE_FINAL -> Set.of("answerOrders");
             case FINAL_CONSONANT_DELETE -> Set.of("answerIndex", "result");
             case SYLLABLE_DELETE -> Set.of("deleteIndex", "result");
             case SYLLABLE_REPLACE -> Set.of("replaceIndex", "answerIndex", "result");

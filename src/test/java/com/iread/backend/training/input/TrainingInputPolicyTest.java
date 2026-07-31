@@ -15,14 +15,14 @@ class TrainingInputPolicyTest {
     private final JsonMapper objectMapper = JsonMapper.builder().build();
 
     @Test
-    void validatesRequiredInputsForAllThirtyFourSeedTemplates() throws Exception {
+    void validatesRequiredInputsForAllSeedTemplates() throws Exception {
         JsonNode root;
         try (var input = getClass().getClassLoader()
                 .getResourceAsStream("training-templates.json")) {
             root = objectMapper.readTree(input);
         }
 
-        assertThat(root.path("templates")).hasSize(34);
+        assertThat(root.path("templates")).hasSize(37);
         for (JsonNode template : root.path("templates")) {
             JsonNode prompt = template.path("prompt");
             TrainingType type = TrainingType.from(prompt.path("trainingType").asText());
