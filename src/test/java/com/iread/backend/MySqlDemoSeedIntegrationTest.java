@@ -52,6 +52,12 @@ class MySqlDemoSeedIntegrationTest {
         assertThat(count("students", 2001L)).isEqualTo(1);
         assertThat(count("stories", 6001L)).isZero();
         assertThat(countByColumn("story_scenes", "scene_id", 6101L)).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT JSON_LENGTH(JSON_EXTRACT(branch_prompt, '$.options')) "
+                        + "FROM story_lines WHERE id = 6603",
+                Integer.class
+        )).isEqualTo(3);
+
         assertThat(count("story_lines", 6201L)).isZero();
         assertThat(count("characters", 6301L)).isZero();
         assertThat(count("trainings", 4001L)).isEqualTo(1);

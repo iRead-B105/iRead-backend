@@ -49,6 +49,7 @@ class MySqlFlywayIntegrationTest {
         assertThat(constraintCount("FOREIGN KEY")).isEqualTo(35);
         assertThat(constraintCount("UNIQUE")).isEqualTo(15);
         assertThat(constraintCount("CHECK")).isEqualTo(11);
+        assertThat(columnExists("story_lines", "branch_prompt")).isTrue();
 
         assertThat(tableExists("training_datas")).isTrue();
         assertThat(columnExists("training_datas", "train_id")).isTrue();

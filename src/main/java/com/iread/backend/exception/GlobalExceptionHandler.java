@@ -4,6 +4,7 @@ import com.iread.backend.auth.exception.AuthException;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.global.api.ApiErrorResponse;
 import com.iread.backend.report.admin.exception.ReportCreationException;
+import com.iread.backend.training.admin.exception.LessonMaterialException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +33,19 @@ public class GlobalExceptionHandler {
                         exception.code(),
                         exception.getMessage(),
                         exception.details()
+                )
+        );
+    }
+
+    @ExceptionHandler(LessonMaterialException.class)
+    public ResponseEntity<ApiErrorResponse> handleLessonMaterial(
+            LessonMaterialException exception
+    ) {
+        return ResponseEntity.status(exception.getStatus()).body(
+                ApiErrorResponse.of(
+                        exception.getCode(),
+                        exception.getMessage(),
+                        exception.getDetails()
                 )
         );
     }

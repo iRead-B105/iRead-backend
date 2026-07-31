@@ -37,6 +37,9 @@ public class StoryLineEntity {
     @Column(nullable = false, columnDefinition = "json")
     private String content;
 
+    @Column(name = "branch_prompt", columnDefinition = "json")
+    private String branchPrompt;
+
     @Column(name = "sequence_no", nullable = false)
     private Integer sequenceNo;
 
@@ -49,10 +52,16 @@ public class StoryLineEntity {
 
     public StoryLineEntity(StoryLineEntity previousStoryLine, StorySceneEntity scene,
                            boolean requiresBranchInput, String content, Integer sequenceNo) {
+        this(previousStoryLine, scene, requiresBranchInput, content, null, sequenceNo);
+    }
+
+    public StoryLineEntity(StoryLineEntity previousStoryLine, StorySceneEntity scene,
+                           boolean requiresBranchInput, String content, String branchPrompt, Integer sequenceNo) {
         this.previousStoryLine = previousStoryLine;
         this.scene = scene;
         this.requiresBranchInput = requiresBranchInput;
         this.content = content;
+        this.branchPrompt = branchPrompt;
         this.sequenceNo = sequenceNo;
     }
 

@@ -2,6 +2,8 @@ package com.iread.backend.story.app.service;
 
 import com.iread.backend.ai.client.AiClient;
 import com.iread.backend.ai.dto.req.*;
+import com.iread.backend.ai.dto.res.GeneratedStoryBranchOption;
+import com.iread.backend.ai.dto.res.GeneratedStoryBranchPrompt;
 import com.iread.backend.ai.dto.res.GenerateStoryResponse;
 import com.iread.backend.ai.dto.res.GeneratedStoryLine;
 import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
@@ -9,6 +11,7 @@ import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.exception.ConflictException;
 import com.iread.backend.mypage.domain.CharacterEntity;
+import com.iread.backend.story.app.dto.req.StoryBranchSelectionRequest;
 import com.iread.backend.mypage.repository.CharacterRepository;
 import com.iread.backend.pronunciation.PronunciationAnalysisAdapter;
 import com.iread.backend.pronunciation.PronunciationAnalysisRequest;
@@ -35,6 +38,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -67,6 +71,7 @@ public class StoryService {
     private final WordAttemptScoreCalculator wordAttemptScoreCalculator;
     private final StudentFeatureProfileService studentFeatureProfileService;
     private final RealtimeEventPublisher realtimeEventPublisher;
+    private final ObjectMapper objectMapper;
 
     public StoryShelfResponse getStoryShelf(Long teacherId, Long studentId) {
         validateStudentOwner(teacherId, studentId);
@@ -172,15 +177,43 @@ public class StoryService {
     @Transactional
     public StoryChoiceResponse chooseStoryDirection(Long teacherId, Long studentId, Long storyId,
                                                     Long storyLineId, MultipartFile audioFile) {
+        BranchContext context = prepareBranch(teacherId, studentId, storyId, storyLineId);
+        if (context.existingChoice().isPresent()) {
+            return replayChoice(context.story(), context.line(), context.existingChoice().get());
+        }
+
+        storyAudioStorage.store(studentId, audioFile);
+        String transcript = aiClient.transcribeSpeech(
+                UUID.randomUUID().toString(), studentId, null, audioFile
+        ).transcript();
+        return continueStoryDirection(
+                teacherId, studentId, context.story(), context.line(), transcript
+        );
+    }
+
+    @Transactional
+    public StoryChoiceResponse chooseStoryDirection(Long teacherId, Long studentId, Long storyId,
+                                                    Long storyLineId,
+                                                    StoryBranchSelectionRequest request) {
+        BranchContext context = prepareBranch(teacherId, studentId, storyId, storyLineId);
+        if (context.existingChoice().isPresent()) {
+            return replayChoice(context.story(), context.line(), context.existingChoice().get());
+        }
+        String branchIntent = resolveBranchOption(context.line(), request.optionNo());
+        return continueStoryDirection(
+                teacherId, studentId, context.story(), context.line(), branchIntent
+        );
+    }
+
+    private BranchContext prepareBranch(Long teacherId, Long studentId, Long storyId,
+                                        Long storyLineId) {
         StoryEntity story = findOwnedStory(teacherId, studentId, storyId);
         StoryLineEntity selectedLine = storyLineRepository
                 .findByIdAndStoryIdForUpdate(storyLineId, story.getId())
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "스토리 대사를 찾을 수 없습니다."
-                ));
+                .orElseThrow(() -> new ResourceNotFoundException("스토리 대사를 찾을 수 없습니다."));
         Optional<StoryChoiceEntity> existingChoice = storyChoiceRepository.findByStoryLineId(storyLineId);
         if (existingChoice.isPresent()) {
-            return replayChoice(story, selectedLine, existingChoice.get());
+            return new BranchContext(story, selectedLine, existingChoice);
         }
         if (!story.isInProgress()) {
             throw new ConflictException("진행 중인 스토리에서만 분기 입력을 제출할 수 있습니다.");
@@ -196,25 +229,19 @@ public class StoryService {
         if (selectedLine.getReadAt() == null) {
             throw new ConflictException("장면을 읽은 후 선택지를 제출할 수 있습니다.");
         }
+        return new BranchContext(story, selectedLine, Optional.empty());
+    }
+
+    private StoryChoiceResponse continueStoryDirection(Long teacherId, Long studentId,
+                                                       StoryEntity story,
+                                                       StoryLineEntity selectedLine,
+                                                       String branchIntent) {
         List<StoryLineEntity> historyLines = storyLineRepository
                 .findAllByStoryIdOrderBySequenceNoAsc(story.getId());
-        storyAudioStorage.store(studentId, audioFile);
-        String speechRequestId = UUID.randomUUID().toString();
-        String transcript = aiClient.transcribeSpeech(
-                speechRequestId, studentId, null, audioFile
-        ).transcript();
-
-        String requestId = UUID.randomUUID().toString();
         GenerateStoryResponse generated = aiClient.continueStory(new ContinueStoryRequest(
-                requestId,
-                story.getId(),
-                studentId,
-                STORY_SCHEMA_VERSION,
-                story.getProgress(),
-                toTemplateData(story.getStoryTemplate()),
-                selectedLine.getId(),
-                transcript,
-                historyLines.stream().map(this::toHistoryLine).toList()
+                UUID.randomUUID().toString(), story.getId(), studentId, STORY_SCHEMA_VERSION,
+                story.getProgress(), toTemplateData(story.getStoryTemplate()), selectedLine.getId(),
+                branchIntent, historyLines.stream().map(this::toHistoryLine).toList()
         ));
 
         GeneratedSegment segment = appendGeneratedLines(story, selectedLine, generated);
@@ -223,26 +250,17 @@ public class StoryService {
             createStoryCharacter(story, historyLines, generated);
         }
         StoryChoiceEntity choice = storyChoiceRepository.saveAndFlush(
-                new StoryChoiceEntity(selectedLine, transcript)
+                new StoryChoiceEntity(selectedLine, branchIntent)
         );
         realtimeEventPublisher.publishAfterCommit(
-                teacherId,
-                studentId,
-                RealtimeResource.STORY,
-                storyId,
+                teacherId, studentId, RealtimeResource.STORY, story.getId(),
                 generated.completed() ? "COMPLETED" : "PROGRESS_UPDATED"
         );
 
         return new StoryChoiceResponse(
-                choice.getId(),
-                transcript,
-                segment.scene().getId(),
-                segment.lines().getFirst().getId(),
-                joinContent(segment.lines()),
-                segment.scene().getImageUrl(),
-                story.getProgress(),
-                story.getStatus().name().toLowerCase(Locale.ROOT),
-                false
+                choice.getId(), branchIntent, segment.scene().getId(), segment.lines().getFirst().getId(),
+                joinContent(segment.lines()), segment.scene().getImageUrl(), story.getProgress(),
+                story.getStatus().name().toLowerCase(Locale.ROOT), false
         );
     }
 
@@ -424,6 +442,7 @@ public class StoryService {
                     previous, scene,
                     generated.requiresBranchInput(),
                     storyLineContentService.buildContent(generated.content()),
+                    serializeBranchPrompt(generated.branchPrompt()),
                     index + 1
             );
             lines.add(line);
@@ -472,6 +491,11 @@ public class StoryService {
             GeneratedStoryLine line = response.lines().get(index);
             if (line.content() == null || line.content().isBlank()) {
                 throw new AiClientException("AI 서버가 빈 스토리 대사를 반환했습니다.");
+            }
+            if (line.requiresBranchInput()) {
+                validateBranchPrompt(line.branchPrompt());
+            } else if (line.branchPrompt() != null) {
+                throw new AiClientException("분기 입력이 아닌 대사에는 branchPrompt를 포함할 수 없습니다.");
             }
             if (index < response.lines().size() - 1 && line.requiresBranchInput()) {
                 throw new AiClientException("AI 서버 응답의 분기 입력은 생성 구간 마지막에만 올 수 있습니다.");
@@ -566,12 +590,82 @@ public class StoryService {
                 line.getImageUrl(),
                 line.isRequiresBranchInput(),
                 storyLineContentService.textOf(line),
+                toBranchPrompt(line.getBranchPrompt()),
                 storyLineContentService.ensureAnalysis(line),
                 line.getScene().getSequenceNo(),
                 line.getSequenceNo(),
                 line.getCreatedAt(),
                 line.getReadAt()
         );
+    }
+
+    private String resolveBranchOption(StoryLineEntity line, Integer optionNo) {
+        StoryBranchPromptResponse prompt = toBranchPrompt(line.getBranchPrompt());
+        if (prompt == null || optionNo == null) {
+            throw new ConflictException("제공된 분기 선택지 중 하나를 선택해야 합니다.");
+        }
+        return prompt.options().stream()
+                .filter(option -> option.optionNo() == optionNo)
+                .map(StoryBranchPromptResponse.Option::label)
+                .findFirst()
+                .orElseThrow(() -> new ConflictException(
+                        "제공된 분기 선택지 중 하나를 선택해야 합니다."
+                ));
+    }
+
+    private void validateBranchPrompt(GeneratedStoryBranchPrompt prompt) {
+        if (prompt == null || prompt.options() == null || prompt.options().size() != 3) {
+            throw new AiClientException("AI 서버의 branchPrompt는 선택지 3개를 포함해야 합니다.");
+        }
+        Set<Integer> optionNumbers = new HashSet<>();
+        Set<String> labels = new HashSet<>();
+        for (GeneratedStoryBranchOption option : prompt.options()) {
+            if (option == null || option.optionNo() < 1 || option.optionNo() > 3) {
+                throw new AiClientException("AI 서버의 분기 선택지 번호는 1부터 3까지여야 합니다.");
+            }
+            if (option.label() == null || option.label().isBlank()
+                    || option.label().length() > 80
+                    || !option.label().equals(option.label().strip())) {
+                throw new AiClientException("AI 서버의 분기 선택지 문구가 유효하지 않습니다.");
+            }
+            optionNumbers.add(option.optionNo());
+            labels.add(option.label());
+        }
+        if (!optionNumbers.equals(Set.of(1, 2, 3)) || labels.size() != 3) {
+            throw new AiClientException("AI 서버의 분기 선택지는 번호와 문구가 중복되지 않아야 합니다.");
+        }
+    }
+
+    private String serializeBranchPrompt(GeneratedStoryBranchPrompt prompt) {
+        if (prompt == null) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(prompt);
+        } catch (Exception exception) {
+            throw new AiClientException("AI 서버의 branchPrompt를 저장할 수 없습니다.", exception);
+        }
+    }
+
+    private StoryBranchPromptResponse toBranchPrompt(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            GeneratedStoryBranchPrompt prompt = objectMapper.readValue(
+                    json, GeneratedStoryBranchPrompt.class
+            );
+            validateBranchPrompt(prompt);
+            return new StoryBranchPromptResponse(prompt.options().stream()
+                    .map(option -> new StoryBranchPromptResponse.Option(
+                            option.optionNo(), option.label()
+                    ))
+                    .toList());
+        } catch (AiClientException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            throw new AiClientException("저장된 branchPrompt를 읽을 수 없습니다.", exception);
+        }
     }
 
     private StoryTemplateEntity findTemplate(Long storyTemplateId) {
@@ -600,5 +694,9 @@ public class StoryService {
     }
 
     private record GeneratedSegment(StorySceneEntity scene, List<StoryLineEntity> lines) {
+    }
+
+    private record BranchContext(StoryEntity story, StoryLineEntity line,
+                                 Optional<StoryChoiceEntity> existingChoice) {
     }
 }

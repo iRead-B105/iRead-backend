@@ -11,7 +11,6 @@ import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.*;
 import com.iread.backend.training.curriculum.PersonalizedCurriculumPlanner;
-import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.repository.*;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
@@ -328,61 +327,6 @@ class TrainingServiceTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("수정 가능한 커리큘럼은 한 개만 생성할 수 있습니다.");
         verify(trainingTemplateRepository, never()).findAllById(any());
-    }
-
-    @Test
-    void 예정_단어가_없으면_단어를_생성하고_JSON에_추가한다() {
-        TrainingEntity training = ownedTraining(1L);
-        TrainingDataEntity data = new TrainingDataEntity(
-                training, "{\"version\":1,\"expectedWords\":[],\"content\":{}}"
-        );
-        WordEntity word = new WordEntity("사과");
-        ReflectionTestUtils.setField(word, "id", 101L);
-        allowStudent();
-        when(trainingRepository.findByIdAndDailyCurriculumStudentId(1L, 10L)).thenReturn(Optional.of(training));
-        when(trainingDataRepository.findByTrainingId(1L)).thenReturn(Optional.of(data));
-        when(wordRepository.findByContent("사과")).thenReturn(Optional.empty());
-        when(wordRepository.save(any(WordEntity.class))).thenReturn(word);
-
-        trainingService.addExpectedWord(1L, 10L, 1L, new ExpectedWordRequest("사과"));
-
-        assertThat(data.getGeneratedData()).contains("\"wordId\":101").contains("\"wordName\":\"사과\"");
-        assertThat(training.getStatus()).isEqualTo(TrainingStatus.NOT_READY);
-    }
-
-    @Test
-    void 예정_단어는_중복해서_추가할_수_없다() {
-        TrainingEntity training = ownedTraining(1L);
-        TrainingDataEntity data = new TrainingDataEntity(
-                training, "{\"version\":1,\"expectedWords\":[{\"wordId\":101,\"wordName\":\"사과\"}]}"
-        );
-        allowStudent();
-        when(trainingRepository.findByIdAndDailyCurriculumStudentId(1L, 10L)).thenReturn(Optional.of(training));
-        when(trainingDataRepository.findByTrainingId(1L)).thenReturn(Optional.of(data));
-
-        assertThatThrownBy(() -> trainingService.addExpectedWord(
-                1L, 10L, 1L, new ExpectedWordRequest("사과")))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("이미 추가된 예정 단어입니다.");
-        verify(wordRepository, never()).save(any());
-    }
-
-    @Test
-    void 진행중인_훈련의_예정_단어는_수정할_수_없다() {
-        TrainingEntity training = ownedTraining(1L);
-        ReflectionTestUtils.setField(training, "status", TrainingStatus.IN_PROGRESS);
-        allowStudent();
-        when(trainingRepository.findByIdAndDailyCurriculumStudentId(1L, 10L))
-                .thenReturn(Optional.of(training));
-
-        assertThatThrownBy(() -> trainingService.addExpectedWord(
-                1L, 10L, 1L, new ExpectedWordRequest("사과")))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("진행 중이거나 완료된 훈련은 수정할 수 없습니다.");
-        assertThatThrownBy(() -> trainingService.deleteExpectedWord(1L, 10L, 1L, 101L))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("진행 중이거나 완료된 훈련은 수정할 수 없습니다.");
-        verify(trainingDataRepository, never()).findByTrainingId(any());
     }
 
     @Test

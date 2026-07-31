@@ -46,6 +46,7 @@ import tools.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
@@ -534,6 +535,13 @@ public class AppTestService {
         BigDecimal accuracy = BigDecimal.valueOf(scoreSum)
                 .divide(BigDecimal.valueOf(completedQuestions * 10L), 2, RoundingMode.HALF_UP);
         LocalDateTime completedAt = LocalDateTime.now();
+        if (test.getStartedAt() != null) {
+            long solvingTimeSeconds = Math.max(
+                    0,
+                    Duration.between(test.getStartedAt(), completedAt).getSeconds()
+            );
+            result.put("solvingTimeSeconds", solvingTimeSeconds);
+        }
         test.complete(writeJson(result), accuracy, completedAt);
         if (test.getTestCurriculum() != null) {
             List<StudentTestEntity> curriculumTests =

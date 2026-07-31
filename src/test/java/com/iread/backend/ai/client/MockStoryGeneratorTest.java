@@ -27,6 +27,11 @@ class MockStoryGeneratorTest {
         assertThat(response.lines())
                 .extracting(line -> line.requiresBranchInput())
                 .containsExactly(false, false, false, false, true);
+        assertThat(response.lines().getLast().branchPrompt().options())
+                .extracting(option -> option.optionNo())
+                .containsExactly(1, 2, 3);
+        assertThat(response.lines().subList(0, 4))
+                .allMatch(line -> line.branchPrompt() == null);
     }
 
     @Test
@@ -44,6 +49,8 @@ class MockStoryGeneratorTest {
         assertThat(response.lines())
                 .extracting(line -> line.requiresBranchInput())
                 .containsOnly(false);
+        assertThat(response.lines())
+                .allMatch(line -> line.branchPrompt() == null);
         assertThat(response.lines().getFirst().content()).contains("친구를 따라간다");
     }
 }

@@ -105,9 +105,6 @@ class AdminContractMappingTest {
                 route(RequestMethod.GET, "/api/admin/training/{studentId}/{curriculumId}/statistics"),
                 route(RequestMethod.GET, "/api/admin/training/{studentId}/{curriculumId}/training-log"),
                 route(RequestMethod.GET, "/api/admin/training/{studentId}/{trainingId}/detail"),
-                route(RequestMethod.GET, "/api/admin/training/{studentId}/{trainingId}/expected-word"),
-                route(RequestMethod.POST, "/api/admin/training/{studentId}/{trainingId}/expected-word"),
-                route(RequestMethod.DELETE, "/api/admin/training/{studentId}/{trainingId}/expected-word/{wordId}"),
                 route(RequestMethod.POST, "/api/admin/training/{studentId}/{trainingId}/export"),
                 route(RequestMethod.GET, "/api/admin/training/{studentId}/{trainingId}/gaze-analysis")
         );

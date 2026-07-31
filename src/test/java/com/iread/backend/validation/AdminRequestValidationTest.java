@@ -50,16 +50,15 @@ class AdminRequestValidationTest {
     }
 
     @Test
-    void rejectsOversizedReportMemo() {
+    void rejectsNullReportStudentId() {
         CreateReportRequest request = new CreateReportRequest(
-                10L,
+                null,
                 LocalDate.of(2026, 7, 1),
-                LocalDate.of(2026, 7, 31),
-                "가".repeat(2001)
+                LocalDate.of(2026, 7, 31)
         );
 
         assertThat(validator.validate(request))
                 .extracting(violation -> violation.getPropertyPath().toString())
-                .contains("teacherMemo");
+                .contains("studentId");
     }
 }

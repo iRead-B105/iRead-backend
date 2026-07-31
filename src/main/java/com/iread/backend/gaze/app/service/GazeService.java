@@ -8,6 +8,7 @@ import com.iread.backend.gaze.app.dto.req.GazeAnalysisResultRequest;
 import com.iread.backend.gaze.app.dto.req.StartGazeSessionRequest;
 import com.iread.backend.gaze.app.dto.res.*;
 import com.iread.backend.gaze.analysis.GazeWordMetricMergeService;
+import com.iread.backend.gaze.analysis.GazeDepartureCounter;
 import com.iread.backend.gaze.domain.*;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
@@ -27,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.time.LocalDateTime;
 
@@ -41,6 +43,7 @@ public class GazeService {
     private final GazeSessionRepository gazeSessionRepository;
     private final GazeAnalysisResultRepository gazeAnalysisResultRepository;
     private final TrainingInputRequirementService trainingInputRequirementService;
+    private final GazeDepartureCounter gazeDepartureCounter;
     private final GazeWordMetricMergeService gazeWordMetricMergeService;
     private final GazeDataStorage gazeDataStorage;
     private final RealtimeEventPublisher realtimeEventPublisher;
@@ -144,6 +147,7 @@ public class GazeService {
         gazeSession.end(request.endStatus(), LocalDateTime.now(), dataUrl);
         if (request.endStatus() == GazeSessionStatus.COMPLETED) {
             gazeWordMetricMergeService.merge(gazeSession, request.data());
+            updateTestGazeDepartureMetric(gazeSession, request.data());
         }
         realtimeEventPublisher.publishAfterCommit(
                 teacherId,
@@ -284,6 +288,35 @@ public class GazeService {
         }
         return (data.path("samples").isArray() && !data.path("samples").isEmpty())
                 || (data.path("words").isArray() && !data.path("words").isEmpty());
+    }
+
+    private void updateTestGazeDepartureMetric(
+            GazeSessionEntity gazeSession,
+            tools.jackson.databind.JsonNode data
+    ) {
+        if (gazeSession.getContentType() != GazeContentType.TEST
+                || gazeSession.getTest() == null) {
+            return;
+        }
+        Integer departureCount = gazeDepartureCounter.count(data);
+        if (departureCount == null) {
+            return;
+        }
+        Long studentId = gazeSession.getStudent().getId();
+        StudentTestEntity test = testRepository.findByIdAndStudentIdForUpdate(
+                        gazeSession.getTest().getId(),
+                        studentId
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("Test not found."));
+        ObjectNode result = objectMapper.createObjectNode();
+        if (test.getResult() != null && !test.getResult().isBlank()) {
+            tools.jackson.databind.JsonNode stored = objectMapper.readTree(test.getResult());
+            if (stored != null && stored.isObject()) {
+                result = (ObjectNode) stored.deepCopy();
+            }
+        }
+        result.put("gazeDepartureCount", departureCount);
+        test.updateResultMetrics(result.toString());
     }
 
     private GazeAnalysisDetailResponse toAnalysisDetailResponse(GazeAnalysisResultEntity result) {

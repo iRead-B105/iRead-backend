@@ -247,11 +247,11 @@ VALUES
     (6811, 6801, NULL, 1, '2026-07-29 15:00:00'),
     (6812, 6801, NULL, 2, '2026-07-29 15:05:00');
 
-INSERT INTO story_lines (id, scene_id, has_choices, content, sequence_no, created_at, read_at)
+INSERT INTO story_lines (id, scene_id, has_choices, content, branch_prompt, sequence_no, created_at, read_at)
 VALUES
-    (6821, 6811, FALSE, JSON_OBJECT('text', '서아는 숲속 도서관에서 빛나는 지도를 발견했어요.'), 1, '2026-07-29 15:00:00', '2026-07-29 15:02:00'),
-    (6822, 6811, TRUE, JSON_OBJECT('text', '지도에는 두 갈래 길이 그려져 있었어요. 어느 길로 가 볼까요?'), 2, '2026-07-29 15:02:00', '2026-07-29 15:04:00'),
-    (6823, 6812, TRUE, JSON_OBJECT('text', '길 끝에서 작은 문을 만났어요. 다음에는 무엇을 할까요?'), 1, '2026-07-29 15:05:00', NULL);
+    (6821, 6811, FALSE, JSON_OBJECT('text', '서아는 숲속 도서관에서 빛나는 지도를 발견했어요.'), NULL, 1, '2026-07-29 15:00:00', '2026-07-29 15:02:00'),
+    (6822, 6811, TRUE, JSON_OBJECT('text', '지도에는 어느 길로 가면 좋을까요?'), JSON_OBJECT('options', JSON_ARRAY(JSON_OBJECT('optionNo', 1, 'label', '별빛이 비치는 왼쪽 길로 간다.'), JSON_OBJECT('optionNo', 2, 'label', '나무가 우거진 오른쪽 길로 간다.'), JSON_OBJECT('optionNo', 3, 'label', '지도 요정에게 길을 물어본다.'))), 2, '2026-07-29 15:02:00', '2026-07-29 15:04:00'),
+    (6823, 6812, TRUE, JSON_OBJECT('text', '작은 문 앞에서 무엇을 하면 좋을까요?'), JSON_OBJECT('options', JSON_ARRAY(JSON_OBJECT('optionNo', 1, 'label', '문을 조심스럽게 두드린다.'), JSON_OBJECT('optionNo', 2, 'label', '창문으로 안을 살펴본다.'), JSON_OBJECT('optionNo', 3, 'label', '친구를 불러 함께 기다린다.'))), 1, '2026-07-29 15:05:00', NULL);
 
 INSERT INTO story_choices (id, story_line_id, content, created_at)
 VALUES

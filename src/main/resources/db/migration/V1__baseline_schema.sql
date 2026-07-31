@@ -194,6 +194,7 @@ CREATE TABLE `story_lines` (
 	`scene_id` bigint NOT NULL,
 	`has_choices` boolean NOT NULL,
 	`content` json NOT NULL COMMENT '대사 본문과 형태소·G2P 분석 결과',
+	`branch_prompt` json NULL COMMENT 'AI가 생성한 분기 선택지 3개',
 	`sequence_no` int NOT NULL,
 	`created_at` timestamp NOT NULL,
 	`read_at` timestamp NULL,

@@ -304,13 +304,18 @@ VALUES
     (6504, 6404, NULL, 1, '2026-07-24 16:00:00');
 
 INSERT INTO `story_lines`
-    (`id`, `scene_id`, `has_choices`, `content`, `sequence_no`, `created_at`, `read_at`)
+    (`id`, `scene_id`, `has_choices`, `content`, `branch_prompt`, `sequence_no`, `created_at`, `read_at`)
 VALUES
-    (6601, 6501, FALSE, JSON_OBJECT('text', '하늘이는 별빛 숲에서 작은 친구를 만났어요.'), 1, '2026-07-20 16:00:00', '2026-07-20 16:02:00'),
-    (6602, 6502, FALSE, JSON_OBJECT('text', '서아는 구름 우체국에 편지를 전해 주었어요.'), 1, '2026-07-15 16:00:00', '2026-07-15 16:03:00'),
-    (6603, 6503, TRUE, JSON_OBJECT('text', '우진이는 두 갈래 길 앞에서 잠시 생각했어요.'), 1, '2026-07-18 16:00:00', NULL),
-    (6604, 6504, FALSE, JSON_OBJECT('text', '지민이는 반짝이는 구름 기차에 올라탔어요.'), 1, '2026-07-24 16:00:00', '2026-07-24 16:02:00');
-
+    (6601, 6501, FALSE, JSON_OBJECT('text', '하늘이는 별빛 숲에서 작은 친구를 만났어요.'), NULL, 1, '2026-07-20 16:00:00', '2026-07-20 16:02:00'),
+    (6602, 6502, FALSE, JSON_OBJECT('text', '서아는 구름 우체국에 편지를 전해 주었어요.'), NULL, 1, '2026-07-15 16:00:00', '2026-07-15 16:03:00'),
+    (6603, 6503, TRUE, JSON_OBJECT('text', '우진이는 어느 길로 가면 좋을까요?'), JSON_OBJECT(
+        'options', JSON_ARRAY(
+            JSON_OBJECT('optionNo', 1, 'label', '별빛 길로 간다'),
+            JSON_OBJECT('optionNo', 2, 'label', '숲길로 간다'),
+            JSON_OBJECT('optionNo', 3, 'label', '시냇물 길로 간다')
+        )
+    ), 1, '2026-07-18 16:00:00', NULL),
+    (6604, 6504, FALSE, JSON_OBJECT('text', '지민이는 반짝이는 구름 기차에 올라탔어요.'), NULL, 1, '2026-07-24 16:00:00', '2026-07-24 16:02:00');
 INSERT INTO `characters`
     (`id`, `student_id`, `story_id`, `image_url`, `created_at`, `name`)
 VALUES

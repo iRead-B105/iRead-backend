@@ -2,10 +2,11 @@ package com.iread.backend.training.admin.controller;
 
 import com.iread.backend.auth.annotation.CurrentTeacherId;
 import com.iread.backend.training.admin.dto.req.CompleteTrainingRequest;
-import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
+import com.iread.backend.training.admin.dto.req.UpdateLessonMaterialRequest;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.admin.dto.res.*;
 import com.iread.backend.training.admin.service.TrainingService;
+import com.iread.backend.training.admin.service.LessonMaterialService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -26,6 +27,7 @@ import java.util.List;
 @RequestMapping("/api/admin/training")
 public class TrainingController {
     private final TrainingService trainingService;
+    private final LessonMaterialService lessonMaterialService;
 
     @Operation(summary = "학생의 완료된 일일 커리큘럼 기록 조회")
     @GetMapping("/{studentId}/curriculum-log")
@@ -109,15 +111,29 @@ public class TrainingController {
         return ResponseEntity.ok().build();
     }
 
-    @Operation(summary = "훈련에 사용할 예정 단어 목록 조회")
-    @GetMapping("/{studentId}/{trainingId}/expected-word")
-    public ExpectedWordDataResponse getExpectedWords(
+    @Operation(summary = "Get editable lesson materials")
+    @GetMapping("/{studentId}/{trainingId}/lesson-material")
+    public LessonMaterialResponse getLessonMaterial(
             @CurrentTeacherId Long teacherId,
             @PathVariable Long studentId,
             @PathVariable Long trainingId
     ) {
-        return new ExpectedWordDataResponse(
-                trainingService.getExpectedWords(teacherId, studentId, trainingId)
+        return lessonMaterialService.getLessonMaterial(teacherId, studentId, trainingId);
+    }
+
+    @Operation(summary = "Validate and save all lesson materials")
+    @PutMapping("/{studentId}/{trainingId}/lesson-material")
+    public SaveLessonMaterialResponse updateLessonMaterial(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @PathVariable Long trainingId,
+            @Valid @RequestBody UpdateLessonMaterialRequest request
+    ) {
+        return lessonMaterialService.updateLessonMaterial(
+                teacherId,
+                studentId,
+                trainingId,
+                request
         );
     }
 
@@ -152,23 +168,6 @@ public class TrainingController {
                         "attachment; filename=\"" + file.fileName() + "\""
                 )
                 .body(file.content());
-    }
-
-    @Operation(summary = "훈련에 사용할 예정 단어 추가")
-    @PostMapping("/{studentId}/{trainingId}/expected-word")
-    public ResponseEntity<Void> addExpectedWord(@CurrentTeacherId Long teacherId, @PathVariable Long studentId,
-                                                 @PathVariable Long trainingId,
-                                                 @Valid @RequestBody ExpectedWordRequest request) {
-        trainingService.addExpectedWord(teacherId, studentId, trainingId, request);
-        return ResponseEntity.ok().build();
-    }
-
-    @Operation(summary = "훈련에 사용할 예정 단어 삭제")
-    @DeleteMapping("/{studentId}/{trainingId}/expected-word/{wordId}")
-    public ResponseEntity<Void> deleteExpectedWord(@CurrentTeacherId Long teacherId, @PathVariable Long studentId,
-                                                    @PathVariable Long trainingId, @PathVariable Long wordId) {
-        trainingService.deleteExpectedWord(teacherId, studentId, trainingId, wordId);
-        return ResponseEntity.ok().build();
     }
 
     @Operation(summary = "AI 훈련 문제 생성")

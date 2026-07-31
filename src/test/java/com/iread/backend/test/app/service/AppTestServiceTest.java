@@ -166,6 +166,7 @@ class AppTestServiceTest {
         when(testRepository.findByIdAndStudentIdForUpdate(30L, 20L))
                 .thenReturn(Optional.of(test));
         when(test.getId()).thenReturn(30L);
+        when(test.getStartedAt()).thenReturn(LocalDateTime.now().minusSeconds(120));
         when(test.getStatus()).thenReturn(
                 TestStatus.IN_PROGRESS,
                 TestStatus.IN_PROGRESS,
@@ -210,13 +211,16 @@ class AppTestServiceTest {
 
         ArgumentCaptor<LocalDateTime> completedAtCaptor =
                 ArgumentCaptor.forClass(LocalDateTime.class);
+        ArgumentCaptor<String> resultCaptor = ArgumentCaptor.forClass(String.class);
         verify(test).complete(
-                any(String.class),
+                resultCaptor.capture(),
                 org.mockito.ArgumentMatchers.eq(new BigDecimal("100.00")),
                 completedAtCaptor.capture()
         );
         assertThat(result.testId()).isEqualTo(30L);
         assertThat(result.status()).isEqualTo(TestStatus.COMPLETED);
+        assertThat(mapper.readTree(resultCaptor.getValue()).path("solvingTimeSeconds").asLong())
+                .isGreaterThanOrEqualTo(120L);
         assertThat(result.completionType()).isEqualTo("TEST_COMPLETED");
         assertThat(result.messageKey()).isEqualTo("TEST_COMPLETE_GREAT_JOB");
         assertThat(result.completedAt()).isEqualTo(completedAt);

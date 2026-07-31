@@ -22,12 +22,15 @@ public class ReportCreationException extends RuntimeException {
         this.details = details;
     }
 
-    public static ReportCreationException dataNotFound() {
+    public static ReportCreationException insufficientLearningDays(long actualDays) {
         return new ReportCreationException(
                 HttpStatus.BAD_REQUEST,
-                "REPORT_DATA_NOT_FOUND",
-                "선택한 기간에 완료된 학습 기록이 없습니다.",
-                null,
+                "REPORT_INSUFFICIENT_LEARNING_DAYS",
+                "At least two distinct completed training days are required.",
+                Map.of(
+                        "requiredDays", 2,
+                        "actualDays", actualDays
+                ),
                 null
         );
     }

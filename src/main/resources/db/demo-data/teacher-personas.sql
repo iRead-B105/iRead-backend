@@ -1337,7 +1337,7 @@ WHERE NOT EXISTS (
 );
 
 INSERT INTO story_lines
-    (id, scene_id, has_choices, content, sequence_no, created_at, read_at)
+    (id, scene_id, has_choices, content, branch_prompt, sequence_no, created_at, read_at)
 SELECT
     182000 + persona.persona_no * 1000 + story_no.seq * 100 + scene_no.seq * 10 + line_no.seq,
     181000 + persona.persona_no * 100 + story_no.seq * 10 + scene_no.seq,
@@ -1346,6 +1346,13 @@ SELECT
         WHEN 1 THEN CONCAT(persona.persona_title, '가 숲속 도서관에서 빛나는 지도를 발견했습니다.')
         ELSE CONCAT('지도에는 ', persona.strength_area, '을 활용해야 열리는 길이 그려져 있었습니다.')
     END),
+    CASE WHEN line_no.seq = 2 THEN JSON_OBJECT(
+        'options', JSON_ARRAY(
+            JSON_OBJECT('optionNo', 1, 'label', CONCAT(persona.strength_area, '을 활용해 왼쪽 길로 간다')),
+            JSON_OBJECT('optionNo', 2, 'label', CONCAT(persona.weakness_area, '을 천천히 살피며 오른쪽 길로 간다')),
+            JSON_OBJECT('optionNo', 3, 'label', '친구와 함께 가운데 길로 간다')
+        )
+    ) END,
     line_no.seq,
     TIMESTAMPADD(MINUTE, scene_no.seq * 5 + line_no.seq,
         CASE story_no.seq

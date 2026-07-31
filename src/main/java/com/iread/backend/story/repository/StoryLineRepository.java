@@ -20,6 +20,16 @@ public interface StoryLineRepository extends JpaRepository<StoryLineEntity, Long
             """)
     List<StoryLineEntity> findAllByStoryIdOrderBySequenceNoAsc(@Param("storyId") Long storyId);
 
+    @EntityGraph(attributePaths = {"scene", "scene.story"})
+    @Query("""
+            select line from StoryLineEntity line
+             where line.scene.story.id in :storyIds
+             order by line.scene.story.id, line.scene.sequenceNo, line.sequenceNo, line.id
+            """)
+    List<StoryLineEntity> findAllByStoryIdInOrderBySequenceNoAsc(
+            @Param("storyIds") List<Long> storyIds
+    );
+
     @EntityGraph(attributePaths = "scene")
     @Query("""
             select line from StoryLineEntity line
