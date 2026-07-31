@@ -6,6 +6,7 @@ import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
 import com.iread.backend.gaze.analysis.GazeWordAnalysisAdapter;
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
+import com.iread.backend.realtime.RealtimeEventPublisher;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.*;
@@ -60,6 +61,7 @@ class TrainingServiceTest {
     @Mock StudentFeatureProfileService studentFeatureProfileService;
     @Mock PersonalizedCurriculumPlanner personalizedCurriculumPlanner;
     @Mock TrainingInputRequirementService trainingInputRequirementService;
+    @Mock RealtimeEventPublisher realtimeEventPublisher;
 
     private TrainingService trainingService;
 
@@ -91,6 +93,7 @@ class TrainingServiceTest {
                 studentFeatureProfileService,
                 personalizedCurriculumPlanner,
                 trainingInputRequirementService,
+                realtimeEventPublisher,
                 JsonMapper.builder().build()
         );
     }

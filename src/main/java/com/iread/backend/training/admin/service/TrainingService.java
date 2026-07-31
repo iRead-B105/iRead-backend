@@ -13,6 +13,8 @@ import com.iread.backend.ai.client.AiClient;
 import com.iread.backend.ai.dto.req.EvaluateTrainingRequest;
 import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
 import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
+import com.iread.backend.realtime.RealtimeEventPublisher;
+import com.iread.backend.realtime.RealtimeResource;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.*;
@@ -58,6 +60,7 @@ public class TrainingService {
     private final StudentFeatureProfileService studentFeatureProfileService;
     private final PersonalizedCurriculumPlanner personalizedCurriculumPlanner;
     private final TrainingInputRequirementService trainingInputRequirementService;
+    private final RealtimeEventPublisher realtimeEventPublisher;
     private final ObjectMapper objectMapper;
 
     public List<CurriculumLogResponse> getCurriculumLogs(
@@ -142,6 +145,21 @@ public class TrainingService {
         return getDailyCurriculum(teacherId, studentId, curriculum.getId());
     }
 
+    public DailyCurriculumResponse getActiveDailyCurriculum(Long teacherId, Long studentId) {
+        validateStudentOwner(teacherId, studentId);
+        DailyCurriculumEntity curriculum = dailyCurriculumRepository
+                .findByStudentIdAndStatus(studentId, DailyCurriculumStatus.IN_PROGRESS)
+                .or(() -> dailyCurriculumRepository.findByStudentIdAndStatus(
+                        studentId,
+                        DailyCurriculumStatus.NOT_STARTED
+                ))
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "ACTIVE_CURRICULUM_NOT_FOUND",
+                        "아동의 활성 커리큘럼을 찾을 수 없습니다."
+                ));
+        return getDailyCurriculum(teacherId, studentId, curriculum.getId());
+    }
+
     @Transactional
     public DailyCurriculumResponse createDailyCurriculum(
             Long teacherId,
@@ -160,6 +178,13 @@ public class TrainingService {
         List<TrainingTemplateEntity> templates = resolveTemplates(ids);
         DailyCurriculumEntity curriculum = dailyCurriculumRepository.saveAndFlush(
                 new DailyCurriculumEntity(student, templates)
+        );
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.CURRICULUM,
+                curriculum.getId(),
+                "CREATED"
         );
         return toDailyCurriculumResponse(curriculum);
     }
@@ -185,6 +210,13 @@ public class TrainingService {
         dailyCurriculumRepository.flush();
         curriculum.replaceTrainings(templates);
         dailyCurriculumRepository.flush();
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.CURRICULUM,
+                curriculumId,
+                "UPDATED"
+        );
     }
 
     public List<ExpectedWordResponse> getExpectedWords(Long teacherId, Long studentId, Long trainingId) {
@@ -251,6 +283,13 @@ public class TrainingService {
         ObjectNode generatedData = personalizedTrainingGenerationService.generate(training);
         data.updateGeneratedData(writeJson(generatedData));
         training.markReady();
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.TRAINING,
+                trainingId,
+                "CONTENT_UPDATED"
+        );
         return generatedData;
     }
 
@@ -305,6 +344,13 @@ public class TrainingService {
         if (training.getDailyCurriculum().getStatus() == DailyCurriculumStatus.COMPLETED) {
             personalizedCurriculumPlanner.createNextIfAbsent(student);
         }
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.TRAINING,
+                trainingId,
+                "COMPLETED"
+        );
         return accuracy;
     }
 
@@ -339,6 +385,13 @@ public class TrainingService {
         wordNode.put("wordName", word.getContent());
         data.updateGeneratedData(writeJson(root));
         training.markNotReady();
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.TRAINING,
+                trainingId,
+                "CONTENT_UPDATED"
+        );
     }
 
     @Transactional
@@ -359,6 +412,13 @@ public class TrainingService {
         if (!removed) throw new ResourceNotFoundException("예정 단어를 찾을 수 없습니다.");
         data.updateGeneratedData(writeJson(root));
         training.markNotReady();
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.TRAINING,
+                trainingId,
+                "CONTENT_UPDATED"
+        );
     }
 
     private StudentEntity validateStudentOwner(Long teacherId, Long studentId) {

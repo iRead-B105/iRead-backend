@@ -10,6 +10,8 @@ import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.exception.ConflictException;
 import com.iread.backend.mypage.domain.CharacterEntity;
 import com.iread.backend.mypage.repository.CharacterRepository;
+import com.iread.backend.realtime.RealtimeEventPublisher;
+import com.iread.backend.realtime.RealtimeResource;
 import com.iread.backend.story.app.dto.req.StoryTtsRequest;
 import com.iread.backend.story.app.dto.res.*;
 import com.iread.backend.story.domain.*;
@@ -43,6 +45,7 @@ public class StoryService {
     private final CharacterRepository characterRepository;
     private final AiClient aiClient;
     private final StoryAudioStorage storyAudioStorage;
+    private final RealtimeEventPublisher realtimeEventPublisher;
 
     public StoryShelfResponse getStoryShelf(Long teacherId, Long studentId) {
         validateStudentOwner(teacherId, studentId);
@@ -92,6 +95,13 @@ public class StoryService {
         StoryEntity story = findOwnedStory(teacherId, studentId, storyId);
         StoryLineEntity line = findLine(story.getId(), storyLineId);
         line.markRead(LocalDateTime.now());
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.STORY,
+                storyId,
+                "PROGRESS_UPDATED"
+        );
         return toLineResponse(line);
     }
 
@@ -123,6 +133,13 @@ public class StoryService {
         if (generated.completed()) {
             createStoryCharacter(story, List.of(), generated);
         }
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.STORY,
+                story.getId(),
+                generated.completed() ? "COMPLETED" : "STARTED"
+        );
 
         return new StorySessionResponse(
                 story.getId(), teacherId, template.getId(), story.getCreatedAt(), story.getStatus()
@@ -184,6 +201,13 @@ public class StoryService {
         }
         StoryChoiceEntity choice = storyChoiceRepository.saveAndFlush(
                 new StoryChoiceEntity(selectedLine, transcript)
+        );
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.STORY,
+                storyId,
+                generated.completed() ? "COMPLETED" : "PROGRESS_UPDATED"
         );
 
         return new StoryChoiceResponse(

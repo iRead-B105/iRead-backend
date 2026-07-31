@@ -12,6 +12,7 @@ import com.iread.backend.gaze.app.dto.req.StartGazeSessionRequest;
 import com.iread.backend.gaze.analysis.GazeWordMetricMergeService;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
+import com.iread.backend.realtime.RealtimeEventPublisher;
 import com.iread.backend.story.repository.StoryRepository;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
@@ -49,6 +50,7 @@ class GazeServiceTest {
     @Mock GazeAnalysisResultRepository gazeAnalysisResultRepository;
     @Mock TrainingInputRequirementService trainingInputRequirementService;
     @Mock GazeWordMetricMergeService gazeWordMetricMergeService;
+    @Mock RealtimeEventPublisher realtimeEventPublisher;
 
     private GazeService gazeService;
 
@@ -63,6 +65,7 @@ class GazeServiceTest {
                 gazeAnalysisResultRepository,
                 trainingInputRequirementService,
                 gazeWordMetricMergeService,
+                realtimeEventPublisher,
                 new JsonMapper()
         );
     }

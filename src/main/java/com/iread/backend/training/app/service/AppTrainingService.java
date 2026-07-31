@@ -7,6 +7,8 @@ import com.iread.backend.learning.app.dto.LearningErrorLocation;
 import com.iread.backend.learning.app.dto.LearningSubmission;
 import com.iread.backend.learning.app.service.AppLearningQuestionSupport;
 import com.iread.backend.pronunciation.*;
+import com.iread.backend.realtime.RealtimeEventPublisher;
+import com.iread.backend.realtime.RealtimeResource;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.admin.service.TrainingService;
@@ -17,6 +19,7 @@ import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.domain.TrainingStatus;
 import com.iread.backend.training.domain.WordEntity;
 import com.iread.backend.training.repository.TrainingDataRepository;
+import com.iread.backend.training.repository.DailyCurriculumRepository;
 import com.iread.backend.training.repository.TrainingRepository;
 import com.iread.backend.training.repository.WordRepository;
 import com.iread.backend.training.input.TrainingInputRequirementService;
@@ -52,6 +55,7 @@ public class AppTrainingService {
     private static final int MAX_PRONUNCIATION_ATTEMPTS = 2;
 
     private final StudentRepository studentRepository;
+    private final DailyCurriculumRepository dailyCurriculumRepository;
     private final TrainingRepository trainingRepository;
     private final TrainingDataRepository trainingDataRepository;
     private final WordRepository wordRepository;
@@ -64,6 +68,7 @@ public class AppTrainingService {
     private final TrainingService trainingService;
     private final ObjectMapper objectMapper;
     private final AppLearningQuestionSupport learningQuestionSupport;
+    private final RealtimeEventPublisher realtimeEventPublisher;
 
     public TrainingIntroResponse getIntro(Long teacherId, Long studentId, Long trainingId) {
         TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
@@ -115,6 +120,13 @@ public class AppTrainingService {
         }
         LocalDateTime startedAt = LocalDateTime.now();
         training.start(startedAt);
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.TRAINING,
+                trainingId,
+                "STARTED"
+        );
         return new TrainingStartResponse(trainingId, startedAt, training.getStatus());
     }
 
@@ -123,6 +135,13 @@ public class AppTrainingService {
         TrainingEntity training = findOwnedTrainingForUpdate(teacherId, studentId, trainingId);
         training.reset();
         wordAttemptLogRepository.deleteAllByTrainingId(trainingId);
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.TRAINING,
+                trainingId,
+                "RESET"
+        );
         return new TrainingResetResponse(trainingId, training.getStatus(), LocalDateTime.now());
     }
 
@@ -202,6 +221,13 @@ public class AppTrainingService {
                 attemptNo,
                 passed,
                 questionCompleted
+        );
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.TRAINING,
+                trainingId,
+                "PROGRESS_UPDATED"
         );
         LocalDateTime createdAt = storedWords.stream()
                 .map(value -> value.attempt().getCreatedAt())
@@ -303,6 +329,13 @@ public class AppTrainingService {
             );
         }
         training.recordProgressResult(writeJson(result));
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.TRAINING,
+                trainingId,
+                "PROGRESS_UPDATED"
+        );
         return feedback;
     }
 
@@ -356,6 +389,14 @@ public class AppTrainingService {
 
     private TrainingEntity findOwnedTrainingForUpdate(Long teacherId, Long studentId, Long trainingId) {
         findOwnedStudent(teacherId, studentId);
+        TrainingEntity current = trainingRepository
+                .findByIdAndDailyCurriculumStudentId(trainingId, studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("훈련을 찾을 수 없습니다."));
+        dailyCurriculumRepository.findForUpdate(
+                        current.getDailyCurriculum().getId(),
+                        studentId
+                )
+                .orElseThrow(() -> new ResourceNotFoundException("교육과정을 찾을 수 없습니다."));
         return trainingRepository.findForUpdate(trainingId, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("훈련을 찾을 수 없습니다."));
     }

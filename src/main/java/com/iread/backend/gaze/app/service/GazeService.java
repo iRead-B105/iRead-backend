@@ -11,6 +11,8 @@ import com.iread.backend.gaze.analysis.GazeWordMetricMergeService;
 import com.iread.backend.gaze.domain.*;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
+import com.iread.backend.realtime.RealtimeEventPublisher;
+import com.iread.backend.realtime.RealtimeResource;
 import com.iread.backend.story.domain.StoryEntity;
 import com.iread.backend.story.repository.StoryRepository;
 import com.iread.backend.student.domain.StudentEntity;
@@ -40,6 +42,7 @@ public class GazeService {
     private final GazeAnalysisResultRepository gazeAnalysisResultRepository;
     private final TrainingInputRequirementService trainingInputRequirementService;
     private final GazeWordMetricMergeService gazeWordMetricMergeService;
+    private final RealtimeEventPublisher realtimeEventPublisher;
     private final ObjectMapper objectMapper;
 
     public GazeDeviceStatusResponse getDeviceStatus(Long teacherId, Long studentId) {
@@ -89,6 +92,13 @@ public class GazeService {
                 request.calibrationStatus(),
                 LocalDateTime.now()
         ));
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                request.studentId(),
+                RealtimeResource.GAZE,
+                gazeSession.getId(),
+                "STARTED"
+        );
         return toSessionResponse(gazeSession);
     }
 
@@ -98,6 +108,13 @@ public class GazeService {
         GazeSessionEntity gazeSession = findOwnedGazeSessionForUpdate(gazeSessionId, request.studentId());
         requireRunning(gazeSession);
         gazeSession.fail(LocalDateTime.now());
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                request.studentId(),
+                RealtimeResource.GAZE,
+                gazeSessionId,
+                "FAILED"
+        );
         return toSessionResponse(gazeSession);
     }
 
@@ -124,6 +141,13 @@ public class GazeService {
         if (request.endStatus() == GazeSessionStatus.COMPLETED) {
             gazeWordMetricMergeService.merge(gazeSession, request.data());
         }
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                request.studentId(),
+                RealtimeResource.GAZE,
+                gazeSessionId,
+                request.endStatus().name()
+        );
         return toSessionResponse(gazeSession);
     }
 
@@ -151,6 +175,13 @@ public class GazeService {
                         toJson(request.regressions()),
                         toJson(request.analysisMeta())
                 )
+        );
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                request.studentId(),
+                RealtimeResource.GAZE,
+                gazeSessionId,
+                "ANALYSIS_AVAILABLE"
         );
         return new GazeAnalysisResultResponse(result.getId(), result.getCreatedAt());
     }

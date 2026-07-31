@@ -40,15 +40,14 @@ class AppTrainingCatalogServiceTest {
         CurriculumUnitEntity unit = mock(CurriculumUnitEntity.class);
         when(studentRepository.findByIdAndTeacherId(20L, 1L))
                 .thenReturn(Optional.of(student));
-        when(dailyCurriculumRepository
-                .findFirstByStudentIdAndStatusInOrderByCreatedAtDesc(
-                        20L,
-                        List.of(
-                                DailyCurriculumStatus.NOT_STARTED,
-                                DailyCurriculumStatus.IN_PROGRESS
-                        )
-                ))
-                .thenReturn(Optional.of(curriculum));
+        when(dailyCurriculumRepository.findByStudentIdAndStatus(
+                20L,
+                DailyCurriculumStatus.IN_PROGRESS
+        )).thenReturn(Optional.empty());
+        when(dailyCurriculumRepository.findByStudentIdAndStatus(
+                20L,
+                DailyCurriculumStatus.NOT_STARTED
+        )).thenReturn(Optional.of(curriculum));
         when(curriculum.getId()).thenReturn(30L);
         when(curriculum.getStatus()).thenReturn(DailyCurriculumStatus.NOT_STARTED);
         when(curriculum.getTrainings()).thenReturn(List.of(training));
@@ -74,6 +73,26 @@ class AppTrainingCatalogServiceTest {
             assertThat(item.trainingName()).isEqualTo("문장 따라 읽기");
             assertThat(item.status()).isEqualTo(TrainingStatus.NOT_STARTED);
         });
+    }
+
+    @Test
+    void prefersInProgressCurriculumOverNotStartedCurriculum() {
+        StudentEntity student = mock(StudentEntity.class);
+        DailyCurriculumEntity inProgress = mock(DailyCurriculumEntity.class);
+        when(studentRepository.findByIdAndTeacherId(20L, 1L))
+                .thenReturn(Optional.of(student));
+        when(dailyCurriculumRepository.findByStudentIdAndStatus(
+                20L,
+                DailyCurriculumStatus.IN_PROGRESS
+        )).thenReturn(Optional.of(inProgress));
+        when(inProgress.getId()).thenReturn(31L);
+        when(inProgress.getStatus()).thenReturn(DailyCurriculumStatus.IN_PROGRESS);
+        when(inProgress.getTrainings()).thenReturn(List.of());
+
+        var response = service.getCurrentTrainingList(1L, 20L);
+
+        assertThat(response.curriculumId()).isEqualTo(31L);
+        assertThat(response.curriculumStatus()).isEqualTo(DailyCurriculumStatus.IN_PROGRESS);
     }
 
     @Test

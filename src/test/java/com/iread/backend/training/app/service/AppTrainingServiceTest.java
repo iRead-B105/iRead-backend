@@ -11,15 +11,18 @@ import com.iread.backend.pronunciation.PronunciationWordAligner;
 import com.iread.backend.pronunciation.PronunciationAnalysisRequest;
 import com.iread.backend.pronunciation.PronunciationAnalysisResult;
 import com.iread.backend.pronunciation.PronunciationWordResult;
+import com.iread.backend.realtime.RealtimeEventPublisher;
 import com.iread.backend.training.app.dto.req.TrainingRecordingRequest;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.admin.service.TrainingService;
 import com.iread.backend.training.app.dto.res.TrainingRecordingResponse;
 import com.iread.backend.training.domain.TrainingDataEntity;
+import com.iread.backend.training.domain.DailyCurriculumEntity;
 import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.domain.TrainingStatus;
 import com.iread.backend.training.domain.WordEntity;
 import com.iread.backend.training.repository.TrainingDataRepository;
+import com.iread.backend.training.repository.DailyCurriculumRepository;
 import com.iread.backend.training.repository.TrainingRepository;
 import com.iread.backend.training.repository.WordRepository;
 import com.iread.backend.training.input.TrainingInputType;
@@ -59,6 +62,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class AppTrainingServiceTest {
     @Mock StudentRepository studentRepository;
+    @Mock DailyCurriculumRepository dailyCurriculumRepository;
     @Mock TrainingRepository trainingRepository;
     @Mock TrainingDataRepository trainingDataRepository;
     @Mock WordRepository wordRepository;
@@ -69,13 +73,21 @@ class AppTrainingServiceTest {
     @Mock TrainingInputRequirementService trainingInputRequirementService;
     @Mock TrainingService trainingService;
     @Mock ObjectMapper objectMapper;
+    @Mock RealtimeEventPublisher realtimeEventPublisher;
     @InjectMocks AppTrainingService appTrainingService;
 
     @Test
     void startsOwnedNotStartedTraining() {
         StudentEntity student = mock(StudentEntity.class);
         TrainingEntity training = mock(TrainingEntity.class);
+        DailyCurriculumEntity curriculum = mock(DailyCurriculumEntity.class);
         when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        when(trainingRepository.findByIdAndDailyCurriculumStudentId(30L, 20L))
+                .thenReturn(Optional.of(training));
+        when(training.getDailyCurriculum()).thenReturn(curriculum);
+        when(curriculum.getId()).thenReturn(40L);
+        when(dailyCurriculumRepository.findForUpdate(40L, 20L))
+                .thenReturn(Optional.of(curriculum));
         when(trainingRepository.findForUpdate(30L, 20L))
                 .thenReturn(Optional.of(training));
         when(training.getStatus())
@@ -112,6 +124,7 @@ class AppTrainingServiceTest {
         ObjectMapper mapper = JsonMapper.builder().build();
         AppTrainingService service = new AppTrainingService(
                 studentRepository,
+                mock(DailyCurriculumRepository.class),
                 trainingRepository,
                 trainingDataRepository,
                 wordRepository,
@@ -123,7 +136,8 @@ class AppTrainingServiceTest {
                 trainingInputRequirementService,
                 trainingService,
                 mapper,
-                new AppLearningQuestionSupport(mapper)
+                new AppLearningQuestionSupport(mapper),
+                mock(RealtimeEventPublisher.class)
         );
         UUID submissionId = UUID.randomUUID();
         var response = mapper.createObjectNode().put("selectedIndex", 0);
@@ -197,6 +211,7 @@ class AppTrainingServiceTest {
         ObjectMapper mapper = JsonMapper.builder().build();
         AppTrainingService service = new AppTrainingService(
                 studentRepository,
+                mock(DailyCurriculumRepository.class),
                 trainingRepository,
                 trainingDataRepository,
                 wordRepository,
@@ -208,7 +223,8 @@ class AppTrainingServiceTest {
                 trainingInputRequirementService,
                 trainingService,
                 mapper,
-                new AppLearningQuestionSupport(mapper)
+                new AppLearningQuestionSupport(mapper),
+                mock(RealtimeEventPublisher.class)
         );
 
         var result = service.saveSelection(
@@ -256,6 +272,7 @@ class AppTrainingServiceTest {
         ObjectMapper mapper = JsonMapper.builder().build();
         AppTrainingService service = new AppTrainingService(
                 studentRepository,
+                mock(DailyCurriculumRepository.class),
                 trainingRepository,
                 trainingDataRepository,
                 wordRepository,
@@ -267,7 +284,8 @@ class AppTrainingServiceTest {
                 trainingInputRequirementService,
                 trainingService,
                 mapper,
-                new AppLearningQuestionSupport(mapper)
+                new AppLearningQuestionSupport(mapper),
+                mock(RealtimeEventPublisher.class)
         );
 
         var result = service.saveSelection(
@@ -323,6 +341,7 @@ class AppTrainingServiceTest {
         ObjectMapper mapper = JsonMapper.builder().build();
         AppTrainingService service = new AppTrainingService(
                 studentRepository,
+                mock(DailyCurriculumRepository.class),
                 trainingRepository,
                 trainingDataRepository,
                 wordRepository,
@@ -334,7 +353,8 @@ class AppTrainingServiceTest {
                 trainingInputRequirementService,
                 trainingService,
                 mapper,
-                new AppLearningQuestionSupport(mapper)
+                new AppLearningQuestionSupport(mapper),
+                mock(RealtimeEventPublisher.class)
         );
 
         var result = service.saveSelection(
@@ -390,6 +410,7 @@ class AppTrainingServiceTest {
         ObjectMapper mapper = JsonMapper.builder().build();
         AppTrainingService service = new AppTrainingService(
                 studentRepository,
+                mock(DailyCurriculumRepository.class),
                 trainingRepository,
                 trainingDataRepository,
                 wordRepository,
@@ -401,7 +422,8 @@ class AppTrainingServiceTest {
                 trainingInputRequirementService,
                 trainingService,
                 mapper,
-                new AppLearningQuestionSupport(mapper)
+                new AppLearningQuestionSupport(mapper),
+                mock(RealtimeEventPublisher.class)
         );
 
         var result = service.getQuestion(1L, 20L, 30L, 1);
@@ -460,6 +482,7 @@ class AppTrainingServiceTest {
         ObjectMapper mapper = JsonMapper.builder().build();
         AppTrainingService service = new AppTrainingService(
                 studentRepository,
+                mock(DailyCurriculumRepository.class),
                 trainingRepository,
                 trainingDataRepository,
                 wordRepository,
@@ -474,7 +497,8 @@ class AppTrainingServiceTest {
                 trainingInputRequirementService,
                 trainingService,
                 mapper,
-                new AppLearningQuestionSupport(mapper)
+                new AppLearningQuestionSupport(mapper),
+                mock(RealtimeEventPublisher.class)
         );
         TrainingRecordingRequest request = new TrainingRecordingRequest(
                 40L,
@@ -540,6 +564,7 @@ class AppTrainingServiceTest {
         ObjectMapper mapper = JsonMapper.builder().build();
         AppTrainingService service = new AppTrainingService(
                 studentRepository,
+                mock(DailyCurriculumRepository.class),
                 trainingRepository,
                 trainingDataRepository,
                 wordRepository,
@@ -554,7 +579,8 @@ class AppTrainingServiceTest {
                 trainingInputRequirementService,
                 trainingService,
                 mapper,
-                new AppLearningQuestionSupport(mapper)
+                new AppLearningQuestionSupport(mapper),
+                mock(RealtimeEventPublisher.class)
         );
         TrainingRecordingRequest request = new TrainingRecordingRequest(
                 40L,
@@ -650,6 +676,7 @@ class AppTrainingServiceTest {
         });
         AppTrainingService service = new AppTrainingService(
                 studentRepository,
+                mock(DailyCurriculumRepository.class),
                 trainingRepository,
                 trainingDataRepository,
                 wordRepository,
@@ -664,7 +691,8 @@ class AppTrainingServiceTest {
                 trainingInputRequirementService,
                 trainingService,
                 JsonMapper.builder().build(),
-                new AppLearningQuestionSupport(JsonMapper.builder().build())
+                new AppLearningQuestionSupport(JsonMapper.builder().build()),
+                mock(RealtimeEventPublisher.class)
         );
         TrainingRecordingRequest request = new TrainingRecordingRequest(
                 null,
