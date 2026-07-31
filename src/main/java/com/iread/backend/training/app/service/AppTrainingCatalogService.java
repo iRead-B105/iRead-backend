@@ -6,9 +6,11 @@ import com.iread.backend.training.app.dto.res.CurrentTrainingListResponse;
 import com.iread.backend.training.domain.DailyCurriculumEntity;
 import com.iread.backend.training.domain.DailyCurriculumStatus;
 import com.iread.backend.training.repository.DailyCurriculumRepository;
+import com.iread.backend.training.generation.TrainingTemplateContract;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
 @Service
 @RequiredArgsConstructor
@@ -16,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AppTrainingCatalogService {
     private final StudentRepository studentRepository;
     private final DailyCurriculumRepository dailyCurriculumRepository;
+    private final ObjectMapper objectMapper;
 
     public CurrentTrainingListResponse getCurrentTrainingList(
             Long teacherId,
@@ -38,6 +41,10 @@ public class AppTrainingCatalogService {
                         .map(training -> new CurrentTrainingListResponse.TrainingItem(
                                 training.getId(),
                                 training.getTrainingTemplate().getId(),
+                                TrainingTemplateContract.trainingType(
+                                        training.getTrainingTemplate(),
+                                        objectMapper
+                                ),
                                 training.getSequenceNo(),
                                 training.getTrainingTemplate()
                                         .getCurriculumUnit()

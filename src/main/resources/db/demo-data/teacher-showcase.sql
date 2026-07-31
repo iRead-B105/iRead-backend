@@ -10,6 +10,12 @@ UPDATE students
 SET teacher_memo = '기초 음운부터 문장 유창성까지 전체 훈련 유형을 체험한 데모 학습자입니다. 받침과 의미 단위 끊어 읽기를 다음 목표로 권장합니다.'
 WHERE id = 2103;
 
+UPDATE daily_curriculums
+SET status = 'COMPLETED',
+    completed_at = COALESCE(completed_at, '2026-07-29 08:59:59')
+WHERE student_id = 2103
+  AND status IN ('NOT_STARTED', 'IN_PROGRESS');
+
 INSERT INTO daily_curriculums (id, student_id, status, created_at, completed_at)
 VALUES
     (3301, 2103, 'COMPLETED', '2026-01-12 10:00:00', '2026-01-12 10:35:00'),

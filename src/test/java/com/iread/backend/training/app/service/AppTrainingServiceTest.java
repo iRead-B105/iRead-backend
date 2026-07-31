@@ -18,6 +18,7 @@ import com.iread.backend.training.admin.service.TrainingService;
 import com.iread.backend.training.app.dto.res.TrainingRecordingResponse;
 import com.iread.backend.training.domain.TrainingDataEntity;
 import com.iread.backend.training.domain.DailyCurriculumEntity;
+import com.iread.backend.training.domain.DailyCurriculumStatus;
 import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.domain.TrainingStatus;
 import com.iread.backend.training.domain.WordEntity;
@@ -81,6 +82,8 @@ class AppTrainingServiceTest {
         StudentEntity student = mock(StudentEntity.class);
         TrainingEntity training = mock(TrainingEntity.class);
         DailyCurriculumEntity curriculum = mock(DailyCurriculumEntity.class);
+        when(studentRepository.findByIdAndTeacherIdForUpdate(20L, 1L))
+                .thenReturn(Optional.of(student));
         when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(trainingRepository.findByIdAndDailyCurriculumStudentId(30L, 20L))
                 .thenReturn(Optional.of(training));
@@ -99,6 +102,38 @@ class AppTrainingServiceTest {
         assertThat(result.trainingId()).isEqualTo(30L);
         assertThat(result.status()).isEqualTo(TrainingStatus.IN_PROGRESS);
         assertThat(result.startedAt()).isNotNull();
+    }
+
+    @Test
+    void rejectsStartingNextCurriculumWhileAnotherCurriculumIsInProgress() {
+        StudentEntity student = mock(StudentEntity.class);
+        TrainingEntity training = mock(TrainingEntity.class);
+        DailyCurriculumEntity next = mock(DailyCurriculumEntity.class);
+        DailyCurriculumEntity active = mock(DailyCurriculumEntity.class);
+        when(studentRepository.findByIdAndTeacherIdForUpdate(20L, 1L))
+                .thenReturn(Optional.of(student));
+        when(studentRepository.findByIdAndTeacherId(20L, 1L))
+                .thenReturn(Optional.of(student));
+        when(trainingRepository.findByIdAndDailyCurriculumStudentId(30L, 20L))
+                .thenReturn(Optional.of(training));
+        when(training.getDailyCurriculum()).thenReturn(next);
+        when(next.getId()).thenReturn(40L);
+        when(next.getStatus()).thenReturn(DailyCurriculumStatus.NOT_STARTED);
+        when(dailyCurriculumRepository.findForUpdate(40L, 20L))
+                .thenReturn(Optional.of(next));
+        when(trainingRepository.findForUpdate(30L, 20L))
+                .thenReturn(Optional.of(training));
+        when(training.getStatus()).thenReturn(TrainingStatus.NOT_STARTED);
+        when(dailyCurriculumRepository.findByStudentIdAndStatus(
+                20L,
+                DailyCurriculumStatus.IN_PROGRESS
+        )).thenReturn(Optional.of(active));
+        when(active.getId()).thenReturn(41L);
+
+        assertThatThrownBy(() -> appTrainingService.start(1L, 20L, 30L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("진행 중인 커리큘럼을 완료한 후 다음 커리큘럼을 시작할 수 있습니다.");
+        verify(training, never()).start(any(LocalDateTime.class));
     }
 
     @Test

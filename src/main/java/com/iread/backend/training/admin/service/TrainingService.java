@@ -166,7 +166,10 @@ public class TrainingService {
             Long studentId,
             UpdateCurriculumRequest request
     ) {
-        StudentEntity student = studentRepository.findByIdAndTeacherId(studentId, teacherId)
+        StudentEntity student = studentRepository.findByIdAndTeacherIdForUpdate(
+                        studentId,
+                        teacherId
+                )
                 .orElseThrow(() -> new ResourceNotFoundException("학생을 찾을 수 없습니다."));
         if (dailyCurriculumRepository
                 .findByStudentIdAndStatus(studentId, DailyCurriculumStatus.NOT_STARTED)

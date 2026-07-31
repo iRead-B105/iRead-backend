@@ -103,6 +103,12 @@ SET student.teacher_memo = persona.teacher_memo,
     student.address = COALESCE(student.address, '서울시 데모구 읽기마을'),
     student.image_url = COALESCE(student.image_url, '/images/student-profile.png');
 
+UPDATE daily_curriculums curriculum
+JOIN demo_personas persona ON persona.student_id = curriculum.student_id
+SET curriculum.status = 'IN_PROGRESS',
+    curriculum.completed_at = NULL
+WHERE curriculum.status = 'NOT_STARTED';
+
 INSERT INTO daily_curriculums (id, student_id, status, created_at, completed_at)
 SELECT
     120000 + persona.persona_no * 10 + number.seq,
@@ -124,13 +130,6 @@ WHERE NOT EXISTS (
     SELECT 1 FROM daily_curriculums existing
     WHERE existing.id = 120000 + persona.persona_no * 10 + number.seq
 );
-
-UPDATE daily_curriculums curriculum
-JOIN demo_personas persona ON persona.student_id = curriculum.student_id
-SET curriculum.status = 'IN_PROGRESS',
-    curriculum.completed_at = NULL
-WHERE curriculum.status = 'NOT_STARTED'
-  AND curriculum.id <> 120000 + persona.persona_no * 10 + 3;
 
 UPDATE daily_curriculums curriculum
 JOIN demo_personas persona

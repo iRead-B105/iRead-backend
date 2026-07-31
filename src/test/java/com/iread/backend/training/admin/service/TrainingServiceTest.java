@@ -266,7 +266,8 @@ class TrainingServiceTest {
                 template(11L, "훈련1"),
                 template(12L, "훈련2")
         );
-        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(studentRepository.findByIdAndTeacherIdForUpdate(10L, 1L))
+                .thenReturn(Optional.of(student));
         when(dailyCurriculumRepository.findByStudentIdAndStatus(10L, DailyCurriculumStatus.NOT_STARTED))
                 .thenReturn(Optional.empty());
         when(trainingTemplateRepository.findAllById(List.of(11L, 12L))).thenReturn(templates);
@@ -293,7 +294,8 @@ class TrainingServiceTest {
     @Test
     void 수정_가능한_커리큘럼은_한_개만_생성할_수_있다() {
         StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
-        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(studentRepository.findByIdAndTeacherIdForUpdate(10L, 1L))
+                .thenReturn(Optional.of(student));
         when(dailyCurriculumRepository.findByStudentIdAndStatus(10L, DailyCurriculumStatus.NOT_STARTED))
                 .thenReturn(Optional.of(curriculum(100L)));
 

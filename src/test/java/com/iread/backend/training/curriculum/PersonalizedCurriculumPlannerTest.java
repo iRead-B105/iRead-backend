@@ -9,6 +9,7 @@ import com.iread.backend.training.domain.CurriculumUnitEntity;
 import com.iread.backend.training.domain.TrainingTemplateEntity;
 import com.iread.backend.training.repository.DailyCurriculumRepository;
 import com.iread.backend.training.repository.TrainingTemplateRepository;
+import com.iread.backend.student.repository.StudentRepository;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -27,8 +28,9 @@ class PersonalizedCurriculumPlannerTest {
         TrainingTemplateRepository templates = mock(TrainingTemplateRepository.class);
         StudentFeatureProfileRepository profiles =
                 mock(StudentFeatureProfileRepository.class);
+        StudentRepository students = mock(StudentRepository.class);
         PersonalizedCurriculumPlanner planner = new PersonalizedCurriculumPlanner(
-                curricula, templates, profiles, JsonMapper.builder().build()
+                curricula, templates, profiles, students, JsonMapper.builder().build()
         );
 
         ReadingFeatureEntity feature = new ReadingFeatureEntity(

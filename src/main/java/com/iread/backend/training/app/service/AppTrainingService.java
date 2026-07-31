@@ -15,6 +15,7 @@ import com.iread.backend.training.admin.service.TrainingService;
 import com.iread.backend.training.app.dto.req.TrainingRecordingRequest;
 import com.iread.backend.training.app.dto.res.*;
 import com.iread.backend.training.domain.TrainingDataEntity;
+import com.iread.backend.training.domain.DailyCurriculumStatus;
 import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.domain.TrainingStatus;
 import com.iread.backend.training.domain.WordEntity;
@@ -23,6 +24,7 @@ import com.iread.backend.training.repository.DailyCurriculumRepository;
 import com.iread.backend.training.repository.TrainingRepository;
 import com.iread.backend.training.repository.WordRepository;
 import com.iread.backend.training.input.TrainingInputRequirementService;
+import com.iread.backend.training.generation.TrainingTemplateContract;
 import com.iread.backend.training.input.TrainingInputType;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
@@ -79,6 +81,10 @@ public class AppTrainingService {
         return new TrainingIntroResponse(
                 training.getId(),
                 training.getTrainingTemplate().getId(),
+                TrainingTemplateContract.trainingType(
+                        training.getTrainingTemplate(),
+                        objectMapper
+                ),
                 training.getDailyCurriculum().getId(),
                 training.getSequenceNo(),
                 training.getStatus(),
@@ -114,9 +120,24 @@ public class AppTrainingService {
 
     @Transactional
     public TrainingStartResponse start(Long teacherId, Long studentId, Long trainingId) {
+        studentRepository.findByIdAndTeacherIdForUpdate(studentId, teacherId)
+                .orElseThrow(() -> new ResourceNotFoundException("학생을 찾을 수 없습니다."));
         TrainingEntity training = findOwnedTrainingForUpdate(teacherId, studentId, trainingId);
         if (training.getStatus() != TrainingStatus.NOT_STARTED) {
             throw new ConflictException("시작 가능한 훈련이 아닙니다.");
+        }
+        var curriculum = training.getDailyCurriculum();
+        if (curriculum.getStatus() == DailyCurriculumStatus.NOT_STARTED) {
+            dailyCurriculumRepository.findByStudentIdAndStatus(
+                            studentId,
+                            DailyCurriculumStatus.IN_PROGRESS
+                    )
+                    .filter(active -> !active.getId().equals(curriculum.getId()))
+                    .ifPresent(active -> {
+                        throw new ConflictException(
+                                "진행 중인 커리큘럼을 완료한 후 다음 커리큘럼을 시작할 수 있습니다."
+                        );
+                    });
         }
         LocalDateTime startedAt = LocalDateTime.now();
         training.start(startedAt);

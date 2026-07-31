@@ -14,7 +14,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.List;
 import java.util.Optional;
@@ -29,6 +32,7 @@ import static org.mockito.Mockito.when;
 class AppTrainingCatalogServiceTest {
     @Mock StudentRepository studentRepository;
     @Mock DailyCurriculumRepository dailyCurriculumRepository;
+    @Spy ObjectMapper objectMapper = JsonMapper.builder().build();
     @InjectMocks AppTrainingCatalogService service;
 
     @Test
@@ -57,6 +61,7 @@ class AppTrainingCatalogServiceTest {
         when(training.getTrainingTemplate()).thenReturn(template);
         when(template.getId()).thenReturn(50L);
         when(template.getName()).thenReturn("문장 따라 읽기");
+        when(template.getPrompt()).thenReturn("{\"trainingType\":\"SENTENCE_REPEAT\"}");
         when(template.getCurriculumUnit()).thenReturn(unit);
         when(unit.getUnitName()).thenReturn("유창성");
 
@@ -68,6 +73,7 @@ class AppTrainingCatalogServiceTest {
         assertThat(response.trainings()).singleElement().satisfies(item -> {
             assertThat(item.trainingId()).isEqualTo(40L);
             assertThat(item.trainingTemplateId()).isEqualTo(50L);
+            assertThat(item.trainingType().name()).isEqualTo("SENTENCE_REPEAT");
             assertThat(item.sequenceNo()).isEqualTo(1);
             assertThat(item.unitName()).isEqualTo("유창성");
             assertThat(item.trainingName()).isEqualTo("문장 따라 읽기");
