@@ -23,6 +23,7 @@ import java.util.regex.Pattern;
 public class TrainingQuestionAssembler {
 
     private static final Pattern KOREAN_TEXT = Pattern.compile(".*[가-힣ㄱ-ㅎㅏ-ㅣ].*");
+    private static final Set<String> ANALYSIS_EXCLUDED_ANSWER_FIELDS = Set.of("expectedText");
 
     private final ObjectMapper objectMapper;
     private final KoreanTextAnalyzer analyzer;
@@ -41,6 +42,7 @@ public class TrainingQuestionAssembler {
         ObjectNode answer = buildAnswer(type, candidate, content);
         List<TextTarget> textTargets = new ArrayList<>();
         collectTextTargets(content, "$.content", textTargets);
+        collectAnswerTextTargets(answer, content, textTargets);
 
         ArrayNode analysisTargets = objectMapper.createArrayNode();
         LinkedHashSet<String> allFeatureCodes = new LinkedHashSet<>();
@@ -155,6 +157,30 @@ public class TrainingQuestionAssembler {
             node.properties().forEach(field ->
                     collectTextTargets(field.getValue(), path + "." + field.getKey(), targets));
         }
+    }
+
+    /**
+     * `content`에서 제거된 정답 텍스트도 분석 대상에 넣는다. `content`에 남아 있는 필드와
+     * 이미 수집한 텍스트는 `analysisTargets`가 같은 텍스트를 두 번 담지 않도록 건너뛴다.
+     */
+    private void collectAnswerTextTargets(
+            ObjectNode answer,
+            ObjectNode content,
+            List<TextTarget> targets
+    ) {
+        Set<String> collectedTexts = new LinkedHashSet<>();
+        targets.forEach(target -> collectedTexts.add(target.text()));
+        answer.propertyNames().stream()
+                .filter(field -> !ANALYSIS_EXCLUDED_ANSWER_FIELDS.contains(field))
+                .filter(field -> !content.has(field))
+                .sorted()
+                .forEach(field -> {
+                    List<TextTarget> answerTargets = new ArrayList<>();
+                    collectTextTargets(answer.get(field), "$.answer." + field, answerTargets);
+                    answerTargets.stream()
+                            .filter(target -> collectedTexts.add(target.text()))
+                            .forEach(targets::add);
+                });
     }
 
     private boolean isReadingType(TrainingType type) {
