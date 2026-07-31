@@ -201,6 +201,27 @@ class TrainingServiceTest {
     }
 
     @Test
+    void 진행중인_커리큘럼은_내부_훈련이_시작전이어도_수정할_수_없다() {
+        DailyCurriculumEntity curriculum = curriculum(100L);
+        ReflectionTestUtils.setField(
+                curriculum,
+                "status",
+                DailyCurriculumStatus.IN_PROGRESS
+        );
+        TrainingEntity training = training(1L, curriculum, template(11L, "훈련"), null);
+        ReflectionTestUtils.setField(training, "status", TrainingStatus.NOT_STARTED);
+        curriculum.getTrainings().add(training);
+        allowStudent();
+        when(dailyCurriculumRepository.findForUpdate(100L, 10L)).thenReturn(Optional.of(curriculum));
+
+        assertThatThrownBy(() -> trainingService.updateDailyCurriculum(
+                1L, 10L, 100L, new UpdateCurriculumRequest(List.of(11L))))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("진행 중이거나 완료된 커리큘럼은 수정할 수 없습니다.");
+        verify(trainingTemplateRepository, never()).findAllById(any());
+    }
+
+    @Test
     void 생성_전_커리큘럼은_순번_충돌_없이_수정할_수_있다() {
         DailyCurriculumEntity curriculum = curriculum(100L);
         TrainingEntity training = training(1L, curriculum, template(11L, "기존 훈련"), null);

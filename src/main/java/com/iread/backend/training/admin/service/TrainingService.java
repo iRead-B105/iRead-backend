@@ -201,7 +201,8 @@ public class TrainingService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "일일 커리큘럼을 찾을 수 없습니다."
                 ));
-        if (curriculum.getTrainings().stream().anyMatch(training -> !training.isEditable())) {
+        if (curriculum.getStatus() != DailyCurriculumStatus.NOT_STARTED
+                || curriculum.getTrainings().stream().anyMatch(training -> !training.isEditable())) {
             throw new ConflictException("진행 중이거나 완료된 커리큘럼은 수정할 수 없습니다.");
         }
         List<Long> ids = request.trainingTemplateIds();
