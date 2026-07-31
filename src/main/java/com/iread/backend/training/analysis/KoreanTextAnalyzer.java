@@ -34,7 +34,6 @@ public class KoreanTextAnalyzer {
             "ㄳ", "ㄵ", "ㄶ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ", "ㅄ"
     );
 
-    private final KomoranMorphAnalyzer morphAnalyzer;
     private final KoreanG2pEngine g2pEngine;
 
     public KoreanTextAnalysis analyze(String text) {
@@ -43,10 +42,6 @@ public class KoreanTextAnalyzer {
         }
 
         KoreanG2pEngine.G2pResult g2p = g2pEngine.convert(text);
-        List<MorphemeAnalysis> morphemes = text.chars()
-                .anyMatch(value -> HangulSyllable.isHangulSyllable((char) value))
-                ? morphAnalyzer.analyze(text)
-                : List.of();
         List<AnalyzedWord> words = analyzeWords(text, g2p);
         return new KoreanTextAnalysis(
                 text,
@@ -55,7 +50,6 @@ public class KoreanTextAnalyzer {
                         ? List.of("SENTENCE.SIMPLE")
                         : List.of(),
                 words,
-                morphemes,
                 ANALYZER_VERSION,
                 KoreanG2pEngine.G2P_VERSION,
                 KoreanG2pEngine.RULE_ENGINE_VERSION

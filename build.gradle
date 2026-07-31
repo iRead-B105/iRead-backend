@@ -15,7 +15,6 @@ java {
 
 repositories {
 	mavenCentral()
-	maven { url = uri('https://jitpack.io') }
 }
 
 dependencies {
@@ -29,7 +28,6 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
 	implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:4.0.1'
-	implementation 'com.github.shin285:KOMORAN:3.3.9'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.mysql:mysql-connector-j'
 	runtimeOnly 'org.flywaydb:flyway-mysql'

@@ -6,7 +6,6 @@ import com.iread.backend.readingfeature.domain.ReadingFeatureScope;
 import com.iread.backend.readingfeature.domain.StudentFeatureProfileEntity;
 import com.iread.backend.readingfeature.repository.StudentFeatureProfileRepository;
 import com.iread.backend.student.domain.StudentEntity;
-import com.iread.backend.training.analysis.KomoranMorphAnalyzer;
 import com.iread.backend.training.analysis.KoreanG2pEngine;
 import com.iread.backend.training.analysis.KoreanTextAnalyzer;
 import com.iread.backend.training.domain.DailyCurriculumEntity;
@@ -115,10 +114,7 @@ class PersonalizedTrainingGenerationServiceTest {
             TrainingCandidateProvider provider,
             StudentFeatureProfileRepository profiles
     ) {
-        KoreanTextAnalyzer analyzer = new KoreanTextAnalyzer(
-                new KomoranMorphAnalyzer(),
-                new KoreanG2pEngine()
-        );
+        KoreanTextAnalyzer analyzer = new KoreanTextAnalyzer(new KoreanG2pEngine());
         return new PersonalizedTrainingGenerationService(
                 objectMapper,
                 provider,
