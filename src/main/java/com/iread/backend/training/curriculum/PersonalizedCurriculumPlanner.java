@@ -48,7 +48,7 @@ public class PersonalizedCurriculumPlanner {
                 ));
     }
 
-    List<TrainingTemplateEntity> selectTemplates(Long studentId) {
+    public List<TrainingTemplateEntity> selectTemplates(Long studentId) {
         List<TrainingTemplateEntity> catalog =
                 templateRepository.findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc();
         if (catalog.size() < TRAINING_COUNT) {
