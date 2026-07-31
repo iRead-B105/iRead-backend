@@ -46,14 +46,11 @@ services:
     restart: unless-stopped
     ports:
       - "8081:8080"
-    environment:
-      # Backend의 AI_API_KEY와 같은 값을 사용한다.
-      AI_INTERNAL_API_KEY: ${AI_INTERNAL_API_KEY:-}
-      AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
-      AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-koreacentral}
-      AZURE_SPEECH_LANGUAGE: ${AZURE_SPEECH_LANGUAGE:-ko-KR}
-      AI_AUDIO_FFMPEG_PATH: ${AI_AUDIO_FFMPEG_PATH:-ffmpeg}
-      AI_AUDIO_CONVERSION_TIMEOUT_SECONDS: ${AI_AUDIO_CONVERSION_TIMEOUT_SECONDS:-15}
+    # Azure 자격증명과 Backend 공유 키는 iRead-ai/.env 하나에서만 관리한다.
+    # AI_INTERNAL_API_KEY는 Backend의 ai.api-key와 같은 값이어야 한다.
+    env_file:
+      - path: ../iRead-ai/.env
+        required: false
     healthcheck:
       test:
         - CMD
