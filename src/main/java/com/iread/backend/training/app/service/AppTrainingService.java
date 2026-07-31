@@ -123,6 +123,13 @@ public class AppTrainingService {
         studentRepository.findByIdAndTeacherIdForUpdate(studentId, teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException("학생을 찾을 수 없습니다."));
         TrainingEntity training = findOwnedTrainingForUpdate(teacherId, studentId, trainingId);
+        if (training.getStatus() == TrainingStatus.IN_PROGRESS) {
+            return new TrainingStartResponse(
+                    trainingId,
+                    training.getStartedAt(),
+                    training.getStatus()
+            );
+        }
         if (training.getStatus() != TrainingStatus.NOT_STARTED) {
             throw new ConflictException("시작 가능한 훈련이 아닙니다.");
         }

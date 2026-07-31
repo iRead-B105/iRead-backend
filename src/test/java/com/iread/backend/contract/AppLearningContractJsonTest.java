@@ -104,9 +104,25 @@ class AppLearningContractJsonTest {
                 "SHOW_COMPLETION"
         ));
 
+        assertThat(training.propertyNames()).containsExactlyInAnyOrder(
+                "completionType",
+                "trainingId",
+                "status",
+                "completedAt",
+                "messageKey",
+                "nextAction"
+        );
         assertThat(training.has("accuracy")).isFalse();
         assertThat(training.path("messageKey").asText())
                 .isEqualTo("TRAINING_COMPLETE_GREAT_JOB");
+        assertThat(test.propertyNames()).containsExactlyInAnyOrder(
+                "completionType",
+                "testId",
+                "status",
+                "completedAt",
+                "messageKey",
+                "nextAction"
+        );
         assertThat(test.has("accuracy")).isFalse();
         assertThat(test.path("messageKey").asText())
                 .isEqualTo("TEST_COMPLETE_GREAT_JOB");

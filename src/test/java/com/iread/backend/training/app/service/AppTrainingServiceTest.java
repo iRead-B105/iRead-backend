@@ -94,7 +94,11 @@ class AppTrainingServiceTest {
         when(trainingRepository.findForUpdate(30L, 20L))
                 .thenReturn(Optional.of(training));
         when(training.getStatus())
-                .thenReturn(TrainingStatus.NOT_STARTED, TrainingStatus.IN_PROGRESS);
+                .thenReturn(
+                        TrainingStatus.NOT_STARTED,
+                        TrainingStatus.NOT_STARTED,
+                        TrainingStatus.IN_PROGRESS
+                );
 
         var result = appTrainingService.start(1L, 20L, 30L);
 
@@ -102,6 +106,36 @@ class AppTrainingServiceTest {
         assertThat(result.trainingId()).isEqualTo(30L);
         assertThat(result.status()).isEqualTo(TrainingStatus.IN_PROGRESS);
         assertThat(result.startedAt()).isNotNull();
+    }
+
+    @Test
+    void repeatedStartReturnsExistingTrainingSessionWithoutPublishingAnotherEvent() {
+        StudentEntity student = mock(StudentEntity.class);
+        TrainingEntity training = mock(TrainingEntity.class);
+        DailyCurriculumEntity curriculum = mock(DailyCurriculumEntity.class);
+        LocalDateTime startedAt = LocalDateTime.of(2026, 7, 31, 10, 30);
+        when(studentRepository.findByIdAndTeacherIdForUpdate(20L, 1L))
+                .thenReturn(Optional.of(student));
+        when(studentRepository.findByIdAndTeacherId(20L, 1L))
+                .thenReturn(Optional.of(student));
+        when(trainingRepository.findByIdAndDailyCurriculumStudentId(30L, 20L))
+                .thenReturn(Optional.of(training));
+        when(training.getDailyCurriculum()).thenReturn(curriculum);
+        when(curriculum.getId()).thenReturn(40L);
+        when(dailyCurriculumRepository.findForUpdate(40L, 20L))
+                .thenReturn(Optional.of(curriculum));
+        when(trainingRepository.findForUpdate(30L, 20L))
+                .thenReturn(Optional.of(training));
+        when(training.getStatus()).thenReturn(TrainingStatus.IN_PROGRESS);
+        when(training.getStartedAt()).thenReturn(startedAt);
+
+        var result = appTrainingService.start(1L, 20L, 30L);
+
+        assertThat(result.trainingId()).isEqualTo(30L);
+        assertThat(result.startedAt()).isEqualTo(startedAt);
+        assertThat(result.status()).isEqualTo(TrainingStatus.IN_PROGRESS);
+        verify(training, never()).start(any(LocalDateTime.class));
+        verifyNoInteractions(realtimeEventPublisher);
     }
 
     @Test

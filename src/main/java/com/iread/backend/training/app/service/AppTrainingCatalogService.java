@@ -3,8 +3,8 @@ package com.iread.backend.training.app.service;
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.app.dto.res.CurrentTrainingListResponse;
+import com.iread.backend.training.curriculum.ActiveCurriculumPolicy;
 import com.iread.backend.training.domain.DailyCurriculumEntity;
-import com.iread.backend.training.domain.DailyCurriculumStatus;
 import com.iread.backend.training.repository.DailyCurriculumRepository;
 import com.iread.backend.training.generation.TrainingTemplateContract;
 import lombok.RequiredArgsConstructor;
@@ -25,12 +25,8 @@ public class AppTrainingCatalogService {
             Long studentId
     ) {
         requireOwnedStudent(teacherId, studentId);
-        DailyCurriculumEntity curriculum = dailyCurriculumRepository
-                .findByStudentIdAndStatus(studentId, DailyCurriculumStatus.IN_PROGRESS)
-                .or(() -> dailyCurriculumRepository.findByStudentIdAndStatus(
-                        studentId,
-                        DailyCurriculumStatus.NOT_STARTED
-                ))
+        DailyCurriculumEntity curriculum = ActiveCurriculumPolicy
+                .find(dailyCurriculumRepository, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "현재 진행 가능한 커리큘럼을 찾을 수 없습니다."
                 ));

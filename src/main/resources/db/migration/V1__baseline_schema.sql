@@ -193,7 +193,7 @@ CREATE TABLE `story_lines` (
 	`id` bigint NOT NULL AUTO_INCREMENT,
 	`scene_id` bigint NOT NULL,
 	`has_choices` boolean NOT NULL,
-	`content` text NOT NULL,
+	`content` json NOT NULL COMMENT '대사 본문과 형태소·G2P 분석 결과',
 	`sequence_no` int NOT NULL,
 	`created_at` timestamp NOT NULL,
 	`read_at` timestamp NULL,

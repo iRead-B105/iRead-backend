@@ -120,7 +120,10 @@ class AppTestServiceTest {
         when(testRepository.findByIdAndStudentIdForUpdate(30L, 20L))
                 .thenReturn(Optional.of(test));
         when(test.getId()).thenReturn(30L);
-        when(test.getStatus()).thenReturn(TestStatus.IN_PROGRESS);
+        when(test.getStatus()).thenReturn(
+                TestStatus.NOT_STARTED,
+                TestStatus.IN_PROGRESS
+        );
 
         var result = appTestService.start(1L, 20L);
 
@@ -128,6 +131,28 @@ class AppTestServiceTest {
         assertThat(result.testId()).isEqualTo(30L);
         assertThat(result.status()).isEqualTo(TestStatus.IN_PROGRESS);
         assertThat(result.startedAt()).isNotNull();
+    }
+
+    @Test
+    void repeatedStartReturnsExistingTestSessionWithoutPublishingAnotherEvent() {
+        StudentEntity student = mock(StudentEntity.class);
+        StudentTestEntity test = mock(StudentTestEntity.class);
+        LocalDateTime startedAt = LocalDateTime.of(2026, 7, 31, 10, 30);
+        when(studentRepository.findByIdAndTeacherId(20L, 1L))
+                .thenReturn(Optional.of(student));
+        when(testRepository.findByIdAndStudentIdForUpdate(30L, 20L))
+                .thenReturn(Optional.of(test));
+        when(test.getId()).thenReturn(30L);
+        when(test.getStatus()).thenReturn(TestStatus.IN_PROGRESS);
+        when(test.getStartedAt()).thenReturn(startedAt);
+
+        var result = appTestService.start(1L, 20L, 30L);
+
+        assertThat(result.testId()).isEqualTo(30L);
+        assertThat(result.startedAt()).isEqualTo(startedAt);
+        assertThat(result.status()).isEqualTo(TestStatus.IN_PROGRESS);
+        verify(test, never()).start(any(LocalDateTime.class));
+        verifyNoInteractions(realtimeEventPublisher);
     }
 
     @Test

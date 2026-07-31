@@ -84,15 +84,22 @@ class DemoAllTrainingCurriculumInitializerTest {
 
         initializer.run(mock(org.springframework.boot.ApplicationArguments.class));
 
-        assertThat(curriculum.getTrainings()).hasSize(34);
+        assertThat(curriculum.getTrainings())
+                .hasSize(DemoAllTrainingCurriculumInitializer.EXPECTED_TEMPLATE_COUNT);
         assertThat(curriculum.getTrainings().getFirst().getStatus())
                 .isEqualTo(TrainingStatus.NOT_STARTED);
-        assertThat(curriculum.getTrainings().subList(1, 34))
+        assertThat(curriculum.getTrainings().subList(
+                1,
+                DemoAllTrainingCurriculumInitializer.EXPECTED_TEMPLATE_COUNT
+        ))
                 .allMatch(training -> training.getStatus() == TrainingStatus.NOT_READY);
 
         ArgumentCaptor<TrainingDataEntity> captor =
                 ArgumentCaptor.forClass(TrainingDataEntity.class);
-        verify(dataRepository, times(34)).save(captor.capture());
+        verify(
+                dataRepository,
+                times(DemoAllTrainingCurriculumInitializer.EXPECTED_TEMPLATE_COUNT)
+        ).save(captor.capture());
         assertThat(captor.getAllValues()).allSatisfy(data -> {
             try {
                 assertThat(objectMapper.readTree(data.getGeneratedData()).path("questions"))
@@ -118,7 +125,10 @@ class DemoAllTrainingCurriculumInitializerTest {
 
         StudentEntity student = StudentEntity.builder().name("샛별").build();
         ReflectionTestUtils.setField(student, "id", 2001L);
-        List<TrainingTemplateEntity> templates = IntStream.rangeClosed(1, 34)
+        List<TrainingTemplateEntity> templates = IntStream.rangeClosed(
+                        1,
+                        DemoAllTrainingCurriculumInitializer.EXPECTED_TEMPLATE_COUNT
+                )
                 .mapToObj(index -> {
                     TrainingTemplateEntity template = mock(TrainingTemplateEntity.class);
                     when(template.getId()).thenReturn((long) index);
@@ -180,7 +190,10 @@ class DemoAllTrainingCurriculumInitializerTest {
                 throw new AssertionError(exception);
             }
         });
-        verify(generationService, times(34)).generate(any());
+        verify(
+                generationService,
+                times(DemoAllTrainingCurriculumInitializer.EXPECTED_TEMPLATE_COUNT)
+        ).generate(any());
         verify(dataRepository).flush();
     }
 }

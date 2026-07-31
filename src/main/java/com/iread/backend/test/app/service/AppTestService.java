@@ -225,6 +225,13 @@ public class AppTestService {
     public TestStartResponse start(Long teacherId, Long studentId, Long testId) {
         findOwnedStudent(teacherId, studentId);
         StudentTestEntity test = findTestForUpdate(studentId, testId);
+        if (test.getStatus() == TestStatus.IN_PROGRESS) {
+            return new TestStartResponse(
+                    test.getId(),
+                    test.getStartedAt(),
+                    test.getStatus()
+            );
+        }
         validateStartOrder(test);
         LocalDateTime startedAt = LocalDateTime.now();
         test.start(startedAt);
@@ -245,9 +252,16 @@ public class AppTestService {
         findOwnedStudent(teacherId, studentId);
         StudentTestEntity current = findCurrentTest(
                 studentId,
-                Set.of(TestStatus.NOT_STARTED)
+                Set.of(TestStatus.IN_PROGRESS, TestStatus.NOT_STARTED)
         );
         StudentTestEntity test = findTestForUpdate(studentId, current.getId());
+        if (test.getStatus() == TestStatus.IN_PROGRESS) {
+            return new TestStartResponse(
+                    test.getId(),
+                    test.getStartedAt(),
+                    test.getStatus()
+            );
+        }
         LocalDateTime startedAt = LocalDateTime.now();
         test.start(startedAt);
         realtimeEventPublisher.publishAfterCommit(

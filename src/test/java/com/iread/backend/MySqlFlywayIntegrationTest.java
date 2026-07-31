@@ -289,7 +289,7 @@ class MySqlFlywayIntegrationTest {
         long lineId = insertAndReturnKey(
                 """
                 INSERT INTO story_lines(scene_id, has_choices, content, sequence_no, created_at, read_at)
-                VALUES (?, true, '어디로 갈까요?', 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                VALUES (?, true, JSON_OBJECT('text', '어디로 갈까요?'), 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """,
                 sceneId
         );
