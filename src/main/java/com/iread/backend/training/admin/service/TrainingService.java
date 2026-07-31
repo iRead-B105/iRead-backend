@@ -18,6 +18,7 @@ import com.iread.backend.realtime.RealtimeResource;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.*;
+import com.iread.backend.training.curriculum.ActiveCurriculumPolicy;
 import com.iread.backend.training.curriculum.PersonalizedCurriculumPlanner;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
 import com.iread.backend.training.input.TrainingInputRequirementService;
@@ -147,12 +148,8 @@ public class TrainingService {
 
     public DailyCurriculumResponse getActiveDailyCurriculum(Long teacherId, Long studentId) {
         validateStudentOwner(teacherId, studentId);
-        DailyCurriculumEntity curriculum = dailyCurriculumRepository
-                .findByStudentIdAndStatus(studentId, DailyCurriculumStatus.IN_PROGRESS)
-                .or(() -> dailyCurriculumRepository.findByStudentIdAndStatus(
-                        studentId,
-                        DailyCurriculumStatus.NOT_STARTED
-                ))
+        DailyCurriculumEntity curriculum = ActiveCurriculumPolicy
+                .find(dailyCurriculumRepository, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "ACTIVE_CURRICULUM_NOT_FOUND",
                         "아동의 활성 커리큘럼을 찾을 수 없습니다."
