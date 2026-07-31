@@ -10,17 +10,34 @@ import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
 import com.iread.backend.exception.ConflictException;
 import com.iread.backend.mypage.domain.CharacterEntity;
 import com.iread.backend.mypage.repository.CharacterRepository;
+import com.iread.backend.pronunciation.PronunciationAnalysisAdapter;
+import com.iread.backend.pronunciation.PronunciationAnalysisResult;
+import com.iread.backend.pronunciation.PronunciationWordAligner;
+import com.iread.backend.pronunciation.PronunciationWordResult;
+import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
+import com.iread.backend.story.analysis.StoryLineContentService;
 import com.iread.backend.story.domain.*;
 import com.iread.backend.story.repository.*;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
+import com.iread.backend.training.analysis.KomoranMorphAnalyzer;
+import com.iread.backend.training.analysis.KoreanG2pEngine;
+import com.iread.backend.training.analysis.KoreanTextAnalyzer;
+import com.iread.backend.training.domain.WordEntity;
+import com.iread.backend.training.repository.WordRepository;
+import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
+import com.iread.backend.wordattempt.domain.WordAttemptUseLocation;
+import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
+import com.iread.backend.wordattempt.service.WordAttemptScoreCalculator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import tools.jackson.databind.json.JsonMapper;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.mock.web.MockMultipartFile;
 
@@ -45,8 +62,18 @@ class StoryServiceTest {
     @Mock StoryLineRepository storyLineRepository;
     @Mock StoryChoiceRepository storyChoiceRepository;
     @Mock CharacterRepository characterRepository;
+    @Mock WordRepository wordRepository;
+    @Mock WordAttemptLogRepository wordAttemptLogRepository;
     @Mock AiClient aiClient;
     @Mock StoryAudioStorage storyAudioStorage;
+    @Mock PronunciationAnalysisAdapter pronunciationAnalysisAdapter;
+    @Mock WordAttemptScoreCalculator wordAttemptScoreCalculator;
+    @Mock StudentFeatureProfileService studentFeatureProfileService;
+    @Spy PronunciationWordAligner pronunciationWordAligner = new PronunciationWordAligner();
+    @Spy StoryLineContentService storyLineContentService = new StoryLineContentService(
+            new KoreanTextAnalyzer(new KomoranMorphAnalyzer(), new KoreanG2pEngine()),
+            JsonMapper.builder().build()
+    );
     @InjectMocks StoryService storyService;
 
     private StudentEntity student;
@@ -116,7 +143,7 @@ class StoryServiceTest {
         verify(storyLineRepository).saveAllAndFlush(linesCaptor.capture());
         List<StoryLineEntity> lines = linesCaptor.getValue();
         assertThat(lines).extracting(StoryLineEntity::getSequenceNo).containsExactly(1, 2, 3, 4, 5);
-        assertThat(lines).extracting(StoryLineEntity::getContent)
+        assertThat(lines).extracting(storyLineContentService::textOf)
                 .containsExactly(
                         "숲에 도착했어요.",
                         "반짝이는 길을 걸었어요.",
@@ -242,6 +269,159 @@ class StoryServiceTest {
     }
 
     @Test
+    void 생성된_대사는_형태소분석_결과와_함께_저장된다() {
+        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        when(storyTemplateRepository.findById(30L)).thenReturn(Optional.of(template));
+        when(storyRepository.saveAndFlush(any(StoryEntity.class))).thenAnswer(invocation -> {
+            StoryEntity saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 100L);
+            ReflectionTestUtils.setField(saved, "createdAt", LocalDateTime.of(2026, 7, 22, 10, 0));
+            return saved;
+        });
+        when(aiClient.generateStory(any())).thenReturn(new GenerateStoryResponse(
+                "ignored-by-service-mock", 1, 50, false,
+                List.of(
+                        new GeneratedStoryLine("토끼가 깡충 뛰었어요.", false),
+                        new GeneratedStoryLine("어디로 갈까요?", true)
+                )
+        ));
+        mockSceneSave(200L);
+        mockLineSave(1000L);
+
+        storyService.startStory(1L, 20L, 30L);
+
+        ArgumentCaptor<List<StoryLineEntity>> linesCaptor = listCaptor();
+        verify(storyLineRepository).saveAllAndFlush(linesCaptor.capture());
+        StoryLineEntity first = linesCaptor.getValue().getFirst();
+        var analysis = storyLineContentService.analysisOf(first);
+
+        assertThat(storyLineContentService.textOf(first)).isEqualTo("토끼가 깡충 뛰었어요.");
+        assertThat(analysis.path("analyzerVersion").asText()).isEqualTo("KOREAN_ANALYZER_V1");
+        assertThat(analysis.path("words")).hasSize(3);
+        assertThat(analysis.path("words").get(0).path("surface").asText()).isEqualTo("토끼가");
+        assertThat(analysis.path("words").get(0).path("featureCodes")).isNotEmpty();
+        assertThat(analysis.path("morphemes")).isNotEmpty();
+    }
+
+    @Test
+    void 대사를_읽으면_단어별로_시도_로그를_적재하고_약점_프로파일을_갱신한다() {
+        StoryEntity story = story(100L);
+        StoryLineEntity line = line(1000L, story, null, false, "토끼가 뛰었어요.", 1, null);
+        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        when(storyRepository.findByIdAndStudentId(100L, 20L)).thenReturn(Optional.of(story));
+        when(storyLineRepository.findByIdAndStoryId(1000L, 100L)).thenReturn(Optional.of(line));
+        when(aiClient.transcribeSpeech(any(), eq(20L), eq("토끼가 뛰었어요."), any()))
+                .thenReturn(new SpeechTranscriptionResponse("req", "토끼가 뛰었어요", 0.93, 1_200));
+        when(pronunciationAnalysisAdapter.analyze(any())).thenReturn(new PronunciationAnalysisResult(
+                "req", 91.0, 88.0, 100.0, 90.0, 0.95, "PRONUNCIATION_MOCK_V1",
+                List.of(
+                        new PronunciationWordResult(0, "토끼가", 94.0, "None", 0, 400),
+                        new PronunciationWordResult(1, "뛰었어요", 55.0, "Mispronunciation", 500, 600)
+                )
+        ));
+        when(wordAttemptLogRepository.findAllByStoryLineIdAndFinalAttemptTrue(1000L))
+                .thenReturn(List.of());
+        when(wordRepository.findByContent(any())).thenReturn(Optional.empty());
+        when(wordRepository.save(any(WordEntity.class))).thenAnswer(i -> i.getArgument(0));
+        when(wordAttemptScoreCalculator.meetsPronunciationThreshold(anyInt()))
+                .thenAnswer(i -> (int) i.getArgument(0) >= 700);
+        when(wordAttemptScoreCalculator.calculate(
+                anyInt(), anyBoolean(), anyBoolean(), any(), anyBoolean(),
+                anyBoolean(), any(), any(), anyInt(), any()
+        )).thenReturn(820);
+        when(wordAttemptLogRepository.saveAllAndFlush(anyList())).thenAnswer(invocation -> {
+            List<WordAttemptLogEntity> attempts = new ArrayList<>(invocation.getArgument(0));
+            AtomicLong nextId = new AtomicLong(5000L);
+            attempts.forEach(attempt ->
+                    ReflectionTestUtils.setField(attempt, "id", nextId.getAndIncrement()));
+            return attempts;
+        });
+
+        var response = storyService.transcribeStoryLine(
+                1L, 20L, 100L, 1000L,
+                new MockMultipartFile("audioFile", "read.webm", "audio/webm", new byte[]{1})
+        );
+
+        assertThat(response.readingStatus()).isEqualTo("recognized");
+        assertThat(response.pronunciationAccuracyScore()).isEqualTo(91.0);
+        assertThat(response.analysisVersion()).isEqualTo("PRONUNCIATION_MOCK_V1");
+        assertThat(response.words()).hasSize(2);
+        assertThat(response.words().getFirst().expectedText()).isEqualTo("토끼가");
+        assertThat(response.words().getFirst().pronunciationAccuracyScore()).isEqualTo(940);
+        assertThat(response.words().getFirst().isCorrect()).isTrue();
+        assertThat(response.words().getFirst().featureCodes()).isNotEmpty();
+        assertThat(response.words().getLast().pronunciationErrorType())
+                .isEqualTo("Mispronunciation");
+        assertThat(response.words().getLast().isCorrect()).isFalse();
+
+        ArgumentCaptor<List<WordAttemptLogEntity>> attemptsCaptor = listCaptor();
+        verify(wordAttemptLogRepository).saveAllAndFlush(attemptsCaptor.capture());
+        assertThat(attemptsCaptor.getValue()).allSatisfy(attempt -> {
+            assertThat(attempt.getUseLocation()).isEqualTo(WordAttemptUseLocation.STORY);
+            assertThat(attempt.getStoryLine()).isSameAs(line);
+            assertThat(attempt.getTraining()).isNull();
+            assertThat(attempt.getTest()).isNull();
+            assertThat(attempt.isFinalAttempt()).isTrue();
+        });
+        assertThat(attemptsCaptor.getValue()).extracting(WordAttemptLogEntity::getTokenIndex)
+                .containsExactly(0, 1);
+        verify(studentFeatureProfileService).recalculate(student);
+    }
+
+    @Test
+    void 같은_대사를_다시_읽으면_이전_시도는_최종이_아니게_된다() {
+        StoryEntity story = story(100L);
+        StoryLineEntity line = line(1000L, story, null, false, "토끼가", 1, null);
+        WordAttemptLogEntity previous = WordAttemptLogEntity.forStory(
+                student, new WordEntity("토끼가"), line, "토끼가", true,
+                900, 0, 400, false, true, 900, 0
+        );
+        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        when(storyRepository.findByIdAndStudentId(100L, 20L)).thenReturn(Optional.of(story));
+        when(storyLineRepository.findByIdAndStoryId(1000L, 100L)).thenReturn(Optional.of(line));
+        when(aiClient.transcribeSpeech(any(), eq(20L), eq("토끼가"), any()))
+                .thenReturn(new SpeechTranscriptionResponse("req", "토끼가", 0.9, 400));
+        when(pronunciationAnalysisAdapter.analyze(any())).thenReturn(new PronunciationAnalysisResult(
+                "req", 95.0, null, null, null, 0.9, "PRONUNCIATION_MOCK_V1",
+                List.of(new PronunciationWordResult(0, "토끼가", 95.0, "None", 0, 400))
+        ));
+        when(wordAttemptLogRepository.findAllByStoryLineIdAndFinalAttemptTrue(1000L))
+                .thenReturn(List.of(previous));
+        when(wordRepository.findByContent(any())).thenReturn(Optional.of(new WordEntity("토끼가")));
+        when(wordAttemptScoreCalculator.meetsPronunciationThreshold(anyInt())).thenReturn(true);
+        when(wordAttemptScoreCalculator.calculate(
+                anyInt(), anyBoolean(), anyBoolean(), any(), anyBoolean(),
+                anyBoolean(), any(), any(), anyInt(), any()
+        )).thenReturn(950);
+        when(wordAttemptLogRepository.saveAllAndFlush(anyList()))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        storyService.transcribeStoryLine(
+                1L, 20L, 100L, 1000L,
+                new MockMultipartFile("audioFile", "read.webm", "audio/webm", new byte[]{1})
+        );
+
+        assertThat(previous.isFinalAttempt()).isFalse();
+    }
+
+    @Test
+    void JSON_전환_이전에_저장된_평문_대사는_읽힐_때_분석이_채워진다() {
+        StoryEntity story = story(100L);
+        StoryLineEntity line = line(1000L, story, null, false, "토끼가 깡충 뛰었어요.", 1, null);
+        ReflectionTestUtils.setField(line, "content", "토끼가 깡충 뛰었어요.");
+        ownedStory(story);
+        when(storyLineRepository.findByIdAndStoryId(1000L, 100L)).thenReturn(Optional.of(line));
+
+        var response = storyService.getStoryLine(1L, 20L, 100L, 1000L);
+
+        assertThat(response.lineText()).isEqualTo("토끼가 깡충 뛰었어요.");
+        assertThat(response.analysis().path("words")).hasSize(3);
+        assertThat(line.getContent()).startsWith("{");
+        assertThat(storyLineContentService.analysisOf(line).path("analyzerVersion").asText())
+                .isEqualTo("KOREAN_ANALYZER_V1");
+    }
+
+    @Test
     void 저장된_분기를_재요청하면_음성과_AI를_다시_처리하지_않는다() {
         StoryEntity story = story(100L);
         StoryLineEntity choiceLine = line(1001L, story, null, true, "어떻게 할까요?", 2,
@@ -360,7 +540,7 @@ class StoryServiceTest {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private ArgumentCaptor<List<StoryLineEntity>> listCaptor() {
+    private <T> ArgumentCaptor<List<T>> listCaptor() {
         return ArgumentCaptor.forClass((Class) List.class);
     }
 }

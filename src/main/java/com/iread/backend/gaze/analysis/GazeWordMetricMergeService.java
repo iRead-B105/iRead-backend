@@ -34,30 +34,40 @@ public class GazeWordMetricMergeService {
     private final ObjectMapper objectMapper;
 
     public void merge(GazeSessionEntity session, JsonNode data) {
-        if (session.getContentType() != GazeContentType.TRAINING
-                && session.getContentType() != GazeContentType.TEST) {
+        GazeContentType contentType = session.getContentType();
+        if (contentType != GazeContentType.TRAINING
+                && contentType != GazeContentType.TEST
+                && contentType != GazeContentType.STORY) {
             return;
         }
         JsonNode words = data == null || !data.isObject()
                 ? objectMapper.missingNode()
                 : data.path("words");
         if (!words.isArray() || words.isEmpty()) {
+            if (contentType == GazeContentType.STORY) {
+                // 스토리는 문장 단위 지표만 보내는 경우도 허용한다.
+                return;
+            }
             throw new IllegalArgumentException(
                     "검사·훈련 시선 세션에는 단어별 words 지표가 필요합니다."
             );
         }
+        boolean story = contentType == GazeContentType.STORY;
         List<WordMetric> metrics = new ArrayList<>();
         Set<WordPosition> positions = new HashSet<>();
         words.forEach(word -> {
-            WordMetric metric = readMetric(word);
+            WordMetric metric = story ? readStoryMetric(word) : readMetric(word);
             WordPosition position = new WordPosition(
                     metric.questionNo(),
                     metric.targetIndex(),
-                    metric.tokenIndex()
+                    metric.tokenIndex(),
+                    metric.storyLineId()
             );
             if (!positions.add(position)) {
                 throw new IllegalArgumentException(
-                        "같은 문항·대상·토큰 위치의 시선 단어 지표는 중복할 수 없습니다."
+                        story
+                                ? "같은 대사·토큰 위치의 시선 단어 지표는 중복할 수 없습니다."
+                                : "같은 문항·대상·토큰 위치의 시선 단어 지표는 중복할 수 없습니다."
                 );
             }
             metrics.add(metric);
@@ -71,7 +81,30 @@ public class GazeWordMetricMergeService {
         List<WordAttemptLogEntity> attempts;
         List<WordAttemptLogEntity> attemptHistory;
         boolean pronunciationRequired;
-        if (session.getContentType() == GazeContentType.TRAINING) {
+        if (session.getContentType() == GazeContentType.STORY) {
+            long storyId = session.getStory().getId();
+            attemptHistory = wordAttemptLogRepository
+                    .findAllByStoryLineId(metric.storyLineId())
+                    .stream()
+                    .filter(attempt -> java.util.Objects.equals(
+                            attempt.getStoryLine().getStory().getId(),
+                            storyId
+                    ))
+                    .filter(attempt -> sameTokenPosition(
+                            metric.tokenIndex(),
+                            attempt.getTokenIndex()
+                    ))
+                    .filter(attempt -> sameText(
+                            metric.text(),
+                            attempt.getSurfaceText()
+                    ))
+                    .toList();
+            attempts = attemptHistory.stream()
+                    .filter(WordAttemptLogEntity::isFinalAttempt)
+                    .toList();
+            // 스토리 대사는 항상 소리 내어 읽으므로 발음 점수가 종합 점수에 들어간다.
+            pronunciationRequired = true;
+        } else if (session.getContentType() == GazeContentType.TRAINING) {
             long trainingId = session.getTraining().getId();
             Set<TrainingInputType> inputs =
                     trainingInputRequirementService.inputsForQuestion(
@@ -146,7 +179,10 @@ public class GazeWordMetricMergeService {
         }
         WordAttemptLogEntity attempt = attempts.getFirst();
         boolean gazeSkipped = metric.visitCount() == 0;
-        int retryCount = Math.max(0, attemptHistory.size() - 1);
+        // 스토리는 다시 읽어도 재시도로 감점하지 않는다.
+        int retryCount = session.getContentType() == GazeContentType.STORY
+                ? 0
+                : Math.max(0, attemptHistory.size() - 1);
         Integer totalScore = scoreCalculator.calculate(
                 attempt.getPronunciationAccuracyScore(),
                 pronunciationRequired,
@@ -214,6 +250,52 @@ public class GazeWordMetricMergeService {
                 questionNo,
                 targetIndex,
                 tokenIndex,
+                null,
+                text,
+                dwellMs,
+                visitCount,
+                regressionCount,
+                firstSeenMs,
+                lastSeenMs
+        );
+    }
+
+    /**
+     * 스토리 단어 지표. 스토리는 문항·대상 위치가 없어 대사와 토큰 위치가 키가 된다.
+     */
+    private WordMetric readStoryMetric(JsonNode word) {
+        if (!word.hasNonNull("storyLineId") || !word.path("storyLineId").canConvertToLong()) {
+            throw new IllegalArgumentException("storyLineId는 필수입니다.");
+        }
+        long storyLineId = word.path("storyLineId").asLong();
+        if (storyLineId < 1) {
+            throw new IllegalArgumentException("storyLineId는 1 이상이어야 합니다.");
+        }
+        int tokenIndex = word.hasNonNull("tokenIndex")
+                ? requiredNonNegative(word, "tokenIndex")
+                : requiredNonNegative(word, "index");
+        String text = word.path("text").asText();
+        if (text.isBlank()) {
+            throw new IllegalArgumentException(
+                    "시선 단어 지표의 text는 필수입니다."
+            );
+        }
+        int dwellMs = requiredNonNegative(word, "dwellMs");
+        int visitCount = requiredNonNegative(word, "visitCount");
+        int regressionCount = requiredNonNegative(word, "regressionCount");
+        Integer firstSeenMs = nullableNonNegative(word, "firstSeenMs");
+        Integer lastSeenMs = nullableNonNegative(word, "lastSeenMs");
+        if (firstSeenMs != null && lastSeenMs != null
+                && lastSeenMs < firstSeenMs) {
+            throw new IllegalArgumentException(
+                    "lastSeenMs는 firstSeenMs보다 빠를 수 없습니다."
+            );
+        }
+        return new WordMetric(
+                0,
+                null,
+                tokenIndex,
+                storyLineId,
                 text,
                 dwellMs,
                 visitCount,
@@ -286,6 +368,7 @@ public class GazeWordMetricMergeService {
             int questionNo,
             Integer targetIndex,
             Integer tokenIndex,
+            Long storyLineId,
             String text,
             int dwellMs,
             int visitCount,
@@ -298,7 +381,8 @@ public class GazeWordMetricMergeService {
     private record WordPosition(
             int questionNo,
             int targetIndex,
-            int tokenIndex
+            int tokenIndex,
+            Long storyLineId
     ) {
     }
 }

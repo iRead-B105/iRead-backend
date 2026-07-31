@@ -30,7 +30,11 @@ public class StoryLineEntity {
     @Column(name = "has_choices", nullable = false)
     private boolean requiresBranchInput;
 
-    @Column(nullable = false, columnDefinition = "text")
+    /**
+     * 대사 본문과 형태소·G2P 분석 결과를 함께 담은 JSON 문자열.
+     * {@code {"text": "...", "analysis": {...}}} 형태이며 analysis는 나중에 채워질 수 있다.
+     */
+    @Column(nullable = false, columnDefinition = "json")
     private String content;
 
     @Column(name = "sequence_no", nullable = false)
@@ -50,6 +54,13 @@ public class StoryLineEntity {
         this.requiresBranchInput = requiresBranchInput;
         this.content = content;
         this.sequenceNo = sequenceNo;
+    }
+
+    public void updateContent(String content) {
+        if (content == null || content.isBlank()) {
+            throw new IllegalArgumentException("스토리 대사 content는 필수입니다.");
+        }
+        this.content = content;
     }
 
     public void markRead(LocalDateTime readAt) {

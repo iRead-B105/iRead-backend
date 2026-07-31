@@ -200,6 +200,41 @@ public class WordAttemptLogEntity {
         return attempt;
     }
 
+    public static WordAttemptLogEntity forStory(
+            StudentEntity student,
+            WordEntity word,
+            StoryLineEntity storyLine,
+            String surfaceText,
+            boolean hasAudioData,
+            Integer pronunciationAccuracyScore,
+            Integer speechStartOffsetMs,
+            Integer speechEndOffsetMs,
+            Boolean skipped,
+            Boolean correct,
+            Integer totalScore,
+            Integer tokenIndex
+    ) {
+        validateScore(pronunciationAccuracyScore, "단어 발음 정확도 점수");
+        validateScore(totalScore, "단어 종합 점수");
+        validatePosition(null, null, tokenIndex);
+        WordAttemptLogEntity attempt = new WordAttemptLogEntity();
+        attempt.student = student;
+        attempt.word = word;
+        attempt.storyLine = storyLine;
+        attempt.useLocation = WordAttemptUseLocation.STORY;
+        attempt.surfaceText = surfaceText;
+        attempt.hasAudioData = hasAudioData;
+        attempt.skipped = skipped;
+        attempt.pronunciationAccuracyScore = pronunciationAccuracyScore;
+        attempt.speechStartOffsetMs = speechStartOffsetMs;
+        attempt.speechEndOffsetMs = speechEndOffsetMs;
+        attempt.correct = correct;
+        attempt.totalScore = totalScore;
+        attempt.tokenIndex = tokenIndex;
+        attempt.finalAttempt = true;
+        return attempt;
+    }
+
     public void markNotFinal() {
         this.finalAttempt = false;
     }

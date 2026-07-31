@@ -4,6 +4,7 @@ import com.iread.backend.readingfeature.domain.ReadingFeatureEntity;
 import com.iread.backend.readingfeature.domain.StudentFeatureProfileEntity;
 import com.iread.backend.readingfeature.repository.ReadingFeatureRepository;
 import com.iread.backend.readingfeature.repository.StudentFeatureProfileRepository;
+import com.iread.backend.story.analysis.StoryLineContentService;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.training.domain.TrainingDataEntity;
 import com.iread.backend.training.domain.TrainingEntity;
@@ -47,6 +48,7 @@ public class StudentFeatureProfileService {
     private final WordAttemptLogRepository wordAttemptLogRepository;
     private final ReadingFeatureRepository readingFeatureRepository;
     private final StudentFeatureProfileRepository profileRepository;
+    private final StoryLineContentService storyLineContentService;
     private final ObjectMapper objectMapper;
 
     public List<StudentFeatureProfileView> getProfiles(Long studentId) {
@@ -128,7 +130,33 @@ public class StudentFeatureProfileService {
                     evidenceByFeature
             );
         }
+        collectStoryEvidence(studentId, evidenceByFeature);
         return evidenceByFeature;
+    }
+
+    /**
+     * 스토리에서 소리 내어 읽은 단어를 훈련 근거와 같은 무게로 수집한다.
+     * featureCodes는 대사 content JSON에 저장된 형태소·G2P 분석 결과에서 가져온다.
+     */
+    private void collectStoryEvidence(
+            Long studentId,
+            Map<String, List<Evidence>> evidenceByFeature
+    ) {
+        for (WordAttemptLogEntity log : wordAttemptLogRepository.findAllStoryAttemptsByStudentId(studentId)) {
+            List<String> featureCodes = storyLineContentService.featureCodesOf(
+                    storyLineContentService.analysisOf(log.getStoryLine()),
+                    log.getTokenIndex(),
+                    log.getSurfaceText()
+            );
+            if (featureCodes.isEmpty()) {
+                continue;
+            }
+            Evidence evidence = Evidence.fromStory(log);
+            for (String code : featureCodes) {
+                evidenceByFeature.computeIfAbsent(code, ignored -> new ArrayList<>())
+                        .add(evidence);
+            }
+        }
     }
 
     private void collectNonAudioEvidence(
@@ -452,6 +480,30 @@ public class StudentFeatureProfileService {
                     Boolean.TRUE.equals(log.getSkipped()),
                     attempt.hasNonNull("wordReadTimeMs")
                             ? attempt.path("wordReadTimeMs").asInt() : null,
+                    log.getCreatedAt()
+            );
+        }
+
+        /**
+         * 스토리 단어 시도. 발음 오류 유형과 신뢰도는 따로 저장하지 않으므로 정답 여부로 대신하고,
+         * 읽기 시간은 저장된 발화 구간에서 구한다.
+         */
+        static Evidence fromStory(WordAttemptLogEntity log) {
+            boolean correct = Boolean.TRUE.equals(log.getCorrect());
+            Integer readingTimeMs =
+                    log.getSpeechStartOffsetMs() == null || log.getSpeechEndOffsetMs() == null
+                            ? null
+                            : Math.max(0, log.getSpeechEndOffsetMs() - log.getSpeechStartOffsetMs());
+            return new Evidence(
+                    correct,
+                    !correct,
+                    log.getPronunciationAccuracyScore(),
+                    1.0,
+                    log.getFixationDurationMs(),
+                    log.getFixationCount(),
+                    log.getRegressionCount(),
+                    Boolean.TRUE.equals(log.getSkipped()),
+                    readingTimeMs,
                     log.getCreatedAt()
             );
         }
