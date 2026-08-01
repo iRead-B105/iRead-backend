@@ -41,6 +41,7 @@ public class CurriculumGenerationWorker {
         }
         if (trainings.stream().allMatch(training ->
                 training.getStatus() == TrainingStatus.NOT_STARTED)) {
+            curriculum.refreshReviewRequirement();
             return;
         }
         if (trainings.stream().anyMatch(training ->
@@ -61,10 +62,25 @@ public class CurriculumGenerationWorker {
                     .orElseGet(() -> trainingDataRepository.save(
                             new TrainingDataEntity(training, "{}")
                     ));
-            data.updateGeneratedData(writeJson(generated.get(index)));
+            ObjectNode previous = readObject(data.getGeneratedData());
+            ObjectNode next = generated.get(index);
+            next.put("revision", Math.max(0, previous.path("revision").asInt(0)) + 1);
+            data.updateGeneratedData(writeJson(next));
             training.markReady();
         }
+        curriculum.refreshReviewRequirement();
         trainingDataRepository.flush();
+    }
+
+    private ObjectNode readObject(String value) {
+        try {
+            var parsed = objectMapper.readTree(value == null || value.isBlank() ? "{}" : value);
+            if (parsed instanceof ObjectNode object) {
+                return object;
+            }
+        } catch (Exception ignored) {
+        }
+        throw new IllegalStateException("Stored training data is not a JSON object.");
     }
 
     private String writeJson(ObjectNode value) {

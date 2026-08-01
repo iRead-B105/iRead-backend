@@ -41,7 +41,7 @@ class MySqlDemoSeedIntegrationTest {
                  ORDER BY installed_rank
                 """,
                 String.class
-        )).containsExactly("1", "2", "3");
+        )).containsExactly("1", "2", "3", "4");
 
         String passwordHash = jdbcTemplate.queryForObject(
                 "SELECT password FROM teachers WHERE id = 1001",

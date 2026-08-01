@@ -74,6 +74,7 @@ public class AppTrainingService {
 
     public TrainingIntroResponse getIntro(Long teacherId, Long studentId, Long trainingId) {
         TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
+        requireReviewedRecommendedCurriculum(training);
         JsonNode generatedData = trainingDataRepository.findByTrainingId(trainingId)
                 .map(TrainingDataEntity::getGeneratedData)
                 .map(this::readJson)
@@ -101,7 +102,8 @@ public class AppTrainingService {
             Long trainingId,
             int questionNumber
     ) {
-        findOwnedTraining(teacherId, studentId, trainingId);
+        TrainingEntity training = findOwnedTraining(teacherId, studentId, trainingId);
+        requireReviewedRecommendedCurriculum(training);
         JsonNode generatedData = trainingDataRepository.findByTrainingId(trainingId)
                 .map(TrainingDataEntity::getGeneratedData)
                 .map(this::readJson)
@@ -123,6 +125,7 @@ public class AppTrainingService {
         studentRepository.findByIdAndTeacherIdForUpdate(studentId, teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException("학생을 찾을 수 없습니다."));
         TrainingEntity training = findOwnedTrainingForUpdate(teacherId, studentId, trainingId);
+        requireReviewedRecommendedCurriculum(training);
         if (training.getStatus() == TrainingStatus.IN_PROGRESS) {
             return new TrainingStartResponse(
                     trainingId,
@@ -428,6 +431,15 @@ public class AppTrainingService {
                 .orElseThrow(() -> new ResourceNotFoundException("교육과정을 찾을 수 없습니다."));
         return trainingRepository.findForUpdate(trainingId, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("훈련을 찾을 수 없습니다."));
+    }
+
+    private void requireReviewedRecommendedCurriculum(TrainingEntity training) {
+        var curriculum = training.getDailyCurriculum();
+        if (curriculum.isRecommendedFromTest() && !curriculum.isAvailableToStudent()) {
+            throw new ConflictException(
+                    "The recommended curriculum is awaiting the teacher's final review."
+            );
+        }
     }
 
     private TrainingEntity findInProgressTrainingForUpdate(Long studentId, Long trainingId) {

@@ -111,4 +111,25 @@ class AppTrainingCatalogServiceTest {
                 .hasMessage("학생을 찾을 수 없습니다.");
         verifyNoInteractions(dailyCurriculumRepository);
     }
+
+    @Test
+    void hidesUnreviewedTestRecommendedCurriculumFromStudentCatalog() {
+        StudentEntity student = mock(StudentEntity.class);
+        DailyCurriculumEntity curriculum = mock(DailyCurriculumEntity.class);
+        when(studentRepository.findByIdAndTeacherId(20L, 1L))
+                .thenReturn(Optional.of(student));
+        when(dailyCurriculumRepository.findByStudentIdAndStatus(
+                20L,
+                DailyCurriculumStatus.IN_PROGRESS
+        )).thenReturn(Optional.empty());
+        when(dailyCurriculumRepository.findByStudentIdAndStatus(
+                20L,
+                DailyCurriculumStatus.NOT_STARTED
+        )).thenReturn(Optional.of(curriculum));
+        when(curriculum.isRecommendedFromTest()).thenReturn(true);
+        when(curriculum.isAvailableToStudent()).thenReturn(false);
+
+        assertThatThrownBy(() -> service.getCurrentTrainingList(1L, 20L))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
 }

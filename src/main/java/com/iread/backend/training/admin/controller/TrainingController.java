@@ -111,6 +111,20 @@ public class TrainingController {
         return ResponseEntity.ok().build();
     }
 
+    @Operation(summary = "Complete final review of a test-recommended curriculum")
+    @PostMapping("/{studentId}/{curriculumId}/review-complete")
+    public CurriculumReviewResponse completeCurriculumReview(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @PathVariable Long curriculumId
+    ) {
+        return trainingService.completeCurriculumReview(
+                teacherId,
+                studentId,
+                curriculumId
+        );
+    }
+
     @Operation(summary = "Get editable lesson materials")
     @GetMapping("/{studentId}/{trainingId}/lesson-material")
     public LessonMaterialResponse getLessonMaterial(

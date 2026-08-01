@@ -218,6 +218,37 @@ public class TrainingService {
         );
     }
 
+    @Transactional
+    public CurriculumReviewResponse completeCurriculumReview(
+            Long teacherId,
+            Long studentId,
+            Long curriculumId
+    ) {
+        StudentEntity student = validateStudentOwner(teacherId, studentId);
+        DailyCurriculumEntity curriculum = dailyCurriculumRepository
+                .findForUpdate(curriculumId, studentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "CURRICULUM_NOT_FOUND",
+                        "Curriculum was not found."
+                ));
+        if (!curriculum.isRecommendedFromTest()) {
+            throw new ConflictException("Only test-recommended curricula require final review.");
+        }
+        if (curriculum.getReviewStatus() == CurriculumReviewStatus.REVIEW_COMPLETED) {
+            return toCurriculumReviewResponse(curriculum);
+        }
+        validateReviewableContent(curriculum);
+        curriculum.completeReview(student.getTeacher(), LocalDateTime.now());
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.CURRICULUM,
+                curriculumId,
+                "REVIEW_COMPLETED"
+        );
+        return toCurriculumReviewResponse(curriculum);
+    }
+
     public TrainingDetailResponse getTrainingDetail(
             Long teacherId,
             Long studentId,
@@ -272,6 +303,7 @@ public class TrainingService {
                 ));
         validateEditable(training);
 
+        training.getDailyCurriculum().markRegenerationRequired();
         TrainingDataEntity data = findOrCreateTrainingData(training);
         ObjectNode previousData = parseObject(data.getGeneratedData());
         ObjectNode generatedData = personalizedTrainingGenerationService.generate(training);
@@ -279,6 +311,7 @@ public class TrainingService {
         generatedData.put("revision", Math.max(0, previousData.path("revision").asInt(0)) + 1);
         data.updateGeneratedData(writeJson(generatedData));
         training.markReady();
+        training.getDailyCurriculum().refreshReviewRequirement();
         realtimeEventPublisher.publishAfterCommit(
                 teacherId,
                 studentId,
@@ -565,6 +598,12 @@ public class TrainingService {
         return new DailyCurriculumResponse(
                 curriculum.getId(),
                 curriculum.getStatus().name(),
+                curriculum.getSourceTestCurriculum() == null
+                        ? null : curriculum.getSourceTestCurriculum().getId(),
+                curriculum.getReviewStatus().name(),
+                curriculum.getReviewedByTeacher() == null
+                        ? null : curriculum.getReviewedByTeacher().getId(),
+                curriculum.getReviewedAt(),
                 curriculum.getTrainings().stream()
                 .map(training -> new DailyCurriculumResponse.TrainingItem(
                         training.getId(),
@@ -575,6 +614,47 @@ public class TrainingService {
                         training.getStatus().name()
                 ))
                 .toList()
+        );
+    }
+
+    private void validateReviewableContent(DailyCurriculumEntity curriculum) {
+        if (curriculum.getStatus() != DailyCurriculumStatus.NOT_STARTED) {
+            throw new ConflictException("A started curriculum cannot be reviewed.");
+        }
+        if (curriculum.getReviewStatus() != CurriculumReviewStatus.REVIEW_REQUIRED) {
+            throw new ConflictException("Curriculum content is not ready for final review.");
+        }
+        if (curriculum.getTrainings().size() != PersonalizedCurriculumPlanner.TRAINING_COUNT) {
+            throw new ConflictException("A reviewed curriculum must contain exactly five trainings.");
+        }
+        for (TrainingEntity training : curriculum.getTrainings()) {
+            if (training.getStatus() != TrainingStatus.NOT_STARTED) {
+                throw new ConflictException("Every training must be generated before final review.");
+            }
+            ObjectNode generated = trainingDataRepository.findByTrainingId(training.getId())
+                    .map(TrainingDataEntity::getGeneratedData)
+                    .map(this::parseObject)
+                    .orElseThrow(() -> new ConflictException(
+                            "Every training must have saved generated content before final review."
+                    ));
+            if (!generated.path("questions").isArray()
+                    || generated.path("questions").isEmpty()) {
+                throw new ConflictException(
+                        "Every training must have saved questions before final review."
+                );
+            }
+        }
+    }
+
+    private CurriculumReviewResponse toCurriculumReviewResponse(
+            DailyCurriculumEntity curriculum
+    ) {
+        return new CurriculumReviewResponse(
+                curriculum.getId(),
+                curriculum.getReviewStatus().name(),
+                curriculum.getReviewedByTeacher() == null
+                        ? null : curriculum.getReviewedByTeacher().getId(),
+                curriculum.getReviewedAt()
         );
     }
 
