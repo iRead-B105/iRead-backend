@@ -17,6 +17,10 @@ public record TestCurriculumDetailResponse(
         List<AreaScore> areaScores,
         Long solvingTimeSeconds,
         List<QuestionResult> questions,
+        String recommendationStatus,
+        String recommendationError,
+        LocalDateTime recommendationLastAttemptAt,
+        int recommendationRetryCount,
         Long dailyCurriculumId,
         String contentGenerationStatus,
         String teacherReviewStatus
