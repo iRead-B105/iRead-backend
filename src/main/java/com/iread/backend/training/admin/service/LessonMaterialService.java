@@ -186,6 +186,7 @@ public class LessonMaterialService {
 
         data.updateGeneratedData(writeJson(updated));
         training.markReady();
+        training.getDailyCurriculum().markContentChanged();
         realtimeEventPublisher.publishAfterCommit(
                 teacherId,
                 studentId,

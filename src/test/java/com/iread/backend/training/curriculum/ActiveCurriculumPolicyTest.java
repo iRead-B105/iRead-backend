@@ -50,4 +50,38 @@ class ActiveCurriculumPolicyTest {
         assertThat(ActiveCurriculumPolicy.find(repository, 20L))
                 .containsSame(notStarted);
     }
+    @Test
+    void hidesUnreviewedTestRecommendedCurriculum() {
+        DailyCurriculumEntity recommended = mock(DailyCurriculumEntity.class);
+        when(repository.findByStudentIdAndStatus(
+                20L,
+                DailyCurriculumStatus.IN_PROGRESS
+        )).thenReturn(Optional.empty());
+        when(repository.findByStudentIdAndStatus(
+                20L,
+                DailyCurriculumStatus.NOT_STARTED
+        )).thenReturn(Optional.of(recommended));
+        when(recommended.isRecommendedFromTest()).thenReturn(true);
+        when(recommended.isAvailableToStudent()).thenReturn(false);
+
+        assertThat(ActiveCurriculumPolicy.find(repository, 20L)).isEmpty();
+    }
+
+    @Test
+    void returnsReviewedTestRecommendedCurriculum() {
+        DailyCurriculumEntity recommended = mock(DailyCurriculumEntity.class);
+        when(repository.findByStudentIdAndStatus(
+                21L,
+                DailyCurriculumStatus.IN_PROGRESS
+        )).thenReturn(Optional.empty());
+        when(repository.findByStudentIdAndStatus(
+                21L,
+                DailyCurriculumStatus.NOT_STARTED
+        )).thenReturn(Optional.of(recommended));
+        when(recommended.isRecommendedFromTest()).thenReturn(true);
+        when(recommended.isAvailableToStudent()).thenReturn(true);
+
+        assertThat(ActiveCurriculumPolicy.find(repository, 21L))
+                .containsSame(recommended);
+    }
 }

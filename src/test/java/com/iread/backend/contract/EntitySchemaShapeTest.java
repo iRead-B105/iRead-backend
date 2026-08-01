@@ -106,7 +106,11 @@ class EntitySchemaShapeTest {
         testCurriculumColumns.put("recommendation_error", true);
         testCurriculumColumns.put("recommendation_last_attempt_at", true);
         testCurriculumColumns.put("recommendation_retry_count", false);
-        tables.get("daily_curriculums").put("source_test_curriculum_id", true);
+        Map<String, Boolean> dailyCurriculumColumns = tables.get("daily_curriculums");
+        dailyCurriculumColumns.put("source_test_curriculum_id", true);
+        dailyCurriculumColumns.put("review_status", false);
+        dailyCurriculumColumns.put("reviewed_at", true);
+        dailyCurriculumColumns.put("reviewed_by_teacher_id", true);
         return tables;
     }
 }

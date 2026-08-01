@@ -46,13 +46,16 @@ class MySqlFlywayIntegrationTest {
     @Test
     void appliesAllMigrationsAndValidatesJpaMappings() {
         assertThat(applicationTableCount()).isEqualTo(26);
-        assertThat(constraintCount("FOREIGN KEY")).isEqualTo(36);
+        assertThat(constraintCount("FOREIGN KEY")).isEqualTo(37);
         assertThat(constraintCount("UNIQUE")).isEqualTo(16);
         assertThat(constraintCount("CHECK")).isEqualTo(11);
         assertThat(columnExists("story_lines", "branch_prompt")).isTrue();
 
         assertThat(tableExists("training_datas")).isTrue();
         assertThat(columnExists("training_datas", "train_id")).isTrue();
+        assertThat(columnExists("daily_curriculums", "review_status")).isTrue();
+        assertThat(columnExists("daily_curriculums", "reviewed_at")).isTrue();
+        assertThat(columnExists("daily_curriculums", "reviewed_by_teacher_id")).isTrue();
         assertThat(columnExists("training_templates", "prompt")).isTrue();
         assertThat(columnExists("training_templates", "form")).isFalse();
         assertThat(tableExists("reading_features")).isTrue();

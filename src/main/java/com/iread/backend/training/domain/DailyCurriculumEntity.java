@@ -1,6 +1,7 @@
 package com.iread.backend.training.domain;
 
 import com.iread.backend.student.domain.StudentEntity;
+import com.iread.backend.teacher.domain.TeacherEntity;
 import com.iread.backend.test.domain.TestCurriculumEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -40,6 +41,22 @@ public class DailyCurriculumEntity {
     @JoinColumn(name = "source_test_curriculum_id", unique = true)
     private TestCurriculumEntity sourceTestCurriculum;
 
+    @Enumerated(EnumType.STRING)
+    @Column(
+            name = "review_status",
+            nullable = false,
+            length = 30,
+            columnDefinition = "varchar(30) default 'NOT_REQUIRED'"
+    )
+    private CurriculumReviewStatus reviewStatus = CurriculumReviewStatus.NOT_REQUIRED;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reviewed_by_teacher_id")
+    private TeacherEntity reviewedByTeacher;
+
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
     @Column(name = "not_started_student_id", insertable = false, updatable = false)
     private Long notStartedStudentId;
 
@@ -62,6 +79,9 @@ public class DailyCurriculumEntity {
         this.student = Objects.requireNonNull(student, "student는 필수입니다.");
         this.sourceTestCurriculum = sourceTestCurriculum;
         replaceTrainings(templates);
+        this.reviewStatus = sourceTestCurriculum == null
+                ? CurriculumReviewStatus.NOT_REQUIRED
+                : CurriculumReviewStatus.GENERATION_PENDING;
     }
 
     public void replaceTrainings(List<TrainingTemplateEntity> templates) {
@@ -71,6 +91,69 @@ public class DailyCurriculumEntity {
         }
         status = DailyCurriculumStatus.NOT_STARTED;
         completedAt = null;
+        if (sourceTestCurriculum != null) {
+            markRegenerationRequired();
+        }
+    }
+
+    public boolean isRecommendedFromTest() {
+        return sourceTestCurriculum != null;
+    }
+
+    public boolean isAvailableToStudent() {
+        return !isRecommendedFromTest()
+                || reviewStatus == CurriculumReviewStatus.REVIEW_COMPLETED;
+    }
+
+    public void markRegenerationRequired() {
+        if (!isRecommendedFromTest()) {
+            return;
+        }
+        reviewStatus = CurriculumReviewStatus.REGENERATION_REQUIRED;
+        clearReview();
+    }
+
+    public void refreshReviewRequirement() {
+        if (!isRecommendedFromTest()
+                || reviewStatus == CurriculumReviewStatus.REVIEW_COMPLETED) {
+            return;
+        }
+        if (trainings.size() == 5 && trainings.stream().allMatch(training ->
+                training.getStatus() == TrainingStatus.NOT_STARTED)) {
+            reviewStatus = CurriculumReviewStatus.REVIEW_REQUIRED;
+            clearReview();
+        }
+    }
+
+    public void markContentChanged() {
+        if (!isRecommendedFromTest()) {
+            return;
+        }
+        clearReview();
+        reviewStatus = trainings.size() == 5 && trainings.stream().allMatch(training ->
+                training.getStatus() == TrainingStatus.NOT_STARTED)
+                ? CurriculumReviewStatus.REVIEW_REQUIRED
+                : CurriculumReviewStatus.REGENERATION_REQUIRED;
+    }
+
+    public void completeReview(TeacherEntity teacher, LocalDateTime reviewedAt) {
+        if (!isRecommendedFromTest()) {
+            throw new IllegalStateException("Only test-recommended curricula require review.");
+        }
+        if (reviewStatus == CurriculumReviewStatus.REVIEW_COMPLETED) {
+            return;
+        }
+        if (reviewStatus != CurriculumReviewStatus.REVIEW_REQUIRED) {
+            throw new IllegalStateException("Curriculum content is not ready for final review.");
+        }
+        reviewedByTeacher = Objects.requireNonNull(teacher, "teacher is required");
+        this.reviewedAt = Objects.requireNonNull(reviewedAt, "reviewedAt is required");
+        reviewStatus = CurriculumReviewStatus.REVIEW_COMPLETED;
+    }
+
+    private void clearReview() {
+        reviewedByTeacher = null;
+        reviewedAt = null;
     }
 
     public void refreshCompletion(LocalDateTime now) {

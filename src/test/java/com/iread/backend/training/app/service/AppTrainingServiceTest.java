@@ -1,5 +1,6 @@
 package com.iread.backend.training.app.service;
 
+import com.iread.backend.exception.ConflictException;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.global.audio.AudioUploadPolicy;
 import com.iread.backend.learning.app.dto.LearningResponseType;
@@ -76,6 +77,51 @@ class AppTrainingServiceTest {
     @Mock ObjectMapper objectMapper;
     @Mock RealtimeEventPublisher realtimeEventPublisher;
     @InjectMocks AppTrainingService appTrainingService;
+
+    @Test
+    void rejectsDirectIntroAndQuestionAccessBeforeRecommendedCurriculumReview() {
+        StudentEntity student = mock(StudentEntity.class);
+        TrainingEntity training = mock(TrainingEntity.class);
+        DailyCurriculumEntity curriculum = mock(DailyCurriculumEntity.class);
+        when(studentRepository.findByIdAndTeacherId(20L, 1L))
+                .thenReturn(Optional.of(student));
+        when(trainingRepository.findByIdAndDailyCurriculumStudentId(30L, 20L))
+                .thenReturn(Optional.of(training));
+        when(training.getDailyCurriculum()).thenReturn(curriculum);
+        when(curriculum.isRecommendedFromTest()).thenReturn(true);
+        when(curriculum.isAvailableToStudent()).thenReturn(false);
+
+        assertThatThrownBy(() -> appTrainingService.getIntro(1L, 20L, 30L))
+                .isInstanceOf(ConflictException.class);
+        assertThatThrownBy(() -> appTrainingService.getQuestion(1L, 20L, 30L, 1))
+                .isInstanceOf(ConflictException.class);
+        verifyNoInteractions(trainingDataRepository);
+    }
+
+    @Test
+    void rejectsStartBeforeRecommendedCurriculumReviewWhileHoldingCurriculumLock() {
+        StudentEntity student = mock(StudentEntity.class);
+        TrainingEntity training = mock(TrainingEntity.class);
+        DailyCurriculumEntity curriculum = mock(DailyCurriculumEntity.class);
+        when(studentRepository.findByIdAndTeacherIdForUpdate(20L, 1L))
+                .thenReturn(Optional.of(student));
+        when(studentRepository.findByIdAndTeacherId(20L, 1L))
+                .thenReturn(Optional.of(student));
+        when(trainingRepository.findByIdAndDailyCurriculumStudentId(30L, 20L))
+                .thenReturn(Optional.of(training));
+        when(training.getDailyCurriculum()).thenReturn(curriculum);
+        when(curriculum.getId()).thenReturn(40L);
+        when(dailyCurriculumRepository.findForUpdate(40L, 20L))
+                .thenReturn(Optional.of(curriculum));
+        when(trainingRepository.findForUpdate(30L, 20L))
+                .thenReturn(Optional.of(training));
+        when(curriculum.isRecommendedFromTest()).thenReturn(true);
+        when(curriculum.isAvailableToStudent()).thenReturn(false);
+
+        assertThatThrownBy(() -> appTrainingService.start(1L, 20L, 30L))
+                .isInstanceOf(ConflictException.class);
+        verify(training, never()).start(any(LocalDateTime.class));
+    }
 
     @Test
     void startsOwnedNotStartedTraining() {
@@ -454,10 +500,12 @@ class AppTrainingServiceTest {
     void studentQuestionExposesAnswerButNotProfileOrInternalValidation() throws Exception {
         StudentEntity student = mock(StudentEntity.class);
         TrainingEntity training = mock(TrainingEntity.class);
+        DailyCurriculumEntity curriculum = mock(DailyCurriculumEntity.class);
         TrainingDataEntity data = mock(TrainingDataEntity.class);
         when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(trainingRepository.findByIdAndDailyCurriculumStudentId(30L, 20L))
                 .thenReturn(Optional.of(training));
+        when(training.getDailyCurriculum()).thenReturn(curriculum);
         when(trainingDataRepository.findByTrainingId(30L)).thenReturn(Optional.of(data));
         when(data.getGeneratedData()).thenReturn("""
                 {

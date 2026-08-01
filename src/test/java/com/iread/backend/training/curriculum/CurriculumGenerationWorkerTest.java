@@ -1,6 +1,8 @@
 package com.iread.backend.training.curriculum;
 
 import com.iread.backend.student.domain.StudentEntity;
+import com.iread.backend.test.domain.TestCurriculumEntity;
+import com.iread.backend.training.domain.CurriculumReviewStatus;
 import com.iread.backend.training.domain.DailyCurriculumEntity;
 import com.iread.backend.training.domain.TrainingDataEntity;
 import com.iread.backend.training.domain.TrainingEntity;
@@ -72,7 +74,30 @@ class CurriculumGenerationWorkerTest {
         verify(fixture.trainingDataRepository(), never()).flush();
     }
 
+    @Test
+    void generatedRecommendedCurriculumWaitsForTeacherReview() {
+        Fixture fixture = fixture(true);
+        ObjectNode generated = JsonMapper.builder().build().createObjectNode();
+        generated.putArray("questions").addObject().put("questionNo", 1);
+        when(fixture.generationService().generate(any()))
+                .thenAnswer(invocation -> generated.deepCopy());
+        when(fixture.trainingDataRepository().findByTrainingId(any()))
+                .thenReturn(Optional.empty());
+        when(fixture.trainingDataRepository().save(any(TrainingDataEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        fixture.worker().generate(100L);
+
+        assertThat(fixture.curriculum().getReviewStatus())
+                .isEqualTo(CurriculumReviewStatus.REVIEW_REQUIRED);
+        assertThat(fixture.curriculum().isAvailableToStudent()).isFalse();
+    }
+
     private Fixture fixture() {
+        return fixture(false);
+    }
+
+    private Fixture fixture(boolean recommended) {
         DailyCurriculumRepository curricula = mock(DailyCurriculumRepository.class);
         TrainingDataRepository trainingData = mock(TrainingDataRepository.class);
         PersonalizedTrainingGenerationService generation =
@@ -89,7 +114,13 @@ class CurriculumGenerationWorkerTest {
                     return template;
                 })
                 .toList();
-        DailyCurriculumEntity curriculum = new DailyCurriculumEntity(student, templates);
+        DailyCurriculumEntity curriculum = recommended
+                ? new DailyCurriculumEntity(
+                        student,
+                        templates,
+                        mock(TestCurriculumEntity.class)
+                )
+                : new DailyCurriculumEntity(student, templates);
         ReflectionTestUtils.setField(curriculum, "id", 100L);
         for (int index = 0; index < curriculum.getTrainings().size(); index++) {
             ReflectionTestUtils.setField(

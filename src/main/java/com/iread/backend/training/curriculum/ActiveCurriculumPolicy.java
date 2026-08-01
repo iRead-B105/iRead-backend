@@ -17,9 +17,14 @@ public final class ActiveCurriculumPolicy {
     ) {
         return repository
                 .findByStudentIdAndStatus(studentId, DailyCurriculumStatus.IN_PROGRESS)
+                .filter(ActiveCurriculumPolicy::isAvailableToStudent)
                 .or(() -> repository.findByStudentIdAndStatus(
                         studentId,
                         DailyCurriculumStatus.NOT_STARTED
-                ));
+                ).filter(ActiveCurriculumPolicy::isAvailableToStudent));
+    }
+
+    private static boolean isAvailableToStudent(DailyCurriculumEntity curriculum) {
+        return !curriculum.isRecommendedFromTest() || curriculum.isAvailableToStudent();
     }
 }
