@@ -249,6 +249,7 @@ public class AppTestService {
         return new TestStartResponse(test.getId(), startedAt, test.getStatus());
     }
 
+    @Transactional
     public TestStartResponse start(Long teacherId, Long studentId) {
         findOwnedStudent(teacherId, studentId);
         StudentTestEntity current = findCurrentTest(
@@ -263,8 +264,12 @@ public class AppTestService {
                     test.getStatus()
             );
         }
+        validateStartOrder(test);
         LocalDateTime startedAt = LocalDateTime.now();
         test.start(startedAt);
+        if (test.getTestCurriculum() != null) {
+            test.getTestCurriculum().start();
+        }
         realtimeEventPublisher.publishAfterCommit(
                 teacherId,
                 studentId,
@@ -726,13 +731,35 @@ public class AppTestService {
         int completed = (int) tests.stream()
                 .filter(test -> test.getStatus() == TestStatus.COMPLETED)
                 .count();
+        StudentTestEntity next = tests.stream()
+                .filter(test -> test.getStatus() == TestStatus.IN_PROGRESS)
+                .findFirst()
+                .orElseGet(() -> tests.stream()
+                        .filter(test -> test.getStatus() == TestStatus.NOT_STARTED)
+                        .findFirst()
+                        .orElse(null));
         return new SkillChallengePlanResponse(
                 curriculum.getId(),
                 completed,
                 TOTAL_QUESTION_COUNT,
                 completed == TOTAL_QUESTION_COUNT,
+                next == null ? null : next.getId(),
+                next == null ? null : trackCode(next.getSequenceNo()),
                 tracks
         );
+    }
+
+    private String trackCode(int sequenceNo) {
+        if (sequenceNo <= TRACK_QUESTION_COUNT) {
+            return "phonological";
+        }
+        if (sequenceNo <= TRACK_QUESTION_COUNT * 2) {
+            return "short-text";
+        }
+        if (sequenceNo <= TOTAL_QUESTION_COUNT) {
+            return "fluency";
+        }
+        throw new IllegalStateException("실력도전 검사 순서가 올바르지 않습니다: " + sequenceNo);
     }
 
     private SkillChallengePlanResponse.Track toTrack(
@@ -778,14 +805,11 @@ public class AppTestService {
                 testRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(
                         test.getTestCurriculum().getId()
                 );
-        int trackStart = ((test.getSequenceNo() - 1) / TRACK_QUESTION_COUNT)
-                * TRACK_QUESTION_COUNT + 1;
         boolean previousIncomplete = tests.stream()
-                .anyMatch(item -> item.getSequenceNo() >= trackStart
-                        && item.getSequenceNo() < test.getSequenceNo()
+                .anyMatch(item -> item.getSequenceNo() < test.getSequenceNo()
                         && item.getStatus() != TestStatus.COMPLETED);
         if (previousIncomplete) {
-            throw new ConflictException("같은 분류의 앞 문항을 먼저 완료해야 합니다.");
+            throw new ConflictException("앞 순번의 실력도전 문항을 먼저 완료해야 합니다.");
         }
         boolean anotherInProgress = tests.stream()
                 .anyMatch(item -> !item.getId().equals(test.getId())
@@ -839,12 +863,27 @@ public class AppTestService {
     }
 
     private StudentTestEntity findCurrentTest(Long studentId, Set<TestStatus> statuses) {
-        return testRepository
-                .findFirstByTestCurriculumStudentIdAndStatusInOrderByTestCurriculumCreatedAtDescSequenceNoAscIdAsc(
-                        studentId,
-                        statuses
-                )
-                .orElseThrow(() -> new ResourceNotFoundException("진행할 검사를 찾을 수 없습니다."));
+        if (statuses.contains(TestStatus.IN_PROGRESS)) {
+            var inProgress = testRepository
+                    .findFirstByTestCurriculumStudentIdAndStatusInOrderByTestCurriculumCreatedAtDescSequenceNoAscIdAsc(
+                            studentId,
+                            Set.of(TestStatus.IN_PROGRESS)
+                    );
+            if (inProgress.isPresent()) {
+                return inProgress.get();
+            }
+        }
+        if (statuses.contains(TestStatus.NOT_STARTED)) {
+            var notStarted = testRepository
+                    .findFirstByTestCurriculumStudentIdAndStatusInOrderByTestCurriculumCreatedAtDescSequenceNoAscIdAsc(
+                            studentId,
+                            Set.of(TestStatus.NOT_STARTED)
+                    );
+            if (notStarted.isPresent()) {
+                return notStarted.get();
+            }
+        }
+        throw new ResourceNotFoundException("진행할 검사를 찾을 수 없습니다.");
     }
 
     private StudentTestEntity findInProgressTestForUpdate(Long studentId, Long testId) {

@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface DailyCurriculumRepository extends JpaRepository<DailyCurriculumEntity, Long> {
+    boolean existsByStudentId(Long studentId);
+
     @EntityGraph(attributePaths = {"trainings", "trainings.trainingTemplate", "trainings.trainingTemplate.curriculumUnit"})
     List<DailyCurriculumEntity> findAllByStudentIdAndCompletedAtIsNotNullOrderByCompletedAtDesc(Long studentId);
 
