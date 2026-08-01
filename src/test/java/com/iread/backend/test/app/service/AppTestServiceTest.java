@@ -22,7 +22,9 @@ import com.iread.backend.test.domain.TestCurriculumEntity;
 import com.iread.backend.test.repository.StudentTestRepository;
 import com.iread.backend.test.repository.TestCurriculumRepository;
 import com.iread.backend.test.repository.TestDataRepository;
+import com.iread.backend.training.domain.TrainingTemplateEntity;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
+import com.iread.backend.training.generation.TrainingType;
 import com.iread.backend.training.repository.TrainingTemplateRepository;
 import com.iread.backend.training.repository.WordRepository;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
@@ -44,11 +46,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -92,6 +96,7 @@ class AppTestServiceTest {
                 })
                 .toList();
         when(tests.get(1).getId()).thenReturn(102L);
+        when(tests.get(1).getSequenceNo()).thenReturn(2);
         when(tests.get(3).getId()).thenReturn(104L);
         when(tests.get(6).getId()).thenReturn(107L);
         when(testRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(50L))
@@ -104,7 +109,125 @@ class AppTestServiceTest {
         assertThat(plan.tracks()).hasSize(3);
         assertThat(plan.tracks()).allSatisfy(track ->
                 assertThat(track.totalQuestions()).isEqualTo(3));
+        assertThat(plan.nextTestId()).isEqualTo(102L);
+        assertThat(plan.nextTrackCode()).isEqualTo("phonological");
         assertThat(plan.tracks().getFirst().nextTestId()).isEqualTo(102L);
+    }
+
+    @Test
+    void createsOneChallengeCurriculumWithNinePersistedTests() {
+        ObjectMapper mapper = JsonMapper.builder().build();
+        AppTestService service = new AppTestService(
+                studentRepository,
+                testRepository,
+                testCurriculumRepository,
+                testDataRepository,
+                trainingTemplateRepository,
+                trainingGenerationService,
+                wordRepository,
+                wordAttemptLogRepository,
+                pronunciationAnalysisAdapter,
+                new PronunciationWordAligner(),
+                audioUploadPolicy,
+                wordAttemptScoreCalculator,
+                mapper,
+                new AppLearningQuestionSupport(mapper),
+                realtimeEventPublisher
+        );
+        StudentEntity student = mock(StudentEntity.class);
+        when(student.getId()).thenReturn(20L);
+        when(studentRepository.findByIdAndTeacherIdForUpdate(20L, 1L))
+                .thenReturn(Optional.of(student));
+        when(testCurriculumRepository
+                .findFirstByStudentIdOrderByCreatedAtDescIdDesc(20L))
+                .thenReturn(Optional.empty());
+        when(testCurriculumRepository.saveAndFlush(any(TestCurriculumEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        List<TrainingTemplateEntity> templates = List.of(
+                mockTemplate(TrainingType.VOWEL_TRACE),
+                mockTemplate(TrainingType.CONSONANT_TRACE),
+                mockTemplate(TrainingType.SYLLABLE_TRACE),
+                mockTemplate(TrainingType.WORD_READING),
+                mockTemplate(TrainingType.NONWORD_READING),
+                mockTemplate(TrainingType.SENTENCE_READING),
+                mockTemplate(TrainingType.SENTENCE_REPEAT),
+                mockTemplate(TrainingType.WORD_CHAIN_READING),
+                mockTemplate(TrainingType.PHRASE_READING)
+        );
+        when(trainingTemplateRepository
+                .findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc())
+                .thenReturn(templates);
+        List<StudentTestEntity> savedTests = new java.util.ArrayList<>();
+        AtomicLong testId = new AtomicLong(100L);
+        when(testRepository.saveAndFlush(any(StudentTestEntity.class)))
+                .thenAnswer(invocation -> {
+                    StudentTestEntity test = invocation.getArgument(0);
+                    org.springframework.test.util.ReflectionTestUtils.setField(
+                            test, "id", testId.incrementAndGet()
+                    );
+                    savedTests.add(test);
+                    return test;
+                });
+        when(testRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(any()))
+                .thenAnswer(ignored -> List.copyOf(savedTests));
+        when(trainingGenerationService.generateTestQuestion(any(), any(), any()))
+                .thenAnswer(ignored -> {
+                    var generated = mapper.createObjectNode();
+                    generated.putArray("questions")
+                            .addObject()
+                            .put("questionNo", 1)
+                            .put("type", "CONSONANT_SOUND_CHOICE");
+                    return generated;
+                });
+        when(testDataRepository.save(any(TestDataEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        var plan = service.getChallengePlan(1L, 20L);
+
+        assertThat(savedTests).hasSize(9);
+        assertThat(savedTests)
+                .extracting(StudentTestEntity::getSequenceNo)
+                .containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9);
+        assertThat(savedTests)
+                .allMatch(test -> test.getStatus() == TestStatus.NOT_STARTED);
+        assertThat(plan.totalQuestions()).isEqualTo(9);
+        assertThat(plan.nextTestId()).isEqualTo(101L);
+        assertThat(plan.nextTrackCode()).isEqualTo("phonological");
+        verify(testCurriculumRepository).saveAndFlush(any(TestCurriculumEntity.class));
+        verify(testRepository, times(9)).saveAndFlush(any(StudentTestEntity.class));
+        verify(testDataRepository, times(9)).save(any(TestDataEntity.class));
+    }
+
+    @Test
+    void returnsFifthQuestionFromSameChallengeAfterFourQuestionsCompleted() {
+        StudentEntity student = mock(StudentEntity.class);
+        TestCurriculumEntity curriculum = mock(TestCurriculumEntity.class);
+        when(studentRepository.findByIdAndTeacherIdForUpdate(20L, 1L))
+                .thenReturn(Optional.of(student));
+        when(testCurriculumRepository
+                .findFirstByStudentIdOrderByCreatedAtDescIdDesc(20L))
+                .thenReturn(Optional.of(curriculum));
+        when(curriculum.getId()).thenReturn(50L);
+        List<StudentTestEntity> tests = java.util.stream.IntStream.rangeClosed(1, 9)
+                .mapToObj(sequence -> {
+                    StudentTestEntity test = mock(StudentTestEntity.class);
+                    when(test.getStatus()).thenReturn(
+                            sequence <= 4 ? TestStatus.COMPLETED : TestStatus.NOT_STARTED
+                    );
+                    return test;
+                })
+                .toList();
+        when(tests.get(4).getId()).thenReturn(105L);
+        when(tests.get(4).getSequenceNo()).thenReturn(5);
+        when(testRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(50L))
+                .thenReturn(tests);
+
+        var plan = appTestService.getChallengePlan(1L, 20L);
+
+        assertThat(plan.testCurriculumId()).isEqualTo(50L);
+        assertThat(plan.completedQuestions()).isEqualTo(4);
+        assertThat(plan.nextTestId()).isEqualTo(105L);
+        assertThat(plan.nextTrackCode()).isEqualTo("short-text");
     }
 
     @Test
@@ -122,6 +245,7 @@ class AppTestServiceTest {
                 .thenReturn(Optional.of(test));
         when(test.getId()).thenReturn(30L);
         when(test.getStatus()).thenReturn(
+                TestStatus.NOT_STARTED,
                 TestStatus.NOT_STARTED,
                 TestStatus.IN_PROGRESS
         );
@@ -154,6 +278,76 @@ class AppTestServiceTest {
         assertThat(result.status()).isEqualTo(TestStatus.IN_PROGRESS);
         verify(test, never()).start(any(LocalDateTime.class));
         verifyNoInteractions(realtimeEventPublisher);
+    }
+
+    @Test
+    void rejectsStartingNextTrackWhileEarlierSequenceIsIncomplete() {
+        StudentEntity student = mock(StudentEntity.class);
+        TestCurriculumEntity curriculum = mock(TestCurriculumEntity.class);
+        StudentTestEntity target = mock(StudentTestEntity.class);
+        when(studentRepository.findByIdAndTeacherId(20L, 1L))
+                .thenReturn(Optional.of(student));
+        when(testRepository.findByIdAndStudentIdForUpdate(104L, 20L))
+                .thenReturn(Optional.of(target));
+        when(target.getSequenceNo()).thenReturn(4);
+        when(target.getStatus()).thenReturn(TestStatus.NOT_STARTED);
+        when(target.getTestCurriculum()).thenReturn(curriculum);
+        when(curriculum.getId()).thenReturn(50L);
+        List<StudentTestEntity> tests = new java.util.ArrayList<>();
+        for (int sequence = 1; sequence <= 3; sequence++) {
+            StudentTestEntity previous = mock(StudentTestEntity.class);
+            when(previous.getSequenceNo()).thenReturn(sequence);
+            when(previous.getStatus()).thenReturn(
+                    sequence == 3 ? TestStatus.NOT_STARTED : TestStatus.COMPLETED
+            );
+            tests.add(previous);
+        }
+        tests.add(target);
+        when(testRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(50L))
+                .thenReturn(tests);
+
+        assertThatThrownBy(() -> appTestService.start(1L, 20L, 104L))
+                .isInstanceOf(com.iread.backend.exception.ConflictException.class)
+                .hasMessageContaining("앞 순번");
+        verify(target, never()).start(any(LocalDateTime.class));
+    }
+
+    @Test
+    void startsFirstQuestionOfNextTrackAfterAllEarlierQuestionsCompleted() {
+        StudentEntity student = mock(StudentEntity.class);
+        TestCurriculumEntity curriculum = mock(TestCurriculumEntity.class);
+        StudentTestEntity target = mock(StudentTestEntity.class);
+        when(studentRepository.findByIdAndTeacherId(20L, 1L))
+                .thenReturn(Optional.of(student));
+        when(testRepository.findByIdAndStudentIdForUpdate(104L, 20L))
+                .thenReturn(Optional.of(target));
+        when(target.getId()).thenReturn(104L);
+        when(target.getSequenceNo()).thenReturn(4);
+        when(target.getStatus()).thenReturn(
+                TestStatus.NOT_STARTED,
+                TestStatus.NOT_STARTED,
+                TestStatus.IN_PROGRESS
+        );
+        when(target.getTestCurriculum()).thenReturn(curriculum);
+        when(curriculum.getId()).thenReturn(50L);
+        List<StudentTestEntity> tests = new java.util.ArrayList<>();
+        for (int sequence = 1; sequence <= 3; sequence++) {
+            StudentTestEntity previous = mock(StudentTestEntity.class);
+            when(previous.getId()).thenReturn(100L + sequence);
+            when(previous.getSequenceNo()).thenReturn(sequence);
+            when(previous.getStatus()).thenReturn(TestStatus.COMPLETED);
+            tests.add(previous);
+        }
+        tests.add(target);
+        when(testRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(50L))
+                .thenReturn(tests);
+
+        var response = appTestService.start(1L, 20L, 104L);
+
+        assertThat(response.testId()).isEqualTo(104L);
+        assertThat(response.status()).isEqualTo(TestStatus.IN_PROGRESS);
+        verify(target).start(any(LocalDateTime.class));
+        verify(curriculum).start();
     }
 
     @Test
@@ -238,6 +432,31 @@ class AppTestServiceTest {
         assertThat(result.messageKey()).isEqualTo("TEST_COMPLETE_GREAT_JOB");
         assertThat(result.completedAt()).isEqualTo(completedAt);
         verify(curriculum).complete(any(LocalDateTime.class));
+    }
+
+    @Test
+    void repeatedCompletionReturnsStoredResultWithoutCompletingAgain() {
+        StudentEntity student = mock(StudentEntity.class);
+        StudentTestEntity test = mock(StudentTestEntity.class);
+        LocalDateTime completedAt = LocalDateTime.of(2026, 8, 1, 10, 30);
+        when(studentRepository.findByIdAndTeacherId(20L, 1L))
+                .thenReturn(Optional.of(student));
+        when(testRepository.findByIdAndTestCurriculumStudentId(30L, 20L))
+                .thenReturn(Optional.of(test));
+        when(test.getId()).thenReturn(30L);
+        when(test.getStatus()).thenReturn(TestStatus.COMPLETED);
+        when(test.getFinishedAt()).thenReturn(completedAt);
+
+        var response = appTestService.complete(
+                1L,
+                20L,
+                new TestCompleteRequest(30L)
+        );
+
+        assertThat(response.status()).isEqualTo(TestStatus.COMPLETED);
+        assertThat(response.completedAt()).isEqualTo(completedAt);
+        verify(testRepository, never()).findByIdAndStudentIdForUpdate(any(), any());
+        verify(test, never()).complete(any(), any(), any());
     }
 
     @Test
@@ -594,5 +813,13 @@ class AppTestServiceTest {
         verifyNoInteractions(wordAttemptScoreCalculator);
         verify(wordAttemptLogRepository, org.mockito.Mockito.never())
                 .saveAndFlush(any());
+    }
+
+    private TrainingTemplateEntity mockTemplate(TrainingType type) {
+        TrainingTemplateEntity template = mock(TrainingTemplateEntity.class);
+        when(template.getPrompt()).thenReturn(
+                "{\"trainingType\":\"" + type.name() + "\"}"
+        );
+        return template;
     }
 }

@@ -5,8 +5,10 @@ import com.iread.backend.auth.annotation.CurrentTeacherId;
 import com.iread.backend.security.StudentResourceAccessPolicy;
 import com.iread.backend.student.app.dto.res.GrowthResponse;
 import com.iread.backend.student.app.dto.res.AppStudentProfileResponse;
+import com.iread.backend.student.app.dto.res.LearningEntryResponse;
 import com.iread.backend.student.app.service.AppStudentProfileService;
 import com.iread.backend.student.app.service.GrowthService;
+import com.iread.backend.student.app.service.LearningEntryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AppStudentController {
     private final GrowthService growthService;
     private final AppStudentProfileService appStudentProfileService;
+    private final LearningEntryService learningEntryService;
     private final StudentResourceAccessPolicy studentResourceAccessPolicy;
 
     @Operation(summary = "현재 아동 프로필 조회")
@@ -44,5 +47,16 @@ public class AppStudentController {
     ) {
         studentResourceAccessPolicy.requireSameStudent(authenticatedStudentId, studentId);
         return growthService.getGrowth(teacherId, studentId);
+    }
+
+    @Operation(summary = "학습 앱 최초 진입 상태 조회")
+    @GetMapping("/{studentId}/learning-entry")
+    public LearningEntryResponse getLearningEntry(
+            @CurrentTeacherId Long teacherId,
+            @CurrentStudentId Long authenticatedStudentId,
+            @PathVariable Long studentId
+    ) {
+        studentResourceAccessPolicy.requireSameStudent(authenticatedStudentId, studentId);
+        return learningEntryService.getLearningEntry(teacherId, studentId);
     }
 }

@@ -7,6 +7,8 @@ public record SkillChallengePlanResponse(
         int completedQuestions,
         int totalQuestions,
         boolean completed,
+        Long nextTestId,
+        String nextTrackCode,
         List<Track> tracks
 ) {
     public record Track(
