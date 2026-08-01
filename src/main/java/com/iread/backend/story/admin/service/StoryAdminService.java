@@ -10,6 +10,7 @@ import com.iread.backend.gaze.repository.GazeSessionRepository;
 import com.iread.backend.story.admin.dto.res.StoryGazeAnalysisResponse;
 import com.iread.backend.story.admin.dto.res.StoryHistoryDetailResponse;
 import com.iread.backend.story.admin.dto.res.StoryHistoryResponse;
+import com.iread.backend.story.analysis.StoryLineContentService;
 import com.iread.backend.story.domain.StoryChoiceEntity;
 import com.iread.backend.story.domain.StoryEntity;
 import com.iread.backend.story.domain.StoryLineEntity;
@@ -52,6 +53,7 @@ public class StoryAdminService {
     private final StoryChoiceRepository storyChoiceRepository;
     private final GazeSessionRepository gazeSessionRepository;
     private final GazeAnalysisResultRepository gazeAnalysisResultRepository;
+    private final StoryLineContentService storyLineContentService;
     private final ObjectMapper objectMapper;
 
     public StoryHistoryResponse getStoryHistory(
@@ -124,7 +126,7 @@ public class StoryAdminService {
                     ? null
                     : new StoryHistoryDetailResponse.BranchRecord(
                             choice.getId(),
-                            line.getContent(),
+                            storyLineContentService.textOf(line),
                             choice.getContent(),
                             offset(choice.getCreatedAt())
                     );
@@ -138,7 +140,7 @@ public class StoryAdminService {
                             ? imageUrl : null,
                     "center",
                     imageStatus,
-                    line.getContent().lines().toList(),
+                    List.of(storyLineContentService.textOf(line)),
                     line.isRequiresBranchInput(),
                     offset(line.getReadAt()),
                     branchRecord

@@ -9,6 +9,7 @@ import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
 import com.iread.backend.story.admin.dto.res.StoryHistoryDetailResponse;
 import com.iread.backend.story.admin.dto.res.StoryHistoryResponse;
+import com.iread.backend.story.analysis.StoryLineContentService;
 import com.iread.backend.story.domain.StoryChoiceEntity;
 import com.iread.backend.story.domain.StoryEntity;
 import com.iread.backend.story.domain.StoryLineEntity;
@@ -59,6 +60,7 @@ class StoryAdminServiceTest {
 
     @BeforeEach
     void setUp() {
+        var objectMapper = JsonMapper.builder().build();
         service = new StoryAdminService(
                 studentRepository,
                 storyRepository,
@@ -67,7 +69,8 @@ class StoryAdminServiceTest {
                 storyChoiceRepository,
                 gazeSessionRepository,
                 gazeAnalysisResultRepository,
-                JsonMapper.builder().build()
+                new StoryLineContentService(null, objectMapper),
+                objectMapper
         );
         student = StudentEntity.builder().name("student").build();
         ReflectionTestUtils.setField(student, "id", 10L);
@@ -169,6 +172,9 @@ class StoryAdminServiceTest {
 
     @Test
     void assemblesOrderedPagesAndBranchRecord() {
+        secondLine.updateContent("""
+                {"text":"Choose a path","analysis":{"analyzerVersion":"test"}}
+                """);
         StoryChoiceEntity choice = new StoryChoiceEntity(secondLine, "Take the river path");
         ReflectionTestUtils.setField(choice, "id", 80L);
         ReflectionTestUtils.setField(choice, "createdAt", LocalDateTime.of(2026, 7, 30, 9, 7));
@@ -187,6 +193,8 @@ class StoryAdminServiceTest {
                 .isEqualTo(StoryHistoryDetailResponse.ImageGenerationStatus.AVAILABLE);
         assertThat(response.pages().get(1).imageGenerationStatus())
                 .isEqualTo(StoryHistoryDetailResponse.ImageGenerationStatus.NOT_REQUESTED);
+        assertThat(response.pages().get(1).textLines())
+                .containsExactly("Choose a path");
         assertThat(response.pages().get(1).branchRecord().promptText())
                 .isEqualTo("Choose a path");
         assertThat(response.pages().get(1).branchRecord().transcript())
