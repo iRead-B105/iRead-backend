@@ -114,7 +114,22 @@ class MySqlDemoSeedIntegrationTest {
                        )
                 """,
                 Integer.class
-        )).isZero();
+        )).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM trainings training
+                  JOIN training_templates template
+                    ON template.id = training.training_template_id
+                 WHERE training.daily_curriculum_id = 180002
+                   AND training.sequence_no = 1
+                   AND JSON_CONTAINS(
+                         JSON_EXTRACT(template.prompt, '$.requiredInputs'),
+                         JSON_QUOTE('VOICE')
+                       )
+                """,
+                Integer.class
+        )).isEqualTo(1);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
