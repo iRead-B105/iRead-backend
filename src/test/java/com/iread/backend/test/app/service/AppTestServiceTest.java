@@ -157,9 +157,10 @@ class AppTestServiceTest {
     }
 
     @Test
-    void completesTestWithServerTimeWithoutExposingAccuracy() {
+    void completesLastChallengeTestAndCurriculumWithServerTimeWithoutExposingAccuracy() {
         StudentEntity student = mock(StudentEntity.class);
         StudentTestEntity test = mock(StudentTestEntity.class);
+        TestCurriculumEntity curriculum = mock(TestCurriculumEntity.class);
         TestDataEntity data = mock(TestDataEntity.class);
         when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(testRepository.findByIdAndTestCurriculumStudentId(30L, 20L))
@@ -188,6 +189,17 @@ class AppTestServiceTest {
                 """);
         LocalDateTime completedAt = LocalDateTime.of(2026, 7, 27, 15, 0);
         when(test.getFinishedAt()).thenReturn(completedAt);
+        when(test.getTestCurriculum()).thenReturn(curriculum);
+        when(curriculum.getId()).thenReturn(50L);
+        List<StudentTestEntity> curriculumTests = new java.util.ArrayList<>();
+        curriculumTests.add(test);
+        java.util.stream.IntStream.range(0, 8).forEach(ignored -> {
+            StudentTestEntity completed = mock(StudentTestEntity.class);
+            when(completed.getStatus()).thenReturn(TestStatus.COMPLETED);
+            curriculumTests.add(completed);
+        });
+        when(testRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(50L))
+                .thenReturn(curriculumTests);
         ObjectMapper mapper = JsonMapper.builder().build();
         AppTestService service = new AppTestService(
                 studentRepository,
@@ -225,6 +237,78 @@ class AppTestServiceTest {
         assertThat(result.completionType()).isEqualTo("TEST_COMPLETED");
         assertThat(result.messageKey()).isEqualTo("TEST_COMPLETE_GREAT_JOB");
         assertThat(result.completedAt()).isEqualTo(completedAt);
+        verify(curriculum).complete(any(LocalDateTime.class));
+    }
+
+    @Test
+    void storesNewSelectionUnderSubmissionsWithEvaluationAndProgress() {
+        StudentEntity student = mock(StudentEntity.class);
+        StudentTestEntity test = mock(StudentTestEntity.class);
+        TestDataEntity data = mock(TestDataEntity.class);
+        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        when(testRepository.findByIdAndStudentIdForUpdate(30L, 20L))
+                .thenReturn(Optional.of(test));
+        when(test.getId()).thenReturn(30L);
+        when(test.getStatus()).thenReturn(TestStatus.IN_PROGRESS);
+        when(test.getResult()).thenReturn(null);
+        when(testDataRepository.findFirstByTestIdOrderByCreatedAtDescIdDesc(30L))
+                .thenReturn(Optional.of(data));
+        when(data.getGeneratedData()).thenReturn("""
+                {
+                  "questions":[{
+                    "questionNo":1,
+                    "type":"CONSONANT_SOUND_CHOICE",
+                    "content":{"audioText":"ㄱ","choices":["ㄱ","ㄴ"]},
+                    "answer":{"answerIndex":0}
+                  }]
+                }
+                """);
+        ObjectMapper mapper = JsonMapper.builder().build();
+        AppTestService service = new AppTestService(
+                studentRepository,
+                testRepository,
+                testDataRepository,
+                wordRepository,
+                wordAttemptLogRepository,
+                pronunciationAnalysisAdapter,
+                new PronunciationWordAligner(),
+                audioUploadPolicy,
+                wordAttemptScoreCalculator,
+                mapper,
+                new AppLearningQuestionSupport(mapper),
+                realtimeEventPublisher
+        );
+        UUID submissionId = UUID.fromString("00000000-0000-0000-0000-000000000010");
+
+        var progress = service.saveSelection(
+                1L,
+                20L,
+                1,
+                new TestSubmissionRequest(
+                        30L,
+                        new LearningSubmission(
+                                submissionId,
+                                LearningResponseType.SINGLE_CHOICE,
+                                mapper.createObjectNode().put("selectedIndex", 0)
+                        )
+                )
+        );
+
+        ArgumentCaptor<String> resultCaptor = ArgumentCaptor.forClass(String.class);
+        verify(test).updateResult(resultCaptor.capture());
+        var stored = mapper.readTree(resultCaptor.getValue());
+        assertThat(stored.path("schemaVersion").asInt()).isEqualTo(2);
+        assertThat(stored.path("questions").isMissingNode()).isTrue();
+        assertThat(stored.path("submissions").size()).isEqualTo(1);
+        var submission = stored.path("submissions").get(0);
+        assertThat(submission.path("submissionId").asText()).isEqualTo(submissionId.toString());
+        assertThat(submission.path("questionNo").asInt()).isEqualTo(1);
+        assertThat(submission.path("responseType").asText()).isEqualTo("SINGLE_CHOICE");
+        assertThat(submission.path("response").path("selectedIndex").asInt()).isZero();
+        assertThat(submission.path("correct").asBoolean()).isTrue();
+        assertThat(submission.path("totalScore").asInt()).isEqualTo(1000);
+        assertThat(submission.path("progress").path("testCompleted").asBoolean()).isTrue();
+        assertThat(progress.testCompleted()).isTrue();
     }
 
     @Test
