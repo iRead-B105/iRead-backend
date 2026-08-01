@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@SpringBootTest
+@SpringBootTest(properties = "spring.flyway.ignore-migration-patterns=versioned:missing")
 @ActiveProfiles("mysql-test")
 @EnabledIfEnvironmentVariable(named = "IREAD_MYSQL_TEST_ENABLED", matches = "true")
 class MySqlFlywayIntegrationTest {
