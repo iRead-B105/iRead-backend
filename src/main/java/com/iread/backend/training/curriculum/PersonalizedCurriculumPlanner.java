@@ -4,6 +4,9 @@ import com.iread.backend.readingfeature.domain.StudentFeatureProfileEntity;
 import com.iread.backend.readingfeature.repository.StudentFeatureProfileRepository;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
+import com.iread.backend.test.domain.TestCurriculumEntity;
+import com.iread.backend.test.domain.TestStatus;
+import com.iread.backend.test.repository.TestCurriculumRepository;
 import com.iread.backend.training.domain.DailyCurriculumEntity;
 import com.iread.backend.training.domain.DailyCurriculumStatus;
 import com.iread.backend.training.domain.TrainingTemplateEntity;
@@ -19,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 @Service
@@ -34,6 +38,7 @@ public class PersonalizedCurriculumPlanner {
     private final TrainingTemplateRepository templateRepository;
     private final StudentFeatureProfileRepository profileRepository;
     private final StudentRepository studentRepository;
+    private final TestCurriculumRepository testCurriculumRepository;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -46,6 +51,42 @@ public class PersonalizedCurriculumPlanner {
                 .orElseGet(() -> curriculumRepository.saveAndFlush(
                         new DailyCurriculumEntity(student, selectTemplates(student.getId()))
                 ));
+    }
+
+    @Transactional
+    public DailyCurriculumEntity createRecommendedFromTestIfAbsent(
+            StudentEntity student,
+            Long testCurriculumId
+    ) {
+        studentRepository.findByIdForUpdate(student.getId())
+                .orElseThrow(() -> new IllegalStateException("학생을 찾을 수 없습니다."));
+        Optional<DailyCurriculumEntity> existing =
+                curriculumRepository.findBySourceTestCurriculumId(testCurriculumId);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
+        TestCurriculumEntity source = testCurriculumRepository
+                .findByIdForUpdate(testCurriculumId)
+                .orElseThrow(() -> new IllegalStateException("근거 검사를 찾을 수 없습니다."));
+        if (!source.getStudent().getId().equals(student.getId())) {
+            throw new IllegalStateException("근거 검사와 학습자가 일치하지 않습니다.");
+        }
+        if (!TestStatus.COMPLETED.name().equals(source.getStatus())) {
+            throw new IllegalStateException("완료된 실력도전 검사만 추천 근거로 사용할 수 있습니다.");
+        }
+        if (curriculumRepository.findByStudentIdAndStatus(
+                student.getId(), DailyCurriculumStatus.NOT_STARTED
+        ).isPresent()) {
+            throw new IllegalStateException(
+                    "다른 출처의 시작 전 커리큘럼이 있어 검사 추천을 생성할 수 없습니다."
+            );
+        }
+        return curriculumRepository.saveAndFlush(new DailyCurriculumEntity(
+                student,
+                selectTemplates(student.getId()),
+                source
+        ));
     }
 
     public List<TrainingTemplateEntity> selectTemplates(Long studentId) {

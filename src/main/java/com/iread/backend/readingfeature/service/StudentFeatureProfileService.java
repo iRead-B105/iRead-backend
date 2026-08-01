@@ -6,6 +6,13 @@ import com.iread.backend.readingfeature.repository.ReadingFeatureRepository;
 import com.iread.backend.readingfeature.repository.StudentFeatureProfileRepository;
 import com.iread.backend.story.analysis.StoryLineContentService;
 import com.iread.backend.student.domain.StudentEntity;
+import com.iread.backend.test.domain.StudentTestEntity;
+import com.iread.backend.test.domain.TestCurriculumEntity;
+import com.iread.backend.test.domain.TestDataEntity;
+import com.iread.backend.test.domain.TestStatus;
+import com.iread.backend.test.repository.StudentTestRepository;
+import com.iread.backend.test.repository.TestCurriculumRepository;
+import com.iread.backend.test.repository.TestDataRepository;
 import com.iread.backend.training.domain.TrainingDataEntity;
 import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.domain.TrainingStatus;
@@ -14,6 +21,7 @@ import com.iread.backend.training.repository.TrainingRepository;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
@@ -25,6 +33,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -32,6 +41,7 @@ import java.util.OptionalDouble;
 import java.util.function.Function;
 import java.util.function.ToDoubleFunction;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -45,6 +55,9 @@ public class StudentFeatureProfileService {
 
     private final TrainingRepository trainingRepository;
     private final TrainingDataRepository trainingDataRepository;
+    private final TestCurriculumRepository testCurriculumRepository;
+    private final StudentTestRepository studentTestRepository;
+    private final TestDataRepository testDataRepository;
     private final WordAttemptLogRepository wordAttemptLogRepository;
     private final ReadingFeatureRepository readingFeatureRepository;
     private final StudentFeatureProfileRepository profileRepository;
@@ -130,8 +143,200 @@ public class StudentFeatureProfileService {
                     evidenceByFeature
             );
         }
+        collectTestEvidence(studentId, evidenceByFeature);
         collectStoryEvidence(studentId, evidenceByFeature);
         return evidenceByFeature;
+    }
+
+    private void collectTestEvidence(
+            Long studentId,
+            Map<String, List<Evidence>> evidenceByFeature
+    ) {
+        TestCurriculumEntity curriculum = testCurriculumRepository
+                .findFirstByStudentIdAndStatusOrderByCreatedAtAscIdAsc(
+                        studentId,
+                        TestStatus.COMPLETED.name()
+                )
+                .orElse(null);
+        if (curriculum == null) {
+            return;
+        }
+        for (StudentTestEntity test : studentTestRepository
+                .findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(curriculum.getId())) {
+            if (test.getStatus() != TestStatus.COMPLETED) {
+                continue;
+            }
+            JsonNode result = parse(test.getResult());
+            JsonNode question = testDataRepository
+                    .findFirstByTestIdOrderByCreatedAtDescIdDesc(test.getId())
+                    .map(TestDataEntity::getGeneratedData)
+                    .map(this::parse)
+                    .map(root -> root.path("questions"))
+                    .filter(JsonNode::isArray)
+                    .filter(questions -> questions.size() == 1)
+                    .map(questions -> questions.get(0))
+                    .orElse(null);
+            if (result == null || question == null) {
+                continue;
+            }
+            collectTestSubmissionEvidence(test, result, question, evidenceByFeature);
+            collectTestAudioEvidence(test, result, question, evidenceByFeature);
+        }
+    }
+
+    private void collectTestSubmissionEvidence(
+            StudentTestEntity test,
+            JsonNode result,
+            JsonNode question,
+            Map<String, List<Evidence>> evidenceByFeature
+    ) {
+        int questionNo = question.path("questionNo").asInt(1);
+        JsonNode submission = findByQuestionNo(result.path("submissions"), questionNo);
+        if (submission == null) {
+            return;
+        }
+        List<String> featureCodes = questionFeatureCodes(question);
+        if (featureCodes.isEmpty()) {
+            log.warn(
+                    "검사 제출 근거의 특성 코드를 찾지 못했습니다. testId={}, questionNo={}, "
+                            + "targetFeatureCodes=false, analysisTargets=false",
+                    test.getId(),
+                    questionNo
+            );
+            return;
+        }
+        if (stringValues(question.path("targetFeatureCodes")).isEmpty()) {
+            log.debug(
+                    "검사 제출 근거에 analysisTargets 특성 코드 fallback을 사용했습니다. "
+                            + "testId={}, questionNo={}",
+                    test.getId(),
+                    questionNo
+            );
+        }
+        Evidence evidence = Evidence.fromTestSubmission(
+                submission,
+                result,
+                test.getFinishedAt()
+        );
+        addEvidence(featureCodes, evidence, evidenceByFeature);
+    }
+
+    private void collectTestAudioEvidence(
+            StudentTestEntity test,
+            JsonNode result,
+            JsonNode question,
+            Map<String, List<Evidence>> evidenceByFeature
+    ) {
+        int questionNo = question.path("questionNo").asInt(1);
+        List<WordAttemptLogEntity> attempts = wordAttemptLogRepository
+                .findAllByTestIdAndQuestionNoAndFinalAttemptTrue(test.getId(), questionNo);
+        for (WordAttemptLogEntity attempt : attempts) {
+            JsonNode attemptLink = findById(
+                    result.path("wordAttempts"),
+                    "wordAttemptLogId",
+                    attempt.getId()
+            );
+            List<String> featureCodes = testAttemptFeatureCodes(test, question, attempt);
+            if (featureCodes.isEmpty()) {
+                log.warn(
+                        "검사 음성 근거의 특성 코드를 찾지 못했습니다. testId={}, questionNo={}, "
+                                + "wordAttemptLogId={}",
+                        test.getId(),
+                        questionNo,
+                        attempt.getId()
+                );
+                continue;
+            }
+            Evidence evidence = Evidence.from(attempt, attemptLink == null
+                    ? objectMapper.createObjectNode()
+                    : attemptLink);
+            addEvidence(featureCodes, evidence, evidenceByFeature);
+        }
+    }
+
+    private List<String> testAttemptFeatureCodes(
+            StudentTestEntity test,
+            JsonNode question,
+            WordAttemptLogEntity attempt
+    ) {
+        JsonNode target = null;
+        if (attempt.getTokenIndex() != null) {
+            JsonNode words = question.path("words");
+            int index = attempt.getTokenIndex();
+            if (words.isArray() && index >= 0 && index < words.size()) {
+                target = words.get(index);
+            }
+        }
+        if (target == null && attempt.getTargetIndex() != null) {
+            JsonNode targets = question.path("analysisTargets");
+            int index = attempt.getTargetIndex();
+            if (targets.isArray() && index >= 0 && index < targets.size()) {
+                target = targets.get(index);
+            }
+        }
+        List<String> questionCodes = questionFeatureCodes(question);
+        List<String> wordCodes = stringValues(
+                target == null ? null : target.path("featureCodes")
+        );
+        if (!wordCodes.isEmpty()) {
+            log.debug(
+                    "검사 음성 근거에 단어·분석 대상 특성 코드를 함께 사용했습니다. "
+                            + "testId={}, questionNo={}, wordAttemptLogId={}",
+                    test.getId(),
+                    question.path("questionNo").asInt(1),
+                    attempt.getId()
+            );
+        }
+        LinkedHashSet<String> combined = new LinkedHashSet<>(questionCodes);
+        combined.addAll(wordCodes);
+        return List.copyOf(combined);
+    }
+
+    private JsonNode findByQuestionNo(JsonNode values, int questionNo) {
+        if (!values.isArray()) {
+            return null;
+        }
+        for (JsonNode value : values) {
+            if (value.path("questionNo").asInt(-1) == questionNo) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private JsonNode findById(JsonNode values, String field, Long id) {
+        if (id == null || !values.isArray()) {
+            return null;
+        }
+        for (JsonNode value : values) {
+            if (value.path(field).asLong(-1) == id) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private List<String> stringValues(JsonNode values) {
+        if (values == null || !values.isArray()) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        values.forEach(value -> {
+            if (value.isTextual() && !value.asText().isBlank()) {
+                result.add(value.asText());
+            }
+        });
+        return result.stream().distinct().toList();
+    }
+
+    private void addEvidence(
+            List<String> featureCodes,
+            Evidence evidence,
+            Map<String, List<Evidence>> evidenceByFeature
+    ) {
+        for (String code : featureCodes) {
+            evidenceByFeature.computeIfAbsent(code, ignored -> new ArrayList<>()).add(evidence);
+        }
     }
 
     /**
@@ -286,7 +491,7 @@ public class StudentFeatureProfileService {
 
     private Metrics calculate(List<Evidence> evidence, LocalDateTime analyzedAt) {
         int count = evidence.size();
-        BigDecimal accuracyRate = decimal(average(evidence, item -> item.correct() ? 1 : 0), 4);
+        BigDecimal accuracyRate = decimal(average(evidence, Evidence::accuracy), 4);
 
         List<Evidence> pronunciation = evidence.stream()
                 .filter(item -> item.pronunciationAccuracyScore() != null)
@@ -456,6 +661,7 @@ public class StudentFeatureProfileService {
 
     private record Evidence(
             boolean correct,
+            double accuracy,
             boolean pronunciationError,
             Integer pronunciationAccuracyScore,
             double analysisConfidence,
@@ -471,6 +677,7 @@ public class StudentFeatureProfileService {
                     ? attempt.path("pronunciationConfidence").asDouble() : 1.0;
             return new Evidence(
                     Boolean.TRUE.equals(log.getCorrect()),
+                    Boolean.TRUE.equals(log.getCorrect()) ? 1.0 : 0.0,
                     !"NONE".equals(attempt.path("pronunciationErrorType").asText("NONE")),
                     log.getPronunciationAccuracyScore(),
                     Math.max(0, Math.min(1, confidence)),
@@ -496,6 +703,7 @@ public class StudentFeatureProfileService {
                             : Math.max(0, log.getSpeechEndOffsetMs() - log.getSpeechStartOffsetMs());
             return new Evidence(
                     correct,
+                    correct ? 1.0 : 0.0,
                     !correct,
                     log.getPronunciationAccuracyScore(),
                     1.0,
@@ -511,6 +719,7 @@ public class StudentFeatureProfileService {
         static Evidence fromNonAudio(boolean correct, LocalDateTime completedAt) {
             return new Evidence(
                     correct,
+                    correct ? 1.0 : 0.0,
                     false,
                     null,
                     1.0,
@@ -519,6 +728,39 @@ public class StudentFeatureProfileService {
                     null,
                     false,
                     null,
+                    completedAt
+            );
+        }
+
+        static Evidence fromTestSubmission(
+                JsonNode submission,
+                JsonNode result,
+                LocalDateTime completedAt
+        ) {
+            boolean correct = submission.path("correct").asBoolean(false);
+            double accuracy = submission.hasNonNull("totalScore")
+                    ? Math.max(0, Math.min(1, submission.path("totalScore").asDouble() / 1000.0))
+                    : correct ? 1.0 : 0.0;
+            Integer regressionCount = result.hasNonNull("gazeDepartureCount")
+                    ? result.path("gazeDepartureCount").asInt()
+                    : null;
+            Integer readingTimeMs = result.hasNonNull("solvingTimeSeconds")
+                    ? (int) Math.min(
+                    Integer.MAX_VALUE,
+                    Math.max(0, result.path("solvingTimeSeconds").asLong()) * 1000L
+            )
+                    : null;
+            return new Evidence(
+                    correct,
+                    accuracy,
+                    false,
+                    null,
+                    1.0,
+                    null,
+                    null,
+                    regressionCount,
+                    false,
+                    readingTimeMs,
                     completedAt
             );
         }

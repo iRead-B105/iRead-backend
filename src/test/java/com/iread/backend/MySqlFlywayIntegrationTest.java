@@ -46,8 +46,8 @@ class MySqlFlywayIntegrationTest {
     @Test
     void appliesAllMigrationsAndValidatesJpaMappings() {
         assertThat(applicationTableCount()).isEqualTo(26);
-        assertThat(constraintCount("FOREIGN KEY")).isEqualTo(35);
-        assertThat(constraintCount("UNIQUE")).isEqualTo(15);
+        assertThat(constraintCount("FOREIGN KEY")).isEqualTo(36);
+        assertThat(constraintCount("UNIQUE")).isEqualTo(16);
         assertThat(constraintCount("CHECK")).isEqualTo(11);
         assertThat(columnExists("story_lines", "branch_prompt")).isTrue();
 
@@ -130,6 +130,14 @@ class MySqlFlywayIntegrationTest {
                 "daily_curriculums",
                 "in_progress_student_id"
         )).isTrue();
+        assertThat(columnExists(
+                "daily_curriculums",
+                "source_test_curriculum_id"
+        )).isTrue();
+        assertThat(columnExists(
+                "test_curriculums",
+                "recommendation_status"
+        )).isTrue();
         assertThat(constraintExists(
                 "daily_curriculums",
                 "UQ_DAILY_CURRICULUMS_NOT_STARTED_STUDENT",
@@ -138,6 +146,11 @@ class MySqlFlywayIntegrationTest {
         assertThat(constraintExists(
                 "daily_curriculums",
                 "UQ_DAILY_CURRICULUMS_IN_PROGRESS_STUDENT",
+                "UNIQUE"
+        )).isTrue();
+        assertThat(constraintExists(
+                "daily_curriculums",
+                "UQ_DAILY_CURRICULUMS_SOURCE_TEST",
                 "UNIQUE"
         )).isTrue();
 

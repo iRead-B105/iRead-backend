@@ -8,6 +8,7 @@ import com.iread.backend.test.admin.result.TestCurriculumResultAggregator;
 import com.iread.backend.test.domain.TestCurriculumEntity;
 import com.iread.backend.test.repository.StudentTestRepository;
 import com.iread.backend.test.repository.TestCurriculumRepository;
+import com.iread.backend.training.repository.DailyCurriculumRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,7 @@ public class TestCurriculumAdminService {
     private final StudentRepository studentRepository;
     private final TestCurriculumRepository testCurriculumRepository;
     private final StudentTestRepository studentTestRepository;
+    private final DailyCurriculumRepository dailyCurriculumRepository;
     private final TestCurriculumResultAggregator resultAggregator;
 
     public TestCurriculumListResponse getCurriculums(Long teacherId, Long studentId) {
@@ -50,7 +52,9 @@ public class TestCurriculumAdminService {
                 curriculum,
                 studentTestRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(
                         curriculum.getId()
-                )
+                ),
+                dailyCurriculumRepository.findBySourceTestCurriculumId(curriculum.getId())
+                        .orElse(null)
         );
     }
 

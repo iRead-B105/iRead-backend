@@ -24,6 +24,7 @@ import com.iread.backend.test.domain.TestStatus;
 import com.iread.backend.test.repository.StudentTestRepository;
 import com.iread.backend.test.repository.TestCurriculumRepository;
 import com.iread.backend.test.repository.TestDataRepository;
+import com.iread.backend.test.recommendation.TestRecommendationAfterCommitPublisher;
 import com.iread.backend.training.domain.TrainingTemplateEntity;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
 import com.iread.backend.training.generation.TrainingType;
@@ -80,6 +81,7 @@ public class AppTestService {
     private final ObjectMapper objectMapper;
     private final AppLearningQuestionSupport learningQuestionSupport;
     private final RealtimeEventPublisher realtimeEventPublisher;
+    private final TestRecommendationAfterCommitPublisher recommendationPublisher;
 
     @Autowired
     public AppTestService(
@@ -97,7 +99,8 @@ public class AppTestService {
             WordAttemptScoreCalculator wordAttemptScoreCalculator,
             ObjectMapper objectMapper,
             AppLearningQuestionSupport learningQuestionSupport,
-            RealtimeEventPublisher realtimeEventPublisher
+            RealtimeEventPublisher realtimeEventPublisher,
+            TestRecommendationAfterCommitPublisher recommendationPublisher
     ) {
         this.studentRepository = studentRepository;
         this.testRepository = testRepository;
@@ -114,6 +117,7 @@ public class AppTestService {
         this.objectMapper = objectMapper;
         this.learningQuestionSupport = learningQuestionSupport;
         this.realtimeEventPublisher = realtimeEventPublisher;
+        this.recommendationPublisher = recommendationPublisher;
     }
 
     AppTestService(
@@ -131,11 +135,43 @@ public class AppTestService {
             RealtimeEventPublisher realtimeEventPublisher
     ) {
         this(
+                studentRepository,
+                testRepository,
+                testDataRepository,
+                wordRepository,
+                wordAttemptLogRepository,
+                pronunciationAnalysisAdapter,
+                pronunciationWordAligner,
+                audioUploadPolicy,
+                wordAttemptScoreCalculator,
+                objectMapper,
+                learningQuestionSupport,
+                realtimeEventPublisher,
+                null
+        );
+    }
+
+    AppTestService(
+            StudentRepository studentRepository,
+            StudentTestRepository testRepository,
+            TestDataRepository testDataRepository,
+            WordRepository wordRepository,
+            WordAttemptLogRepository wordAttemptLogRepository,
+            PronunciationAnalysisAdapter pronunciationAnalysisAdapter,
+            PronunciationWordAligner pronunciationWordAligner,
+            AudioUploadPolicy audioUploadPolicy,
+            WordAttemptScoreCalculator wordAttemptScoreCalculator,
+            ObjectMapper objectMapper,
+            AppLearningQuestionSupport learningQuestionSupport,
+            RealtimeEventPublisher realtimeEventPublisher,
+            TestRecommendationAfterCommitPublisher recommendationPublisher
+    ) {
+        this(
                 studentRepository, testRepository, null, testDataRepository,
                 null, null, wordRepository, wordAttemptLogRepository,
                 pronunciationAnalysisAdapter, pronunciationWordAligner,
                 audioUploadPolicy, wordAttemptScoreCalculator, objectMapper,
-                learningQuestionSupport, realtimeEventPublisher
+                learningQuestionSupport, realtimeEventPublisher, recommendationPublisher
         );
     }
 
@@ -549,6 +585,7 @@ public class AppTestService {
             result.put("solvingTimeSeconds", solvingTimeSeconds);
         }
         test.complete(writeJson(result), accuracy, completedAt);
+        Long completedCurriculumId = null;
         if (test.getTestCurriculum() != null) {
             List<StudentTestEntity> curriculumTests =
                     testRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(
@@ -557,8 +594,14 @@ public class AppTestService {
             if (curriculumTests.stream().allMatch(
                     item -> item.getStatus() == TestStatus.COMPLETED
             )) {
-                test.getTestCurriculum().complete(completedAt);
+                boolean completedNow = test.getTestCurriculum().complete(completedAt);
+                if (completedNow) {
+                    completedCurriculumId = test.getTestCurriculum().getId();
+                }
             }
+        }
+        if (completedCurriculumId != null && recommendationPublisher != null) {
+            recommendationPublisher.processAfterCommit(completedCurriculumId);
         }
         realtimeEventPublisher.publishAfterCommit(
                 teacherId,

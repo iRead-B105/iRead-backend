@@ -5,6 +5,7 @@ import com.iread.backend.test.admin.dto.res.TestCurriculumListResponse;
 import com.iread.backend.test.domain.StudentTestEntity;
 import com.iread.backend.test.domain.TestCurriculumEntity;
 import com.iread.backend.test.domain.TestStatus;
+import com.iread.backend.training.domain.DailyCurriculumEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -46,6 +47,14 @@ public class TestCurriculumResultAggregator {
             TestCurriculumEntity curriculum,
             List<StudentTestEntity> tests
     ) {
+        return aggregate(curriculum, tests, null);
+    }
+
+    public TestCurriculumDetailResponse aggregate(
+            TestCurriculumEntity curriculum,
+            List<StudentTestEntity> tests,
+            DailyCurriculumEntity recommendedCurriculum
+    ) {
         List<StudentTestEntity> ordered = ordered(tests);
         validateCompletedCurriculum(curriculum, ordered);
         List<TestCurriculumDetailResponse.QuestionResult> questions = ordered.stream()
@@ -71,7 +80,13 @@ public class TestCurriculumResultAggregator {
                 areaScores(questions, ordered),
                 totalSolvingTime(questions),
                 questions,
-                null,
+                curriculum.getRecommendationStatus() == null
+                        ? null
+                        : curriculum.getRecommendationStatus().name(),
+                curriculum.getRecommendationError(),
+                curriculum.getRecommendationLastAttemptAt(),
+                curriculum.getRecommendationRetryCount(),
+                recommendedCurriculum == null ? null : recommendedCurriculum.getId(),
                 null,
                 null
         );

@@ -22,6 +22,7 @@ import com.iread.backend.test.domain.TestCurriculumEntity;
 import com.iread.backend.test.repository.StudentTestRepository;
 import com.iread.backend.test.repository.TestCurriculumRepository;
 import com.iread.backend.test.repository.TestDataRepository;
+import com.iread.backend.test.recommendation.TestRecommendationAfterCommitPublisher;
 import com.iread.backend.training.domain.TrainingTemplateEntity;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
 import com.iread.backend.training.generation.TrainingType;
@@ -74,6 +75,7 @@ class AppTestServiceTest {
     @Mock WordAttemptScoreCalculator wordAttemptScoreCalculator;
     @Mock ObjectMapper objectMapper;
     @Mock RealtimeEventPublisher realtimeEventPublisher;
+    @Mock TestRecommendationAfterCommitPublisher recommendationPublisher;
     @InjectMocks AppTestService appTestService;
 
     @Test
@@ -132,7 +134,8 @@ class AppTestServiceTest {
                 wordAttemptScoreCalculator,
                 mapper,
                 new AppLearningQuestionSupport(mapper),
-                realtimeEventPublisher
+                realtimeEventPublisher,
+                null
         );
         StudentEntity student = mock(StudentEntity.class);
         when(student.getId()).thenReturn(20L);
@@ -385,6 +388,7 @@ class AppTestServiceTest {
         when(test.getFinishedAt()).thenReturn(completedAt);
         when(test.getTestCurriculum()).thenReturn(curriculum);
         when(curriculum.getId()).thenReturn(50L);
+        when(curriculum.complete(any(LocalDateTime.class))).thenReturn(true);
         List<StudentTestEntity> curriculumTests = new java.util.ArrayList<>();
         curriculumTests.add(test);
         java.util.stream.IntStream.range(0, 8).forEach(ignored -> {
@@ -407,7 +411,8 @@ class AppTestServiceTest {
                 wordAttemptScoreCalculator,
                 mapper,
                 new AppLearningQuestionSupport(mapper),
-                realtimeEventPublisher
+                realtimeEventPublisher,
+                recommendationPublisher
         );
 
         var result = service.complete(
@@ -432,6 +437,7 @@ class AppTestServiceTest {
         assertThat(result.messageKey()).isEqualTo("TEST_COMPLETE_GREAT_JOB");
         assertThat(result.completedAt()).isEqualTo(completedAt);
         verify(curriculum).complete(any(LocalDateTime.class));
+        verify(recommendationPublisher).processAfterCommit(50L);
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.iread.backend.training.domain;
 
 import com.iread.backend.student.domain.StudentEntity;
+import com.iread.backend.test.domain.TestCurriculumEntity;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -35,6 +36,10 @@ public class DailyCurriculumEntity {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "source_test_curriculum_id", unique = true)
+    private TestCurriculumEntity sourceTestCurriculum;
+
     @Column(name = "not_started_student_id", insertable = false, updatable = false)
     private Long notStartedStudentId;
 
@@ -46,7 +51,16 @@ public class DailyCurriculumEntity {
     private List<TrainingEntity> trainings = new ArrayList<>();
 
     public DailyCurriculumEntity(StudentEntity student, List<TrainingTemplateEntity> templates) {
+        this(student, templates, null);
+    }
+
+    public DailyCurriculumEntity(
+            StudentEntity student,
+            List<TrainingTemplateEntity> templates,
+            TestCurriculumEntity sourceTestCurriculum
+    ) {
         this.student = Objects.requireNonNull(student, "student는 필수입니다.");
+        this.sourceTestCurriculum = sourceTestCurriculum;
         replaceTrainings(templates);
     }
 

@@ -3,7 +3,9 @@ package com.iread.backend.test.admin.result;
 import com.iread.backend.test.admin.dto.res.TestCurriculumDetailResponse;
 import com.iread.backend.test.domain.StudentTestEntity;
 import com.iread.backend.test.domain.TestCurriculumEntity;
+import com.iread.backend.test.domain.TestRecommendationStatus;
 import com.iread.backend.test.domain.TestStatus;
+import com.iread.backend.training.domain.DailyCurriculumEntity;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -76,6 +78,24 @@ class TestCurriculumResultAggregatorTest {
         assertThatThrownBy(() -> aggregator.aggregate(curriculum, tests))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("9개 문항");
+    }
+
+    @Test
+    void exposesRecommendationProcessingStateAndLinkedCurriculum() {
+        TestCurriculumEntity curriculum = curriculum("IN_PROGRESS");
+        when(curriculum.getRecommendationStatus())
+                .thenReturn(TestRecommendationStatus.FAILED);
+        when(curriculum.getRecommendationError()).thenReturn("추천 실패");
+        when(curriculum.getRecommendationRetryCount()).thenReturn(2);
+        DailyCurriculumEntity recommendation = mock(DailyCurriculumEntity.class);
+        when(recommendation.getId()).thenReturn(700L);
+
+        var result = aggregator.aggregate(curriculum, List.of(), recommendation);
+
+        assertThat(result.recommendationStatus()).isEqualTo("FAILED");
+        assertThat(result.recommendationError()).isEqualTo("추천 실패");
+        assertThat(result.recommendationRetryCount()).isEqualTo(2);
+        assertThat(result.dailyCurriculumId()).isEqualTo(700L);
     }
 
     private TestCurriculumEntity curriculum(String status) {

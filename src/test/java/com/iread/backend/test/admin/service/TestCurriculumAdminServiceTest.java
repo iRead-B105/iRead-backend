@@ -10,6 +10,7 @@ import com.iread.backend.test.domain.StudentTestEntity;
 import com.iread.backend.test.domain.TestCurriculumEntity;
 import com.iread.backend.test.repository.StudentTestRepository;
 import com.iread.backend.test.repository.TestCurriculumRepository;
+import com.iread.backend.training.repository.DailyCurriculumRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -26,6 +27,7 @@ class TestCurriculumAdminServiceTest {
     private StudentRepository studentRepository;
     private TestCurriculumRepository testCurriculumRepository;
     private StudentTestRepository studentTestRepository;
+    private DailyCurriculumRepository dailyCurriculumRepository;
     private TestCurriculumResultAggregator resultAggregator;
     private TestCurriculumAdminService service;
 
@@ -34,11 +36,13 @@ class TestCurriculumAdminServiceTest {
         studentRepository = mock(StudentRepository.class);
         testCurriculumRepository = mock(TestCurriculumRepository.class);
         studentTestRepository = mock(StudentTestRepository.class);
+        dailyCurriculumRepository = mock(DailyCurriculumRepository.class);
         resultAggregator = mock(TestCurriculumResultAggregator.class);
         service = new TestCurriculumAdminService(
                 studentRepository,
                 testCurriculumRepository,
                 studentTestRepository,
+                dailyCurriculumRepository,
                 resultAggregator
         );
     }
@@ -77,7 +81,7 @@ class TestCurriculumAdminServiceTest {
         when(studentTestRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(30L))
                 .thenReturn(List.of());
         when(curriculum.getId()).thenReturn(30L);
-        when(resultAggregator.aggregate(curriculum, List.of())).thenReturn(detail);
+        when(resultAggregator.aggregate(curriculum, List.of(), null)).thenReturn(detail);
 
         assertThat(service.getCurriculum(10L, 20L, 30L)).isSameAs(detail);
     }
