@@ -102,6 +102,7 @@ public class DailyCurriculumEntity {
 
     public boolean isAvailableToStudent() {
         return !isRecommendedFromTest()
+                || status != DailyCurriculumStatus.NOT_STARTED
                 || reviewStatus == CurriculumReviewStatus.REVIEW_COMPLETED;
     }
 

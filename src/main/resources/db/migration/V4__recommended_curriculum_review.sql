@@ -6,5 +6,8 @@ ALTER TABLE `daily_curriculums`
         FOREIGN KEY (`reviewed_by_teacher_id`) REFERENCES `teachers` (`id`);
 
 UPDATE `daily_curriculums`
-SET `review_status` = 'GENERATION_PENDING'
+SET `review_status` = CASE
+    WHEN `status` = 'NOT_STARTED' THEN 'GENERATION_PENDING'
+    ELSE 'NOT_REQUIRED'
+END
 WHERE `source_test_curriculum_id` IS NOT NULL;

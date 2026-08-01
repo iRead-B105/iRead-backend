@@ -65,6 +65,20 @@ class DailyCurriculumReviewTest {
         assertThat(curriculum.isAvailableToStudent()).isTrue();
     }
 
+    @Test
+    void legacyStartedRecommendedCurriculumRemainsAvailable() {
+        DailyCurriculumEntity curriculum = recommendedCurriculum();
+        TrainingEntity training = curriculum.getTrainings().getFirst();
+        training.markReady();
+
+        training.start(LocalDateTime.of(2026, 8, 1, 9, 0));
+
+        assertThat(curriculum.getStatus()).isEqualTo(DailyCurriculumStatus.IN_PROGRESS);
+        assertThat(curriculum.getReviewStatus())
+                .isEqualTo(CurriculumReviewStatus.GENERATION_PENDING);
+        assertThat(curriculum.isAvailableToStudent()).isTrue();
+    }
+
     private DailyCurriculumEntity recommendedCurriculum() {
         return new DailyCurriculumEntity(
                 mock(StudentEntity.class),
