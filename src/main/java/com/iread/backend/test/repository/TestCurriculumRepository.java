@@ -4,6 +4,7 @@ import com.iread.backend.test.domain.TestCurriculumEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface TestCurriculumRepository extends JpaRepository<TestCurriculumEntity, Long> {
@@ -18,4 +19,8 @@ public interface TestCurriculumRepository extends JpaRepository<TestCurriculumEn
     );
 
     boolean existsByStudentIdAndStatus(Long studentId, String status);
+
+    List<TestCurriculumEntity> findAllByStudentIdOrderByCreatedAtDescIdDesc(Long studentId);
+
+    Optional<TestCurriculumEntity> findByIdAndStudentId(Long id, Long studentId);
 }
