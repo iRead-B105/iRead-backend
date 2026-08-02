@@ -97,9 +97,22 @@ public class TestCurriculumResultAggregator {
                 curriculum.getRecommendationLastAttemptAt(),
                 curriculum.getRecommendationRetryCount(),
                 recommendedCurriculum == null ? null : recommendedCurriculum.getId(),
-                null,
-                null
+                contentGenerationStatus(recommendedCurriculum),
+                recommendedCurriculum == null || recommendedCurriculum.getReviewStatus() == null
+                        ? null
+                        : recommendedCurriculum.getReviewStatus().name()
         );
+    }
+
+    private String contentGenerationStatus(DailyCurriculumEntity curriculum) {
+        if (curriculum == null || curriculum.getTrainings().isEmpty()) {
+            return null;
+        }
+        List<String> statuses = curriculum.getTrainings().stream()
+                .map(training -> training.getStatus().name())
+                .distinct()
+                .toList();
+        return statuses.size() == 1 ? statuses.get(0) : "MIXED";
     }
 
     private List<TestCurriculumDetailResponse.AreaScore> areaScores(

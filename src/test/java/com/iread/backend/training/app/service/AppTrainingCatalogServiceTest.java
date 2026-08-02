@@ -130,6 +130,9 @@ class AppTrainingCatalogServiceTest {
         when(curriculum.isAvailableToStudent()).thenReturn(false);
 
         assertThatThrownBy(() -> service.getCurrentTrainingList(1L, 20L))
-                .isInstanceOf(ResourceNotFoundException.class);
+                .isInstanceOfSatisfying(ResourceNotFoundException.class, exception -> {
+                    assertThat(exception.code()).isEqualTo("ACTIVE_CURRICULUM_NOT_FOUND");
+                    assertThat(exception).hasMessage("현재 진행 가능한 커리큘럼을 찾을 수 없습니다.");
+                });
     }
 }

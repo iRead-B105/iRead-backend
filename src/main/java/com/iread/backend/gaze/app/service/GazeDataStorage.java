@@ -76,6 +76,15 @@ public class GazeDataStorage {
         }
     }
 
+    public void delete(String dataUrl) {
+        Path target = resolve(dataUrl);
+        try {
+            Files.deleteIfExists(target);
+        } catch (IOException exception) {
+            throw new IllegalStateException("원시 시선 데이터 삭제에 실패했습니다.", exception);
+        }
+    }
+
     private Path resolve(String dataUrl) {
         if (dataUrl == null || dataUrl.isBlank()) {
             throw new IllegalArgumentException("시선 데이터 URL이 비어 있습니다.");
