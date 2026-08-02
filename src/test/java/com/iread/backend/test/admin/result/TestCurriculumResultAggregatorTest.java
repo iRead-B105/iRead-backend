@@ -6,6 +6,9 @@ import com.iread.backend.test.domain.TestCurriculumEntity;
 import com.iread.backend.test.domain.TestRecommendationStatus;
 import com.iread.backend.test.domain.TestStatus;
 import com.iread.backend.training.domain.DailyCurriculumEntity;
+import com.iread.backend.training.domain.CurriculumReviewStatus;
+import com.iread.backend.training.domain.TrainingEntity;
+import com.iread.backend.training.domain.TrainingStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -113,6 +116,10 @@ class TestCurriculumResultAggregatorTest {
         when(curriculum.getRecommendationRetryCount()).thenReturn(2);
         DailyCurriculumEntity recommendation = mock(DailyCurriculumEntity.class);
         when(recommendation.getId()).thenReturn(700L);
+        when(recommendation.getReviewStatus())
+                .thenReturn(CurriculumReviewStatus.GENERATION_PENDING);
+        List<TrainingEntity> pendingTrainings = trainings(TrainingStatus.NOT_READY);
+        when(recommendation.getTrainings()).thenReturn(pendingTrainings);
 
         var result = aggregator.aggregate(curriculum, List.of(), recommendation);
 
@@ -120,6 +127,34 @@ class TestCurriculumResultAggregatorTest {
         assertThat(result.recommendationError()).isEqualTo("추천 실패");
         assertThat(result.recommendationRetryCount()).isEqualTo(2);
         assertThat(result.dailyCurriculumId()).isEqualTo(700L);
+        assertThat(result.contentGenerationStatus()).isEqualTo("NOT_READY");
+        assertThat(result.teacherReviewStatus()).isEqualTo("GENERATION_PENDING");
+    }
+
+    @Test
+    void exposesGeneratedContentAndCompletedTeacherReviewState() {
+        TestCurriculumEntity curriculum = curriculum("IN_PROGRESS");
+        DailyCurriculumEntity recommendation = mock(DailyCurriculumEntity.class);
+        when(recommendation.getId()).thenReturn(701L);
+        when(recommendation.getReviewStatus())
+                .thenReturn(CurriculumReviewStatus.REVIEW_COMPLETED);
+        List<TrainingEntity> readyTrainings = trainings(TrainingStatus.NOT_STARTED);
+        when(recommendation.getTrainings()).thenReturn(readyTrainings);
+
+        var result = aggregator.aggregate(curriculum, List.of(), recommendation);
+
+        assertThat(result.contentGenerationStatus()).isEqualTo("NOT_STARTED");
+        assertThat(result.teacherReviewStatus()).isEqualTo("REVIEW_COMPLETED");
+    }
+
+    private List<TrainingEntity> trainings(TrainingStatus status) {
+        List<TrainingEntity> trainings = new ArrayList<>();
+        for (int index = 0; index < 5; index++) {
+            TrainingEntity training = mock(TrainingEntity.class);
+            when(training.getStatus()).thenReturn(status);
+            trainings.add(training);
+        }
+        return trainings;
     }
 
     private TestCurriculumEntity curriculum(String status) {

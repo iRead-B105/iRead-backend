@@ -1,12 +1,15 @@
 package com.iread.backend.test.admin.dto.res;
 
 import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.annotation.JsonSerialize;
+import tools.jackson.databind.ser.std.ToStringSerializer;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
 public record TestCurriculumDetailResponse(
+        @JsonSerialize(using = ToStringSerializer.class)
         Long testCurriculumId,
         String status,
         LocalDateTime createdAt,
@@ -40,7 +43,7 @@ public record TestCurriculumDetailResponse(
     }
 
     public record QuestionResult(
-            Long testId,
+            @JsonSerialize(using = ToStringSerializer.class) Long testId,
             int sequenceNo,
             String trackCode,
             String questionType,

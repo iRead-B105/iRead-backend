@@ -259,6 +259,7 @@ public class WordAttemptLogEntity {
             Integer totalScore
     ) {
         validateScore(totalScore, "단어 종합 점수");
+        this.hasGazeData = true;
         this.fixationDurationMs = fixationDurationMs;
         this.fixationCount = fixationCount;
         this.gazeStartOffsetMs = gazeStartOffsetMs;

@@ -278,6 +278,42 @@ class GazeServiceTest {
     }
 
     @Test
+    void doesNotLeaveRawFileWhenWordMetricMergeFails() {
+        StudentEntity student = mock(StudentEntity.class);
+        GazeSessionEntity session = mock(GazeSessionEntity.class);
+        var data = new JsonMapper().readTree("""
+                {
+                  "words": [{
+                    "questionNo": 1,
+                    "tokenIndex": 0,
+                    "text": "불일치",
+                    "dwellMs": 500
+                  }]
+                }
+                """);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L))
+                .thenReturn(Optional.of(student));
+        when(gazeSessionRepository.findByIdAndStudentIdForUpdate(30L, 10L))
+                .thenReturn(Optional.of(session));
+        when(session.getStatus()).thenReturn(GazeSessionStatus.RUNNING);
+        doThrow(new ConflictException("단어 지표를 병합할 수 없습니다."))
+                .when(gazeWordMetricMergeService).merge(session, data);
+
+        assertThatThrownBy(() -> gazeService.endSession(
+                1L,
+                30L,
+                new EndGazeSessionRequest(10L, GazeSessionStatus.COMPLETED, data)
+        )).isInstanceOf(ConflictException.class);
+
+        assertThat(gazeStorageRoot).isEmptyDirectory();
+        verify(session, never()).end(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    @Test
     void storesGazeDepartureCountInTestResult() {
         StudentEntity student = mock(StudentEntity.class);
         StudentTestEntity test = mock(StudentTestEntity.class);

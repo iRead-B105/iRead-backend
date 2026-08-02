@@ -1,11 +1,5 @@
 package com.iread.backend.test.recommendation;
 
-import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
-import com.iread.backend.student.domain.StudentEntity;
-import com.iread.backend.student.repository.StudentRepository;
-import com.iread.backend.test.domain.TestCurriculumEntity;
-import com.iread.backend.test.repository.TestCurriculumRepository;
-import com.iread.backend.training.curriculum.PersonalizedCurriculumPlanner;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,10 +9,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class TestRecommendationCoordinator {
     private final TestRecommendationStateService stateService;
-    private final TestCurriculumRepository testCurriculumRepository;
-    private final StudentRepository studentRepository;
-    private final StudentFeatureProfileService profileService;
-    private final PersonalizedCurriculumPlanner curriculumPlanner;
+    private final TestRecommendationWorkService workService;
 
     public void process(Long testCurriculumId) {
         try {
@@ -34,14 +25,7 @@ public class TestRecommendationCoordinator {
             return;
         }
         try {
-            TestCurriculumEntity source = testCurriculumRepository.findById(testCurriculumId)
-                    .orElseThrow(() -> new IllegalStateException(
-                            "실력도전 검사를 찾을 수 없습니다."
-                    ));
-            StudentEntity student = studentRepository.findById(source.getStudent().getId())
-                    .orElseThrow(() -> new IllegalStateException("학생을 찾을 수 없습니다."));
-            profileService.recalculate(student);
-            curriculumPlanner.createRecommendedFromTestIfAbsent(student, testCurriculumId);
+            workService.process(testCurriculumId);
             stateService.complete(testCurriculumId);
         } catch (RuntimeException failure) {
             recordFailure(testCurriculumId, failure);

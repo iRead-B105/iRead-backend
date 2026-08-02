@@ -24,6 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 class AppLearningContractJsonTest {
 
+    private static final long UNSAFE_JAVASCRIPT_ID = 1_739_619_061_890_340_497L;
+
     @Autowired
     ObjectMapper objectMapper;
 
@@ -32,7 +34,7 @@ class AppLearningContractJsonTest {
         var json = objectMapper.valueToTree(new LearningEntryResponse(
                 20L,
                 LearningEntryStatus.CHALLENGE_IN_PROGRESS,
-                50L,
+                UNSAFE_JAVASCRIPT_ID,
                 4,
                 9
         ));
@@ -46,6 +48,9 @@ class AppLearningContractJsonTest {
         );
         assertThat(json.path("entryStatus").asText())
                 .isEqualTo("CHALLENGE_IN_PROGRESS");
+        assertThat(json.path("testCurriculumId").isTextual()).isTrue();
+        assertThat(json.path("testCurriculumId").asText())
+                .isEqualTo("1739619061890340497");
         assertThat(json.path("completedQuestions").asInt()).isEqualTo(4);
         assertThat(json.path("totalQuestions").asInt()).isEqualTo(9);
     }
@@ -53,7 +58,7 @@ class AppLearningContractJsonTest {
     @Test
     void challengePlanExposesOverallNextQuestionAlongsideTracks() {
         var json = objectMapper.valueToTree(new SkillChallengePlanResponse(
-                50L,
+                UNSAFE_JAVASCRIPT_ID,
                 4,
                 9,
                 false,
@@ -71,6 +76,9 @@ class AppLearningContractJsonTest {
                 "nextTrackCode",
                 "tracks"
         );
+        assertThat(json.path("testCurriculumId").isTextual()).isTrue();
+        assertThat(json.path("testCurriculumId").asText())
+                .isEqualTo("1739619061890340497");
         assertThat(json.path("nextTestId").asLong()).isEqualTo(105L);
         assertThat(json.path("nextTrackCode").asText()).isEqualTo("short-text");
     }
