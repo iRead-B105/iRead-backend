@@ -7,12 +7,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest(properties = "ai.mock-generate=true")
 @ActiveProfiles({"mysql-test", "demo"})
@@ -395,6 +397,295 @@ class MySqlDemoSeedIntegrationTest {
                 """,
                 java.math.BigDecimal.class
         )).isLessThanOrEqualTo(new java.math.BigDecimal("1000"));
+    }
+
+    @Test
+    void keepsSkillChallengeDatabaseRelationshipsConsistent() {
+        var orphanCounts = jdbcTemplate.queryForList(
+                """
+                SELECT relation_name, orphan_count
+                  FROM (
+                        SELECT 'training_templates.curriculum_unit_id' AS relation_name,
+                               COUNT(*) AS orphan_count
+                          FROM training_templates child
+                          LEFT JOIN curriculum_units parent
+                            ON parent.id = child.curriculum_unit_id
+                         WHERE parent.id IS NULL
+                        UNION ALL
+                        SELECT 'test_curriculums.student_id', COUNT(*)
+                          FROM test_curriculums child
+                          LEFT JOIN students parent ON parent.id = child.student_id
+                         WHERE parent.id IS NULL
+                        UNION ALL
+                        SELECT 'tests.test_curriculum_id', COUNT(*)
+                          FROM tests child
+                          LEFT JOIN test_curriculums parent
+                            ON parent.id = child.test_curriculum_id
+                         WHERE parent.id IS NULL
+                        UNION ALL
+                        SELECT 'tests.training_template_id', COUNT(*)
+                          FROM tests child
+                          LEFT JOIN training_templates parent
+                            ON parent.id = child.training_template_id
+                         WHERE parent.id IS NULL
+                        UNION ALL
+                        SELECT 'test_datas.test_id', COUNT(*)
+                          FROM test_datas child
+                          LEFT JOIN tests parent ON parent.id = child.test_id
+                         WHERE parent.id IS NULL
+                        UNION ALL
+                        SELECT 'daily_curriculums.student_id', COUNT(*)
+                          FROM daily_curriculums child
+                          LEFT JOIN students parent ON parent.id = child.student_id
+                         WHERE parent.id IS NULL
+                        UNION ALL
+                        SELECT 'daily_curriculums.source_test_curriculum_id', COUNT(*)
+                          FROM daily_curriculums child
+                          LEFT JOIN test_curriculums parent
+                            ON parent.id = child.source_test_curriculum_id
+                         WHERE child.source_test_curriculum_id IS NOT NULL
+                           AND parent.id IS NULL
+                        UNION ALL
+                        SELECT 'daily_curriculums.reviewed_by_teacher_id', COUNT(*)
+                          FROM daily_curriculums child
+                          LEFT JOIN teachers parent
+                            ON parent.id = child.reviewed_by_teacher_id
+                         WHERE child.reviewed_by_teacher_id IS NOT NULL
+                           AND parent.id IS NULL
+                        UNION ALL
+                        SELECT 'trainings.daily_curriculum_id', COUNT(*)
+                          FROM trainings child
+                          LEFT JOIN daily_curriculums parent
+                            ON parent.id = child.daily_curriculum_id
+                         WHERE parent.id IS NULL
+                        UNION ALL
+                        SELECT 'trainings.training_template_id', COUNT(*)
+                          FROM trainings child
+                          LEFT JOIN training_templates parent
+                            ON parent.id = child.training_template_id
+                         WHERE parent.id IS NULL
+                        UNION ALL
+                        SELECT 'training_datas.train_id', COUNT(*)
+                          FROM training_datas child
+                          LEFT JOIN trainings parent ON parent.id = child.train_id
+                         WHERE parent.id IS NULL
+                        UNION ALL
+                        SELECT 'student_feature_profiles.student_id', COUNT(*)
+                          FROM student_feature_profiles child
+                          LEFT JOIN students parent ON parent.id = child.student_id
+                         WHERE parent.id IS NULL
+                        UNION ALL
+                        SELECT 'student_feature_profiles.reading_features_id', COUNT(*)
+                          FROM student_feature_profiles child
+                          LEFT JOIN reading_features parent
+                            ON parent.id = child.reading_features_id
+                         WHERE parent.id IS NULL
+                  ) orphan_audit
+                 ORDER BY relation_name
+                """
+        );
+        assertThat(orphanCounts).allSatisfy(row -> assertThat(
+                ((Number) row.get("orphan_count")).intValue()
+        ).as(String.valueOf(row.get("relation_name"))).isZero());
+
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM (
+                        SELECT test_curriculum_id, sequence_no
+                          FROM tests
+                         GROUP BY test_curriculum_id, sequence_no
+                        HAVING COUNT(*) > 1
+                  ) duplicates
+                """,
+                Integer.class
+        )).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM (
+                        SELECT daily_curriculum_id, sequence_no
+                          FROM trainings
+                         GROUP BY daily_curriculum_id, sequence_no
+                        HAVING COUNT(*) > 1
+                  ) duplicates
+                """,
+                Integer.class
+        )).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM (
+                        SELECT source_test_curriculum_id
+                          FROM daily_curriculums
+                         WHERE source_test_curriculum_id IS NOT NULL
+                         GROUP BY source_test_curriculum_id
+                        HAVING COUNT(*) > 1
+                  ) duplicates
+                """,
+                Integer.class
+        )).isZero();
+
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM (
+                        SELECT curriculum.id
+                          FROM test_curriculums curriculum
+                          JOIN tests test ON test.test_curriculum_id = curriculum.id
+                          JOIN test_datas data ON data.test_id = test.id
+                         WHERE curriculum.id BETWEEN 140001 AND 140013
+                         GROUP BY curriculum.id
+                        HAVING COUNT(DISTINCT test.id) = 3
+                           AND COUNT(DISTINCT test.sequence_no) = 3
+                           AND SUM(JSON_LENGTH(
+                                 JSON_EXTRACT(data.generated_data, '$.questions')
+                               )) = 9
+                           AND SUM(JSON_LENGTH(
+                                 JSON_EXTRACT(test.result, '$.questions')
+                               )) = 9
+                  ) completed_challenges
+                """,
+                Integer.class
+        )).isEqualTo(13);
+
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM (
+                        SELECT curriculum.id
+                          FROM daily_curriculums curriculum
+                          JOIN trainings training
+                            ON training.daily_curriculum_id = curriculum.id
+                          JOIN training_datas data ON data.train_id = training.id
+                         WHERE curriculum.id IN (
+                               120023, 120033, 120053, 120063, 120073,
+                               120083, 120093, 120103, 120113, 120123
+                         )
+                           AND curriculum.status = 'NOT_STARTED'
+                         GROUP BY curriculum.id
+                        HAVING COUNT(DISTINCT training.id) = 5
+                           AND COUNT(DISTINCT training.sequence_no) = 5
+                           AND COUNT(DISTINCT training.training_template_id) = 5
+                           AND COUNT(DISTINCT data.id) = 5
+                  ) corrected_curriculums
+                """,
+                Integer.class
+        )).isEqualTo(10);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM trainings training
+                  JOIN training_datas data ON data.train_id = training.id
+                 WHERE training.daily_curriculum_id = 190001
+                   AND (
+                         (training.sequence_no = 1
+                          AND training.status = 'NOT_STARTED')
+                         OR (training.sequence_no > 1
+                             AND training.status = 'NOT_READY')
+                       )
+                """,
+                Integer.class
+        )).isEqualTo(34);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM (
+                        SELECT curriculum.id
+                          FROM daily_curriculums curriculum
+                          JOIN trainings training
+                            ON training.daily_curriculum_id = curriculum.id
+                         WHERE curriculum.status = 'COMPLETED'
+                         GROUP BY curriculum.id
+                        HAVING COUNT(*) = 4
+                  ) preserved_curriculums
+                """,
+                Integer.class
+        )).isEqualTo(30);
+    }
+
+    @Test
+    @Transactional
+    void enforcesOneFiveTrainingRecommendationPerSourceTest() {
+        jdbcTemplate.update(
+                """
+                INSERT INTO students(id, teacher_id, name, created_at)
+                VALUES (990001, 1001, '관계검증1', CURRENT_TIMESTAMP),
+                       (990002, 1001, '관계검증2', CURRENT_TIMESTAMP)
+                """
+        );
+        jdbcTemplate.update(
+                """
+                INSERT INTO test_curriculums(
+                    id, student_id, status, created_at, completed_at,
+                    recommendation_status, recommendation_retry_count
+                )
+                VALUES (
+                    990001, 990001, 'COMPLETED', CURRENT_TIMESTAMP,
+                    CURRENT_TIMESTAMP, 'COMPLETED', 0
+                )
+                """
+        );
+        jdbcTemplate.update(
+                """
+                INSERT INTO daily_curriculums(
+                    id, student_id, status, created_at,
+                    source_test_curriculum_id, review_status
+                )
+                VALUES (
+                    990001, 990001, 'NOT_STARTED', CURRENT_TIMESTAMP,
+                    990001, 'GENERATION_PENDING'
+                )
+                """
+        );
+        jdbcTemplate.update(
+                """
+                INSERT INTO trainings(
+                    id, training_template_id, daily_curriculum_id,
+                    sequence_no, created_at, status
+                )
+                VALUES
+                    (991001, 1, 990001, 1, CURRENT_TIMESTAMP, 'NOT_READY'),
+                    (991002, 2, 990001, 2, CURRENT_TIMESTAMP, 'NOT_READY'),
+                    (991003, 3, 990001, 3, CURRENT_TIMESTAMP, 'NOT_READY'),
+                    (991004, 4, 990001, 4, CURRENT_TIMESTAMP, 'NOT_READY'),
+                    (991005, 5, 990001, 5, CURRENT_TIMESTAMP, 'NOT_READY')
+                """
+        );
+
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM trainings training
+                  JOIN daily_curriculums curriculum
+                    ON curriculum.id = training.daily_curriculum_id
+                 WHERE curriculum.source_test_curriculum_id = 990001
+                """,
+                Integer.class
+        )).isEqualTo(5);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(DISTINCT training.sequence_no)
+                  FROM trainings training
+                  JOIN daily_curriculums curriculum
+                    ON curriculum.id = training.daily_curriculum_id
+                 WHERE curriculum.source_test_curriculum_id = 990001
+                """,
+                Integer.class
+        )).isEqualTo(5);
+
+        assertThatThrownBy(() -> jdbcTemplate.update(
+                """
+                INSERT INTO daily_curriculums(
+                    id, student_id, status, created_at,
+                    source_test_curriculum_id, review_status
+                )
+                VALUES (
+                    990002, 990002, 'NOT_STARTED', CURRENT_TIMESTAMP,
+                    990001, 'GENERATION_PENDING'
+                )
+                """
+        )).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
