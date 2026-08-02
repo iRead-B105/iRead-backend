@@ -4,10 +4,10 @@ import com.iread.backend.training.domain.DailyCurriculumEntity;
 import com.iread.backend.training.domain.TrainingDataEntity;
 import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.domain.TrainingTemplateEntity;
-import com.iread.backend.training.curriculum.PersonalizedCurriculumPlanner;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
 import com.iread.backend.training.repository.DailyCurriculumRepository;
 import com.iread.backend.training.repository.TrainingDataRepository;
+import com.iread.backend.training.repository.TrainingTemplateRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -30,9 +30,12 @@ import java.util.List;
 public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
 
     static final long DEMO_CURRICULUM_ID = 190001L;
+    static final int DEMO_TEMPLATE_COUNT = 34;
+    private static final long FIRST_TEMPLATE_ID = 1L;
+    private static final long LAST_TEMPLATE_ID = 34L;
 
     private final DailyCurriculumRepository dailyCurriculumRepository;
-    private final PersonalizedCurriculumPlanner curriculumPlanner;
+    private final TrainingTemplateRepository trainingTemplateRepository;
     private final TrainingDataRepository trainingDataRepository;
     private final PersonalizedTrainingGenerationService generationService;
     private final ObjectMapper objectMapper;
@@ -46,7 +49,8 @@ public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
         if (curriculum == null) {
             return;
         }
-        if (isAlreadyInitialized(curriculum)) {
+        List<TrainingTemplateEntity> templates = loadCanonicalTemplates();
+        if (isAlreadyInitialized(curriculum, templates)) {
             refreshQuestions(curriculum);
             return;
         }
@@ -58,9 +62,6 @@ public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
 
         curriculum.replaceTrainings(List.of());
         dailyCurriculumRepository.flush();
-
-        List<TrainingTemplateEntity> templates =
-                curriculumPlanner.selectTemplates(curriculum.getStudent().getId());
 
         curriculum.replaceTrainings(templates);
         dailyCurriculumRepository.flush();
@@ -88,14 +89,41 @@ public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
         trainingDataRepository.flush();
     }
 
-    private boolean isAlreadyInitialized(DailyCurriculumEntity curriculum) {
-        if (curriculum.getTrainings().size() != PersonalizedCurriculumPlanner.TRAINING_COUNT) {
+    private List<TrainingTemplateEntity> loadCanonicalTemplates() {
+        List<TrainingTemplateEntity> templates = trainingTemplateRepository.findCanonicalCatalog(
+                FIRST_TEMPLATE_ID,
+                LAST_TEMPLATE_ID
+        );
+        if (templates.size() != DEMO_TEMPLATE_COUNT) {
+            throw new IllegalStateException(
+                    "전 유형 확인용 데모에는 기준 템플릿 34개가 필요합니다."
+            );
+        }
+        for (int index = 0; index < templates.size(); index++) {
+            if (!Long.valueOf(index + 1L).equals(templates.get(index).getId())) {
+                throw new IllegalStateException(
+                        "전 유형 확인용 데모의 템플릿 ID는 1부터 34까지여야 합니다."
+                );
+            }
+        }
+        return templates;
+    }
+
+    private boolean isAlreadyInitialized(
+            DailyCurriculumEntity curriculum,
+            List<TrainingTemplateEntity> templates
+    ) {
+        if (curriculum.getTrainings().size() != DEMO_TEMPLATE_COUNT) {
             return false;
         }
-        return curriculum.getTrainings().stream()
-                .allMatch(training -> trainingDataRepository
-                        .findByTrainingId(training.getId())
-                        .isPresent());
+        for (int index = 0; index < templates.size(); index++) {
+            TrainingEntity training = curriculum.getTrainings().get(index);
+            if (!templates.get(index).getId().equals(training.getTrainingTemplate().getId())
+                    || trainingDataRepository.findByTrainingId(training.getId()).isEmpty()) {
+                return false;
+            }
+        }
+        return true;
     }
 
 

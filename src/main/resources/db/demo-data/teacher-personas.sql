@@ -81,10 +81,10 @@ SELECT
     id,
     ROW_NUMBER() OVER (ORDER BY id) AS template_no
 FROM training_templates
-WHERE JSON_UNQUOTE(JSON_EXTRACT(prompt, '$.questionType')) IN (
-    'WORD_GRID_READING',
+WHERE JSON_UNQUOTE(JSON_EXTRACT(prompt, '$.trainingType')) IN (
+    'WORD_READING',
     'SENTENCE_READING',
-    'PASSAGE_READING'
+    'SHORT_PASSAGE_READING'
 );
 SET @demo_reading_template_count = (SELECT COUNT(*) FROM demo_reading_templates);
 
