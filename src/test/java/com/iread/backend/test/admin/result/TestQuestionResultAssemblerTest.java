@@ -143,6 +143,45 @@ class TestQuestionResultAssemblerTest {
         assertThat(result.gazeDepartureCount()).isNull();
     }
 
+    @Test
+    void expandsLegacyMultiQuestionTestIntoGlobalSequence() {
+        StudentTestEntity test = test(13L, 2, BigDecimal.valueOf(62), """
+                {
+                  "questions":[
+                    {"questionNumber":1,"question":"첫 문항","selectedAnswer":"학생 답 1","correctAnswer":"정답 1","isCorrect":true},
+                    {"questionNumber":2,"question":"둘째 문항","selectedAnswer":"학생 답 2","correctAnswer":"정답 2","isCorrect":false},
+                    {"questionNumber":3,"question":"셋째 문항","selectedAnswer":"학생 답 3","correctAnswer":"정답 3","isCorrect":true}
+                  ],
+                  "solvingTimeSeconds":30,
+                  "gazeDepartureCount":2
+                }
+                """);
+        generated(test, """
+                {"questions":[
+                  {"questionNo":1,"type":"SENTENCE_READING","analysisTargets":[{"text":"정답 1"}]},
+                  {"questionNo":2,"type":"SENTENCE_READING","analysisTargets":[{"text":"정답 2"}]},
+                  {"questionNo":3,"type":"SENTENCE_READING","analysisTargets":[{"text":"정답 3"}]}
+                ]}
+                """);
+
+        var results = assembler.assembleAll(test);
+
+        assertThat(results).extracting(
+                result -> result.sequenceNo()
+        ).containsExactly(4, 5, 6);
+        assertThat(results).extracting(
+                result -> result.question()
+        ).containsExactly("첫 문항", "둘째 문항", "셋째 문항");
+        assertThat(results.get(1).selectedAnswer().asText()).isEqualTo("학생 답 2");
+        assertThat(results.get(1).correctAnswer().asText()).isEqualTo("정답 2");
+        assertThat(results.get(1).correct()).isFalse();
+        assertThat(results).extracting(
+                result -> result.solvingTimeSeconds()
+        ).containsExactly(30L, null, null);
+        assertThat(results).extracting(
+                result -> result.gazeDepartureCount()
+        ).containsExactly(2, null, null);
+    }
     private StudentTestEntity test(Long id, int sequenceNo, BigDecimal accuracy, String result) {
         StudentTestEntity test = mock(StudentTestEntity.class);
         TrainingTemplateEntity template = mock(TrainingTemplateEntity.class);

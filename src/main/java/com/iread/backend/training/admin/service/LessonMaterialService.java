@@ -247,7 +247,9 @@ public class LessonMaterialService {
                         "answer must be a JSON object."
                 ));
             }
-            if (material.presentation() != null && !material.presentation().isObject()) {
+            if (material.presentation() != null
+                    && !material.presentation().isNull()
+                    && !material.presentation().isObject()) {
                 errors.add(new ValidationError(
                         material.questionNo(),
                         "materials[" + index + "].presentation",

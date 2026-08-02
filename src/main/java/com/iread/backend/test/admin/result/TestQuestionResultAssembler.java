@@ -30,10 +30,41 @@ public class TestQuestionResultAssembler {
     private final ObjectMapper objectMapper;
 
     public TestCurriculumDetailResponse.QuestionResult assemble(StudentTestEntity test) {
-        JsonNode question = readSingleQuestion(test.getId());
+        List<TestCurriculumDetailResponse.QuestionResult> results = assembleAll(test);
+        if (results.size() != 1) {
+            throw new IllegalStateException(
+                    "실력도전 개별 검사에는 출제 문항이 정확히 1개여야 합니다: " + test.getId()
+            );
+        }
+        return results.getFirst();
+    }
+
+    public List<TestCurriculumDetailResponse.QuestionResult> assembleAll(StudentTestEntity test) {
+        JsonNode questions = readQuestions(test.getId());
         JsonNode result = readObject(test.getResult(), "저장된 검사 결과");
+        return java.util.stream.IntStream.range(0, questions.size())
+                .mapToObj(index -> assemble(
+                        test,
+                        questions.get(index),
+                        result,
+                        index,
+                        questions.size()
+                ))
+                .toList();
+    }
+
+    private TestCurriculumDetailResponse.QuestionResult assemble(
+            StudentTestEntity test,
+            JsonNode question,
+            JsonNode result,
+            int questionIndex,
+            int questionCount
+    ) {
         int questionNo = question.path("questionNo").asInt(1);
         JsonNode submission = findSubmission(result.path("submissions"), questionNo);
+        JsonNode legacyResult = findLegacyQuestionResult(
+                result.path("questions"), questionNo, questionIndex
+        );
         LearningResponseType responseType = questionSupport.responseType(question);
         List<WordAttemptLogEntity> finalAttempts = responseType == LearningResponseType.AUDIO
                 ? wordAttemptLogRepository
@@ -43,26 +74,29 @@ public class TestQuestionResultAssembler {
                 result.path("pronunciationAnalyses"),
                 questionNo
         );
-        TestTrackResolver.Track track = trackResolver.resolve(test.getSequenceNo());
+        int sequenceNo = questionCount == 1
+                ? test.getSequenceNo()
+                : (test.getSequenceNo() - 1) * questionCount + questionIndex + 1;
+        TestTrackResolver.Track track = trackResolver.resolve(sequenceNo);
 
         return new TestCurriculumDetailResponse.QuestionResult(
                 test.getId(),
-                test.getSequenceNo(),
+                sequenceNo,
                 track.code(),
                 questionType(question),
-                questionText(question, test.getTrainingTemplate().getName()),
+                questionText(question, legacyResult, test.getTrainingTemplate().getName()),
                 responseType.name(),
-                selectedAnswer(responseType, question, submission),
-                correctAnswer(responseType, question),
-                correct(responseType, submission, latestAnalysis, finalAttempts),
+                selectedAnswer(responseType, question, submission, legacyResult),
+                correctAnswer(responseType, question, legacyResult),
+                correct(responseType, submission, latestAnalysis, finalAttempts, legacyResult),
                 score(responseType, submission, finalAttempts, test.getAccuracy()),
                 pronunciationScore(latestAnalysis, finalAttempts),
-                nullableLong(result.get("solvingTimeSeconds")),
-                nullableInteger(result.get("gazeDepartureCount"))
+                questionIndex == 0 ? nullableLong(result.get("solvingTimeSeconds")) : null,
+                questionIndex == 0 ? nullableInteger(result.get("gazeDepartureCount")) : null
         );
     }
 
-    private JsonNode readSingleQuestion(Long testId) {
+    private JsonNode readQuestions(Long testId) {
         String stored = testDataRepository
                 .findFirstByTestIdOrderByCreatedAtDescIdDesc(testId)
                 .map(TestDataEntity::getGeneratedData)
@@ -70,14 +104,13 @@ public class TestQuestionResultAssembler {
                         "검사 출제 데이터가 없습니다: " + testId
                 ));
         JsonNode questions = readObject(stored, "저장된 검사 출제 데이터").path("questions");
-        if (!questions.isArray() || questions.size() != 1) {
+        if (!questions.isArray() || questions.isEmpty()) {
             throw new IllegalStateException(
-                    "실력도전 개별 검사에는 출제 문항이 정확히 1개여야 합니다: " + testId
+                    "실력도전 검사에는 출제 문항이 1개 이상이어야 합니다: " + testId
             );
         }
-        return questions.get(0);
+        return questions;
     }
-
     private JsonNode readObject(String stored, String label) {
         if (stored == null || stored.isBlank()) {
             return objectMapper.createObjectNode();
@@ -104,6 +137,27 @@ public class TestQuestionResultAssembler {
         return NullNode.getInstance();
     }
 
+    private JsonNode findLegacyQuestionResult(
+            JsonNode results,
+            int questionNo,
+            int questionIndex
+    ) {
+        if (!results.isArray()) {
+            return NullNode.getInstance();
+        }
+        for (JsonNode result : results) {
+            int storedQuestionNo = result.path("questionNo").asInt(
+                    result.path("questionNumber").asInt(-1)
+            );
+            if (storedQuestionNo == questionNo) {
+                return result;
+            }
+        }
+        return questionIndex < results.size()
+                ? results.get(questionIndex)
+                : NullNode.getInstance();
+    }
+
     private JsonNode latestPronunciationAnalysis(JsonNode analyses, int questionNo) {
         JsonNode latest = NullNode.getInstance();
         int latestAttempt = Integer.MIN_VALUE;
@@ -126,8 +180,12 @@ public class TestQuestionResultAssembler {
     private JsonNode selectedAnswer(
             LearningResponseType type,
             JsonNode question,
-            JsonNode submission
+            JsonNode submission,
+            JsonNode legacyResult
     ) {
+        if (legacyResult.hasNonNull("selectedAnswer")) {
+            return legacyResult.path("selectedAnswer").deepCopy();
+        }
         if (type == LearningResponseType.AUDIO) {
             return NullNode.getInstance();
         }
@@ -148,7 +206,14 @@ public class TestQuestionResultAssembler {
         };
     }
 
-    private JsonNode correctAnswer(LearningResponseType type, JsonNode question) {
+    private JsonNode correctAnswer(
+            LearningResponseType type,
+            JsonNode question,
+            JsonNode legacyResult
+    ) {
+        if (legacyResult.hasNonNull("correctAnswer")) {
+            return legacyResult.path("correctAnswer").deepCopy();
+        }
         JsonNode answer = question.path("answer").isObject()
                 ? question.path("answer")
                 : question.path("content");
@@ -230,8 +295,12 @@ public class TestQuestionResultAssembler {
             LearningResponseType type,
             JsonNode submission,
             JsonNode latestAnalysis,
-            List<WordAttemptLogEntity> attempts
+            List<WordAttemptLogEntity> attempts,
+            JsonNode legacyResult
     ) {
+        if (legacyResult.hasNonNull("isCorrect")) {
+            return legacyResult.path("isCorrect").asBoolean();
+        }
         if (type != LearningResponseType.AUDIO) {
             return submission.hasNonNull("correct")
                     ? submission.path("correct").asBoolean()
@@ -299,7 +368,11 @@ public class TestQuestionResultAssembler {
                 : type;
     }
 
-    private String questionText(JsonNode question, String templateName) {
+    private String questionText(
+            JsonNode question,
+            JsonNode legacyResult,
+            String templateName
+    ) {
         for (JsonNode candidate : List.of(
                 question.path("text"),
                 question.path("question"),
@@ -309,6 +382,10 @@ public class TestQuestionResultAssembler {
             if (candidate.isTextual() && !candidate.asText().isBlank()) {
                 return candidate.asText();
             }
+        }
+        if (legacyResult.path("question").isTextual()
+                && !legacyResult.path("question").asText().isBlank()) {
+            return legacyResult.path("question").asText();
         }
         return templateName;
     }
