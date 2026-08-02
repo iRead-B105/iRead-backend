@@ -41,7 +41,7 @@ class MySqlDemoSeedIntegrationTest {
                  ORDER BY installed_rank
                 """,
                 String.class
-        )).containsExactly("1", "2", "3", "4");
+        )).containsExactly("1", "2", "3", "4", "5");
 
         String passwordHash = jdbcTemplate.queryForObject(
                 "SELECT password FROM teachers WHERE id = 1001",
@@ -69,6 +69,25 @@ class MySqlDemoSeedIntegrationTest {
         assertThat(count("gaze_analysis_results", 7302L)).isEqualTo(1);
         assertThat(count("reports", 9101L)).isEqualTo(1);
         assertThat(tableCount("training_templates")).isEqualTo(34);
+        assertThat(tableCount("curriculum_units")).isEqualTo(8);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT unit_name FROM curriculum_units WHERE id = 1",
+                String.class
+        )).isEqualTo("글자 따라 보기");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT name FROM training_templates WHERE id = 1",
+                String.class
+        )).isEqualTo("모음 따라 보기");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT JSON_UNQUOTE(JSON_EXTRACT(prompt, '$.trainingType')) "
+                        + "FROM training_templates WHERE id = 15",
+                String.class
+        )).isEqualTo("SYLLABLE_BLEND");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT JSON_CONTAINS_PATH(prompt, 'one', '$.questionType') "
+                        + "FROM training_templates WHERE id = 15",
+                Integer.class
+        )).isZero();
         assertThat(demoStudentCount()).isEqualTo(13);
         assertThat(trainingCount(2001L)).isGreaterThanOrEqualTo(50);
         assertThat(trainingCount(2002L)).isGreaterThanOrEqualTo(50);
@@ -137,7 +156,7 @@ class MySqlDemoSeedIntegrationTest {
                  WHERE daily_curriculum_id = 190001
                 """,
                 Integer.class
-        )).isEqualTo(5);
+        )).isEqualTo(34);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -163,7 +182,7 @@ class MySqlDemoSeedIntegrationTest {
                  WHERE daily_curriculum_id = 190001
                 """,
                 Integer.class
-        )).isEqualTo(5);
+        )).isEqualTo(34);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -175,7 +194,7 @@ class MySqlDemoSeedIntegrationTest {
                        ) = 5
                 """,
                 Integer.class
-        )).isEqualTo(5);
+        )).isEqualTo(34);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -187,7 +206,56 @@ class MySqlDemoSeedIntegrationTest {
                        )
                 """,
                 Integer.class
-        )).isEqualTo(5);
+        )).isEqualTo(34);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM (
+                        SELECT curriculum.id
+                          FROM daily_curriculums curriculum
+                          JOIN trainings training
+                            ON training.daily_curriculum_id = curriculum.id
+                         WHERE curriculum.id IN (
+                               120023, 120033, 120053, 120063, 120073,
+                               120083, 120093, 120103, 120113, 120123
+                         )
+                         GROUP BY curriculum.id
+                        HAVING COUNT(*) = 5
+                           AND COUNT(DISTINCT training.sequence_no) = 5
+                  ) corrected
+                """,
+                Integer.class
+        )).isEqualTo(10);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM training_datas data
+                  JOIN trainings training ON training.id = data.train_id
+                  JOIN training_templates template
+                    ON template.id = training.training_template_id
+                 WHERE training.id IN (
+                       130213, 130313, 130513, 130613, 130713,
+                       130813, 130913, 131013, 131113, 131213
+                 )
+                   AND JSON_LENGTH(JSON_EXTRACT(data.generated_data, '$.questions')) = 3
+                   AND JSON_UNQUOTE(
+                         JSON_EXTRACT(data.generated_data, '$.questions[0].type')
+                       ) = JSON_UNQUOTE(JSON_EXTRACT(template.prompt, '$.trainingType'))
+                   AND training.training_template_id = CASE training.id
+                         WHEN 130213 THEN 18
+                         WHEN 130313 THEN 21
+                         WHEN 130513 THEN 27
+                         WHEN 130613 THEN 30
+                         WHEN 130713 THEN 33
+                         WHEN 130813 THEN 2
+                         WHEN 130913 THEN 5
+                         WHEN 131013 THEN 8
+                         WHEN 131113 THEN 11
+                         WHEN 131213 THEN 14
+                       END
+                """,
+                Integer.class
+        )).isEqualTo(10);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT training_template_id FROM trainings WHERE id = 4001",
                 Long.class

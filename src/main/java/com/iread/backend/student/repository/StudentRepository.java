@@ -433,10 +433,10 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
                AND t.status = 'COMPLETED'
                AND t.finished_at >= :fromDateTime
                AND t.finished_at < :toDateTimeExclusive
-               AND JSON_UNQUOTE(JSON_EXTRACT(tt.prompt, '$.questionType')) IN (
-                   'WORD_GRID_READING',
+               AND JSON_UNQUOTE(JSON_EXTRACT(tt.prompt, '$.trainingType')) IN (
+                   'WORD_READING',
                    'SENTENCE_READING',
-                   'PASSAGE_READING'
+                   'SHORT_PASSAGE_READING'
                )
              GROUP BY wal.training_id, DATE(t.finished_at)
              ORDER BY DATE(t.finished_at), wal.training_id

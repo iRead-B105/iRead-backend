@@ -5,10 +5,10 @@ import com.iread.backend.training.domain.DailyCurriculumEntity;
 import com.iread.backend.training.domain.TrainingDataEntity;
 import com.iread.backend.training.domain.TrainingStatus;
 import com.iread.backend.training.domain.TrainingTemplateEntity;
-import com.iread.backend.training.curriculum.PersonalizedCurriculumPlanner;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
 import com.iread.backend.training.repository.DailyCurriculumRepository;
 import com.iread.backend.training.repository.TrainingDataRepository;
+import com.iread.backend.training.repository.TrainingTemplateRepository;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -19,8 +19,8 @@ import tools.jackson.databind.node.ObjectNode;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.IntStream;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -32,11 +32,11 @@ import static org.mockito.Mockito.when;
 class DemoAllTrainingCurriculumInitializerTest {
 
     @Test
-    void createsFivePersonalizedTrainingsWithFiveQuestionsAndUnlocksOnlyTheFirst() throws Exception {
+    void createsAllThirtyFourCatalogTrainingsAndUnlocksOnlyTheFirst() throws Exception {
         DailyCurriculumRepository curriculumRepository =
                 mock(DailyCurriculumRepository.class);
-        PersonalizedCurriculumPlanner curriculumPlanner =
-                mock(PersonalizedCurriculumPlanner.class);
+        TrainingTemplateRepository templateRepository =
+                mock(TrainingTemplateRepository.class);
         TrainingDataRepository dataRepository =
                 mock(TrainingDataRepository.class);
         PersonalizedTrainingGenerationService generationService =
@@ -45,9 +45,7 @@ class DemoAllTrainingCurriculumInitializerTest {
 
         StudentEntity student = StudentEntity.builder().name("샛별").build();
         ReflectionTestUtils.setField(student, "id", 2001L);
-        List<TrainingTemplateEntity> previousTemplates = IntStream.rangeClosed(1, 2)
-                .mapToObj(index -> mock(TrainingTemplateEntity.class))
-                .toList();
+        List<TrainingTemplateEntity> previousTemplates = List.of(template(1), template(2));
         DailyCurriculumEntity curriculum = new DailyCurriculumEntity(student, previousTemplates);
         ReflectionTestUtils.setField(
                 curriculum,
@@ -56,15 +54,12 @@ class DemoAllTrainingCurriculumInitializerTest {
         );
         ReflectionTestUtils.setField(curriculum.getTrainings().get(0), "id", 91L);
         ReflectionTestUtils.setField(curriculum.getTrainings().get(1), "id", 92L);
-        List<TrainingTemplateEntity> templates = IntStream
-                .rangeClosed(1, PersonalizedCurriculumPlanner.TRAINING_COUNT)
-                .mapToObj(index -> mock(TrainingTemplateEntity.class))
-                .toList();
+        List<TrainingTemplateEntity> templates = canonicalTemplates();
 
         when(curriculumRepository.findForGeneration(
                 DemoAllTrainingCurriculumInitializer.DEMO_CURRICULUM_ID
         )).thenReturn(Optional.of(curriculum));
-        when(curriculumPlanner.selectTemplates(2001L)).thenReturn(templates);
+        when(templateRepository.findCanonicalCatalog(1L, 34L)).thenReturn(templates);
         when(generationService.generate(any())).thenAnswer(invocation -> {
             ObjectNode generated = objectMapper.createObjectNode();
             generated.put("schemaVersion", 2);
@@ -76,7 +71,7 @@ class DemoAllTrainingCurriculumInitializerTest {
         DemoAllTrainingCurriculumInitializer initializer =
                 new DemoAllTrainingCurriculumInitializer(
                         curriculumRepository,
-                        curriculumPlanner,
+                        templateRepository,
                         dataRepository,
                         generationService,
                         objectMapper
@@ -85,20 +80,19 @@ class DemoAllTrainingCurriculumInitializerTest {
         initializer.run(mock(org.springframework.boot.ApplicationArguments.class));
 
         assertThat(curriculum.getTrainings())
-                .hasSize(PersonalizedCurriculumPlanner.TRAINING_COUNT);
+                .hasSize(DemoAllTrainingCurriculumInitializer.DEMO_TEMPLATE_COUNT);
         assertThat(curriculum.getTrainings().getFirst().getStatus())
                 .isEqualTo(TrainingStatus.NOT_STARTED);
         assertThat(curriculum.getTrainings().subList(
                 1,
-                PersonalizedCurriculumPlanner.TRAINING_COUNT
-        ))
-                .allMatch(training -> training.getStatus() == TrainingStatus.NOT_READY);
+                DemoAllTrainingCurriculumInitializer.DEMO_TEMPLATE_COUNT
+        )).allMatch(training -> training.getStatus() == TrainingStatus.NOT_READY);
 
         ArgumentCaptor<TrainingDataEntity> captor =
                 ArgumentCaptor.forClass(TrainingDataEntity.class);
         verify(
                 dataRepository,
-                times(PersonalizedCurriculumPlanner.TRAINING_COUNT)
+                times(DemoAllTrainingCurriculumInitializer.DEMO_TEMPLATE_COUNT)
         ).save(captor.capture());
         assertThat(captor.getAllValues()).allSatisfy(data -> {
             try {
@@ -107,19 +101,19 @@ class DemoAllTrainingCurriculumInitializerTest {
             } catch (Exception exception) {
                 throw new AssertionError(exception);
             }
-        verify(curriculumRepository, times(2)).flush();
         });
+        verify(curriculumRepository, times(2)).flush();
         verify(dataRepository, times(2)).flush();
         verify(dataRepository).deleteByTrainingId(91L);
         verify(dataRepository).deleteByTrainingId(92L);
     }
 
     @Test
-    void refreshesFiveQuestionsForEveryExistingDemoTraining() throws Exception {
+    void refreshesQuestionsForEveryExistingCatalogTraining() throws Exception {
         DailyCurriculumRepository curriculumRepository =
                 mock(DailyCurriculumRepository.class);
-        PersonalizedCurriculumPlanner curriculumPlanner =
-                mock(PersonalizedCurriculumPlanner.class);
+        TrainingTemplateRepository templateRepository =
+                mock(TrainingTemplateRepository.class);
         TrainingDataRepository dataRepository =
                 mock(TrainingDataRepository.class);
         PersonalizedTrainingGenerationService generationService =
@@ -128,16 +122,7 @@ class DemoAllTrainingCurriculumInitializerTest {
 
         StudentEntity student = StudentEntity.builder().name("샛별").build();
         ReflectionTestUtils.setField(student, "id", 2001L);
-        List<TrainingTemplateEntity> templates = IntStream.rangeClosed(
-                        1,
-                        PersonalizedCurriculumPlanner.TRAINING_COUNT
-                )
-                .mapToObj(index -> {
-                    TrainingTemplateEntity template = mock(TrainingTemplateEntity.class);
-                    when(template.getId()).thenReturn((long) index);
-                    return template;
-                })
-                .toList();
+        List<TrainingTemplateEntity> templates = canonicalTemplates();
         DailyCurriculumEntity curriculum = new DailyCurriculumEntity(student, templates);
         ReflectionTestUtils.setField(
                 curriculum,
@@ -159,6 +144,7 @@ class DemoAllTrainingCurriculumInitializerTest {
         when(curriculumRepository.findForGeneration(
                 DemoAllTrainingCurriculumInitializer.DEMO_CURRICULUM_ID
         )).thenReturn(Optional.of(curriculum));
+        when(templateRepository.findCanonicalCatalog(1L, 34L)).thenReturn(templates);
         when(dataRepository.findByTrainingId(any())).thenAnswer(invocation ->
                 Optional.ofNullable(dataByTrainingId.get(invocation.getArgument(0)))
         );
@@ -172,7 +158,7 @@ class DemoAllTrainingCurriculumInitializerTest {
         DemoAllTrainingCurriculumInitializer initializer =
                 new DemoAllTrainingCurriculumInitializer(
                         curriculumRepository,
-                        curriculumPlanner,
+                        templateRepository,
                         dataRepository,
                         generationService,
                         objectMapper
@@ -193,8 +179,23 @@ class DemoAllTrainingCurriculumInitializerTest {
         });
         verify(
                 generationService,
-                times(PersonalizedCurriculumPlanner.TRAINING_COUNT)
+                times(DemoAllTrainingCurriculumInitializer.DEMO_TEMPLATE_COUNT)
         ).generate(any());
         verify(dataRepository).flush();
+    }
+
+    private List<TrainingTemplateEntity> canonicalTemplates() {
+        return IntStream.rangeClosed(
+                        1,
+                        DemoAllTrainingCurriculumInitializer.DEMO_TEMPLATE_COUNT
+                )
+                .mapToObj(this::template)
+                .toList();
+    }
+
+    private TrainingTemplateEntity template(int id) {
+        TrainingTemplateEntity template = mock(TrainingTemplateEntity.class);
+        when(template.getId()).thenReturn((long) id);
+        return template;
     }
 }
