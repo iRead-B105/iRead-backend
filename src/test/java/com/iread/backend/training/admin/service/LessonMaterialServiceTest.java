@@ -140,6 +140,53 @@ class LessonMaterialServiceTest {
     }
 
     @Test
+    void acceptsExplicitNullPresentationReturnedByLessonMaterialApi() {
+        TrainingEntity training = training();
+        TrainingDataEntity data = new TrainingDataEntity(
+                training,
+                """
+                {
+                  "schemaVersion":2,
+                  "revision":0,
+                  "expectedWords":[{"wordId":7,"wordName":"tree"}],
+                  "profileSnapshot":{"analysisVersion":"WEAKNESS_V1","features":[]},
+                  "questions":[{
+                    "questionNo":1,
+                    "type":"WORD_READING",
+                    "requiredInputs":["VOICE","GAZE"],
+                    "presentation":null,
+                    "content":{"words":["tree"]},
+                    "answer":{"expectedText":"tree"},
+                    "analysisTargets":[],
+                    "targetFeatureCodes":[]
+                  }]
+                }
+                """
+        );
+        allowStudent();
+        when(trainingRepository.findForUpdate(31L, 10L)).thenReturn(Optional.of(training));
+        when(trainingDataRepository.findByTrainingId(31L)).thenReturn(Optional.of(data));
+        var contentNode = objectMapper.createObjectNode();
+        contentNode.putArray("words").add("tree");
+        UpdateLessonMaterialRequest.Material material = new UpdateLessonMaterialRequest.Material(
+                1,
+                "WORD_READING",
+                objectMapper.nullNode(),
+                contentNode,
+                objectMapper.createObjectNode().put("expectedText", "tree")
+        );
+
+        var response = service.updateLessonMaterial(
+                1L,
+                10L,
+                31L,
+                new UpdateLessonMaterialRequest(0, List.of(material))
+        );
+
+        assertThat(response.revision()).isEqualTo(1);
+        assertThat(response.materials().getFirst().presentation().isNull()).isTrue();
+    }
+    @Test
     void rejectsStaleRevisionWithConflict() {
         TrainingEntity training = training();
         TrainingDataEntity data = new TrainingDataEntity(

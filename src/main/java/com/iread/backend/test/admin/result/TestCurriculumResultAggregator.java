@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -56,13 +57,22 @@ public class TestCurriculumResultAggregator {
             DailyCurriculumEntity recommendedCurriculum
     ) {
         List<StudentTestEntity> ordered = ordered(tests);
-        validateCompletedCurriculum(curriculum, ordered);
-        List<TestCurriculumDetailResponse.QuestionResult> questions = ordered.stream()
-                .map(questionAssembler::assemble)
+        List<TestCurriculumDetailResponse.QuestionResult> assembled = new ArrayList<>();
+        int completedQuestions = 0;
+        for (StudentTestEntity test : ordered) {
+            List<TestCurriculumDetailResponse.QuestionResult> testQuestions =
+                    questionAssembler.assembleAll(test);
+            assembled.addAll(testQuestions);
+            if (test.getStatus() == TestStatus.COMPLETED) {
+                completedQuestions += testQuestions.size();
+            }
+        }
+        List<TestCurriculumDetailResponse.QuestionResult> questions = assembled.stream()
                 .sorted(Comparator.comparingInt(
                         TestCurriculumDetailResponse.QuestionResult::sequenceNo
                 ))
                 .toList();
+        validateCompletedCurriculum(curriculum, ordered, questions);
         if (isCompleted(curriculum) && questions.stream().anyMatch(q -> q.score() == null)) {
             throw new IllegalStateException("완료된 실력도전 검사에 점수가 없는 문항이 있습니다.");
         }
@@ -72,12 +82,12 @@ public class TestCurriculumResultAggregator {
                 curriculum.getStatus(),
                 curriculum.getCreatedAt(),
                 curriculum.getCompletedAt(),
-                completedCount(ordered),
-                ordered.size(),
+                completedQuestions,
+                questions.size(),
                 scoreNormalizer.average(questions.stream()
                         .map(TestCurriculumDetailResponse.QuestionResult::score)
                         .toList()),
-                areaScores(questions, ordered),
+                areaScores(questions),
                 totalSolvingTime(questions),
                 questions,
                 curriculum.getRecommendationStatus() == null
@@ -93,17 +103,15 @@ public class TestCurriculumResultAggregator {
     }
 
     private List<TestCurriculumDetailResponse.AreaScore> areaScores(
-            List<TestCurriculumDetailResponse.QuestionResult> questions,
-            List<StudentTestEntity> tests
+            List<TestCurriculumDetailResponse.QuestionResult> questions
     ) {
         return List.of(1, 4, 7).stream().map(firstSequence -> {
             TestTrackResolver.Track track = trackResolver.resolve(firstSequence);
             List<TestCurriculumDetailResponse.QuestionResult> trackQuestions = questions.stream()
                     .filter(question -> question.trackCode().equals(track.code()))
                     .toList();
-            int completed = (int) tests.stream()
-                    .filter(test -> trackResolver.resolve(test.getSequenceNo()).equals(track))
-                    .filter(test -> test.getStatus() == TestStatus.COMPLETED)
+            int completed = (int) trackQuestions.stream()
+                    .filter(question -> question.score() != null)
                     .count();
             return new TestCurriculumDetailResponse.AreaScore(
                     track.code(),
@@ -129,12 +137,13 @@ public class TestCurriculumResultAggregator {
 
     private void validateCompletedCurriculum(
             TestCurriculumEntity curriculum,
-            List<StudentTestEntity> tests
+            List<StudentTestEntity> tests,
+            List<TestCurriculumDetailResponse.QuestionResult> questions
     ) {
         if (!isCompleted(curriculum)) {
             return;
         }
-        if (tests.size() != TestTrackResolver.TOTAL_QUESTIONS
+        if (questions.size() != TestTrackResolver.TOTAL_QUESTIONS
                 || tests.stream().anyMatch(test -> test.getStatus() != TestStatus.COMPLETED)) {
             throw new IllegalStateException("완료된 실력도전 검사는 9개 문항이 모두 완료되어야 합니다.");
         }

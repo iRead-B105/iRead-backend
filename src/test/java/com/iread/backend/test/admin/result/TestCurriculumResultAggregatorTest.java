@@ -41,11 +41,11 @@ class TestCurriculumResultAggregatorTest {
             StudentTestEntity test = test((long) sequence, sequence, TestStatus.COMPLETED);
             tests.add(test);
             BigDecimal score = BigDecimal.valueOf(sequence * 10L);
-            when(questionAssembler.assemble(test)).thenReturn(question(
+            when(questionAssembler.assembleAll(test)).thenReturn(List.of(question(
                     sequence,
                     score,
                     sequence == 1 ? 0L : 10L
-            ));
+            )));
         }
 
         var result = aggregator.aggregate(curriculum, tests);
@@ -67,6 +67,30 @@ class TestCurriculumResultAggregatorTest {
         assertThat(result.teacherReviewStatus()).isNull();
     }
 
+    @Test
+    void aggregatesThreeLegacyTestsWithThreeQuestionsEach() {
+        TestCurriculumEntity curriculum = curriculum("COMPLETED");
+        List<StudentTestEntity> tests = new ArrayList<>();
+        for (int testSequence = 1; testSequence <= 3; testSequence++) {
+            StudentTestEntity test = test((long) testSequence, testSequence, TestStatus.COMPLETED);
+            tests.add(test);
+            int firstQuestion = (testSequence - 1) * 3 + 1;
+            when(questionAssembler.assembleAll(test)).thenReturn(List.of(
+                    question(firstQuestion, BigDecimal.valueOf(50), 10L),
+                    question(firstQuestion + 1, BigDecimal.valueOf(60), null),
+                    question(firstQuestion + 2, BigDecimal.valueOf(70), null)
+            ));
+        }
+
+        var result = aggregator.aggregate(curriculum, tests);
+
+        assertThat(result.completedQuestions()).isEqualTo(9);
+        assertThat(result.totalQuestions()).isEqualTo(9);
+        assertThat(result.solvingTimeSeconds()).isEqualTo(30L);
+        assertThat(result.questions()).extracting(
+                TestCurriculumDetailResponse.QuestionResult::sequenceNo
+        ).containsExactly(1, 2, 3, 4, 5, 6, 7, 8, 9);
+    }
     @Test
     void rejectsCompletedCurriculumWithFewerThanNineCompletedQuestions() {
         TestCurriculumEntity curriculum = curriculum("COMPLETED");

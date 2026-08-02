@@ -1,12 +1,15 @@
 package com.iread.backend.exception;
 
 import com.iread.backend.ai.exception.AiClientException;
+import jakarta.servlet.http.HttpServletResponse;
 import com.iread.backend.report.admin.exception.ReportCreationException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class GlobalExceptionHandlerTest {
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
@@ -63,7 +66,8 @@ class GlobalExceptionHandlerTest {
     @Test
     void doesNotExposeUnexpectedExceptionMessage() {
         var response = handler.handleUnexpected(
-                new RuntimeException("database-password=secret")
+                new RuntimeException("database-password=secret"),
+                mock(HttpServletResponse.class)
         );
 
         assertThat(response.getStatusCode())
@@ -72,6 +76,19 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getBody().error().message()).doesNotContain("secret");
     }
 
+    @Test
+    void doesNotWriteJsonErrorAfterStreamingResponseIsCommitted() {
+        HttpServletResponse servletResponse = mock(HttpServletResponse.class);
+        when(servletResponse.isCommitted()).thenReturn(true);
+
+        var response = handler.handleUnexpected(
+                new RuntimeException("connection closed"),
+                servletResponse
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+        assertThat(response.getBody()).isNull();
+    }
     @Test
     void mapsAiFailureToBadGatewayWithoutExposingUpstreamDetails() {
         var response = handler.handleAiClient(

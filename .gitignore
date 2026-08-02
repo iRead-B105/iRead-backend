@@ -42,6 +42,7 @@ src/main/resources/application-local.properties
 ### Uploaded files ###
 /uploads/
 /audio/
+/gaze/
 
 ### Local run logs ###
 /.tmp/
