@@ -41,6 +41,14 @@ public interface TrainingRepository extends JpaRepository<TrainingEntity, Long> 
             Long studentId, TrainingStatus status, LocalDateTime start, LocalDateTime end
     );
 
+    @Query("""
+            SELECT MAX(training.finishedAt)
+            FROM TrainingEntity training
+            WHERE training.dailyCurriculum.student.id = :studentId
+              AND training.status = com.iread.backend.training.domain.TrainingStatus.COMPLETED
+            """)
+    Optional<LocalDateTime> findLatestFinishedAtByStudentId(@Param("studentId") Long studentId);
+
     @Query(value = """
             SELECT template.id AS trainingTemplateId,
                    template.name AS trainingTemplateName,

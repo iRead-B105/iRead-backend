@@ -1,6 +1,7 @@
 package com.iread.backend.ai.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 
 import java.net.URI;
 import java.time.Duration;
@@ -26,8 +27,11 @@ public record AiClientProperties(
         boolean mockSpeech,
         Boolean mockPronunciation,
         Boolean mockTranscribe,
-        Boolean mockTts
+        Boolean mockTts,
+        Boolean mockStory,
+        Boolean mockImage
 ) {
+    @ConstructorBinding
     public AiClientProperties {
         Objects.requireNonNull(baseUrl, "ai.base-url은 필수입니다.");
         requirePositive(connectTimeout, "ai.connect-timeout");
@@ -35,11 +39,36 @@ public record AiClientProperties(
         boolean realSpeech = !(mockPronunciation == null ? mockSpeech : mockPronunciation)
                 || !(mockTranscribe == null ? mockSpeech : mockTranscribe)
                 || !(mockTts == null ? mockSpeech : mockTts);
-        if ((!mockGenerate || !mockEvaluate || realSpeech) && !StringUtils.hasText(apiKey)) {
+        if ((!mockGenerate || !mockEvaluate || !storyMocked() || !imageMocked() || realSpeech)
+                && !StringUtils.hasText(apiKey)) {
             throw new IllegalArgumentException(
                     "AI 실제 연동을 사용하려면 ai.api-key가 필요합니다."
             );
         }
+    }
+
+    public AiClientProperties(
+            URI baseUrl,
+            Duration connectTimeout,
+            Duration readTimeout,
+            String apiKey,
+            boolean mockGenerate,
+            boolean mockEvaluate,
+            boolean mockSpeech,
+            Boolean mockPronunciation,
+            Boolean mockTranscribe,
+            Boolean mockTts
+    ) {
+        this(baseUrl, connectTimeout, readTimeout, apiKey, mockGenerate, mockEvaluate,
+                mockSpeech, mockPronunciation, mockTranscribe, mockTts, null, null);
+    }
+
+    public boolean storyMocked() {
+        return mockStory == null ? mockGenerate : mockStory;
+    }
+
+    public boolean imageMocked() {
+        return mockImage == null ? mockGenerate : mockImage;
     }
 
     public boolean pronunciationMocked() {

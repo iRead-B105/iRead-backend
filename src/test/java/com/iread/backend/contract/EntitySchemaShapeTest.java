@@ -111,6 +111,16 @@ class EntitySchemaShapeTest {
         dailyCurriculumColumns.put("review_status", false);
         dailyCurriculumColumns.put("reviewed_at", true);
         dailyCurriculumColumns.put("reviewed_by_teacher_id", true);
+        tables.get("story_lines").put("revision", false);
+        Map<String, Boolean> storyPageEditAuditColumns = new LinkedHashMap<>();
+        storyPageEditAuditColumns.put("id", false);
+        storyPageEditAuditColumns.put("story_line_id", false);
+        storyPageEditAuditColumns.put("teacher_id", false);
+        storyPageEditAuditColumns.put("edit_type", false);
+        storyPageEditAuditColumns.put("before_value", true);
+        storyPageEditAuditColumns.put("after_value", false);
+        storyPageEditAuditColumns.put("created_at", false);
+        tables.put("story_page_edit_audits", storyPageEditAuditColumns);
         return tables;
     }
 }
