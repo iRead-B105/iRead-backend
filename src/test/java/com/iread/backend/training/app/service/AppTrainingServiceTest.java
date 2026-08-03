@@ -660,6 +660,103 @@ class AppTrainingServiceTest {
     }
 
     @Test
+    void consonantTraceSendsEuCombinedSyllableToPronunciationAnalysis() {
+        StudentEntity student = mock(StudentEntity.class);
+        TrainingEntity training = mock(TrainingEntity.class);
+        TrainingDataEntity data = mock(TrainingDataEntity.class);
+        WordEntity word = word(41L, "그");
+        when(studentRepository.findByIdAndTeacherId(20L, 1L))
+                .thenReturn(Optional.of(student));
+        when(trainingRepository.findForUpdate(30L, 20L))
+                .thenReturn(Optional.of(training));
+        when(training.getId()).thenReturn(30L);
+        when(training.getStatus()).thenReturn(TrainingStatus.IN_PROGRESS);
+        when(training.getResult()).thenReturn(null);
+        when(trainingInputRequirementService.inputsForQuestion(30L, 1))
+                .thenReturn(Set.of(TrainingInputType.VOICE));
+        when(trainingDataRepository.findByTrainingId(30L)).thenReturn(Optional.of(data));
+        when(data.getGeneratedData()).thenReturn("""
+                {
+                  "questions":[{
+                    "questionNo":1,
+                    "type":"CONSONANT_TRACE",
+                    "analysisTargets":[{"text":"ㄱ"}]
+                  }]
+                }
+                """);
+        when(wordRepository.findByContent("그")).thenReturn(Optional.of(word));
+        when(pronunciationAnalysisAdapter.analyze(any()))
+                .thenReturn(new PronunciationAnalysisResult(
+                        "consonant-request",
+                        90.0,
+                        90.0,
+                        100.0,
+                        90.0,
+                        0.95,
+                        "AZURE_SPEECH_V1",
+                        List.of(new PronunciationWordResult(
+                                0, "그", 90.0, "None", 100, 500
+                        ))
+                ));
+        when(wordAttemptLogRepository.saveAllAndFlush(any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            List<WordAttemptLogEntity> attempts = invocation.getArgument(0);
+            ReflectionTestUtils.setField(attempts.getFirst(), "id", 51L);
+            ReflectionTestUtils.setField(
+                    attempts.getFirst(),
+                    "createdAt",
+                    LocalDateTime.of(2026, 8, 3, 12, 0)
+            );
+            return attempts;
+        });
+        ObjectMapper mapper = JsonMapper.builder().build();
+        AppTrainingService service = new AppTrainingService(
+                studentRepository,
+                mock(DailyCurriculumRepository.class),
+                trainingRepository,
+                trainingDataRepository,
+                wordRepository,
+                wordAttemptLogRepository,
+                pronunciationAnalysisAdapter,
+                new AudioUploadPolicy(
+                        DataSize.ofMegabytes(20),
+                        "audio/webm,audio/wav,audio/mpeg,audio/mp4"
+                ),
+                scoreCalculator(),
+                new PronunciationWordAligner(),
+                trainingInputRequirementService,
+                trainingService,
+                mapper,
+                new AppLearningQuestionSupport(mapper),
+                mock(RealtimeEventPublisher.class)
+        );
+        TrainingRecordingRequest request = new TrainingRecordingRequest(
+                null,
+                0,
+                null,
+                "ㄱ",
+                new MockMultipartFile(
+                        "audioFile",
+                        "consonant.wav",
+                        "audio/wav",
+                        new byte[]{1, 2, 3}
+                ),
+                null,
+                null
+        );
+
+        var response = service.saveRecording(1L, 20L, 30L, 1, request);
+
+        ArgumentCaptor<PronunciationAnalysisRequest> requestCaptor =
+                ArgumentCaptor.forClass(PronunciationAnalysisRequest.class);
+        verify(pronunciationAnalysisAdapter).analyze(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().expectedText()).isEqualTo("그");
+        assertThat(response.words()).extracting(
+                TrainingRecordingResponse.WordResult::surfaceText
+        ).containsExactly("그");
+    }
+
+    @Test
     void recordingRejectsMismatchedAudioBeforePronunciationAnalysis() {
         StudentEntity student = mock(StudentEntity.class);
         TrainingEntity training = mock(TrainingEntity.class);
