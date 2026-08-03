@@ -45,4 +45,11 @@ public class StorySceneEntity {
         this.imageUrl = imageUrl;
         this.sequenceNo = sequenceNo;
     }
+
+    public void updateImageUrl(String imageUrl) {
+        if (imageUrl == null || imageUrl.isBlank()) {
+            throw new IllegalArgumentException("스토리 장면 imageUrl은 필수입니다.");
+        }
+        this.imageUrl = imageUrl;
+    }
 }

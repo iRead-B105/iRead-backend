@@ -15,7 +15,8 @@ public record StoryShelfResponse(
             Long storyTemplateId,
             LocalDateTime createdAt,
             StoryStatus storyStatus,
-            int progress
+            int progress,
+            String latestBranchSubtitle
     ) {
     }
 

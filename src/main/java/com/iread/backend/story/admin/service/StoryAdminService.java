@@ -1,6 +1,16 @@
 package com.iread.backend.story.admin.service;
 
 import com.iread.backend.exception.ResourceNotFoundException;
+import com.iread.backend.exception.ConflictException;
+import com.iread.backend.ai.client.AiClient;
+import com.iread.backend.ai.dto.req.GenerateImageRequest;
+import com.iread.backend.ai.dto.res.GeneratedStoryBranchOption;
+import com.iread.backend.ai.dto.res.GeneratedStoryBranchPrompt;
+import com.iread.backend.global.storage.FileStorage;
+import com.iread.backend.story.admin.domain.StoryPageEditAuditEntity;
+import com.iread.backend.story.admin.dto.req.StoryPageUpdateRequest;
+import com.iread.backend.story.admin.dto.res.StoryPageEditResponse;
+import com.iread.backend.story.admin.repository.StoryPageEditAuditRepository;
 import com.iread.backend.gaze.domain.GazeAnalysisResultEntity;
 import com.iread.backend.gaze.domain.GazeContentType;
 import com.iread.backend.gaze.domain.GazeSessionEntity;
@@ -23,6 +33,7 @@ import com.iread.backend.student.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -38,6 +49,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -45,6 +57,7 @@ import java.util.stream.Collectors;
 public class StoryAdminService {
 
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
+    private static final Pattern SENTENCE_END = Pattern.compile("(?<=[.!?。？！])\\s*");
 
     private final StudentRepository studentRepository;
     private final StoryRepository storyRepository;
@@ -55,6 +68,81 @@ public class StoryAdminService {
     private final GazeAnalysisResultRepository gazeAnalysisResultRepository;
     private final StoryLineContentService storyLineContentService;
     private final ObjectMapper objectMapper;
+    private final StoryPageEditAuditRepository storyPageEditAuditRepository;
+    private final AiClient aiClient;
+    private final FileStorage fileStorage;
+
+    @Transactional
+    public StoryPageEditResponse updateUnreadPage(
+            Long teacherId, Long studentId, Long storyId, Long storyLineId,
+            StoryPageUpdateRequest request
+    ) {
+        StoryLineEntity line = editableLine(teacherId, studentId, storyId, storyLineId, request.revision());
+        if (request.subtitle() == null && request.body() == null && request.choices() == null) {
+            throw new IllegalArgumentException("수정할 소제목, 본문 또는 선택지가 필요합니다.");
+        }
+        String before = editSnapshot(line);
+        if (request.body() != null) {
+            validateThreeSentenceBody(request.body());
+            line.updateContent(storyLineContentService.buildContent(request.body().strip()));
+        }
+        if (request.subtitle() != null || request.choices() != null) {
+            if (!line.isRequiresBranchInput()) {
+                throw new IllegalArgumentException("분기 페이지에서만 소제목과 선택지를 수정할 수 있습니다.");
+            }
+            GeneratedStoryBranchPrompt current = branchPromptOf(line);
+            String subtitle = request.subtitle() == null ? current.subtitle() : request.subtitle().strip();
+            List<String> labels = request.choices() == null
+                    ? current.options().stream().map(GeneratedStoryBranchOption::label).toList()
+                    : request.choices().stream().map(String::strip).toList();
+            validateBranch(subtitle, labels);
+            line.updateBranchPrompt(writeJson(new GeneratedStoryBranchPrompt(
+                    subtitle,
+                    List.of(
+                            new GeneratedStoryBranchOption(1, labels.get(0)),
+                            new GeneratedStoryBranchOption(2, labels.get(1)),
+                            new GeneratedStoryBranchOption(3, labels.get(2))
+                    )
+            )));
+        }
+        line.incrementRevision();
+        storyLineRepository.saveAndFlush(line);
+        saveAudit(line, teacherId, "CONTENT", before, editSnapshot(line));
+        return toEditResponse(line);
+    }
+
+    @Transactional
+    public StoryPageEditResponse uploadUnreadPageImage(
+            Long teacherId, Long studentId, Long storyId, Long storyLineId,
+            Long revision, MultipartFile image
+    ) {
+        StoryLineEntity line = editableLine(teacherId, studentId, storyId, storyLineId, revision);
+        String before = editSnapshot(line);
+        var stored = fileStorage.store(image);
+        line.getScene().updateImageUrl(stored.url());
+        line.incrementRevision();
+        storyLineRepository.saveAndFlush(line);
+        saveAudit(line, teacherId, "IMAGE_UPLOAD", before, editSnapshot(line));
+        return toEditResponse(line);
+    }
+
+    @Transactional
+    public StoryPageEditResponse regenerateUnreadPageImage(
+            Long teacherId, Long studentId, Long storyId, Long storyLineId, Long revision
+    ) {
+        StoryLineEntity line = editableLine(teacherId, studentId, storyId, storyLineId, revision);
+        String before = editSnapshot(line);
+        String requestId = "teacher-story-image-" + storyLineId + "-" + revision;
+        var generated = aiClient.generateImage(new GenerateImageRequest(
+                requestId,
+                storyLineContentService.textOf(line)
+        ));
+        line.getScene().updateImageUrl(generated.imageUrl());
+        line.incrementRevision();
+        storyLineRepository.saveAndFlush(line);
+        saveAudit(line, teacherId, "IMAGE_REGENERATE", before, editSnapshot(line));
+        return toEditResponse(line);
+    }
 
     public StoryHistoryResponse getStoryHistory(
             Long teacherId,
@@ -130,6 +218,9 @@ public class StoryAdminService {
                             choice.getContent(),
                             offset(choice.getCreatedAt())
                     );
+            GeneratedStoryBranchPrompt generatedBranch = line.isRequiresBranchInput()
+                    ? branchPromptOf(line)
+                    : null;
             pages.add(new StoryHistoryDetailResponse.StoryPage(
                     index + 1,
                     line.getId(),
@@ -143,7 +234,12 @@ public class StoryAdminService {
                     List.of(storyLineContentService.textOf(line)),
                     line.isRequiresBranchInput(),
                     offset(line.getReadAt()),
-                    branchRecord
+                    branchRecord,
+                    line.getRevision() == null ? 0L : line.getRevision(),
+                    line.getReadAt() == null,
+                    generatedBranch == null ? null : generatedBranch.subtitle(),
+                    generatedBranch == null ? List.of() : generatedBranch.options().stream()
+                            .map(GeneratedStoryBranchOption::label).toList()
             ));
         }
         return new StoryHistoryDetailResponse(
@@ -217,6 +313,103 @@ public class StoryAdminService {
                 List.copyOf(metrics.values()),
                 readNullable(result.getAnalysisMeta())
         );
+    }
+
+    private StoryLineEntity editableLine(
+            Long teacherId, Long studentId, Long storyId, Long storyLineId, Long revision
+    ) {
+        validateStudentOwner(teacherId, studentId);
+        findVisibleStory(studentId, storyId);
+        StoryLineEntity line = storyLineRepository.findByIdAndStoryIdForUpdate(storyLineId, storyId)
+                .orElseThrow(() -> new ResourceNotFoundException("Story page was not found."));
+        if (line.getReadAt() != null) {
+            throw new ConflictException("이미 읽은 이야기 페이지는 수정할 수 없습니다.");
+        }
+        long currentRevision = line.getRevision() == null ? 0L : line.getRevision();
+        if (revision == null || revision != currentRevision) {
+            throw new ConflictException("이야기 페이지가 다른 요청에서 먼저 수정되었습니다.");
+        }
+        return line;
+    }
+
+    private void validateThreeSentenceBody(String body) {
+        String text = body.strip();
+        List<String> sentences = List.of(SENTENCE_END.split(text)).stream()
+                .map(String::strip)
+                .filter(value -> !value.isBlank())
+                .toList();
+        if (sentences.size() != 3) {
+            throw new IllegalArgumentException("이야기 본문은 정확히 3문장이어야 합니다.");
+        }
+        for (String sentence : sentences) {
+            long syllables = sentence.chars().filter(value -> value >= '가' && value <= '힣').count();
+            if (syllables < 10 || syllables > 22) {
+                throw new IllegalArgumentException("각 문장은 한글 10~22음절이어야 합니다.");
+            }
+        }
+    }
+
+    private void validateBranch(String subtitle, List<String> labels) {
+        if (subtitle.isBlank() || subtitle.length() > 40) {
+            throw new IllegalArgumentException("분기 소제목은 1~40자여야 합니다.");
+        }
+        if (labels.size() != 3 || labels.stream().anyMatch(String::isBlank)
+                || labels.stream().distinct().count() != 3) {
+            throw new IllegalArgumentException("서로 다른 분기 선택지 3개가 필요합니다.");
+        }
+    }
+
+    private GeneratedStoryBranchPrompt branchPromptOf(StoryLineEntity line) {
+        if (line.getBranchPrompt() == null || line.getBranchPrompt().isBlank()) {
+            String text = storyLineContentService.textOf(line);
+            return new GeneratedStoryBranchPrompt(
+                    text.substring(0, Math.min(text.length(), 40)),
+                    List.of()
+            );
+        }
+        try {
+            return objectMapper.readValue(line.getBranchPrompt(), GeneratedStoryBranchPrompt.class);
+        } catch (Exception exception) {
+            throw new IllegalStateException("저장된 분기 선택지를 읽을 수 없습니다.", exception);
+        }
+    }
+
+    private StoryPageEditResponse toEditResponse(StoryLineEntity line) {
+        GeneratedStoryBranchPrompt branch = line.isRequiresBranchInput() ? branchPromptOf(line) : null;
+        return new StoryPageEditResponse(
+                line.getId(),
+                line.getRevision() == null ? 0L : line.getRevision(),
+                branch == null ? null : branch.subtitle(),
+                storyLineContentService.textOf(line),
+                branch == null ? List.of() : branch.options().stream()
+                        .map(GeneratedStoryBranchOption::label).toList(),
+                line.getScene().getImageUrl(),
+                line.getReadAt() == null
+        );
+    }
+
+    private String editSnapshot(StoryLineEntity line) {
+        return writeJson(Map.of(
+                "body", storyLineContentService.textOf(line),
+                "branchPrompt", Objects.toString(line.getBranchPrompt(), ""),
+                "imageUrl", Objects.toString(line.getScene().getImageUrl(), ""),
+                "revision", line.getRevision() == null ? 0L : line.getRevision()
+        ));
+    }
+
+    private void saveAudit(StoryLineEntity line, Long teacherId, String editType,
+                           String before, String after) {
+        storyPageEditAuditRepository.save(new StoryPageEditAuditEntity(
+                line.getId(), teacherId, editType, before, after
+        ));
+    }
+
+    private String writeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception exception) {
+            throw new IllegalStateException("이야기 수정 이력을 JSON으로 만들 수 없습니다.", exception);
+        }
     }
 
     private StoryContext loadContext(Long studentId, List<StoryEntity> stories) {

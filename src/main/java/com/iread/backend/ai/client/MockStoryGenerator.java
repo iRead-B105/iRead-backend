@@ -73,7 +73,7 @@ public class MockStoryGenerator {
     }
 
     private GeneratedStoryBranchPrompt branchPrompt() {
-        return new GeneratedStoryBranchPrompt(List.of(
+        return new GeneratedStoryBranchPrompt("별빛 숲의 갈림길", List.of(
                 new GeneratedStoryBranchOption(1, "반짝이는 별빛 길로 간다"),
                 new GeneratedStoryBranchOption(2, "작은 친구가 가리킨 숲길로 간다"),
                 new GeneratedStoryBranchOption(3, "맑은 시냇물 길을 따라간다")

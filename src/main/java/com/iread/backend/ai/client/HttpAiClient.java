@@ -148,7 +148,7 @@ public class HttpAiClient implements AiClient {
 
     @Override
     public GenerateStoryResponse generateStory(GenerateStoryRequest request) {
-        if (properties.mockGenerate()) {
+        if (properties.storyMocked()) {
             return mockStoryGenerator.generate(request);
         }
         return requestStory(
@@ -162,7 +162,7 @@ public class HttpAiClient implements AiClient {
 
     @Override
     public GenerateStoryResponse continueStory(ContinueStoryRequest request) {
-        if (properties.mockGenerate()) {
+        if (properties.storyMocked()) {
             return mockStoryGenerator.continueStory(request);
         }
         return requestStory(
@@ -176,7 +176,7 @@ public class HttpAiClient implements AiClient {
 
     @Override
     public GenerateImageResponse generateImage(GenerateImageRequest request) {
-        if (properties.mockGenerate()) {
+        if (properties.imageMocked()) {
             return mockImage(request);
         }
         try {
