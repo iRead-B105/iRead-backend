@@ -8,6 +8,7 @@ import com.iread.backend.test.domain.TestCurriculumEntity;
 import com.iread.backend.test.domain.TestStatus;
 import com.iread.backend.test.repository.StudentTestRepository;
 import com.iread.backend.test.repository.TestCurriculumRepository;
+import com.iread.backend.training.repository.DailyCurriculumRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -20,6 +21,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -28,17 +31,19 @@ class LearningEntryServiceTest {
     @Mock StudentRepository studentRepository;
     @Mock TestCurriculumRepository testCurriculumRepository;
     @Mock StudentTestRepository studentTestRepository;
+    @Mock DailyCurriculumRepository dailyCurriculumRepository;
     @InjectMocks LearningEntryService service;
 
     @Test
     void returnsChallengeRequiredForStudentWithoutTestOrTrainingHistory() {
         allowOwnedStudent();
-        when(testCurriculumRepository
-                .findFirstByStudentIdAndStatusInOrderByCreatedAtDescIdDesc(any(), any()))
-                .thenReturn(Optional.empty());
         when(testCurriculumRepository.existsByStudentIdAndStatus(
                 20L, TestStatus.COMPLETED.name()
         )).thenReturn(false);
+        when(dailyCurriculumRepository.existsByStudentId(20L)).thenReturn(false);
+        when(testCurriculumRepository
+                .findFirstByStudentIdAndStatusInOrderByCreatedAtDescIdDesc(any(), any()))
+                .thenReturn(Optional.empty());
 
         var response = service.getLearningEntry(1L, 20L);
 
@@ -50,11 +55,12 @@ class LearningEntryServiceTest {
     }
 
     @Test
-    void returnsChallengeInProgressWhenNoChallengeWasCompleted() {
+    void returnsChallengeInProgressForStudentWithoutPriorLearningHistory() {
         allowOwnedStudent();
         when(testCurriculumRepository.existsByStudentIdAndStatus(
                 20L, TestStatus.COMPLETED.name()
         )).thenReturn(false);
+        when(dailyCurriculumRepository.existsByStudentId(20L)).thenReturn(false);
         TestCurriculumEntity curriculum = mock(TestCurriculumEntity.class);
         when(curriculum.getId()).thenReturn(50L);
         when(testCurriculumRepository
@@ -84,7 +90,36 @@ class LearningEntryServiceTest {
 
         assertThat(response.entryStatus()).isEqualTo(LearningEntryStatus.HOME);
         assertThat(response.testCurriculumId()).isNull();
-        verifyNoInteractions(studentTestRepository);
+        verifyNoInteractions(dailyCurriculumRepository);
+    }
+
+    @Test
+    void completedChallengeWinsOverStaleIncompleteChallenge() {
+        allowOwnedStudent();
+        when(testCurriculumRepository.existsByStudentIdAndStatus(
+                20L, TestStatus.COMPLETED.name()
+        )).thenReturn(true);
+
+        var response = service.getLearningEntry(1L, 20L);
+
+        assertThat(response.entryStatus()).isEqualTo(LearningEntryStatus.HOME);
+        assertThat(response.testCurriculumId()).isNull();
+        verify(testCurriculumRepository, never())
+                .findFirstByStudentIdAndStatusInOrderByCreatedAtDescIdDesc(any(), any());
+        verifyNoInteractions(studentTestRepository, dailyCurriculumRepository);
+    }
+
+    @Test
+    void returnsHomeWhenTrainingCurriculumHistoryExists() {
+        allowOwnedStudent();
+        when(testCurriculumRepository.existsByStudentIdAndStatus(
+                20L, TestStatus.COMPLETED.name()
+        )).thenReturn(false);
+        when(dailyCurriculumRepository.existsByStudentId(20L)).thenReturn(true);
+
+        var response = service.getLearningEntry(1L, 20L);
+
+        assertThat(response.entryStatus()).isEqualTo(LearningEntryStatus.HOME);
     }
 
     @Test
