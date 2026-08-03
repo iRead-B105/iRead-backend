@@ -2,8 +2,11 @@ package com.iread.backend.training.app.service;
 
 import com.iread.backend.exception.ConflictException;
 import com.iread.backend.exception.ResourceNotFoundException;
+import com.iread.backend.realtime.RealtimeEventPublisher;
+import com.iread.backend.realtime.RealtimeResource;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
+import com.iread.backend.training.app.dto.res.DemoLearningDateResponse;
 import com.iread.backend.training.app.dto.res.DemoLearningCheatResponse;
 import com.iread.backend.training.app.dto.res.DemoTrainingAdvanceResponse;
 import com.iread.backend.training.config.DemoTrainingProgressResetService;
@@ -21,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 
@@ -35,6 +39,14 @@ public class DemoLearningCheatService {
     private final CurriculumGenerationWorker generationWorker;
     private final DemoTrainingProgressResetService resetService;
     private final TrainingRepository trainingRepository;
+    private final RealtimeEventPublisher realtimeEventPublisher;
+    private final DemoLearningClock learningClock;
+
+    @Transactional(readOnly = true)
+    public DemoLearningDateResponse currentDate(Long teacherId, Long studentId) {
+        requireOwnedStudent(teacherId, studentId);
+        return new DemoLearningDateResponse(learningClock.currentDate(studentId));
+    }
 
     @Transactional
     public DemoLearningCheatResponse resetProgress(Long teacherId, Long studentId) {
@@ -43,7 +55,18 @@ public class DemoLearningCheatService {
         DailyCurriculumEntity curriculum = curriculumRepository
                 .findByIdAndStudentId(curriculumId, studentId)
                 .orElseThrow();
-        return response("RESET_PROGRESS", curriculum);
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.CURRICULUM,
+                curriculumId,
+                "RESET"
+        );
+        return response(
+                "RESET_PROGRESS",
+                curriculum,
+                learningClock.baseDate()
+        );
     }
 
     @Transactional
@@ -54,7 +77,7 @@ public class DemoLearningCheatService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "진행 가능한 데모 커리큘럼을 찾을 수 없습니다."
                 ));
-        LocalDateTime completedAt = LocalDateTime.now();
+        LocalDateTime completedAt = learningClock.nextDateTime(studentId);
         active.getTrainings().forEach(training -> {
             if (!training.isCompleted()) {
                 training.complete(
@@ -66,7 +89,14 @@ public class DemoLearningCheatService {
         });
         DailyCurriculumEntity next = curriculumPlanner.createNextIfAbsent(student);
         generationWorker.generate(next.getId());
-        return response("ADVANCE_TO_NEXT_DAY", next);
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.CURRICULUM,
+                next.getId(),
+                "ADVANCED_TO_NEXT_DAY"
+        );
+        return response("ADVANCE_TO_NEXT_DAY", next, completedAt.toLocalDate());
     }
 
     @Transactional
@@ -93,7 +123,7 @@ public class DemoLearningCheatService {
             throw new ConflictException("다음 훈련이 이미 완료되었습니다.");
         }
 
-        LocalDateTime completedAt = LocalDateTime.now();
+        LocalDateTime completedAt = learningClock.currentDateTime(studentId);
         if (!current.isCompleted()) {
             if (current.getStartedAt() == null) {
                 current.start(completedAt);
@@ -108,6 +138,14 @@ public class DemoLearningCheatService {
             next.markReady();
         }
 
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.TRAINING,
+                current.getId(),
+                "COMPLETED"
+        );
+
         return new DemoTrainingAdvanceResponse(
                 "ADVANCE_TO_NEXT_TRAINING",
                 current.getDailyCurriculum().getId(),
@@ -115,7 +153,8 @@ public class DemoLearningCheatService {
                 current.getId(),
                 current.getStatus().name(),
                 next.getId(),
-                next.getStatus().name()
+                next.getStatus().name(),
+                learningClock.currentDate(studentId)
         );
     }
 
@@ -126,12 +165,17 @@ public class DemoLearningCheatService {
                 ));
     }
 
-    private DemoLearningCheatResponse response(String action, DailyCurriculumEntity curriculum) {
+    private DemoLearningCheatResponse response(
+            String action,
+            DailyCurriculumEntity curriculum,
+            LocalDate currentDate
+    ) {
         return new DemoLearningCheatResponse(
                 action,
                 curriculum.getId(),
                 curriculum.getStatus().name(),
-                curriculum.getTrainings().size()
+                curriculum.getTrainings().size(),
+                currentDate
         );
     }
 }

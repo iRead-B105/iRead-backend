@@ -1,6 +1,8 @@
 package com.iread.backend.training.app.service;
 
 import com.iread.backend.exception.ConflictException;
+import com.iread.backend.realtime.RealtimeEventPublisher;
+import com.iread.backend.realtime.RealtimeResource;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.config.DemoTrainingProgressResetService;
@@ -16,7 +18,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,6 +47,14 @@ class DemoLearningCheatServiceTest {
     private final DemoTrainingProgressResetService resetService =
             mock(DemoTrainingProgressResetService.class);
     private final TrainingRepository trainingRepository = mock(TrainingRepository.class);
+    private final RealtimeEventPublisher realtimeEventPublisher = mock(RealtimeEventPublisher.class);
+    private final DemoLearningClock learningClock = new DemoLearningClock(
+            trainingRepository,
+            Clock.fixed(
+                    Instant.parse("2026-08-03T01:30:00Z"),
+                    ZoneId.of("Asia/Seoul")
+            )
+    );
 
     private DemoLearningCheatService service;
 
@@ -52,7 +66,9 @@ class DemoLearningCheatServiceTest {
                 curriculumPlanner,
                 generationWorker,
                 resetService,
-                trainingRepository
+                trainingRepository,
+                realtimeEventPublisher,
+                learningClock
         );
     }
 
@@ -97,6 +113,14 @@ class DemoLearningCheatServiceTest {
                 any(LocalDateTime.class)
         );
         verify(next).markReady();
+        verify(realtimeEventPublisher).publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.TRAINING,
+                trainingId,
+                "COMPLETED"
+        );
+        assertThat(result.currentDate()).isEqualTo(LocalDate.of(2026, 8, 3));
         assertThat(result.completedTrainingId()).isEqualTo(trainingId);
         assertThat(result.completedTrainingStatus()).isEqualTo("COMPLETED");
         assertThat(result.nextTrainingId()).isEqualTo(181032L);
@@ -125,5 +149,45 @@ class DemoLearningCheatServiceTest {
                 .hasMessage("준비되지 않은 훈련은 강제 완료할 수 없습니다.");
 
         verify(current, never()).complete(any(), any(), any());
+    }
+
+    @Test
+    void advancingDayStoresTomorrowAndPublishesCurriculumChange() {
+        long teacherId = 1L;
+        long studentId = 2103L;
+        StudentEntity student = mock(StudentEntity.class);
+        DailyCurriculumEntity active = mock(DailyCurriculumEntity.class);
+        DailyCurriculumEntity next = mock(DailyCurriculumEntity.class);
+        TrainingEntity training = mock(TrainingEntity.class);
+
+        when(studentRepository.findByIdAndTeacherId(studentId, teacherId))
+                .thenReturn(Optional.of(student));
+        when(curriculumRepository.findByStudentIdAndStatus(
+                studentId,
+                DailyCurriculumStatus.IN_PROGRESS
+        )).thenReturn(Optional.of(active));
+        when(active.getTrainings()).thenReturn(List.of(training));
+        when(training.isCompleted()).thenReturn(false);
+        when(curriculumPlanner.createNextIfAbsent(student)).thenReturn(next);
+        when(next.getId()).thenReturn(180004L);
+        when(next.getStatus()).thenReturn(DailyCurriculumStatus.IN_PROGRESS);
+        when(next.getTrainings()).thenReturn(List.of());
+
+        var result = service.advanceToNextDay(teacherId, studentId);
+
+        verify(training).complete(
+                eq("{\"cheat\":true,\"action\":\"ADVANCE_DAY\"}"),
+                eq(BigDecimal.valueOf(100)),
+                eq(LocalDateTime.of(2026, 8, 4, 10, 30))
+        );
+        verify(generationWorker).generate(180004L);
+        verify(realtimeEventPublisher).publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.CURRICULUM,
+                180004L,
+                "ADVANCED_TO_NEXT_DAY"
+        );
+        assertThat(result.currentDate()).isEqualTo(LocalDate.of(2026, 8, 4));
     }
 }
