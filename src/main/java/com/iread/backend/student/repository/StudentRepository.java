@@ -3,7 +3,6 @@ package com.iread.backend.student.repository;
 import com.iread.backend.student.domain.StudentEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -446,18 +445,6 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
             @Param("fromDateTime") LocalDateTime fromDateTime,
             @Param("toDateTimeExclusive") LocalDateTime toDateTimeExclusive
     );
-
-    @Modifying
-    @Query(value = "DELETE FROM word_attempt_logs WHERE student_id = :studentId", nativeQuery = true)
-    void deleteWordAttemptLogsByStudentId(@Param("studentId") Long studentId);
-
-    @Modifying
-    @Query(value = "DELETE t FROM trainings t JOIN daily_curriculums dc ON dc.id = t.daily_curriculum_id WHERE dc.student_id = :studentId", nativeQuery = true)
-    void deleteTrainingsByStudentId(@Param("studentId") Long studentId);
-
-    @Modifying
-    @Query(value = "DELETE FROM daily_curriculums WHERE student_id = :studentId", nativeQuery = true)
-    void deleteDailyCurriculumsByStudentId(@Param("studentId") Long studentId);
 
     interface StudentLearningSummaryProjection {
         Long getStudentId();
