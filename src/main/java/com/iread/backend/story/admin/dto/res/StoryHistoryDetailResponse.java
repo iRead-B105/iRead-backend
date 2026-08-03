@@ -24,10 +24,15 @@ public record StoryHistoryDetailResponse(
             List<String> textLines,
             boolean requiresBranchInput,
             OffsetDateTime readAt,
-            BranchRecord branchRecord
+            BranchRecord branchRecord,
+            long revision,
+            boolean editable,
+            String subtitle,
+            List<String> choices
     ) {
         public StoryPage {
             textLines = List.copyOf(textLines);
+            choices = List.copyOf(choices);
         }
     }
 

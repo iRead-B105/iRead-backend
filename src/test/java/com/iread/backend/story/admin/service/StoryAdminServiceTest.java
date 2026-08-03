@@ -7,6 +7,10 @@ import com.iread.backend.gaze.domain.GazeSessionEntity;
 import com.iread.backend.gaze.domain.GazeSessionStatus;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
+import com.iread.backend.ai.client.AiClient;
+import com.iread.backend.global.storage.FileStorage;
+import com.iread.backend.story.admin.repository.StoryPageEditAuditRepository;
+import com.iread.backend.story.admin.dto.req.StoryPageUpdateRequest;
 import com.iread.backend.story.admin.dto.res.StoryHistoryDetailResponse;
 import com.iread.backend.story.admin.dto.res.StoryHistoryResponse;
 import com.iread.backend.story.analysis.StoryLineContentService;
@@ -22,6 +26,8 @@ import com.iread.backend.story.repository.StoryRepository;
 import com.iread.backend.story.repository.StoryTemplateRepository;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
+import com.iread.backend.training.analysis.KoreanTextAnalysis;
+import com.iread.backend.training.analysis.KoreanTextAnalyzer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +42,8 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,6 +56,10 @@ class StoryAdminServiceTest {
     @Mock StoryChoiceRepository storyChoiceRepository;
     @Mock GazeSessionRepository gazeSessionRepository;
     @Mock GazeAnalysisResultRepository gazeAnalysisResultRepository;
+    @Mock StoryPageEditAuditRepository storyPageEditAuditRepository;
+    @Mock AiClient aiClient;
+    @Mock FileStorage fileStorage;
+    @Mock KoreanTextAnalyzer koreanTextAnalyzer;
 
     private StoryAdminService service;
     private StudentEntity student;
@@ -69,8 +81,11 @@ class StoryAdminServiceTest {
                 storyChoiceRepository,
                 gazeSessionRepository,
                 gazeAnalysisResultRepository,
-                new StoryLineContentService(null, objectMapper),
-                objectMapper
+                new StoryLineContentService(koreanTextAnalyzer, objectMapper),
+                objectMapper,
+                storyPageEditAuditRepository,
+                aiClient,
+                fileStorage
         );
         student = StudentEntity.builder().name("student").build();
         ReflectionTestUtils.setField(student, "id", 10L);
@@ -199,6 +214,50 @@ class StoryAdminServiceTest {
                 .isEqualTo("Choose a path");
         assertThat(response.pages().get(1).branchRecord().transcript())
                 .isEqualTo("Take the river path");
+    }
+
+    @Test
+    void teacherUpdatesOnlyUnreadPageContentAndBranchAtExpectedRevision() {
+        secondLine.updateBranchPrompt("""
+                {"subtitle":"어느 길로 갈까요","options":[
+                  {"optionNo":1,"label":"별빛 길로 가요"},
+                  {"optionNo":2,"label":"숲길로 가요"},
+                  {"optionNo":3,"label":"시냇물 길로 가요"}
+                ]}
+                """);
+        allowStudent();
+        when(storyRepository.findByIdAndStudentId(30L, 10L)).thenReturn(Optional.of(story));
+        when(storyLineRepository.findByIdAndStoryIdForUpdate(51L, 30L))
+                .thenReturn(Optional.of(secondLine));
+        String body = """
+                하린이는 별빛 다리를 천천히 건너갔어요. 다친 새는 따뜻한 노래로 용기를 냈어요. 두 친구는 환한 언덕에서 함께 웃었어요.
+                """.strip();
+        when(koreanTextAnalyzer.analyze(body)).thenReturn(new KoreanTextAnalysis(
+                body, List.of(), List.of(), "test", "test", "test"
+        ));
+
+        var response = service.updateUnreadPage(
+                1L,
+                10L,
+                30L,
+                51L,
+                new StoryPageUpdateRequest(
+                        0L,
+                        "새와 건너는 별빛 다리",
+                        body,
+                        List.of("새를 꼭 안아 줘요", "노래하며 건너가요", "잠시 쉬어 가요")
+                )
+        );
+
+        assertThat(response.revision()).isEqualTo(1L);
+        assertThat(response.body()).isEqualTo(body);
+        assertThat(response.subtitle()).isEqualTo("새와 건너는 별빛 다리");
+        assertThat(response.choices()).containsExactly(
+                "새를 꼭 안아 줘요", "노래하며 건너가요", "잠시 쉬어 가요"
+        );
+        assertThat(response.editable()).isTrue();
+        verify(storyLineRepository).saveAndFlush(secondLine);
+        verify(storyPageEditAuditRepository).save(any());
     }
 
     @Test

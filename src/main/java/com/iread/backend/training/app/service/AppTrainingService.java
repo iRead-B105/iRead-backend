@@ -236,7 +236,8 @@ public class AppTrainingService {
         ObjectNode progressResult = readObjectOrNew(training.getResult());
         int attemptNo = countQuestionPronunciationAnalyses(
                 progressResult,
-                questionNumber
+                questionNumber,
+                target.targetIndex()
         ) + 1;
         if (attemptNo > MAX_PRONUNCIATION_ATTEMPTS) {
             throw new ConflictException("발음 문항의 최대 시도 횟수를 초과했습니다.");
@@ -932,11 +933,13 @@ public class AppTrainingService {
 
     private int countQuestionPronunciationAnalyses(
             ObjectNode result,
-            int questionNumber
+            int questionNumber,
+            int targetIndex
     ) {
         int count = 0;
         for (JsonNode analysis : result.withArray("pronunciationAnalyses")) {
-            if (analysis.path("questionNo").asInt() == questionNumber) {
+            if (analysis.path("questionNo").asInt() == questionNumber
+                    && analysis.path("targetIndex").asInt() == targetIndex) {
                 count++;
             }
         }

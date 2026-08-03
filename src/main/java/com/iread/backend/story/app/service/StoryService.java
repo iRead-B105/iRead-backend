@@ -83,8 +83,21 @@ public class StoryService {
     public StoryShelfResponse getStoryShelf(Long teacherId, Long studentId) {
         validateStudentOwner(teacherId, studentId);
 
-        List<StoryShelfResponse.StoryItem> stories = storyRepository
-                .findAllByStudentIdAndStatusNotOrderByCreatedAtDesc(studentId, StoryStatus.DELETED)
+        List<StoryEntity> storyEntities = storyRepository
+                .findAllByStudentIdAndStatusNotOrderByCreatedAtDesc(studentId, StoryStatus.DELETED);
+        Map<Long, String> latestBranchSubtitles = new HashMap<>();
+        if (!storyEntities.isEmpty()) {
+            storyLineRepository.findAllByStoryIdInOrderBySequenceNoAsc(
+                            storyEntities.stream().map(StoryEntity::getId).toList()
+                    ).stream()
+                    .filter(StoryLineEntity::isRequiresBranchInput)
+                    .filter(line -> line.getBranchPrompt() != null && !line.getBranchPrompt().isBlank())
+                    .forEach(line -> latestBranchSubtitles.put(
+                            line.getScene().getStory().getId(),
+                            toBranchPrompt(line.getBranchPrompt()).subtitle()
+                    ));
+        }
+        List<StoryShelfResponse.StoryItem> stories = storyEntities
                 .stream()
                 .map(story -> new StoryShelfResponse.StoryItem(
                         story.getId(),
@@ -92,7 +105,11 @@ public class StoryService {
                         story.getStoryTemplate().getId(),
                         story.getCreatedAt(),
                         story.getStatus(),
-                        story.getProgress()
+                        story.getProgress(),
+                        latestBranchSubtitles.getOrDefault(
+                                story.getId(),
+                                story.getStoryTemplate().getTitle()
+                        )
                 ))
                 .toList();
 
@@ -268,10 +285,36 @@ public class StoryService {
         if (context.existingChoice().isPresent()) {
             return replayChoice(context.story(), context.line(), context.existingChoice().get());
         }
-        String branchIntent = resolveBranchOption(context.line(), request.optionNo());
+        String branchIntent = request.optionNo() == null
+                ? validateBranchIntent(request.branchIntent())
+                : resolveBranchOption(context.line(), request.optionNo());
         return continueStoryDirection(
                 teacherId, studentId, context.story(), context.line(), branchIntent
         );
+    }
+
+    @Transactional
+    public StoryBranchTranscriptionResponse transcribeBranchIntent(
+            Long teacherId, Long studentId, Long storyId, Long storyLineId, MultipartFile audioFile
+    ) {
+        prepareBranch(teacherId, studentId, storyId, storyLineId);
+        SpeechTranscriptionResponse speech = aiClient.transcribeSpeech(
+                UUID.randomUUID().toString(), studentId, null, audioFile
+        );
+        String transcript = validateBranchIntent(speech.transcript());
+        return new StoryBranchTranscriptionResponse(
+                transcript,
+                Math.round(speech.confidence() * 10_000.0) / 10_000.0,
+                speech.confidence() >= 0.55
+        );
+    }
+
+    private String validateBranchIntent(String value) {
+        String intent = value == null ? "" : value.strip();
+        if (intent.isBlank() || intent.length() > 80 || intent.chars().anyMatch(Character::isISOControl)) {
+            throw new IllegalArgumentException("음성 선택 내용은 1~80자의 안전한 문장이어야 합니다.");
+        }
+        return intent;
     }
 
     private BranchContext prepareBranch(Long teacherId, Long studentId, Long storyId,
@@ -755,6 +798,11 @@ public class StoryService {
         if (prompt == null || prompt.options() == null || prompt.options().size() != 3) {
             throw new AiClientException("AI 서버의 branchPrompt는 선택지 3개를 포함해야 합니다.");
         }
+        if (prompt.subtitle() == null || prompt.subtitle().isBlank()
+                || prompt.subtitle().length() > 40
+                || !prompt.subtitle().equals(prompt.subtitle().strip())) {
+            throw new AiClientException("AI 서버의 분기 소제목이 유효하지 않습니다.");
+        }
         Set<Integer> optionNumbers = new HashSet<>();
         Set<String> labels = new HashSet<>();
         for (GeneratedStoryBranchOption option : prompt.options()) {
@@ -794,7 +842,7 @@ public class StoryService {
                     json, GeneratedStoryBranchPrompt.class
             );
             validateBranchPrompt(prompt);
-            return new StoryBranchPromptResponse(prompt.options().stream()
+            return new StoryBranchPromptResponse(prompt.subtitle(), prompt.options().stream()
                     .map(option -> new StoryBranchPromptResponse.Option(
                             option.optionNo(), option.label()
                     ))

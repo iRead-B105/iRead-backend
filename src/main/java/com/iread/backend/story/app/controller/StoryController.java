@@ -132,6 +132,25 @@ public class StoryController {
         );
     }
 
+    @Operation(summary = "자유 음성 분기 입력을 STT로 변환하고 확인 대기")
+    @PostMapping(
+            value = "/{studentId}/{storyId}/lines/{lineId}/branches/transcribe",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
+    public StoryBranchTranscriptionResponse transcribeBranchIntent(
+            @CurrentTeacherId Long teacherId,
+            @CurrentStudentId Long authenticatedStudentId,
+            @PathVariable Long studentId,
+            @PathVariable Long storyId,
+            @PathVariable Long lineId,
+            @RequestPart("audioFile") MultipartFile audioFile
+    ) {
+        authorizeStudent(authenticatedStudentId, studentId);
+        return storyService.transcribeBranchIntent(
+                teacherId, studentId, storyId, lineId, audioFile
+        );
+    }
+
     @Operation(summary = "이야기 문장 음성 인식 및 읽기 정확도 확인")
     @PostMapping(
             value = "/{studentId}/{storyId}/speech",
