@@ -137,13 +137,14 @@ class StudentFeatureProfileServiceTest {
         when(trainingRepository.findAllByDailyCurriculumStudentIdAndStatus(
                 15L, TrainingStatus.COMPLETED
         )).thenReturn(List.of(training));
-        when(trainingDataRepository.findByTrainingId(120L)).thenReturn(Optional.of(trainingData));
+        when(trainingDataRepository.findAllByTrainingIdIn(List.of(120L)))
+                .thenReturn(List.of(trainingData));
         when(wordAttemptLogRepository.findAllById(List.of(99L))).thenReturn(List.of(log));
         when(readingFeatureRepository.findAllByFeatureCodeIn(any()))
                 .thenReturn(List.of(feature));
         when(profileRepository.findMaxId()).thenReturn(40L);
-        when(profileRepository.findByStudentIdAndReadingFeatureId(15L, 10L))
-                .thenReturn(Optional.empty());
+        when(profileRepository.findAllByStudentIdOrderByWeaknessScoreDesc(15L))
+                .thenReturn(List.of());
 
         var result = service.recalculate(student);
 
@@ -216,13 +217,14 @@ class StudentFeatureProfileServiceTest {
         when(trainingRepository.findAllByDailyCurriculumStudentIdAndStatus(
                 15L, TrainingStatus.COMPLETED
         )).thenReturn(List.of(training));
-        when(trainingDataRepository.findByTrainingId(120L)).thenReturn(Optional.of(trainingData));
+        when(trainingDataRepository.findAllByTrainingIdIn(List.of(120L)))
+                .thenReturn(List.of(trainingData));
         when(wordAttemptLogRepository.findAllById(List.of(99L))).thenReturn(List.of(log));
         when(readingFeatureRepository.findAllByFeatureCodeIn(any()))
                 .thenReturn(List.of(feature));
         when(profileRepository.findMaxId()).thenReturn(40L);
-        when(profileRepository.findByStudentIdAndReadingFeatureId(15L, 10L))
-                .thenReturn(Optional.empty());
+        when(profileRepository.findAllByStudentIdOrderByWeaknessScoreDesc(15L))
+                .thenReturn(List.of());
 
         var result = service.recalculate(student);
 
@@ -271,12 +273,13 @@ class StudentFeatureProfileServiceTest {
         when(trainingRepository.findAllByDailyCurriculumStudentIdAndStatus(
                 15L, TrainingStatus.COMPLETED
         )).thenReturn(List.of(training));
-        when(trainingDataRepository.findByTrainingId(120L)).thenReturn(Optional.of(trainingData));
+        when(trainingDataRepository.findAllByTrainingIdIn(List.of(120L)))
+                .thenReturn(List.of(trainingData));
         when(readingFeatureRepository.findAllByFeatureCodeIn(any()))
                 .thenReturn(List.of(feature));
         when(profileRepository.findMaxId()).thenReturn(40L);
-        when(profileRepository.findByStudentIdAndReadingFeatureId(15L, 10L))
-                .thenReturn(Optional.empty());
+        when(profileRepository.findAllByStudentIdOrderByWeaknessScoreDesc(15L))
+                .thenReturn(List.of());
 
         var result = service.recalculate(student);
 
@@ -328,8 +331,8 @@ class StudentFeatureProfileServiceTest {
         when(readingFeatureRepository.findAllByFeatureCodeIn(any()))
                 .thenReturn(List.of(feature));
         when(profileRepository.findMaxId()).thenReturn(40L);
-        when(profileRepository.findByStudentIdAndReadingFeatureId(15L, 10L))
-                .thenReturn(Optional.empty());
+        when(profileRepository.findAllByStudentIdOrderByWeaknessScoreDesc(15L))
+                .thenReturn(List.of());
 
         var result = service.recalculate(student);
 
@@ -393,8 +396,8 @@ class StudentFeatureProfileServiceTest {
         when(readingFeatureRepository.findAllByFeatureCodeIn(any()))
                 .thenReturn(List.of(feature));
         when(profileRepository.findMaxId()).thenReturn(40L);
-        when(profileRepository.findByStudentIdAndReadingFeatureId(15L, 10L))
-                .thenReturn(Optional.empty());
+        when(profileRepository.findAllByStudentIdOrderByWeaknessScoreDesc(15L))
+                .thenReturn(List.of());
 
         var result = service.recalculate(student);
 

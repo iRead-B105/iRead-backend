@@ -81,6 +81,14 @@ public class StudentFeatureProfileService {
         readingFeatureRepository.findAllByFeatureCodeIn(evidenceByFeature.keySet())
                 .forEach(feature -> features.put(feature.getFeatureCode(), feature));
 
+        Map<Long, StudentFeatureProfileEntity> profilesByFeatureId = profileRepository
+                .findAllByStudentIdOrderByWeaknessScoreDesc(student.getId())
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        profile -> profile.getReadingFeature().getId(),
+                        Function.identity()
+                ));
+
         long[] nextId = {profileRepository.findMaxId() + 1};
         LocalDateTime analyzedAt = LocalDateTime.now();
         List<StudentFeatureProfileEntity> updated = new ArrayList<>();
@@ -89,11 +97,12 @@ public class StudentFeatureProfileService {
             if (feature == null) {
                 continue;
             }
-            StudentFeatureProfileEntity profile = profileRepository
-                    .findByStudentIdAndReadingFeatureId(student.getId(), feature.getId())
-                    .orElseGet(() -> new StudentFeatureProfileEntity(
-                            nextId[0]++, student, feature, BigDecimal.ZERO.setScale(4)
-                    ));
+            StudentFeatureProfileEntity profile = profilesByFeatureId.get(feature.getId());
+            if (profile == null) {
+                profile = new StudentFeatureProfileEntity(
+                        nextId[0]++, student, feature, BigDecimal.ZERO.setScale(4)
+                );
+            }
             Metrics metrics = calculate(entry.getValue(), analyzedAt);
             profile.updateMetrics(
                     metrics.accuracyRate(),
@@ -125,13 +134,16 @@ public class StudentFeatureProfileService {
         Map<String, List<Evidence>> evidenceByFeature = new LinkedHashMap<>();
         List<TrainingEntity> trainings = trainingRepository
                 .findAllByDailyCurriculumStudentIdAndStatus(studentId, TrainingStatus.COMPLETED);
+        Map<Long, JsonNode> questionsByTrainingId = trainingDataRepository
+                .findAllByTrainingIdIn(trainings.stream().map(TrainingEntity::getId).toList())
+                .stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        data -> data.getTraining().getId(),
+                        data -> parse(data.getGeneratedData()).path("questions")
+                ));
         for (TrainingEntity training : trainings) {
             JsonNode result = parse(training.getResult());
-            JsonNode questions = trainingDataRepository.findByTrainingId(training.getId())
-                    .map(TrainingDataEntity::getGeneratedData)
-                    .map(this::parse)
-                    .map(root -> root.path("questions"))
-                    .orElse(null);
+            JsonNode questions = questionsByTrainingId.get(training.getId());
             if (result == null || questions == null || !questions.isArray()) {
                 continue;
             }

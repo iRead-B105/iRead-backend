@@ -11,13 +11,13 @@ import tools.jackson.databind.node.ObjectNode;
 import com.iread.backend.ai.client.AiClient;
 import com.iread.backend.ai.dto.req.EvaluateTrainingRequest;
 import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
-import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
 import com.iread.backend.realtime.RealtimeEventPublisher;
 import com.iread.backend.realtime.RealtimeResource;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.*;
 import com.iread.backend.training.curriculum.ActiveCurriculumPolicy;
+import com.iread.backend.training.completion.TrainingCompletionAfterCommitPublisher;
 import com.iread.backend.training.curriculum.PersonalizedCurriculumPlanner;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
 import com.iread.backend.training.generation.TrainingCatalogPolicy;
@@ -59,8 +59,7 @@ public class TrainingService {
     private final GazeWordAnalysisAdapter gazeWordAnalysisAdapter;
     private final AiClient aiClient;
     private final PersonalizedTrainingGenerationService personalizedTrainingGenerationService;
-    private final StudentFeatureProfileService studentFeatureProfileService;
-    private final PersonalizedCurriculumPlanner personalizedCurriculumPlanner;
+    private final TrainingCompletionAfterCommitPublisher completionFollowUpPublisher;
     private final TrainingInputRequirementService trainingInputRequirementService;
     private final RealtimeEventPublisher realtimeEventPublisher;
     private final TransactionTemplate transactionTemplate;
@@ -425,10 +424,10 @@ public class TrainingService {
         saveWordAttemptLogs(student, training, finalResult.path("wordAttempts"));
         training.complete(writeJson(finalResult), accuracy, finishedAt);
         activateNextTraining(training);
-        studentFeatureProfileService.recalculate(student);
-        if (training.getDailyCurriculum().getStatus() == DailyCurriculumStatus.COMPLETED) {
-            personalizedCurriculumPlanner.createNextIfAbsent(student);
-        }
+        completionFollowUpPublisher.processAfterCommit(
+                studentId,
+                training.getDailyCurriculum().getStatus() == DailyCurriculumStatus.COMPLETED
+        );
         realtimeEventPublisher.publishAfterCommit(
                 teacherId,
                 studentId,

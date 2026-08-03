@@ -51,7 +51,6 @@ public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
         }
         List<TrainingTemplateEntity> templates = loadCanonicalTemplates();
         if (isAlreadyInitialized(curriculum, templates)) {
-            refreshQuestions(curriculum);
             return;
         }
 
@@ -74,18 +73,6 @@ public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
             );
         }
         trainings.getFirst().markReady();
-        trainingDataRepository.flush();
-    }
-
-    private void refreshQuestions(DailyCurriculumEntity curriculum) {
-        for (TrainingEntity training : curriculum.getTrainings()) {
-            TrainingDataEntity data = trainingDataRepository.findByTrainingId(training.getId())
-                    .orElseThrow(() -> new IllegalStateException(
-                            "데모 맞춤 커리큘럼 문항 데이터가 없습니다: " + training.getId()
-                    ));
-            ObjectNode generated = generationService.generate(training);
-            data.updateGeneratedData(writeJson(generated));
-        }
         trainingDataRepository.flush();
     }
 
