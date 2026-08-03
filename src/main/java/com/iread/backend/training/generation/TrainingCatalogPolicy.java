@@ -7,7 +7,7 @@ import java.util.Set;
 /** Controls which historical template identifiers may be used for new learning. */
 public final class TrainingCatalogPolicy {
 
-    private static final Set<Long> RETIRED_TEMPLATE_IDS = Set.of(6L, 14L);
+    private static final Set<Long> RETIRED_TEMPLATE_IDS = Set.of(6L, 14L, 24L);
 
     private TrainingCatalogPolicy() {
     }
