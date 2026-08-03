@@ -174,15 +174,12 @@ class HttpAiClientTest {
         ));
 
         assertThat(response.requestId()).isEqualTo("image-request-mock");
-        assertThat(response.provider()).isEqualTo("BACKEND_MOCK_IMAGE_V1");
-        assertThat(response.imageUrl()).startsWith("data:image/svg+xml;base64,");
-        String svg = new String(
-                Base64.getDecoder().decode(response.imageUrl().substring(
-                        "data:image/svg+xml;base64,".length()
-                )),
-                StandardCharsets.UTF_8
-        );
-        assertThat(svg).contains("우산을 쓰는 아이");
+        assertThat(response.provider()).isEqualTo("BACKEND_MOCK_IMAGE_PNG_V1");
+        assertThat(response.imageUrl()).startsWith("data:image/png;base64,");
+        byte[] png = Base64.getDecoder().decode(response.imageUrl().substring(
+                "data:image/png;base64,".length()
+        ));
+        assertThat(png).startsWith(0x89, 0x50, 0x4e, 0x47);
         server.verify();
     }
 
@@ -198,16 +195,8 @@ class HttpAiClientTest {
                 "[STORY_CHARACTER] 별빛 숲의 친구 주인공"
         ));
 
-        assertThat(response.provider()).isEqualTo("BACKEND_MOCK_STORY_CHARACTER_V1");
-        String svg = new String(
-                Base64.getDecoder().decode(response.imageUrl().substring(
-                        "data:image/svg+xml;base64,".length()
-                )),
-                StandardCharsets.UTF_8
-        );
-        assertThat(svg)
-                .contains("별빛 숲의 친구 주인공")
-                .contains("#f3aa59");
+        assertThat(response.provider()).isEqualTo("BACKEND_MOCK_STORY_CHARACTER_PNG_V1");
+        assertThat(response.imageUrl()).startsWith("data:image/png;base64,");
         server.verify();
     }
 
