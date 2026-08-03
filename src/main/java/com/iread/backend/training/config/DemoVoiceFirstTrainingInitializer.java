@@ -43,15 +43,16 @@ public class DemoVoiceFirstTrainingInitializer implements ApplicationRunner {
                   "requiredInputs": ["VOICE", "GAZE"],
                   "content": {
                     "readingOrder": "SEQUENTIAL",
-                    "words": ["사과", "바나나", "학교"]
+                    "words": ["사과", "바나나", "학교", "자동차"]
                   },
                   "answer": {
-                    "expectedText": "사과 바나나 학교"
+                    "expectedText": "사과 바나나 학교 자동차"
                   },
                   "analysisTargets": [
                     {"text": "사과"},
                     {"text": "바나나"},
-                    {"text": "학교"}
+                    {"text": "학교"},
+                    {"text": "자동차"}
                   ]
                 }
               ]

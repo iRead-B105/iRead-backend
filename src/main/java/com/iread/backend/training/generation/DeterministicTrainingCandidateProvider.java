@@ -327,16 +327,18 @@ public class DeterministicTrainingCandidateProvider implements TrainingCandidate
     private ObjectNode wordReading(int index) {
         ObjectNode node = objectMapper.createObjectNode();
         node.put("readingOrder", index % 2 == 0 ? "SEQUENTIAL" : "FREE");
-        rotated(WORDS, index).subList(0, 3).forEach(node.putArray("words")::add);
+        rotated(WORDS, index).subList(0, 4).forEach(node.putArray("words")::add);
         return node;
     }
 
     private ObjectNode nonwordReading(int index) {
         ObjectNode node = objectMapper.createObjectNode();
         ArrayNode words = node.putArray("words");
-        words.addObject().put("text", WORDS.get(index)).put("isNonword", false);
-        words.addObject().put("text", List.of("나푸", "도미루", "버누", "소마기", "두파").get(index))
-                .put("isNonword", true);
+        List<String> nonwords = List.of("나푸", "도미루", "버누", "소마기", "두파");
+        words.addObject().put("text", WORDS.get(index % WORDS.size())).put("isNonword", false);
+        words.addObject().put("text", nonwords.get(index % nonwords.size())).put("isNonword", true);
+        words.addObject().put("text", WORDS.get((index + 1) % WORDS.size())).put("isNonword", false);
+        words.addObject().put("text", nonwords.get((index + 1) % nonwords.size())).put("isNonword", true);
         return node;
     }
 
@@ -424,7 +426,7 @@ public class DeterministicTrainingCandidateProvider implements TrainingCandidate
 
     private ObjectNode wordChain(int index) {
         ObjectNode node = objectMapper.createObjectNode();
-        rotated(WORDS, index).subList(0, 3).forEach(node.putArray("words")::add);
+        rotated(WORDS, index).subList(0, 4).forEach(node.putArray("words")::add);
         node.put("requiredOrder", "SEQUENTIAL");
         return node;
     }
