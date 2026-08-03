@@ -406,6 +406,30 @@ class GazeServiceTest {
         verify(gazeAnalysisResultRepository, never()).saveAndFlush(org.mockito.ArgumentMatchers.any());
     }
 
+    @Test
+    void acceptsEmptySentenceMetricsForNonStorySession() {
+        StudentEntity student = mock(StudentEntity.class);
+        GazeSessionEntity session = mock(GazeSessionEntity.class);
+        GazeAnalysisResultEntity savedResult = mock(GazeAnalysisResultEntity.class);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(gazeSessionRepository.findByIdAndStudentIdForUpdate(30L, 10L)).thenReturn(Optional.of(session));
+        when(session.getStatus()).thenReturn(GazeSessionStatus.COMPLETED);
+        when(gazeAnalysisResultRepository.saveAndFlush(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(savedResult);
+        when(savedResult.getId()).thenReturn(40L);
+
+        var response = gazeService.saveAnalysisResult(
+                1L, 30L,
+                new GazeAnalysisResultRequest(
+                        10L, 0, 0, 0, 0,
+                        List.of(), null, null, null
+                )
+        );
+
+        assertThat(response.gazeAnalysisId()).isEqualTo(40L);
+        verify(gazeAnalysisResultRepository).saveAndFlush(org.mockito.ArgumentMatchers.any());
+    }
+
     private GazeAnalysisResultEntity analysisResult() {
         GazeAnalysisResultEntity result = mock(GazeAnalysisResultEntity.class);
         GazeSessionEntity session = mock(GazeSessionEntity.class);
