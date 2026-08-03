@@ -7,6 +7,7 @@ import com.iread.backend.student.domain.Gender;
 import com.iread.backend.student.domain.LearningEventType;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.dto.req.StudentRequest;
+import com.iread.backend.student.repository.StudentDeletionRepository;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.teacher.domain.TeacherEntity;
 import com.iread.backend.teacher.repository.TeacherRepository;
@@ -30,12 +31,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class StudentServiceImplTest {
     @Mock StudentRepository studentRepository;
+    @Mock StudentDeletionRepository studentDeletionRepository;
+    @Mock StudentDeletionResourceCleaner studentDeletionResourceCleaner;
     @Mock TeacherRepository teacherRepository;
     @Mock FileStorage fileStorage;
     @Mock RealtimeEventPublisher realtimeEventPublisher;
@@ -47,6 +52,8 @@ class StudentServiceImplTest {
     void setUp() {
         studentService = new StudentServiceImpl(
                 studentRepository,
+                studentDeletionRepository,
+                studentDeletionResourceCleaner,
                 teacherRepository,
                 fileStorage,
                 realtimeEventPublisher,
@@ -57,6 +64,67 @@ class StudentServiceImplTest {
                 com.iread.backend.teacher.domain.Gender.FEMALE, null
         );
         ReflectionTestUtils.setField(teacher, "id", 1L);
+    }
+
+    @Test
+    void deletesOwnedStudentDependenciesBeforeStudentAndSchedulesResourceCleanup() {
+        StudentEntity student = StudentEntity.builder()
+                .teacher(teacher)
+                .name("학생")
+                .imageUrl("/uploads/images/student.png")
+                .build();
+        ReflectionTestUtils.setField(student, "id", 10L);
+        List<String> gazeDataUrls = List.of("/gaze/10/gaze-1-00000000-0000-0000-0000-000000000000.json");
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(studentDeletionRepository.findGazeDataUrls(10L)).thenReturn(gazeDataUrls);
+
+        studentService.deleteStudent(1L, 10L);
+
+        var ordered = inOrder(
+                studentDeletionRepository,
+                studentRepository,
+                studentDeletionResourceCleaner,
+                realtimeEventPublisher
+        );
+        ordered.verify(studentDeletionRepository).findGazeDataUrls(10L);
+        ordered.verify(studentDeletionRepository).deleteDependencies(10L);
+        ordered.verify(studentRepository).delete(student);
+        ordered.verify(studentDeletionResourceCleaner).cleanAfterCommit(
+                10L,
+                "/uploads/images/student.png",
+                gazeDataUrls
+        );
+        ordered.verify(realtimeEventPublisher).publishAfterCommit(
+                1L,
+                10L,
+                com.iread.backend.realtime.RealtimeResource.STUDENT,
+                10L,
+                "DELETED"
+        );
+    }
+
+    @Test
+    void doesNotDeleteStudentOrScheduleSideEffectsWhenDependencyDeletionFails() {
+        StudentEntity student = StudentEntity.builder()
+                .teacher(teacher)
+                .name("학생")
+                .imageUrl("/uploads/images/student.png")
+                .build();
+        ReflectionTestUtils.setField(student, "id", 10L);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(studentDeletionRepository.findGazeDataUrls(10L)).thenReturn(List.of());
+        doThrow(new RuntimeException("delete failed"))
+                .when(studentDeletionRepository).deleteDependencies(10L);
+
+        assertThatThrownBy(() -> studentService.deleteStudent(1L, 10L))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("delete failed");
+
+        verify(studentRepository, never()).delete(any(StudentEntity.class));
+        verify(studentDeletionResourceCleaner, never())
+                .cleanAfterCommit(any(), any(), any());
+        verify(realtimeEventPublisher, never())
+                .publishAfterCommit(any(), any(), any(), any(), any());
     }
 
     @Test

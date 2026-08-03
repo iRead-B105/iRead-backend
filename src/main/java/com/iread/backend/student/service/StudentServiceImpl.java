@@ -19,6 +19,7 @@ import com.iread.backend.student.dto.res.StudentListDataResponse;
 import com.iread.backend.student.dto.res.StudentResponse;
 import com.iread.backend.student.dto.res.StudentSummaryResponse;
 import com.iread.backend.student.dto.res.TrainingHistoryResponse;
+import com.iread.backend.student.repository.StudentDeletionRepository;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.teacher.domain.TeacherEntity;
 import com.iread.backend.teacher.repository.TeacherRepository;
@@ -50,6 +51,8 @@ public class StudentServiceImpl implements StudentService {
     private static final BigDecimal MILLIS_PER_MINUTE = BigDecimal.valueOf(60_000);
 
     private final StudentRepository studentRepository;
+    private final StudentDeletionRepository studentDeletionRepository;
+    private final StudentDeletionResourceCleaner studentDeletionResourceCleaner;
     private final TeacherRepository teacherRepository;
     private final FileStorage fileStorage;
     private final RealtimeEventPublisher realtimeEventPublisher;
@@ -166,10 +169,16 @@ public class StudentServiceImpl implements StudentService {
     @Transactional
     public void deleteStudent(Long teacherId, Long studentId) {
         StudentEntity student = findOwnedStudent(teacherId, studentId);
-        studentRepository.deleteWordAttemptLogsByStudentId(studentId);
-        studentRepository.deleteTrainingsByStudentId(studentId);
-        studentRepository.deleteDailyCurriculumsByStudentId(studentId);
+        List<String> gazeDataUrls = studentDeletionRepository.findGazeDataUrls(studentId);
+        String profileImageUrl = student.getImageUrl();
+
+        studentDeletionRepository.deleteDependencies(studentId);
         studentRepository.delete(student);
+        studentDeletionResourceCleaner.cleanAfterCommit(
+                studentId,
+                profileImageUrl,
+                gazeDataUrls
+        );
         realtimeEventPublisher.publishAfterCommit(
                 teacherId,
                 studentId,
