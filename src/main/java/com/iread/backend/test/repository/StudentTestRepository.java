@@ -14,6 +14,8 @@ import java.util.Optional;
 import java.time.LocalDateTime;
 
 public interface StudentTestRepository extends JpaRepository<StudentTestEntity, Long> {
+    long countByTestCurriculumIdAndStatus(Long testCurriculumId, TestStatus status);
+
     List<StudentTestEntity> findAllByTestCurriculumStudentIdAndStatusOrderByCreatedAtDesc(
             Long studentId,
             TestStatus status

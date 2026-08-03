@@ -1,6 +1,7 @@
 package com.iread.backend;
 
 import com.iread.backend.test.repository.StudentTestRepository;
+import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.repository.TrainingRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -26,7 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@SpringBootTest
+@SpringBootTest(properties = "spring.flyway.ignore-migration-patterns=versioned:missing")
 @ActiveProfiles("mysql-test")
 @EnabledIfEnvironmentVariable(named = "IREAD_MYSQL_TEST_ENABLED", matches = "true")
 class MySqlFlywayIntegrationTest {
@@ -43,15 +44,22 @@ class MySqlFlywayIntegrationTest {
     @Autowired
     private StudentTestRepository studentTestRepository;
 
+    @Autowired
+    private StudentRepository studentRepository;
+
     @Test
     void appliesAllMigrationsAndValidatesJpaMappings() {
         assertThat(applicationTableCount()).isEqualTo(26);
-        assertThat(constraintCount("FOREIGN KEY")).isEqualTo(35);
-        assertThat(constraintCount("UNIQUE")).isEqualTo(15);
+        assertThat(constraintCount("FOREIGN KEY")).isEqualTo(37);
+        assertThat(constraintCount("UNIQUE")).isEqualTo(16);
         assertThat(constraintCount("CHECK")).isEqualTo(11);
+        assertThat(columnExists("story_lines", "branch_prompt")).isTrue();
 
         assertThat(tableExists("training_datas")).isTrue();
         assertThat(columnExists("training_datas", "train_id")).isTrue();
+        assertThat(columnExists("daily_curriculums", "review_status")).isTrue();
+        assertThat(columnExists("daily_curriculums", "reviewed_at")).isTrue();
+        assertThat(columnExists("daily_curriculums", "reviewed_by_teacher_id")).isTrue();
         assertThat(columnExists("training_templates", "prompt")).isTrue();
         assertThat(columnExists("training_templates", "form")).isFalse();
         assertThat(tableExists("reading_features")).isTrue();
@@ -129,6 +137,14 @@ class MySqlFlywayIntegrationTest {
                 "daily_curriculums",
                 "in_progress_student_id"
         )).isTrue();
+        assertThat(columnExists(
+                "daily_curriculums",
+                "source_test_curriculum_id"
+        )).isTrue();
+        assertThat(columnExists(
+                "test_curriculums",
+                "recommendation_status"
+        )).isTrue();
         assertThat(constraintExists(
                 "daily_curriculums",
                 "UQ_DAILY_CURRICULUMS_NOT_STARTED_STUDENT",
@@ -139,10 +155,94 @@ class MySqlFlywayIntegrationTest {
                 "UQ_DAILY_CURRICULUMS_IN_PROGRESS_STUDENT",
                 "UNIQUE"
         )).isTrue();
+        assertThat(constraintExists(
+                "daily_curriculums",
+                "UQ_DAILY_CURRICULUMS_SOURCE_TEST",
+                "UNIQUE"
+        )).isTrue();
 
         assertThat(tableExists("training_contents")).isFalse();
         assertThat(tableExists("test_questions")).isFalse();
         assertThat(tableExists("auth_revoked_access_tokens")).isFalse();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM curriculum_units WHERE id BETWEEN 1 AND 8",
+                Integer.class
+        )).isEqualTo(8);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM training_templates WHERE id BETWEEN 1 AND 34",
+                Integer.class
+        )).isEqualTo(34);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT unit_name FROM curriculum_units WHERE id = 1",
+                String.class
+        )).isEqualTo("글자 따라 보기");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT name FROM training_templates WHERE id = 1",
+                String.class
+        )).isEqualTo("모음 따라 보기");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT JSON_UNQUOTE(JSON_EXTRACT(prompt, '$.trainingType')) "
+                        + "FROM training_templates WHERE id = 15",
+                String.class
+        )).isEqualTo("SYLLABLE_BLEND");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT JSON_CONTAINS_PATH(prompt, 'one', '$.questionType') "
+                        + "FROM training_templates WHERE id = 15",
+                Integer.class
+        )).isZero();
+    }
+
+    @Test
+    void readingSpeedUsesCurrentTrainingTypesAndExcludesLegacyTemplateFifteen() {
+        long teacherId = insertAndReturnKey(
+                "INSERT INTO teachers(email, password, name, created_at) "
+                        + "VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
+                "speed-" + UUID.randomUUID() + "@x.io", "password", "교사"
+        );
+        long studentId = insertAndReturnKey(
+                "INSERT INTO students(teacher_id, name, created_at) "
+                        + "VALUES (?, ?, CURRENT_TIMESTAMP)",
+                teacherId, "학생"
+        );
+        long wordId = insertAndReturnKey(
+                "INSERT INTO words(content, length) VALUES (?, ?)",
+                "속도" + UUID.randomUUID().toString().substring(0, 8), 10
+        );
+        long curriculumId = insertAndReturnKey(
+                """
+                INSERT INTO daily_curriculums(
+                    student_id, status, created_at, completed_at
+                ) VALUES (?, 'COMPLETED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """,
+                studentId
+        );
+        java.util.List<Long> included = new java.util.ArrayList<>();
+        for (long templateId : new long[]{22L, 25L, 26L, 15L}) {
+            long trainingId = insertAndReturnKey(
+                    """
+                    INSERT INTO trainings(
+                        training_template_id, daily_curriculum_id, sequence_no,
+                        created_at, started_at, finished_at, status
+                    ) VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP,
+                              CURRENT_TIMESTAMP, 'COMPLETED')
+                    """,
+                    templateId,
+                    curriculumId,
+                    included.size() + 1
+            );
+            insertWordAttempt(studentId, wordId, trainingId, 900, 900, 1, 0, 0);
+            if (templateId != 15L) {
+                included.add(trainingId);
+            }
+        }
+
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        assertThat(studentRepository.findReadingSpeedTrainings(
+                studentId,
+                now.minusDays(1),
+                now.plusDays(1)
+        )).extracting(StudentRepository.ReadingSpeedTrainingProjection::getTrainingId)
+                .containsExactlyInAnyOrderElementsOf(included);
     }
 
     @Test

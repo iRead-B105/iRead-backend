@@ -100,6 +100,37 @@ class TestServiceTest {
     }
 
     @Test
+    void App이_submissions만_저장하면_현재_관리자_응답의_문항은_비어_있다() {
+        allowStudent();
+        StudentTestEntity current = test(
+                10L,
+                LocalDateTime.of(2026, 7, 21, 10, 0),
+                """
+                {
+                  "submissions":[{
+                    "submissionId":"00000000-0000-0000-0000-000000000001",
+                    "questionNo":1,
+                    "responseType":"SINGLE_CHOICE",
+                    "response":{"selectedIndex":0},
+                    "correct":true,
+                    "totalScore":1000
+                  }]
+                }
+                """,
+                "100.00"
+        );
+        when(testRepository.findByIdAndTestCurriculumStudentIdAndStatus(
+                10L,
+                1L,
+                TestStatus.COMPLETED
+        )).thenReturn(Optional.of(current));
+
+        var result = testService.compareTests(100L, 1L, 10L, List.of());
+
+        assertThat(result.currentTest().questions()).isEmpty();
+    }
+
+    @Test
     void 완료되지_않은_비교_테스트가_포함되면_오류가_발생한다() {
         allowStudent();
         StudentTestEntity current = test(10L, LocalDateTime.now(), "{}", "85.00");

@@ -1,6 +1,9 @@
 package com.iread.backend.contract;
 
 import com.iread.backend.learning.app.dto.LearningErrorLocation;
+import com.iread.backend.student.app.dto.res.LearningEntryResponse;
+import com.iread.backend.student.app.dto.res.LearningEntryStatus;
+import com.iread.backend.test.app.dto.res.SkillChallengePlanResponse;
 import com.iread.backend.test.app.dto.res.TestCompleteResponse;
 import com.iread.backend.test.app.dto.res.TestProgressResponse;
 import com.iread.backend.test.domain.TestStatus;
@@ -21,8 +24,64 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 class AppLearningContractJsonTest {
 
+    private static final long UNSAFE_JAVASCRIPT_ID = 1_739_619_061_890_340_497L;
+
     @Autowired
     ObjectMapper objectMapper;
+
+    @Test
+    void learningEntryExposesChallengeRoutingState() {
+        var json = objectMapper.valueToTree(new LearningEntryResponse(
+                20L,
+                LearningEntryStatus.CHALLENGE_IN_PROGRESS,
+                UNSAFE_JAVASCRIPT_ID,
+                4,
+                9
+        ));
+
+        assertThat(json.propertyNames()).containsExactlyInAnyOrder(
+                "studentId",
+                "entryStatus",
+                "testCurriculumId",
+                "completedQuestions",
+                "totalQuestions"
+        );
+        assertThat(json.path("entryStatus").asText())
+                .isEqualTo("CHALLENGE_IN_PROGRESS");
+        assertThat(json.path("testCurriculumId").isTextual()).isTrue();
+        assertThat(json.path("testCurriculumId").asText())
+                .isEqualTo("1739619061890340497");
+        assertThat(json.path("completedQuestions").asInt()).isEqualTo(4);
+        assertThat(json.path("totalQuestions").asInt()).isEqualTo(9);
+    }
+
+    @Test
+    void challengePlanExposesOverallNextQuestionAlongsideTracks() {
+        var json = objectMapper.valueToTree(new SkillChallengePlanResponse(
+                UNSAFE_JAVASCRIPT_ID,
+                4,
+                9,
+                false,
+                105L,
+                "short-text",
+                List.of()
+        ));
+
+        assertThat(json.propertyNames()).containsExactlyInAnyOrder(
+                "testCurriculumId",
+                "completedQuestions",
+                "totalQuestions",
+                "completed",
+                "nextTestId",
+                "nextTrackCode",
+                "tracks"
+        );
+        assertThat(json.path("testCurriculumId").isTextual()).isTrue();
+        assertThat(json.path("testCurriculumId").asText())
+                .isEqualTo("1739619061890340497");
+        assertThat(json.path("nextTestId").asLong()).isEqualTo(105L);
+        assertThat(json.path("nextTrackCode").asText()).isEqualTo("short-text");
+    }
 
     @Test
     void trainingFeedbackMatchesChildContractBoundary() {

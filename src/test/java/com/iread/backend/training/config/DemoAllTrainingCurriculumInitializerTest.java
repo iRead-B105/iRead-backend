@@ -19,8 +19,8 @@ import tools.jackson.databind.node.ObjectNode;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.IntStream;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -32,7 +32,7 @@ import static org.mockito.Mockito.when;
 class DemoAllTrainingCurriculumInitializerTest {
 
     @Test
-    void createsOneQuestionForEveryTrainingTemplateAndUnlocksOnlyTheFirst() throws Exception {
+    void createsAllThirtyFourCatalogTrainingsAndUnlocksOnlyTheFirst() throws Exception {
         DailyCurriculumRepository curriculumRepository =
                 mock(DailyCurriculumRepository.class);
         TrainingTemplateRepository templateRepository =
@@ -45,30 +45,26 @@ class DemoAllTrainingCurriculumInitializerTest {
 
         StudentEntity student = StudentEntity.builder().name("샛별").build();
         ReflectionTestUtils.setField(student, "id", 2001L);
-        DailyCurriculumEntity curriculum =
-                new DailyCurriculumEntity(student, List.of());
+        List<TrainingTemplateEntity> previousTemplates = List.of(template(1), template(2));
+        DailyCurriculumEntity curriculum = new DailyCurriculumEntity(student, previousTemplates);
         ReflectionTestUtils.setField(
                 curriculum,
                 "id",
-                DemoAllTrainingCurriculumInitializer.SHOWCASE_CURRICULUM_ID
+                DemoAllTrainingCurriculumInitializer.DEMO_CURRICULUM_ID
         );
-        List<TrainingTemplateEntity> templates = IntStream
-                .rangeClosed(1, DemoAllTrainingCurriculumInitializer.EXPECTED_TEMPLATE_COUNT)
-                .mapToObj(index -> mock(TrainingTemplateEntity.class))
-                .toList();
+        ReflectionTestUtils.setField(curriculum.getTrainings().get(0), "id", 91L);
+        ReflectionTestUtils.setField(curriculum.getTrainings().get(1), "id", 92L);
+        List<TrainingTemplateEntity> templates = canonicalTemplates();
 
         when(curriculumRepository.findForGeneration(
-                DemoAllTrainingCurriculumInitializer.SHOWCASE_CURRICULUM_ID
+                DemoAllTrainingCurriculumInitializer.DEMO_CURRICULUM_ID
         )).thenReturn(Optional.of(curriculum));
-        when(templateRepository.findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc())
-                .thenReturn(templates);
+        when(templateRepository.findCanonicalCatalog(1L, 34L)).thenReturn(templates);
         when(generationService.generate(any())).thenAnswer(invocation -> {
             ObjectNode generated = objectMapper.createObjectNode();
             generated.put("schemaVersion", 2);
-            generated.putArray("questions")
-                    .addObject().put("questionNo", 1).put("type", "VOWEL_SOUND_CHOICE");
-            generated.withArray("questions")
-                    .addObject().put("questionNo", 2).put("type", "VOWEL_SOUND_CHOICE");
+            IntStream.rangeClosed(1, 5).forEach(questionNo -> generated.withArray("questions")
+                    .addObject().put("questionNo", questionNo).put("type", "VOWEL_SOUND_CHOICE"));
             return generated;
         });
 
@@ -84,34 +80,36 @@ class DemoAllTrainingCurriculumInitializerTest {
         initializer.run(mock(org.springframework.boot.ApplicationArguments.class));
 
         assertThat(curriculum.getTrainings())
-                .hasSize(DemoAllTrainingCurriculumInitializer.EXPECTED_TEMPLATE_COUNT);
+                .hasSize(DemoAllTrainingCurriculumInitializer.DEMO_TEMPLATE_COUNT);
         assertThat(curriculum.getTrainings().getFirst().getStatus())
                 .isEqualTo(TrainingStatus.NOT_STARTED);
         assertThat(curriculum.getTrainings().subList(
                 1,
-                DemoAllTrainingCurriculumInitializer.EXPECTED_TEMPLATE_COUNT
-        ))
-                .allMatch(training -> training.getStatus() == TrainingStatus.NOT_READY);
+                DemoAllTrainingCurriculumInitializer.DEMO_TEMPLATE_COUNT
+        )).allMatch(training -> training.getStatus() == TrainingStatus.NOT_READY);
 
         ArgumentCaptor<TrainingDataEntity> captor =
                 ArgumentCaptor.forClass(TrainingDataEntity.class);
         verify(
                 dataRepository,
-                times(DemoAllTrainingCurriculumInitializer.EXPECTED_TEMPLATE_COUNT)
+                times(DemoAllTrainingCurriculumInitializer.DEMO_TEMPLATE_COUNT)
         ).save(captor.capture());
         assertThat(captor.getAllValues()).allSatisfy(data -> {
             try {
                 assertThat(objectMapper.readTree(data.getGeneratedData()).path("questions"))
-                        .hasSize(1);
+                        .hasSize(5);
             } catch (Exception exception) {
                 throw new AssertionError(exception);
             }
         });
-        verify(dataRepository).flush();
+        verify(curriculumRepository, times(2)).flush();
+        verify(dataRepository, times(2)).flush();
+        verify(dataRepository).deleteByTrainingId(91L);
+        verify(dataRepository).deleteByTrainingId(92L);
     }
 
     @Test
-    void refreshesAllExistingShowcaseQuestions() throws Exception {
+    void refreshesQuestionsForEveryExistingCatalogTraining() throws Exception {
         DailyCurriculumRepository curriculumRepository =
                 mock(DailyCurriculumRepository.class);
         TrainingTemplateRepository templateRepository =
@@ -124,21 +122,12 @@ class DemoAllTrainingCurriculumInitializerTest {
 
         StudentEntity student = StudentEntity.builder().name("샛별").build();
         ReflectionTestUtils.setField(student, "id", 2001L);
-        List<TrainingTemplateEntity> templates = IntStream.rangeClosed(
-                        1,
-                        DemoAllTrainingCurriculumInitializer.EXPECTED_TEMPLATE_COUNT
-                )
-                .mapToObj(index -> {
-                    TrainingTemplateEntity template = mock(TrainingTemplateEntity.class);
-                    when(template.getId()).thenReturn((long) index);
-                    return template;
-                })
-                .toList();
+        List<TrainingTemplateEntity> templates = canonicalTemplates();
         DailyCurriculumEntity curriculum = new DailyCurriculumEntity(student, templates);
         ReflectionTestUtils.setField(
                 curriculum,
                 "id",
-                DemoAllTrainingCurriculumInitializer.SHOWCASE_CURRICULUM_ID
+                DemoAllTrainingCurriculumInitializer.DEMO_CURRICULUM_ID
         );
         for (int index = 0; index < curriculum.getTrainings().size(); index++) {
             ReflectionTestUtils.setField(
@@ -153,17 +142,16 @@ class DemoAllTrainingCurriculumInitializerTest {
                         training -> new TrainingDataEntity(training, "{\"questions\":[]}")
                 ));
         when(curriculumRepository.findForGeneration(
-                DemoAllTrainingCurriculumInitializer.SHOWCASE_CURRICULUM_ID
+                DemoAllTrainingCurriculumInitializer.DEMO_CURRICULUM_ID
         )).thenReturn(Optional.of(curriculum));
+        when(templateRepository.findCanonicalCatalog(1L, 34L)).thenReturn(templates);
         when(dataRepository.findByTrainingId(any())).thenAnswer(invocation ->
                 Optional.ofNullable(dataByTrainingId.get(invocation.getArgument(0)))
         );
         when(generationService.generate(any())).thenAnswer(invocation -> {
             ObjectNode generated = objectMapper.createObjectNode();
-            generated.putArray("questions")
-                    .addObject().put("questionNo", 1).put("type", "REFRESHED");
-            generated.withArray("questions")
-                    .addObject().put("questionNo", 2).put("type", "REFRESHED");
+            IntStream.rangeClosed(1, 5).forEach(questionNo -> generated.withArray("questions")
+                    .addObject().put("questionNo", questionNo).put("type", "REFRESHED"));
             return generated;
         });
 
@@ -181,7 +169,7 @@ class DemoAllTrainingCurriculumInitializerTest {
         assertThat(dataByTrainingId.values()).allSatisfy(refreshed -> {
             try {
                 assertThat(objectMapper.readTree(refreshed.getGeneratedData()).path("questions"))
-                        .hasSize(1);
+                        .hasSize(5);
                 assertThat(objectMapper.readTree(refreshed.getGeneratedData())
                         .path("questions").get(0).path("type").asText())
                         .isEqualTo("REFRESHED");
@@ -191,8 +179,23 @@ class DemoAllTrainingCurriculumInitializerTest {
         });
         verify(
                 generationService,
-                times(DemoAllTrainingCurriculumInitializer.EXPECTED_TEMPLATE_COUNT)
+                times(DemoAllTrainingCurriculumInitializer.DEMO_TEMPLATE_COUNT)
         ).generate(any());
         verify(dataRepository).flush();
+    }
+
+    private List<TrainingTemplateEntity> canonicalTemplates() {
+        return IntStream.rangeClosed(
+                        1,
+                        DemoAllTrainingCurriculumInitializer.DEMO_TEMPLATE_COUNT
+                )
+                .mapToObj(this::template)
+                .toList();
+    }
+
+    private TrainingTemplateEntity template(int id) {
+        TrainingTemplateEntity template = mock(TrainingTemplateEntity.class);
+        when(template.getId()).thenReturn((long) id);
+        return template;
     }
 }

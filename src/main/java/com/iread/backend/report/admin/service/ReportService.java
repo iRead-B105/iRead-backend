@@ -70,11 +70,17 @@ public class ReportService {
         List<TrainingEntity> trainings = trainingRepository
                 .findAllByDailyCurriculumStudentIdAndStatusAndFinishedAtBetweenOrderByFinishedAtAsc(
                         request.studentId(), TrainingStatus.COMPLETED, start, endExclusive);
+        long learningDayCount = trainings.stream()
+                .map(TrainingEntity::getFinishedAt)
+                .filter(Objects::nonNull)
+                .map(LocalDateTime::toLocalDate)
+                .distinct()
+                .count();
         List<StudentTestEntity> tests = testRepository
                 .findAllByTestCurriculumStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
                         request.studentId(), TestStatus.COMPLETED, start, endExclusive);
-        if (trainings.isEmpty() && tests.isEmpty()) {
-            throw ReportCreationException.dataNotFound();
+        if (learningDayCount < 2) {
+            throw ReportCreationException.insufficientLearningDays(learningDayCount);
         }
 
         ReportSnapshot snapshot = buildSnapshot(
@@ -86,7 +92,7 @@ public class ReportService {
                     request.startDate(),
                     request.endDate(),
                     writeJson(snapshot),
-                    request.teacherMemo()
+                    null
             ));
         } catch (DataIntegrityViolationException exception) {
             throw ReportCreationException.periodAlreadyExists(exception);

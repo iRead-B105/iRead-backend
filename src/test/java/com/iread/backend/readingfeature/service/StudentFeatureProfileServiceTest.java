@@ -8,6 +8,13 @@ import com.iread.backend.readingfeature.repository.ReadingFeatureRepository;
 import com.iread.backend.readingfeature.repository.StudentFeatureProfileRepository;
 import com.iread.backend.story.analysis.StoryLineContentService;
 import com.iread.backend.student.domain.StudentEntity;
+import com.iread.backend.test.repository.StudentTestRepository;
+import com.iread.backend.test.repository.TestCurriculumRepository;
+import com.iread.backend.test.repository.TestDataRepository;
+import com.iread.backend.test.domain.StudentTestEntity;
+import com.iread.backend.test.domain.TestCurriculumEntity;
+import com.iread.backend.test.domain.TestDataEntity;
+import com.iread.backend.test.domain.TestStatus;
 import com.iread.backend.training.analysis.KoreanG2pEngine;
 import com.iread.backend.training.analysis.KoreanTextAnalyzer;
 import com.iread.backend.training.domain.TrainingDataEntity;
@@ -28,6 +35,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -42,6 +50,9 @@ class StudentFeatureProfileServiceTest {
 
     @Mock TrainingRepository trainingRepository;
     @Mock TrainingDataRepository trainingDataRepository;
+    @Mock TestCurriculumRepository testCurriculumRepository;
+    @Mock StudentTestRepository studentTestRepository;
+    @Mock TestDataRepository testDataRepository;
     @Mock WordAttemptLogRepository wordAttemptLogRepository;
     @Mock ReadingFeatureRepository readingFeatureRepository;
     @Mock StudentFeatureProfileRepository profileRepository;
@@ -54,6 +65,9 @@ class StudentFeatureProfileServiceTest {
         service = new StudentFeatureProfileService(
                 trainingRepository,
                 trainingDataRepository,
+                testCurriculumRepository,
+                studentTestRepository,
+                testDataRepository,
                 wordAttemptLogRepository,
                 readingFeatureRepository,
                 profileRepository,
@@ -270,6 +284,124 @@ class StudentFeatureProfileServiceTest {
             assertThat(profile.featureCode()).isEqualTo("GRAPHEME.CONSONANT.ㄱ");
             assertThat(profile.accuracyRate()).isZero();
             assertThat(profile.weaknessScore()).isEqualTo(0.4);
+            assertThat(profile.evidenceCount()).isEqualTo(1);
+        });
+    }
+
+    @Test
+    void completedInitialTestUsesAnalysisTargetFallbackAndStoredScore() {
+        StudentEntity student = mock(StudentEntity.class);
+        when(student.getId()).thenReturn(15L);
+        TestCurriculumEntity curriculum = mock(TestCurriculumEntity.class);
+        when(curriculum.getId()).thenReturn(500L);
+        StudentTestEntity test = mock(StudentTestEntity.class);
+        when(test.getId()).thenReturn(501L);
+        when(test.getStatus()).thenReturn(TestStatus.COMPLETED);
+        when(test.getFinishedAt()).thenReturn(LocalDateTime.of(2026, 8, 1, 10, 0));
+        when(test.getResult()).thenReturn("""
+                {"submissions":[{
+                  "questionNo":1,"correct":false,"totalScore":200,
+                  "response":{"selectedIndex":1}
+                }],"gazeDepartureCount":0}
+                """);
+        TestDataEntity data = new TestDataEntity(601L, test, """
+                {"questions":[{
+                  "questionNo":1,
+                  "type":"CONSONANT_SOUND_CHOICE",
+                  "targetFeatureCodes":[],
+                  "analysisTargets":[{
+                    "featureCodes":["GRAPHEME.CONSONANT.ㄱ"]
+                  }]
+                }]}
+                """, LocalDateTime.of(2026, 8, 1, 9, 0));
+        ReadingFeatureEntity feature = new ReadingFeatureEntity(
+                10L, null, "GRAPHEME.CONSONANT.ㄱ", "기역",
+                ReadingFeatureCategory.GRAPHEME, ReadingFeatureScope.CHARACTER
+        );
+        when(testCurriculumRepository
+                .findFirstByStudentIdAndStatusOrderByCreatedAtAscIdAsc(15L, "COMPLETED"))
+                .thenReturn(Optional.of(curriculum));
+        when(studentTestRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(500L))
+                .thenReturn(List.of(test));
+        when(testDataRepository.findFirstByTestIdOrderByCreatedAtDescIdDesc(501L))
+                .thenReturn(Optional.of(data));
+        when(readingFeatureRepository.findAllByFeatureCodeIn(any()))
+                .thenReturn(List.of(feature));
+        when(profileRepository.findMaxId()).thenReturn(40L);
+        when(profileRepository.findByStudentIdAndReadingFeatureId(15L, 10L))
+                .thenReturn(Optional.empty());
+
+        var result = service.recalculate(student);
+
+        assertThat(result).singleElement().satisfies(profile -> {
+            assertThat(profile.featureCode()).isEqualTo("GRAPHEME.CONSONANT.ㄱ");
+            assertThat(profile.accuracyRate()).isEqualTo(0.2);
+            assertThat(profile.weaknessScore()).isEqualTo(0.32);
+            assertThat(profile.evidenceCount()).isEqualTo(1);
+        });
+    }
+
+    @Test
+    void completedAudioTestUsesWordFeatureFallbackAndFinalAttemptOnly() {
+        StudentEntity student = mock(StudentEntity.class);
+        when(student.getId()).thenReturn(15L);
+        TestCurriculumEntity curriculum = mock(TestCurriculumEntity.class);
+        when(curriculum.getId()).thenReturn(500L);
+        StudentTestEntity test = mock(StudentTestEntity.class);
+        when(test.getId()).thenReturn(501L);
+        when(test.getStatus()).thenReturn(TestStatus.COMPLETED);
+        when(test.getResult()).thenReturn("""
+                {"wordAttempts":[{
+                  "wordAttemptLogId":99,"questionNo":1,"isFinal":true,
+                  "pronunciationErrorType":"SUBSTITUTION","wordReadTimeMs":500
+                }]}
+                """);
+        TestDataEntity data = new TestDataEntity(601L, test, """
+                {"questions":[{
+                  "questionNo":1,
+                  "type":"WORD_READING",
+                  "targetFeatureCodes":[],
+                  "analysisTargets":[{"featureCodes":[]}],
+                  "words":[{"featureCodes":["WORD.SYLLABLE_COUNT.2"]}]
+                }]}
+                """, LocalDateTime.of(2026, 8, 1, 9, 0));
+        WordEntity word = mock(WordEntity.class);
+        WordAttemptLogEntity finalAttempt = WordAttemptLogEntity.forTest(
+                student, word, test, "나무", true, 500,
+                0, 500, false, false, 500,
+                1, 0, 0
+        );
+        ReflectionTestUtils.setField(finalAttempt, "id", 99L);
+        ReflectionTestUtils.setField(
+                finalAttempt,
+                "createdAt",
+                LocalDateTime.of(2026, 8, 1, 10, 0)
+        );
+        ReadingFeatureEntity feature = new ReadingFeatureEntity(
+                10L, null, "WORD.SYLLABLE_COUNT.2", "두 음절",
+                ReadingFeatureCategory.WORD, ReadingFeatureScope.WORD
+        );
+        when(testCurriculumRepository
+                .findFirstByStudentIdAndStatusOrderByCreatedAtAscIdAsc(15L, "COMPLETED"))
+                .thenReturn(Optional.of(curriculum));
+        when(studentTestRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(500L))
+                .thenReturn(List.of(test));
+        when(testDataRepository.findFirstByTestIdOrderByCreatedAtDescIdDesc(501L))
+                .thenReturn(Optional.of(data));
+        when(wordAttemptLogRepository.findAllByTestIdAndQuestionNoAndFinalAttemptTrue(501L, 1))
+                .thenReturn(List.of(finalAttempt));
+        when(readingFeatureRepository.findAllByFeatureCodeIn(any()))
+                .thenReturn(List.of(feature));
+        when(profileRepository.findMaxId()).thenReturn(40L);
+        when(profileRepository.findByStudentIdAndReadingFeatureId(15L, 10L))
+                .thenReturn(Optional.empty());
+
+        var result = service.recalculate(student);
+
+        assertThat(result).singleElement().satisfies(profile -> {
+            assertThat(profile.featureCode()).isEqualTo("WORD.SYLLABLE_COUNT.2");
+            assertThat(profile.avgPronunciationScore()).isEqualTo(50.0);
+            assertThat(profile.weaknessScore()).isEqualTo(0.57);
             assertThat(profile.evidenceCount()).isEqualTo(1);
         });
     }

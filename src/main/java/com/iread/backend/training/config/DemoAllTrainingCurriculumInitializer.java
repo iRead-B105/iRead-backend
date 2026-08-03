@@ -5,7 +5,6 @@ import com.iread.backend.training.domain.TrainingDataEntity;
 import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.domain.TrainingTemplateEntity;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
-import com.iread.backend.training.generation.TrainingCatalogPolicy;
 import com.iread.backend.training.repository.DailyCurriculumRepository;
 import com.iread.backend.training.repository.TrainingDataRepository;
 import com.iread.backend.training.repository.TrainingTemplateRepository;
@@ -17,7 +16,6 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
-import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.util.List;
@@ -26,13 +24,15 @@ import java.util.List;
 @Order(50)
 @RequiredArgsConstructor
 @ConditionalOnProperty(
-        name = "iread.all-training-showcase.enabled",
+        name = "iread.demo-personalized-curriculum.enabled",
         havingValue = "true"
 )
 public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
 
-    static final long SHOWCASE_CURRICULUM_ID = 190001L;
-    static final int EXPECTED_TEMPLATE_COUNT = 31;
+    static final long DEMO_CURRICULUM_ID = 190001L;
+    static final int DEMO_TEMPLATE_COUNT = 34;
+    private static final long FIRST_TEMPLATE_ID = 1L;
+    private static final long LAST_TEMPLATE_ID = 34L;
 
     private final DailyCurriculumRepository dailyCurriculumRepository;
     private final TrainingTemplateRepository trainingTemplateRepository;
@@ -44,122 +44,94 @@ public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
     @Transactional
     public void run(ApplicationArguments args) {
         DailyCurriculumEntity curriculum = dailyCurriculumRepository
-                .findForGeneration(SHOWCASE_CURRICULUM_ID)
+                .findForGeneration(DEMO_CURRICULUM_ID)
                 .orElse(null);
         if (curriculum == null) {
             return;
         }
-        if (isAlreadyInitialized(curriculum)) {
-            refreshAllQuestions(curriculum);
+        List<TrainingTemplateEntity> templates = loadCanonicalTemplates();
+        if (isAlreadyInitialized(curriculum, templates)) {
+            refreshQuestions(curriculum);
             return;
         }
 
-        List<TrainingTemplateEntity> templates = trainingTemplateRepository
-                .findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc()
-                .stream()
-                .filter(TrainingCatalogPolicy::isSelectable)
-                .toList();
-        if (templates.size() != EXPECTED_TEMPLATE_COUNT) {
-            throw new IllegalStateException(
-                    "전체 훈련 체험 커리큘럼에는 31개 활성 템플릿이 필요합니다."
-            );
+        for (TrainingEntity training : curriculum.getTrainings()) {
+            trainingDataRepository.deleteByTrainingId(training.getId());
         }
+        trainingDataRepository.flush();
 
-        if (curriculum.getTrainings().isEmpty()) {
-            curriculum.replaceTrainings(templates);
-        } else if (curriculum.getTrainings().stream()
-                .anyMatch(training -> !TrainingCatalogPolicy.isSelectable(
-                        training.getTrainingTemplate()
-                ))) {
-            consolidateRetiredTrainings(curriculum);
-        } else if (curriculum.getTrainings().size() != EXPECTED_TEMPLATE_COUNT) {
-            throw new IllegalStateException(
-                    "전체 훈련 체험 커리큘럼 구성이 활성 훈련 템플릿과 일치하지 않습니다."
-            );
-        }
+        curriculum.replaceTrainings(List.of());
+        dailyCurriculumRepository.flush();
+
+        curriculum.replaceTrainings(templates);
         dailyCurriculumRepository.flush();
 
         List<TrainingEntity> trainings = curriculum.getTrainings();
         for (TrainingEntity training : trainings) {
             ObjectNode generated = generationService.generate(training);
-            keepFirstQuestion(generated);
-            String generatedJson = writeJson(generated);
-            trainingDataRepository.findByTrainingId(training.getId())
-                    .ifPresentOrElse(
-                            data -> data.updateGeneratedData(generatedJson),
-                            () -> trainingDataRepository.save(
-                                    new TrainingDataEntity(training, generatedJson)
-                            )
-                    );
+            trainingDataRepository.save(
+                    new TrainingDataEntity(training, writeJson(generated))
+            );
         }
         trainings.getFirst().markReady();
         trainingDataRepository.flush();
     }
 
-    private void consolidateRetiredTrainings(DailyCurriculumEntity curriculum) {
-        List<TrainingEntity> retired = curriculum.getTrainings().stream()
-                .filter(training -> !TrainingCatalogPolicy.isSelectable(training.getTrainingTemplate()))
-                .toList();
-        if (retired.isEmpty()
-                || curriculum.getTrainings().size() - retired.size() != EXPECTED_TEMPLATE_COUNT) {
-            throw new IllegalStateException(
-                    "전체 훈련 체험 커리큘럼 구성이 예상한 31개 활성 템플릿과 다릅니다."
-            );
-        }
-
-        for (TrainingEntity training : curriculum.getTrainings()) {
-            if (!retired.contains(training)) {
-                training.moveToSequence(training.getSequenceNo() + 100000);
-            }
-        }
-        for (TrainingEntity training : retired) {
-            trainingDataRepository.deleteByTrainingId(training.getId());
-        }
-        trainingDataRepository.flush();
-
-        curriculum.removeTrainings(retired);
-        dailyCurriculumRepository.flush();
-        curriculum.resequenceTrainings();
-    }
-
-    private void refreshAllQuestions(DailyCurriculumEntity curriculum) {
+    private void refreshQuestions(DailyCurriculumEntity curriculum) {
         for (TrainingEntity training : curriculum.getTrainings()) {
             TrainingDataEntity data = trainingDataRepository.findByTrainingId(training.getId())
                     .orElseThrow(() -> new IllegalStateException(
-                            "전체 훈련 체험 문항 데이터가 없습니다: " + training.getId()
+                            "데모 맞춤 커리큘럼 문항 데이터가 없습니다: " + training.getId()
                     ));
             ObjectNode generated = generationService.generate(training);
-            keepFirstQuestion(generated);
             data.updateGeneratedData(writeJson(generated));
         }
         trainingDataRepository.flush();
     }
 
-    private boolean isAlreadyInitialized(DailyCurriculumEntity curriculum) {
-        if (curriculum.getTrainings().size() != EXPECTED_TEMPLATE_COUNT) {
-            return false;
+    private List<TrainingTemplateEntity> loadCanonicalTemplates() {
+        List<TrainingTemplateEntity> templates = trainingTemplateRepository.findCanonicalCatalog(
+                FIRST_TEMPLATE_ID,
+                LAST_TEMPLATE_ID
+        );
+        if (templates.size() != DEMO_TEMPLATE_COUNT) {
+            throw new IllegalStateException(
+                    "전 유형 확인용 데모에는 기준 템플릿 34개가 필요합니다."
+            );
         }
-        return curriculum.getTrainings().stream()
-                .allMatch(training -> trainingDataRepository
-                        .findByTrainingId(training.getId())
-                        .isPresent());
+        for (int index = 0; index < templates.size(); index++) {
+            if (!Long.valueOf(index + 1L).equals(templates.get(index).getId())) {
+                throw new IllegalStateException(
+                        "전 유형 확인용 데모의 템플릿 ID는 1부터 34까지여야 합니다."
+                );
+            }
+        }
+        return templates;
     }
 
-    private void keepFirstQuestion(ObjectNode generated) {
-        ArrayNode questions = generated.withArray("questions");
-        if (questions.isEmpty()) {
-            throw new IllegalStateException("생성된 훈련 문항이 없습니다.");
+    private boolean isAlreadyInitialized(
+            DailyCurriculumEntity curriculum,
+            List<TrainingTemplateEntity> templates
+    ) {
+        if (curriculum.getTrainings().size() != DEMO_TEMPLATE_COUNT) {
+            return false;
         }
-        while (questions.size() > 1) {
-            questions.remove(questions.size() - 1);
+        for (int index = 0; index < templates.size(); index++) {
+            TrainingEntity training = curriculum.getTrainings().get(index);
+            if (!templates.get(index).getId().equals(training.getTrainingTemplate().getId())
+                    || trainingDataRepository.findByTrainingId(training.getId()).isEmpty()) {
+                return false;
+            }
         }
+        return true;
     }
+
 
     private String writeJson(ObjectNode value) {
         try {
             return objectMapper.writeValueAsString(value);
         } catch (Exception exception) {
-            throw new IllegalStateException("전체 훈련 체험 문항을 저장하지 못했습니다.", exception);
+            throw new IllegalStateException("데모 맞춤 커리큘럼 문항을 저장하지 못했습니다.", exception);
         }
     }
 }

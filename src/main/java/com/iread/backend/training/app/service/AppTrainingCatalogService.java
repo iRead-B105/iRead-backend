@@ -29,6 +29,7 @@ public class AppTrainingCatalogService {
         DailyCurriculumEntity curriculum = ActiveCurriculumPolicy
                 .find(dailyCurriculumRepository, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException(
+                        "ACTIVE_CURRICULUM_NOT_FOUND",
                         "현재 진행 가능한 커리큘럼을 찾을 수 없습니다."
                 ));
         return new CurrentTrainingListResponse(

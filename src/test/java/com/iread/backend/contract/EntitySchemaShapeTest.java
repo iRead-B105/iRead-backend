@@ -101,6 +101,16 @@ class EntitySchemaShapeTest {
         gazeAnalysisColumns.put("sentence_metrics", true);
         gazeAnalysisColumns.put("regressions", true);
         gazeAnalysisColumns.put("analysis_meta", true);
+        Map<String, Boolean> testCurriculumColumns = tables.get("test_curriculums");
+        testCurriculumColumns.put("recommendation_status", false);
+        testCurriculumColumns.put("recommendation_error", true);
+        testCurriculumColumns.put("recommendation_last_attempt_at", true);
+        testCurriculumColumns.put("recommendation_retry_count", false);
+        Map<String, Boolean> dailyCurriculumColumns = tables.get("daily_curriculums");
+        dailyCurriculumColumns.put("source_test_curriculum_id", true);
+        dailyCurriculumColumns.put("review_status", false);
+        dailyCurriculumColumns.put("reviewed_at", true);
+        dailyCurriculumColumns.put("reviewed_by_teacher_id", true);
         return tables;
     }
 }

@@ -4,6 +4,8 @@ import com.iread.backend.auth.exception.AuthException;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.global.api.ApiErrorResponse;
 import com.iread.backend.report.admin.exception.ReportCreationException;
+import com.iread.backend.training.admin.exception.LessonMaterialException;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -35,6 +37,19 @@ public class GlobalExceptionHandler {
                         exception.code(),
                         exception.getMessage(),
                         exception.details()
+                )
+        );
+    }
+
+    @ExceptionHandler(LessonMaterialException.class)
+    public ResponseEntity<ApiErrorResponse> handleLessonMaterial(
+            LessonMaterialException exception
+    ) {
+        return ResponseEntity.status(exception.getStatus()).body(
+                ApiErrorResponse.of(
+                        exception.getCode(),
+                        exception.getMessage(),
+                        exception.getDetails()
                 )
         );
     }
@@ -140,7 +155,13 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiErrorResponse> handleUnexpected(Exception exception) {
+    public ResponseEntity<ApiErrorResponse> handleUnexpected(
+            Exception exception,
+            HttpServletResponse response
+    ) {
+        if (response.isCommitted()) {
+            return ResponseEntity.noContent().build();
+        }
         log.error("Unexpected server error", exception);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                 ApiErrorResponse.of("INTERNAL_ERROR", "서버 처리 중 오류가 발생했습니다.")

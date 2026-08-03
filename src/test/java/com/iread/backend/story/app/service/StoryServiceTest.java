@@ -3,12 +3,16 @@ package com.iread.backend.story.app.service;
 import com.iread.backend.ai.client.AiClient;
 import com.iread.backend.ai.dto.req.ContinueStoryRequest;
 import com.iread.backend.ai.dto.req.GenerateImageRequest;
+import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.ai.dto.res.GenerateImageResponse;
 import com.iread.backend.ai.dto.res.GenerateStoryResponse;
+import com.iread.backend.ai.dto.res.GeneratedStoryBranchOption;
+import com.iread.backend.ai.dto.res.GeneratedStoryBranchPrompt;
 import com.iread.backend.ai.dto.res.GeneratedStoryLine;
 import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
 import com.iread.backend.exception.ConflictException;
 import com.iread.backend.mypage.domain.CharacterEntity;
+import com.iread.backend.story.app.dto.res.StoryLineResponse;
 import com.iread.backend.mypage.repository.CharacterRepository;
 import com.iread.backend.pronunciation.PronunciationAnalysisAdapter;
 import com.iread.backend.pronunciation.PronunciationAnalysisResult;
@@ -17,6 +21,7 @@ import com.iread.backend.pronunciation.PronunciationWordResult;
 import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
 import com.iread.backend.realtime.RealtimeEventPublisher;
 import com.iread.backend.story.analysis.StoryLineContentService;
+import com.iread.backend.story.app.dto.req.StoryBranchSelectionRequest;
 import com.iread.backend.story.domain.*;
 import com.iread.backend.story.repository.*;
 import com.iread.backend.student.domain.StudentEntity;
@@ -40,6 +45,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import tools.jackson.databind.json.JsonMapper;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.mock.web.MockMultipartFile;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -75,6 +81,7 @@ class StoryServiceTest {
             new KoreanTextAnalyzer(new KoreanG2pEngine()),
             JsonMapper.builder().build()
     );
+    @Spy ObjectMapper objectMapper = JsonMapper.builder().build();
     @InjectMocks StoryService storyService;
 
     private StudentEntity student;
@@ -129,7 +136,7 @@ class StoryServiceTest {
                         new GeneratedStoryLine("숲에 도착했어요.", false),
                         new GeneratedStoryLine("반짝이는 길을 걸었어요.", false),
                         new GeneratedStoryLine("작은 친구를 만났어요.", false),
-                        new GeneratedStoryLine("어디로 갈까요?", true)
+                        new GeneratedStoryLine("어디로 갈까요?", true, branchPrompt())
                 )
         ));
         mockSceneSave(200L);
@@ -152,6 +159,7 @@ class StoryServiceTest {
                 );
         assertThat(lines.get(3).getPreviousStoryLine()).isSameAs(lines.get(2));
         assertThat(lines.getLast().isRequiresBranchInput()).isTrue();
+        assertThat(lines.getLast().getBranchPrompt()).contains("\"optionNo\":1");
     }
 
     @Test
@@ -197,7 +205,7 @@ class StoryServiceTest {
                         new GeneratedStoryLine("둘째 날 아침이에요.", false),
                         new GeneratedStoryLine("친구들이 다시 길을 나섰어요.", false),
                         new GeneratedStoryLine("새로운 단서를 찾았어요.", false),
-                        new GeneratedStoryLine("어떻게 하면 좋을까요?", true)
+                        new GeneratedStoryLine("어떻게 하면 좋을까요?", true, branchPrompt())
                 )
         ));
         mockSceneSave(201L);
@@ -259,7 +267,7 @@ class StoryServiceTest {
                         new GeneratedStoryLine("친구가 앞장섰어요.", false),
                         new GeneratedStoryLine("빛나는 단서를 찾았어요.", false),
                         new GeneratedStoryLine("잃어버린 보물을 발견했어요.", false),
-                        new GeneratedStoryLine("다음에는 어떻게 할까요?", true)
+                        new GeneratedStoryLine("다음에는 어떻게 할까요?", true, branchPrompt())
                 )
         ));
         when(aiClient.transcribeSpeech(anyString(), eq(20L), isNull(), any()))
@@ -297,7 +305,73 @@ class StoryServiceTest {
         verify(aiClient).continueStory(requestCaptor.capture());
         assertThat(requestCaptor.getValue().branchIntent()).isEqualTo("토끼가 이긴다");
         assertThat(requestCaptor.getValue().currentStoryLineId()).isEqualTo(1003L);
-        verify(aiClient, never()).generateImage(any());
+        // 병합된 StoryService는 장면 삽화를 함께 만든다. 완료되지 않았으므로 이야기 친구는 만들지 않는다.
+        verify(aiClient).generateImage(any());
+        verify(characterRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void AI_선택지_번호를_검증해_문구를_저장하고_다음_대사를_생성한다() {
+        StoryEntity story = story(100L);
+        StoryLineEntity firstLine = line(1000L, story, null, false, "숲에 도착했어요.", 1,
+                LocalDateTime.of(2026, 7, 22, 10, 5));
+        StoryLineEntity secondLine = line(1001L, story, firstLine, false, "길을 걸었어요.", 2,
+                LocalDateTime.of(2026, 7, 22, 10, 6));
+        StoryLineEntity thirdLine = line(1002L, story, secondLine, false, "친구를 만났어요.", 3,
+                LocalDateTime.of(2026, 7, 22, 10, 7));
+        StoryLineEntity choiceLine = line(1003L, story, thirdLine, true, "어떻게 할까요?", 4,
+                LocalDateTime.of(2026, 7, 22, 10, 10));
+        ownedStory(story);
+        when(storyLineRepository.findByIdAndStoryIdForUpdate(1003L, 100L)).thenReturn(Optional.of(choiceLine));
+        when(storyChoiceRepository.findByStoryLineId(1003L)).thenReturn(Optional.empty());
+        when(storyLineRepository.findFirstByStoryIdOrderBySequenceNoDesc(100L))
+                .thenReturn(Optional.of(choiceLine));
+        when(storyLineRepository.findAllByStoryIdOrderBySequenceNoAsc(100L))
+                .thenReturn(List.of(firstLine, secondLine, thirdLine, choiceLine));
+        when(aiClient.continueStory(any())).thenReturn(new GenerateStoryResponse(
+                "ignored-by-service-mock",
+                1,
+                9,
+                false,
+                List.of(
+                        new GeneratedStoryLine("토끼가 이긴다는 선택대로 달렸어요.", false),
+                        new GeneratedStoryLine("친구가 앞장섰어요.", false),
+                        new GeneratedStoryLine("빛나는 단서를 찾았어요.", false),
+                        new GeneratedStoryLine("잃어버린 보물을 발견했어요.", false),
+                        new GeneratedStoryLine("다음에는 어떻게 할까요?", true, branchPrompt())
+                )
+        ));
+        mockSceneSave(201L);
+        mockLineSave(1004L);
+        when(storyChoiceRepository.saveAndFlush(any())).thenAnswer(invocation -> {
+            StoryChoiceEntity saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 300L);
+            return saved;
+        });
+
+        var response = storyService.chooseStoryDirection(
+                1L, 20L, 100L, 1003L, new StoryBranchSelectionRequest(2)
+        );
+
+        assertThat(response.choiceId()).isEqualTo(300L);
+        assertThat(response.transcript()).isEqualTo("작은 친구가 가리킨 숲길로 간다");
+        assertThat(response.nextSceneId()).isEqualTo(201L);
+        assertThat(response.nextLineId()).isEqualTo(1004L);
+        assertThat(response.generatedContent()).contains(
+                "토끼가 이긴다는 선택대로 달렸어요.",
+                "다음에는 어떻게 할까요?"
+        );
+        assertThat(response.status()).isEqualTo("in_progress");
+        assertThat(response.replayed()).isFalse();
+
+        ArgumentCaptor<ContinueStoryRequest> requestCaptor = ArgumentCaptor.forClass(ContinueStoryRequest.class);
+        verify(aiClient).continueStory(requestCaptor.capture());
+        assertThat(requestCaptor.getValue().branchIntent())
+                .isEqualTo("작은 친구가 가리킨 숲길로 간다");
+        assertThat(requestCaptor.getValue().currentStoryLineId()).isEqualTo(1003L);
+        verifyNoInteractions(storyAudioStorage);
+        // 병합된 StoryService는 장면 삽화를 함께 만든다. 완료되지 않았으므로 이야기 친구는 만들지 않는다.
+        verify(aiClient).generateImage(any());
         verify(characterRepository, never()).saveAndFlush(any());
     }
 
@@ -317,7 +391,7 @@ class StoryServiceTest {
                         new GeneratedStoryLine("토끼가 깡충 뛰었어요.", false),
                         new GeneratedStoryLine("토끼는 숲길을 걸었어요.", false),
                         new GeneratedStoryLine("친구를 만났어요.", false),
-                        new GeneratedStoryLine("어디로 갈까요?", true)
+                        new GeneratedStoryLine("어디로 갈까요?", true, branchPrompt())
                 )
         ));
         mockSceneSave(200L);
@@ -527,6 +601,72 @@ class StoryServiceTest {
         verifyNoInteractions(aiClient, storyAudioStorage);
     }
 
+    @Test
+    void 완료한_이야기를_대사와_고른_답과_이야기_친구로_다시_읽는다() {
+        StoryEntity story = story(100L);
+        ReflectionTestUtils.setField(story, "status", StoryStatus.COMPLETED);
+        StoryLineEntity firstLine = line(1000L, story, null, false, "숲에 도착했어요.", 1,
+                LocalDateTime.of(2026, 7, 22, 10, 5));
+        StoryLineEntity choiceLine = line(1001L, story, firstLine, true, "어떻게 할까요?", 2,
+                LocalDateTime.of(2026, 7, 22, 10, 10));
+        ownedStory(story);
+        when(storyLineRepository.findAllByStoryIdOrderBySequenceNoAsc(100L))
+                .thenReturn(List.of(firstLine, choiceLine));
+        StoryChoiceEntity choice = new StoryChoiceEntity(choiceLine, "작은 친구가 가리킨 숲길로 간다");
+        ReflectionTestUtils.setField(choice, "createdAt", LocalDateTime.of(2026, 7, 22, 10, 11));
+        when(storyChoiceRepository.findAllByStoryLineIdIn(List.of(1001L)))
+                .thenReturn(List.of(choice));
+        CharacterEntity friend = new CharacterEntity(
+                student, story, "data:image/svg+xml;base64,bW9jaw==", "별빛 숲 주인공"
+        );
+        ReflectionTestUtils.setField(friend, "id", 400L);
+        when(characterRepository.findFirstByStoryIdOrderByCreatedAtDesc(100L))
+                .thenReturn(Optional.of(friend));
+
+        var response = storyService.reviewStory(1L, 20L, 100L);
+
+        assertThat(response.status()).isEqualTo(StoryStatus.COMPLETED);
+        assertThat(response.title()).isEqualTo(template.getTitle());
+        assertThat(response.storyLines()).extracting(StoryLineResponse::lineId)
+                .containsExactly(1000L, 1001L);
+        assertThat(response.branchChoices()).singleElement().satisfies(branch -> {
+            assertThat(branch.lineId()).isEqualTo(1001L);
+            assertThat(branch.selectedText()).isEqualTo("작은 친구가 가리킨 숲길로 간다");
+        });
+        assertThat(response.storyFriend().characterId()).isEqualTo(400L);
+        assertThat(response.storyFriend().name()).isEqualTo("별빛 숲 주인공");
+        // 다시 읽기는 조회일 뿐이므로 실시간 이벤트를 일으키지 않는다.
+        verifyNoInteractions(realtimeEventPublisher);
+    }
+
+    @Test
+    void 진행_중인_이야기는_다시_읽기를_거부한다() {
+        StoryEntity story = story(100L);
+        ownedStory(story);
+
+        assertThatThrownBy(() -> storyService.reviewStory(1L, 20L, 100L))
+                .isInstanceOf(ConflictException.class)
+                .hasMessage("완료된 스토리만 다시 볼 수 있습니다.");
+    }
+
+    @Test
+    void 이야기_친구가_없어도_다시_읽기는_가능하다() {
+        StoryEntity story = story(100L);
+        ReflectionTestUtils.setField(story, "status", StoryStatus.COMPLETED);
+        StoryLineEntity firstLine = line(1000L, story, null, false, "숲에 도착했어요.", 1,
+                LocalDateTime.of(2026, 7, 22, 10, 5));
+        ownedStory(story);
+        when(storyLineRepository.findAllByStoryIdOrderBySequenceNoAsc(100L))
+                .thenReturn(List.of(firstLine));
+        when(characterRepository.findFirstByStoryIdOrderByCreatedAtDesc(100L))
+                .thenReturn(Optional.empty());
+
+        var response = storyService.reviewStory(1L, 20L, 100L);
+
+        assertThat(response.storyFriend()).isNull();
+        assertThat(response.branchChoices()).isEmpty();
+    }
+
     private void ownedStory(StoryEntity story) {
         when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(storyRepository.findByIdAndStudentId(100L, 20L)).thenReturn(Optional.of(story));
@@ -544,12 +684,29 @@ class StoryServiceTest {
         StorySceneEntity scene = new StorySceneEntity(story, null, 1);
         ReflectionTestUtils.setField(scene, "id", 200L);
         StoryLineEntity line = new StoryLineEntity(
-                previous, scene, requiresBranchInput, content, sequenceNo
+                previous,
+                scene,
+                requiresBranchInput,
+                content,
+                requiresBranchInput ? writeBranchPrompt() : null,
+                sequenceNo
         );
         ReflectionTestUtils.setField(line, "id", id);
         ReflectionTestUtils.setField(line, "createdAt", LocalDateTime.of(2026, 7, 22, 10, sequenceNo));
         ReflectionTestUtils.setField(line, "readAt", readAt);
         return line;
+    }
+
+    private GeneratedStoryBranchPrompt branchPrompt() {
+        return new GeneratedStoryBranchPrompt(List.of(
+                new GeneratedStoryBranchOption(1, "반짝이는 별빛 길로 간다"),
+                new GeneratedStoryBranchOption(2, "작은 친구가 가리킨 숲길로 간다"),
+                new GeneratedStoryBranchOption(3, "맑은 시냇물 길을 따라간다")
+        ));
+    }
+
+    private String writeBranchPrompt() {
+        return objectMapper.writeValueAsString(branchPrompt());
     }
 
     private void mockLineSave(long firstId) {
@@ -562,6 +719,78 @@ class StoryServiceTest {
             });
             return lines;
         });
+    }
+
+    @Test
+    void 장면을_만들_때_대사로_삽화를_함께_생성한다() {
+        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        when(storyTemplateRepository.findById(30L)).thenReturn(Optional.of(template));
+        when(storyRepository.saveAndFlush(any(StoryEntity.class))).thenAnswer(invocation -> {
+            StoryEntity saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 100L);
+            return saved;
+        });
+        when(aiClient.generateStory(any())).thenReturn(new GenerateStoryResponse(
+                "ignored", 1, 50, false,
+                List.of(
+                        new GeneratedStoryLine("토끼가 깡충 뛰었어요.", false),
+                        new GeneratedStoryLine("어디로 갈까요?", true, branchPrompt())
+                )
+        ));
+        when(aiClient.generateImage(any())).thenAnswer(invocation -> new GenerateImageResponse(
+                ((GenerateImageRequest) invocation.getArgument(0)).requestId(),
+                "https://images.example.invalid/scene.png",
+                "MOCK_IMAGE_V1"
+        ));
+        mockSceneSave(200L);
+        mockLineSave(1000L);
+
+        storyService.startStory(1L, 20L, 30L);
+
+        ArgumentCaptor<StorySceneEntity> sceneCaptor =
+                ArgumentCaptor.forClass(StorySceneEntity.class);
+        verify(storySceneRepository).saveAndFlush(sceneCaptor.capture());
+        assertThat(sceneCaptor.getValue().getImageUrl())
+                .isEqualTo("https://images.example.invalid/scene.png");
+
+        ArgumentCaptor<GenerateImageRequest> imageCaptor =
+                ArgumentCaptor.forClass(GenerateImageRequest.class);
+        verify(aiClient).generateImage(imageCaptor.capture());
+        assertThat(imageCaptor.getValue().prompt())
+                .startsWith("[STORY_SCENE]")
+                .contains(template.getTitle())
+                .contains("토끼가 깡충 뛰었어요.");
+    }
+
+    @Test
+    void 삽화_생성이_실패해도_이야기는_진행한다() {
+        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        when(storyTemplateRepository.findById(30L)).thenReturn(Optional.of(template));
+        when(storyRepository.saveAndFlush(any(StoryEntity.class))).thenAnswer(invocation -> {
+            StoryEntity saved = invocation.getArgument(0);
+            ReflectionTestUtils.setField(saved, "id", 100L);
+            return saved;
+        });
+        when(aiClient.generateStory(any())).thenReturn(new GenerateStoryResponse(
+                "ignored", 1, 50, false,
+                List.of(
+                        new GeneratedStoryLine("토끼가 깡충 뛰었어요.", false),
+                        new GeneratedStoryLine("어디로 갈까요?", true, branchPrompt())
+                )
+        ));
+        when(aiClient.generateImage(any()))
+                .thenThrow(new AiClientException("이미지 서버가 응답하지 않습니다."));
+        mockSceneSave(200L);
+        mockLineSave(1000L);
+
+        // 삽화 한 장 때문에 읽기 학습이 막히면 안 된다.
+        storyService.startStory(1L, 20L, 30L);
+
+        ArgumentCaptor<StorySceneEntity> sceneCaptor =
+                ArgumentCaptor.forClass(StorySceneEntity.class);
+        verify(storySceneRepository).saveAndFlush(sceneCaptor.capture());
+        assertThat(sceneCaptor.getValue().getImageUrl()).isNull();
+        verify(storyLineRepository).saveAllAndFlush(any());
     }
 
     private void mockSceneSave(long id) {

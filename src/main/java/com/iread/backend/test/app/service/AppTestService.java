@@ -25,6 +25,7 @@ import com.iread.backend.test.domain.TestStatus;
 import com.iread.backend.test.repository.StudentTestRepository;
 import com.iread.backend.test.repository.TestCurriculumRepository;
 import com.iread.backend.test.repository.TestDataRepository;
+import com.iread.backend.test.recommendation.TestRecommendationAfterCommitPublisher;
 import com.iread.backend.training.domain.TrainingTemplateEntity;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
 import com.iread.backend.training.generation.TrainingCatalogPolicy;
@@ -48,6 +49,7 @@ import tools.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
@@ -82,6 +84,7 @@ public class AppTestService {
     private final AppLearningQuestionSupport learningQuestionSupport;
     private final RealtimeEventPublisher realtimeEventPublisher;
     private final StudentFeatureProfileService studentFeatureProfileService;
+    private final TestRecommendationAfterCommitPublisher recommendationPublisher;
 
     @Autowired
     public AppTestService(
@@ -100,7 +103,8 @@ public class AppTestService {
             ObjectMapper objectMapper,
             AppLearningQuestionSupport learningQuestionSupport,
             RealtimeEventPublisher realtimeEventPublisher,
-            StudentFeatureProfileService studentFeatureProfileService
+            StudentFeatureProfileService studentFeatureProfileService,
+            TestRecommendationAfterCommitPublisher recommendationPublisher
     ) {
         this.studentRepository = studentRepository;
         this.testRepository = testRepository;
@@ -118,6 +122,7 @@ public class AppTestService {
         this.learningQuestionSupport = learningQuestionSupport;
         this.realtimeEventPublisher = realtimeEventPublisher;
         this.studentFeatureProfileService = studentFeatureProfileService;
+        this.recommendationPublisher = recommendationPublisher;
     }
 
     AppTestService(
@@ -135,12 +140,45 @@ public class AppTestService {
             RealtimeEventPublisher realtimeEventPublisher
     ) {
         this(
+                studentRepository,
+                testRepository,
+                testDataRepository,
+                wordRepository,
+                wordAttemptLogRepository,
+                pronunciationAnalysisAdapter,
+                pronunciationWordAligner,
+                audioUploadPolicy,
+                wordAttemptScoreCalculator,
+                objectMapper,
+                learningQuestionSupport,
+                realtimeEventPublisher,
+                null
+        );
+    }
+
+    AppTestService(
+            StudentRepository studentRepository,
+            StudentTestRepository testRepository,
+            TestDataRepository testDataRepository,
+            WordRepository wordRepository,
+            WordAttemptLogRepository wordAttemptLogRepository,
+            PronunciationAnalysisAdapter pronunciationAnalysisAdapter,
+            PronunciationWordAligner pronunciationWordAligner,
+            AudioUploadPolicy audioUploadPolicy,
+            WordAttemptScoreCalculator wordAttemptScoreCalculator,
+            ObjectMapper objectMapper,
+            AppLearningQuestionSupport learningQuestionSupport,
+            RealtimeEventPublisher realtimeEventPublisher,
+            TestRecommendationAfterCommitPublisher recommendationPublisher
+    ) {
+        this(
                 studentRepository, testRepository, null, testDataRepository,
                 null, null, wordRepository, wordAttemptLogRepository,
                 pronunciationAnalysisAdapter, pronunciationWordAligner,
                 audioUploadPolicy, wordAttemptScoreCalculator, objectMapper,
                 learningQuestionSupport, realtimeEventPublisher,
-                null
+                null,
+                recommendationPublisher
         );
     }
 
@@ -254,6 +292,7 @@ public class AppTestService {
         return new TestStartResponse(test.getId(), startedAt, test.getStatus());
     }
 
+    @Transactional
     public TestStartResponse start(Long teacherId, Long studentId) {
         findOwnedStudent(teacherId, studentId);
         StudentTestEntity current = findCurrentTest(
@@ -268,8 +307,12 @@ public class AppTestService {
                     test.getStatus()
             );
         }
+        validateStartOrder(test);
         LocalDateTime startedAt = LocalDateTime.now();
         test.start(startedAt);
+        if (test.getTestCurriculum() != null) {
+            test.getTestCurriculum().start();
+        }
         realtimeEventPublisher.publishAfterCommit(
                 teacherId,
                 studentId,
@@ -541,7 +584,15 @@ public class AppTestService {
         BigDecimal accuracy = BigDecimal.valueOf(scoreSum)
                 .divide(BigDecimal.valueOf(completedQuestions * 10L), 2, RoundingMode.HALF_UP);
         LocalDateTime completedAt = LocalDateTime.now();
+        if (test.getStartedAt() != null) {
+            long solvingTimeSeconds = Math.max(
+                    0,
+                    Duration.between(test.getStartedAt(), completedAt).getSeconds()
+            );
+            result.put("solvingTimeSeconds", solvingTimeSeconds);
+        }
         test.complete(writeJson(result), accuracy, completedAt);
+        Long completedCurriculumId = null;
         if (test.getTestCurriculum() != null) {
             List<StudentTestEntity> curriculumTests =
                     testRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(
@@ -550,11 +601,17 @@ public class AppTestService {
             if (curriculumTests.stream().allMatch(
                     item -> item.getStatus() == TestStatus.COMPLETED
             )) {
-                test.getTestCurriculum().complete(completedAt);
+                boolean completedNow = test.getTestCurriculum().complete(completedAt);
+                if (completedNow) {
+                    completedCurriculumId = test.getTestCurriculum().getId();
+                }
             }
         }
         StudentEntity student = findOwnedStudent(teacherId, studentId);
         studentFeatureProfileService.recalculate(student);
+        if (completedCurriculumId != null && recommendationPublisher != null) {
+            recommendationPublisher.processAfterCommit(completedCurriculumId);
+        }
         realtimeEventPublisher.publishAfterCommit(
                 teacherId,
                 studentId,
@@ -732,13 +789,35 @@ public class AppTestService {
         int completed = (int) tests.stream()
                 .filter(test -> test.getStatus() == TestStatus.COMPLETED)
                 .count();
+        StudentTestEntity next = tests.stream()
+                .filter(test -> test.getStatus() == TestStatus.IN_PROGRESS)
+                .findFirst()
+                .orElseGet(() -> tests.stream()
+                        .filter(test -> test.getStatus() == TestStatus.NOT_STARTED)
+                        .findFirst()
+                        .orElse(null));
         return new SkillChallengePlanResponse(
                 curriculum.getId(),
                 completed,
                 TOTAL_QUESTION_COUNT,
                 completed == TOTAL_QUESTION_COUNT,
+                next == null ? null : next.getId(),
+                next == null ? null : trackCode(next.getSequenceNo()),
                 tracks
         );
+    }
+
+    private String trackCode(int sequenceNo) {
+        if (sequenceNo <= TRACK_QUESTION_COUNT) {
+            return "phonological";
+        }
+        if (sequenceNo <= TRACK_QUESTION_COUNT * 2) {
+            return "short-text";
+        }
+        if (sequenceNo <= TOTAL_QUESTION_COUNT) {
+            return "fluency";
+        }
+        throw new IllegalStateException("실력도전 검사 순서가 올바르지 않습니다: " + sequenceNo);
     }
 
     private SkillChallengePlanResponse.Track toTrack(
@@ -784,14 +863,11 @@ public class AppTestService {
                 testRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(
                         test.getTestCurriculum().getId()
                 );
-        int trackStart = ((test.getSequenceNo() - 1) / TRACK_QUESTION_COUNT)
-                * TRACK_QUESTION_COUNT + 1;
         boolean previousIncomplete = tests.stream()
-                .anyMatch(item -> item.getSequenceNo() >= trackStart
-                        && item.getSequenceNo() < test.getSequenceNo()
+                .anyMatch(item -> item.getSequenceNo() < test.getSequenceNo()
                         && item.getStatus() != TestStatus.COMPLETED);
         if (previousIncomplete) {
-            throw new ConflictException("같은 분류의 앞 문항을 먼저 완료해야 합니다.");
+            throw new ConflictException("앞 순번의 실력도전 문항을 먼저 완료해야 합니다.");
         }
         boolean anotherInProgress = tests.stream()
                 .anyMatch(item -> !item.getId().equals(test.getId())
@@ -845,12 +921,27 @@ public class AppTestService {
     }
 
     private StudentTestEntity findCurrentTest(Long studentId, Set<TestStatus> statuses) {
-        return testRepository
-                .findFirstByTestCurriculumStudentIdAndStatusInOrderByTestCurriculumCreatedAtDescSequenceNoAscIdAsc(
-                        studentId,
-                        statuses
-                )
-                .orElseThrow(() -> new ResourceNotFoundException("진행할 검사를 찾을 수 없습니다."));
+        if (statuses.contains(TestStatus.IN_PROGRESS)) {
+            var inProgress = testRepository
+                    .findFirstByTestCurriculumStudentIdAndStatusInOrderByTestCurriculumCreatedAtDescSequenceNoAscIdAsc(
+                            studentId,
+                            Set.of(TestStatus.IN_PROGRESS)
+                    );
+            if (inProgress.isPresent()) {
+                return inProgress.get();
+            }
+        }
+        if (statuses.contains(TestStatus.NOT_STARTED)) {
+            var notStarted = testRepository
+                    .findFirstByTestCurriculumStudentIdAndStatusInOrderByTestCurriculumCreatedAtDescSequenceNoAscIdAsc(
+                            studentId,
+                            Set.of(TestStatus.NOT_STARTED)
+                    );
+            if (notStarted.isPresent()) {
+                return notStarted.get();
+            }
+        }
+        throw new ResourceNotFoundException("진행할 검사를 찾을 수 없습니다.");
     }
 
     private StudentTestEntity findInProgressTestForUpdate(Long studentId, Long testId) {

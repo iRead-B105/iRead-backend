@@ -266,8 +266,18 @@ class HttpAiClientTest {
                           "nextProgress": 50,
                           "completed": false,
                           "lines": [
-                            {"content": "숲에 도착했어요.", "requiresBranchInput": false},
-                            {"content": "어디로 갈까요?", "requiresBranchInput": true}
+                            {"content": "숲에 도착했어요.", "requiresBranchInput": false, "branchPrompt": null},
+                            {
+                              "content": "어디로 갈까요?",
+                              "requiresBranchInput": true,
+                              "branchPrompt": {
+                                "options": [
+                                  {"optionNo": 1, "label": "별빛 길로 간다"},
+                                  {"optionNo": 2, "label": "숲길로 간다"},
+                                  {"optionNo": 3, "label": "시냇물 길로 간다"}
+                                ]
+                              }
+                            }
                           ]
                         }
                         """, MediaType.APPLICATION_JSON));
@@ -278,6 +288,9 @@ class HttpAiClientTest {
         assertThat(response.lines()).extracting("content")
                 .containsExactly("숲에 도착했어요.", "어디로 갈까요?");
         assertThat(response.lines().getLast().requiresBranchInput()).isTrue();
+        assertThat(response.lines().getLast().branchPrompt().options())
+                .extracting(option -> option.optionNo())
+                .containsExactly(1, 2, 3);
         server.verify();
     }
 

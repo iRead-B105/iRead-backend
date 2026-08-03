@@ -12,6 +12,9 @@ import java.util.Optional;
 public interface GazeAnalysisResultRepository extends JpaRepository<GazeAnalysisResultEntity, Long> {
     boolean existsByGazeSessionId(Long gazeSessionId);
 
+    @EntityGraph(attributePaths = "gazeSession")
+    List<GazeAnalysisResultEntity> findAllByGazeSessionIdIn(List<Long> gazeSessionIds);
+
     Optional<GazeAnalysisResultEntity> findByIdAndGazeSessionStudentTeacherId(
             Long id,
             Long teacherId

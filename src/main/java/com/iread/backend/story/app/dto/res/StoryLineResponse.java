@@ -12,6 +12,7 @@ public record StoryLineResponse(
         String imageUrl,
         boolean requiresBranchInput,
         String lineText,
+        StoryBranchPromptResponse branchPrompt,
         JsonNode analysis,
         Integer sceneOrder,
         Integer lineOrder,

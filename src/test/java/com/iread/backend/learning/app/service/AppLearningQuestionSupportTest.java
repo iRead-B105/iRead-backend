@@ -6,6 +6,9 @@ import com.iread.backend.learning.app.dto.LearningResponseType;
 import com.iread.backend.learning.app.dto.LearningSubmission;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import com.iread.backend.training.generation.TrainingType;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -209,5 +212,16 @@ class AppLearningQuestionSupportTest {
         ))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("responseType");
+    }
+
+    @ParameterizedTest
+    @EnumSource(TrainingType.class)
+    void resolvesResponseTypeForEveryGeneratedTrainingType(TrainingType trainingType) {
+        var question = objectMapper.createObjectNode().put("type", trainingType.name());
+        if (trainingType == TrainingType.FILL_IN_THE_BLANK) {
+            question.putObject("content").put("inputType", "TEXT");
+        }
+
+        assertThat(support.responseType(question)).isNotNull();
     }
 }

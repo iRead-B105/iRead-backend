@@ -2,6 +2,7 @@ package com.iread.backend.story.app.controller;
 
 import com.iread.backend.auth.annotation.CurrentTeacherId;
 import com.iread.backend.auth.annotation.CurrentStudentId;
+import com.iread.backend.story.app.dto.req.StoryBranchSelectionRequest;
 import com.iread.backend.security.StudentResourceAccessPolicy;
 import com.iread.backend.story.app.dto.req.StoryTtsRequest;
 import com.iread.backend.story.app.dto.res.*;
@@ -44,6 +45,16 @@ public class StoryController {
                                                   @PathVariable Long storyTemplateId) {
         authorizeStudent(authenticatedStudentId, studentId);
         return storyService.getStoryTemplate(teacherId, studentId, storyTemplateId);
+    }
+
+    @Operation(summary = "완료한 이야기 다시 읽기")
+    @GetMapping("/{studentId}/{storyId}/review")
+    public StoryReviewResponse reviewStory(@CurrentTeacherId Long teacherId,
+                                           @CurrentStudentId Long authenticatedStudentId,
+                                           @PathVariable Long studentId,
+                                           @PathVariable Long storyId) {
+        authorizeStudent(authenticatedStudentId, studentId);
+        return storyService.reviewStory(teacherId, studentId, storyId);
     }
 
     @Operation(summary = "진행 중인 스토리 재개")
@@ -100,6 +111,25 @@ public class StoryController {
                                                     @RequestPart("audioFile") MultipartFile audioFile) {
         authorizeStudent(authenticatedStudentId, studentId);
         return storyService.chooseStoryDirection(teacherId, studentId, storyId, lineId, audioFile);
+    }
+
+    @Operation(summary = "AI가 생성한 선택지를 저장하고 다음 스토리 생성")
+    @PostMapping(
+            value = "/{studentId}/{storyId}/lines/{lineId}/branches",
+            consumes = MediaType.APPLICATION_JSON_VALUE
+    )
+    public StoryChoiceResponse chooseStoryDirection(
+            @CurrentTeacherId Long teacherId,
+            @CurrentStudentId Long authenticatedStudentId,
+            @PathVariable Long studentId,
+            @PathVariable Long storyId,
+            @PathVariable Long lineId,
+            @Valid @RequestBody StoryBranchSelectionRequest request
+    ) {
+        authorizeStudent(authenticatedStudentId, studentId);
+        return storyService.chooseStoryDirection(
+                teacherId, studentId, storyId, lineId, request
+        );
     }
 
     @Operation(summary = "이야기 문장 음성 인식 및 읽기 정확도 확인")

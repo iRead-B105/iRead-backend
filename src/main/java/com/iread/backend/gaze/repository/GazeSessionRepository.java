@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 import java.time.LocalDateTime;
 
@@ -36,5 +37,13 @@ public interface GazeSessionRepository extends JpaRepository<GazeSessionEntity, 
             GazeSessionStatus status,
             LocalDateTime startedAt,
             LocalDateTime endedAt
+    );
+
+    @EntityGraph(attributePaths = {"story", "student"})
+    List<GazeSessionEntity>
+    findAllByStudentIdAndContentTypeAndStoryIdInOrderByCreatedAtDescIdDesc(
+            Long studentId,
+            GazeContentType contentType,
+            List<Long> storyIds
     );
 }

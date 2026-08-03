@@ -70,6 +70,7 @@ class GazeServiceTest {
                 gazeSessionRepository,
                 gazeAnalysisResultRepository,
                 trainingInputRequirementService,
+                new com.iread.backend.gaze.analysis.GazeDepartureCounter(),
                 gazeWordMetricMergeService,
                 new GazeDataStorage(gazeStorageRoot.toString(), "/gaze"),
                 realtimeEventPublisher,
@@ -274,6 +275,87 @@ class GazeServiceTest {
                 org.mockito.ArgumentMatchers.matches("/gaze/10/gaze-30-[0-9a-f-]{36}\\.json")
         );
         verify(gazeWordMetricMergeService).merge(session, data);
+    }
+
+    @Test
+    void doesNotLeaveRawFileWhenWordMetricMergeFails() {
+        StudentEntity student = mock(StudentEntity.class);
+        GazeSessionEntity session = mock(GazeSessionEntity.class);
+        var data = new JsonMapper().readTree("""
+                {
+                  "words": [{
+                    "questionNo": 1,
+                    "tokenIndex": 0,
+                    "text": "불일치",
+                    "dwellMs": 500
+                  }]
+                }
+                """);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L))
+                .thenReturn(Optional.of(student));
+        when(gazeSessionRepository.findByIdAndStudentIdForUpdate(30L, 10L))
+                .thenReturn(Optional.of(session));
+        when(session.getStatus()).thenReturn(GazeSessionStatus.RUNNING);
+        doThrow(new ConflictException("단어 지표를 병합할 수 없습니다."))
+                .when(gazeWordMetricMergeService).merge(session, data);
+
+        assertThatThrownBy(() -> gazeService.endSession(
+                1L,
+                30L,
+                new EndGazeSessionRequest(10L, GazeSessionStatus.COMPLETED, data)
+        )).isInstanceOf(ConflictException.class);
+
+        assertThat(gazeStorageRoot).isEmptyDirectory();
+        verify(session, never()).end(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
+    }
+
+    @Test
+    void storesGazeDepartureCountInTestResult() {
+        StudentEntity student = mock(StudentEntity.class);
+        StudentTestEntity test = mock(StudentTestEntity.class);
+        GazeSessionEntity session = mock(GazeSessionEntity.class);
+        var data = new JsonMapper().readTree("""
+                {
+                  "samples": [
+                    {"offsetMs": 100, "presence": false},
+                    {"offsetMs": 700, "presence": false},
+                    {"offsetMs": 750, "presence": true}
+                  ]
+                }
+                """);
+        when(student.getId()).thenReturn(10L);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(gazeSessionRepository.findByIdAndStudentIdForUpdate(30L, 10L))
+                .thenReturn(Optional.of(session));
+        when(session.getStatus()).thenReturn(GazeSessionStatus.RUNNING);
+        when(session.getId()).thenReturn(30L);
+        when(session.getContentType()).thenReturn(GazeContentType.TEST);
+        when(session.getTest()).thenReturn(test);
+        when(session.getStudent()).thenReturn(student);
+        when(test.getId()).thenReturn(20L);
+        when(test.getResult()).thenReturn("{\"submissions\":[]}");
+        when(testRepository.findByIdAndStudentIdForUpdate(20L, 10L))
+                .thenReturn(Optional.of(test));
+
+        gazeService.endSession(
+                1L,
+                30L,
+                new EndGazeSessionRequest(
+                        10L,
+                        GazeSessionStatus.COMPLETED,
+                        data
+                )
+        );
+
+        ArgumentCaptor<String> resultCaptor = ArgumentCaptor.forClass(String.class);
+        verify(test).updateResultMetrics(resultCaptor.capture());
+        var stored = new JsonMapper().readTree(resultCaptor.getValue());
+        assertThat(stored.path("gazeDepartureCount").asInt()).isEqualTo(1);
+        assertThat(stored.path("submissions").isArray()).isTrue();
     }
 
     @Test

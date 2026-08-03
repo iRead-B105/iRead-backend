@@ -27,6 +27,8 @@ public class TeacherDemoDataInitializer implements ApplicationRunner {
             "SELECT COUNT(*) FROM trainings WHERE id = ? AND accuracy > 100";
     private static final long PERSONA_MARKER_ID = 230101L;
     private static final String PERSONA_SEED_RESOURCE = "db/demo-data/teacher-personas.sql";
+    private static final String PERSONA_CORRECTION_RESOURCE =
+            "db/demo-data/teacher-persona-current-curriculum-v2.sql";
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -43,6 +45,7 @@ public class TeacherDemoDataInitializer implements ApplicationRunner {
                 PERSONA_MARKER_ID,
                 PERSONA_SEED_RESOURCE
         );
+        apply(PERSONA_CORRECTION_RESOURCE);
     }
 
     private void applyIfMissing(String markerQuery, long markerId, String seedResource) {
@@ -55,6 +58,10 @@ public class TeacherDemoDataInitializer implements ApplicationRunner {
             return;
         }
 
+        apply(seedResource);
+    }
+
+    private void apply(String seedResource) {
         jdbcTemplate.execute((ConnectionCallback<Void>) connection -> {
             ScriptUtils.executeSqlScript(connection, new ClassPathResource(seedResource));
             return null;

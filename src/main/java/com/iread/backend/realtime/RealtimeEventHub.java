@@ -48,7 +48,7 @@ public class RealtimeEventHub {
             ConcurrentMap<Long, Set<SseEmitter>> emitters,
             Long ownerId
     ) {
-        SseEmitter emitter = new SseEmitter(0L);
+        SseEmitter emitter = createEmitter();
         emitters.computeIfAbsent(ownerId, ignored -> ConcurrentHashMap.newKeySet()).add(emitter);
         Runnable cleanup = () -> remove(emitters, ownerId, emitter);
         emitter.onCompletion(cleanup);
@@ -83,7 +83,6 @@ public class RealtimeEventHub {
                         .data(event));
             } catch (Exception exception) {
                 remove(emitters, ownerId, emitter);
-                emitter.complete();
             }
         });
     }
@@ -94,9 +93,12 @@ public class RealtimeEventHub {
                 emitter.send(SseEmitter.event().comment("heartbeat"));
             } catch (Exception exception) {
                 remove(emitters, ownerId, emitter);
-                emitter.complete();
             }
         }));
+    }
+
+    SseEmitter createEmitter() {
+        return new SseEmitter(0L);
     }
 
     private void remove(

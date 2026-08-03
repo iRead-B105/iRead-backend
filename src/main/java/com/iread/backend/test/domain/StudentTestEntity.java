@@ -84,6 +84,13 @@ public class StudentTestEntity {
         this.result = result;
     }
 
+    public void updateResultMetrics(String result) {
+        if (status != TestStatus.IN_PROGRESS && status != TestStatus.COMPLETED) {
+            throw new ConflictException("Test result metrics cannot be updated in the current status.");
+        }
+        this.result = result;
+    }
+
     public void complete(String result, BigDecimal accuracy, LocalDateTime finishedAt) {
         if (status != TestStatus.IN_PROGRESS) {
             throw new ConflictException("완료 가능한 검사가 아닙니다.");

@@ -63,11 +63,14 @@ class ReportServiceTest {
     void 완료_학습이_있는_기간의_보고서를_저장한다() {
         StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
         TrainingEntity training = org.mockito.Mockito.mock(TrainingEntity.class);
+        TrainingEntity secondTraining = org.mockito.Mockito.mock(TrainingEntity.class);
         when(training.getStartedAt()).thenReturn(LocalDateTime.of(2026, 7, 10, 10, 0));
         when(training.getFinishedAt()).thenReturn(LocalDateTime.of(2026, 7, 10, 10, 5));
+        when(secondTraining.getStartedAt()).thenReturn(LocalDateTime.of(2026, 7, 11, 10, 0));
+        when(secondTraining.getFinishedAt()).thenReturn(LocalDateTime.of(2026, 7, 11, 10, 5));
         when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
         when(trainingRepository.findAllByDailyCurriculumStudentIdAndStatusAndFinishedAtBetweenOrderByFinishedAtAsc(
-                any(), any(), any(), any())).thenReturn(List.of(training));
+                any(), any(), any(), any())).thenReturn(List.of(training, secondTraining));
         when(testRepository.findAllByTestCurriculumStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
                 any(), any(), any(), any())).thenReturn(List.of());
         when(wordAttemptLogRepository.findIncorrectWordStats(any(), any(), any()))
@@ -82,7 +85,7 @@ class ReportServiceTest {
         });
 
         var response = reportService.createReport(1L, new CreateReportRequest(
-                10L, LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31), "메모"));
+                10L, LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31)));
 
         assertThat(response.reportId()).isEqualTo(25L);
         assertThat(response.createdAt()).isEqualTo(
@@ -91,8 +94,9 @@ class ReportServiceTest {
         ArgumentCaptor<ReportEntity> captor = ArgumentCaptor.forClass(ReportEntity.class);
         verify(reportRepository).saveAndFlush(captor.capture());
         assertThat(captor.getValue().getSnapshotData())
-                .contains("\"learningDays\":1")
+                .contains("\"learningDays\":2")
                 .contains("\"improvedPatterns\":[]");
+        assertThat(captor.getValue().getTeacherMemo()).isNull();
     }
 
     @Test
@@ -109,11 +113,65 @@ class ReportServiceTest {
                 new CreateReportRequest(
                         10L,
                         LocalDate.of(2026, 7, 1),
-                        LocalDate.of(2026, 7, 31),
-                        null
+                        LocalDate.of(2026, 7, 31)
                 )
-        )).isInstanceOfSatisfying(ReportCreationException.class, exception ->
-                assertThat(exception.code()).isEqualTo("REPORT_DATA_NOT_FOUND"));
+        )).isInstanceOfSatisfying(ReportCreationException.class, exception -> {
+            assertThat(exception.code()).isEqualTo("REPORT_INSUFFICIENT_LEARNING_DAYS");
+            assertThat(exception.details()).containsEntry("requiredDays", 2)
+                    .containsEntry("actualDays", 0L);
+        });
+        verify(reportRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void sameDayTrainingsCountAsOneLearningDay() {
+        StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
+        TrainingEntity first = org.mockito.Mockito.mock(TrainingEntity.class);
+        TrainingEntity second = org.mockito.Mockito.mock(TrainingEntity.class);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(first.getFinishedAt()).thenReturn(LocalDateTime.of(2026, 7, 10, 10, 0));
+        when(second.getFinishedAt()).thenReturn(LocalDateTime.of(2026, 7, 10, 15, 0));
+        when(trainingRepository.findAllByDailyCurriculumStudentIdAndStatusAndFinishedAtBetweenOrderByFinishedAtAsc(
+                any(), any(), any(), any())).thenReturn(List.of(first, second));
+        when(testRepository.findAllByTestCurriculumStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
+                any(), any(), any(), any())).thenReturn(List.of());
+
+        assertThatThrownBy(() -> reportService.createReport(
+                1L,
+                new CreateReportRequest(
+                        10L,
+                        LocalDate.of(2026, 7, 1),
+                        LocalDate.of(2026, 7, 31)
+                )
+        )).isInstanceOfSatisfying(ReportCreationException.class, exception -> {
+            assertThat(exception.code()).isEqualTo("REPORT_INSUFFICIENT_LEARNING_DAYS");
+            assertThat(exception.details()).containsEntry("actualDays", 1L);
+        });
+        verify(reportRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void completedTestsDoNotCountAsLearningDays() {
+        StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
+        com.iread.backend.test.domain.StudentTestEntity completedTest =
+                org.mockito.Mockito.mock(com.iread.backend.test.domain.StudentTestEntity.class);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(trainingRepository.findAllByDailyCurriculumStudentIdAndStatusAndFinishedAtBetweenOrderByFinishedAtAsc(
+                any(), any(), any(), any())).thenReturn(List.of());
+        when(testRepository.findAllByTestCurriculumStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
+                any(), any(), any(), any())).thenReturn(List.of(completedTest));
+
+        assertThatThrownBy(() -> reportService.createReport(
+                1L,
+                new CreateReportRequest(
+                        10L,
+                        LocalDate.of(2026, 7, 1),
+                        LocalDate.of(2026, 7, 31)
+                )
+        )).isInstanceOfSatisfying(ReportCreationException.class, exception -> {
+            assertThat(exception.code()).isEqualTo("REPORT_INSUFFICIENT_LEARNING_DAYS");
+            assertThat(exception.details()).containsEntry("actualDays", 0L);
+        });
         verify(reportRepository, never()).saveAndFlush(any());
     }
 
@@ -133,8 +191,7 @@ class ReportServiceTest {
                 new CreateReportRequest(
                         10L,
                         LocalDate.of(2026, 7, 1),
-                        LocalDate.of(2026, 7, 31),
-                        null
+                        LocalDate.of(2026, 7, 31)
                 )
         )).isInstanceOfSatisfying(ReportCreationException.class, exception -> {
             assertThat(exception.code()).isEqualTo("REPORT_PERIOD_ALREADY_EXISTS");
@@ -148,10 +205,13 @@ class ReportServiceTest {
         StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
         TrainingEntity training = org.mockito.Mockito.mock(TrainingEntity.class);
         when(training.getStartedAt()).thenReturn(LocalDateTime.of(2026, 7, 10, 10, 0));
+        TrainingEntity secondTraining = org.mockito.Mockito.mock(TrainingEntity.class);
         when(training.getFinishedAt()).thenReturn(LocalDateTime.of(2026, 7, 10, 10, 5));
         when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(secondTraining.getStartedAt()).thenReturn(LocalDateTime.of(2026, 7, 11, 10, 0));
+        when(secondTraining.getFinishedAt()).thenReturn(LocalDateTime.of(2026, 7, 11, 10, 5));
         when(trainingRepository.findAllByDailyCurriculumStudentIdAndStatusAndFinishedAtBetweenOrderByFinishedAtAsc(
-                any(), any(), any(), any())).thenReturn(List.of(training));
+                any(), any(), any(), any())).thenReturn(List.of(training, secondTraining));
         when(testRepository.findAllByTestCurriculumStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
                 any(), any(), any(), any())).thenReturn(List.of());
         when(wordAttemptLogRepository.findIncorrectWordStats(any(), any(), any()))
@@ -164,8 +224,7 @@ class ReportServiceTest {
                 new CreateReportRequest(
                         10L,
                         LocalDate.of(2026, 7, 1),
-                        LocalDate.of(2026, 7, 31),
-                        null
+                        LocalDate.of(2026, 7, 31)
                 )
         )).isInstanceOfSatisfying(ReportCreationException.class, exception ->
                 assertThat(exception.code()).isEqualTo("REPORT_PERIOD_ALREADY_EXISTS"));
@@ -174,7 +233,7 @@ class ReportServiceTest {
     @Test
     void 시작일이_종료일보다_늦으면_리포트를_생성할_수_없다() {
         assertThatThrownBy(() -> reportService.createReport(1L, new CreateReportRequest(
-                10L, LocalDate.of(2026, 8, 1), LocalDate.of(2026, 7, 1), null)))
+                10L, LocalDate.of(2026, 8, 1), LocalDate.of(2026, 7, 1))))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("시작일은 종료일보다 늦을 수 없습니다.");
     }

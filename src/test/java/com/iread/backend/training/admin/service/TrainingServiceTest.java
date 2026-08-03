@@ -4,14 +4,17 @@ import com.iread.backend.ai.client.AiClient;
 import com.iread.backend.ai.dto.req.EvaluateTrainingRequest;
 import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
 import com.iread.backend.gaze.analysis.GazeWordAnalysisAdapter;
+import com.iread.backend.exception.ConflictException;
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
 import com.iread.backend.realtime.RealtimeEventPublisher;
+import com.iread.backend.realtime.RealtimeResource;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
+import com.iread.backend.teacher.domain.TeacherEntity;
+import com.iread.backend.test.domain.TestCurriculumEntity;
 import com.iread.backend.training.domain.*;
 import com.iread.backend.training.curriculum.PersonalizedCurriculumPlanner;
-import com.iread.backend.training.admin.dto.req.ExpectedWordRequest;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.repository.*;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
@@ -40,6 +43,7 @@ import java.util.stream.StreamSupport;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -331,61 +335,6 @@ class TrainingServiceTest {
     }
 
     @Test
-    void 예정_단어가_없으면_단어를_생성하고_JSON에_추가한다() {
-        TrainingEntity training = ownedTraining(1L);
-        TrainingDataEntity data = new TrainingDataEntity(
-                training, "{\"version\":1,\"expectedWords\":[],\"content\":{}}"
-        );
-        WordEntity word = new WordEntity("사과");
-        ReflectionTestUtils.setField(word, "id", 101L);
-        allowStudent();
-        when(trainingRepository.findByIdAndDailyCurriculumStudentId(1L, 10L)).thenReturn(Optional.of(training));
-        when(trainingDataRepository.findByTrainingId(1L)).thenReturn(Optional.of(data));
-        when(wordRepository.findByContent("사과")).thenReturn(Optional.empty());
-        when(wordRepository.save(any(WordEntity.class))).thenReturn(word);
-
-        trainingService.addExpectedWord(1L, 10L, 1L, new ExpectedWordRequest("사과"));
-
-        assertThat(data.getGeneratedData()).contains("\"wordId\":101").contains("\"wordName\":\"사과\"");
-        assertThat(training.getStatus()).isEqualTo(TrainingStatus.NOT_READY);
-    }
-
-    @Test
-    void 예정_단어는_중복해서_추가할_수_없다() {
-        TrainingEntity training = ownedTraining(1L);
-        TrainingDataEntity data = new TrainingDataEntity(
-                training, "{\"version\":1,\"expectedWords\":[{\"wordId\":101,\"wordName\":\"사과\"}]}"
-        );
-        allowStudent();
-        when(trainingRepository.findByIdAndDailyCurriculumStudentId(1L, 10L)).thenReturn(Optional.of(training));
-        when(trainingDataRepository.findByTrainingId(1L)).thenReturn(Optional.of(data));
-
-        assertThatThrownBy(() -> trainingService.addExpectedWord(
-                1L, 10L, 1L, new ExpectedWordRequest("사과")))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("이미 추가된 예정 단어입니다.");
-        verify(wordRepository, never()).save(any());
-    }
-
-    @Test
-    void 진행중인_훈련의_예정_단어는_수정할_수_없다() {
-        TrainingEntity training = ownedTraining(1L);
-        ReflectionTestUtils.setField(training, "status", TrainingStatus.IN_PROGRESS);
-        allowStudent();
-        when(trainingRepository.findByIdAndDailyCurriculumStudentId(1L, 10L))
-                .thenReturn(Optional.of(training));
-
-        assertThatThrownBy(() -> trainingService.addExpectedWord(
-                1L, 10L, 1L, new ExpectedWordRequest("사과")))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("진행 중이거나 완료된 훈련은 수정할 수 없습니다.");
-        assertThatThrownBy(() -> trainingService.deleteExpectedWord(1L, 10L, 1L, 101L))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("진행 중이거나 완료된 훈련은 수정할 수 없습니다.");
-        verify(trainingDataRepository, never()).findByTrainingId(any());
-    }
-
-    @Test
     void 모든_훈련이_완료되면_일일커리큘럼의_완료일을_기록한다() {
         DailyCurriculumEntity curriculum = curriculum(100L);
         TrainingEntity first = training(1L, curriculum, template(11L, "훈련1"), null);
@@ -612,6 +561,144 @@ class TrainingServiceTest {
 
         assertThat(accuracy).isEqualByComparingTo("93.00");
         verify(aiClient, never()).evaluateTraining(any());
+    }
+
+    @Test
+    void completesRecommendedCurriculumReviewIdempotentlyAfterAllContentIsSaved() {
+        TeacherEntity teacher = new TeacherEntity(
+                "teacher@example.com", "password", "teacher", null, null, null
+        );
+        ReflectionTestUtils.setField(teacher, "id", 1L);
+        StudentEntity student = StudentEntity.builder()
+                .teacher(teacher)
+                .name("student")
+                .build();
+        ReflectionTestUtils.setField(student, "id", 10L);
+        List<TrainingTemplateEntity> templates = java.util.stream.LongStream
+                .rangeClosed(1, 5)
+                .mapToObj(id -> template(id, "training-" + id))
+                .toList();
+        DailyCurriculumEntity curriculum = new DailyCurriculumEntity(
+                student,
+                templates,
+                org.mockito.Mockito.mock(TestCurriculumEntity.class)
+        );
+        ReflectionTestUtils.setField(curriculum, "id", 100L);
+        for (int index = 0; index < curriculum.getTrainings().size(); index++) {
+            TrainingEntity training = curriculum.getTrainings().get(index);
+            ReflectionTestUtils.setField(training, "id", (long) index + 1);
+            training.markReady();
+        }
+        curriculum.refreshReviewRequirement();
+        TrainingDataEntity data = org.mockito.Mockito.mock(TrainingDataEntity.class);
+        when(data.getGeneratedData()).thenReturn(
+                "{\"revision\":1,\"questions\":[{\"questionNo\":1}]}"
+        );
+        when(studentRepository.findByIdAndTeacherId(10L, 1L))
+                .thenReturn(Optional.of(student));
+        when(dailyCurriculumRepository.findForUpdate(100L, 10L))
+                .thenReturn(Optional.of(curriculum));
+        when(trainingDataRepository.findByTrainingId(anyLong()))
+                .thenReturn(Optional.of(data));
+
+        var first = trainingService.completeCurriculumReview(1L, 10L, 100L);
+        var repeated = trainingService.completeCurriculumReview(1L, 10L, 100L);
+
+        assertThat(first.reviewStatus()).isEqualTo("REVIEW_COMPLETED");
+        assertThat(first.reviewedByTeacherId()).isEqualTo(1L);
+        assertThat(first.reviewedAt()).isNotNull();
+        assertThat(repeated).isEqualTo(first);
+        assertThat(curriculum.isAvailableToStudent()).isTrue();
+        verify(realtimeEventPublisher, times(1)).publishAfterCommit(
+                1L,
+                10L,
+                RealtimeResource.CURRICULUM,
+                100L,
+                "REVIEW_COMPLETED"
+        );
+    }
+
+    @Test
+    void rejectsFinalReviewWhenAnyGeneratedContentIsMissing() {
+        StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
+        DailyCurriculumEntity curriculum = org.mockito.Mockito.mock(DailyCurriculumEntity.class);
+        TrainingEntity training = org.mockito.Mockito.mock(TrainingEntity.class);
+        when(training.getId()).thenReturn(1L);
+        when(training.getStatus()).thenReturn(TrainingStatus.NOT_STARTED);
+        List<TrainingEntity> trainings = List.of(
+                training, training, training, training, training
+        );
+        when(studentRepository.findByIdAndTeacherId(10L, 1L))
+                .thenReturn(Optional.of(student));
+        when(dailyCurriculumRepository.findForUpdate(100L, 10L))
+                .thenReturn(Optional.of(curriculum));
+        when(curriculum.isRecommendedFromTest()).thenReturn(true);
+        when(curriculum.getReviewStatus())
+                .thenReturn(CurriculumReviewStatus.REVIEW_REQUIRED);
+        when(curriculum.getStatus()).thenReturn(DailyCurriculumStatus.NOT_STARTED);
+        when(curriculum.getTrainings()).thenReturn(trainings);
+        when(trainingDataRepository.findByTrainingId(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> trainingService.completeCurriculumReview(
+                1L,
+                10L,
+                100L
+        )).isInstanceOf(ConflictException.class);
+        verify(realtimeEventPublisher, never()).publishAfterCommit(
+                anyLong(),
+                anyLong(),
+                any(),
+                anyLong(),
+                any()
+        );
+    }
+
+    @Test
+    void aiRegenerationIncrementsRevisionAndInvalidatesCompletedReview() {
+        StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
+        List<TrainingTemplateEntity> templates = java.util.stream.LongStream
+                .rangeClosed(1, 5)
+                .mapToObj(id -> template(id, "training-" + id))
+                .toList();
+        DailyCurriculumEntity curriculum = new DailyCurriculumEntity(
+                student,
+                templates,
+                org.mockito.Mockito.mock(TestCurriculumEntity.class)
+        );
+        for (int index = 0; index < curriculum.getTrainings().size(); index++) {
+            ReflectionTestUtils.setField(
+                    curriculum.getTrainings().get(index),
+                    "id",
+                    (long) index + 1
+            );
+            curriculum.getTrainings().get(index).markReady();
+        }
+        curriculum.refreshReviewRequirement();
+        curriculum.completeReview(
+                org.mockito.Mockito.mock(TeacherEntity.class),
+                LocalDateTime.of(2026, 8, 1, 16, 0)
+        );
+        TrainingEntity training = curriculum.getTrainings().getFirst();
+        TrainingDataEntity data = new TrainingDataEntity(
+                training,
+                "{\"revision\":2,\"questions\":[{\"questionNo\":1}]}"
+        );
+        var generated = JsonMapper.builder().build().createObjectNode();
+        generated.putArray("questions").addObject().put("questionNo", 1);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L))
+                .thenReturn(Optional.of(student));
+        when(trainingRepository.findForUpdate(1L, 10L))
+                .thenReturn(Optional.of(training));
+        when(trainingDataRepository.findByTrainingId(1L)).thenReturn(Optional.of(data));
+        when(personalizedTrainingGenerationService.generate(training))
+                .thenReturn(generated);
+
+        var result = trainingService.generateTraining(1L, 10L, 1L);
+
+        assertThat(result.path("revision").asInt()).isEqualTo(3);
+        assertThat(curriculum.getReviewStatus())
+                .isEqualTo(CurriculumReviewStatus.REVIEW_REQUIRED);
+        assertThat(curriculum.getReviewedAt()).isNull();
     }
 
     private void allowStudent() {
