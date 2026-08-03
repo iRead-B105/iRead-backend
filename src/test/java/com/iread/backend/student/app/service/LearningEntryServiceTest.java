@@ -8,7 +8,6 @@ import com.iread.backend.test.domain.TestCurriculumEntity;
 import com.iread.backend.test.domain.TestStatus;
 import com.iread.backend.test.repository.StudentTestRepository;
 import com.iread.backend.test.repository.TestCurriculumRepository;
-import com.iread.backend.training.repository.DailyCurriculumRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -29,7 +28,6 @@ class LearningEntryServiceTest {
     @Mock StudentRepository studentRepository;
     @Mock TestCurriculumRepository testCurriculumRepository;
     @Mock StudentTestRepository studentTestRepository;
-    @Mock DailyCurriculumRepository dailyCurriculumRepository;
     @InjectMocks LearningEntryService service;
 
     @Test
@@ -41,7 +39,6 @@ class LearningEntryServiceTest {
         when(testCurriculumRepository.existsByStudentIdAndStatus(
                 20L, TestStatus.COMPLETED.name()
         )).thenReturn(false);
-        when(dailyCurriculumRepository.existsByStudentId(20L)).thenReturn(false);
 
         var response = service.getLearningEntry(1L, 20L);
 
@@ -53,8 +50,11 @@ class LearningEntryServiceTest {
     }
 
     @Test
-    void returnsChallengeInProgressBeforeConsideringTrainingHistory() {
+    void returnsChallengeInProgressWhenNoChallengeWasCompleted() {
         allowOwnedStudent();
+        when(testCurriculumRepository.existsByStudentIdAndStatus(
+                20L, TestStatus.COMPLETED.name()
+        )).thenReturn(false);
         TestCurriculumEntity curriculum = mock(TestCurriculumEntity.class);
         when(curriculum.getId()).thenReturn(50L);
         when(testCurriculumRepository
@@ -71,15 +71,11 @@ class LearningEntryServiceTest {
         assertThat(response.testCurriculumId()).isEqualTo(50L);
         assertThat(response.completedQuestions()).isEqualTo(4);
         assertThat(response.totalQuestions()).isEqualTo(9);
-        verifyNoInteractions(dailyCurriculumRepository);
     }
 
     @Test
-    void returnsHomeWhenInitialChallengeWasCompleted() {
+    void returnsHomeWhenAnyChallengeWasCompletedEvenIfAnotherIsInProgress() {
         allowOwnedStudent();
-        when(testCurriculumRepository
-                .findFirstByStudentIdAndStatusInOrderByCreatedAtDescIdDesc(any(), any()))
-                .thenReturn(Optional.empty());
         when(testCurriculumRepository.existsByStudentIdAndStatus(
                 20L, TestStatus.COMPLETED.name()
         )).thenReturn(true);
@@ -88,23 +84,7 @@ class LearningEntryServiceTest {
 
         assertThat(response.entryStatus()).isEqualTo(LearningEntryStatus.HOME);
         assertThat(response.testCurriculumId()).isNull();
-        verifyNoInteractions(dailyCurriculumRepository);
-    }
-
-    @Test
-    void returnsHomeWhenTrainingCurriculumHistoryExists() {
-        allowOwnedStudent();
-        when(testCurriculumRepository
-                .findFirstByStudentIdAndStatusInOrderByCreatedAtDescIdDesc(any(), any()))
-                .thenReturn(Optional.empty());
-        when(testCurriculumRepository.existsByStudentIdAndStatus(
-                20L, TestStatus.COMPLETED.name()
-        )).thenReturn(false);
-        when(dailyCurriculumRepository.existsByStudentId(20L)).thenReturn(true);
-
-        var response = service.getLearningEntry(1L, 20L);
-
-        assertThat(response.entryStatus()).isEqualTo(LearningEntryStatus.HOME);
+        verifyNoInteractions(studentTestRepository);
     }
 
     @Test
@@ -116,8 +96,7 @@ class LearningEntryServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
         verifyNoInteractions(
                 testCurriculumRepository,
-                studentTestRepository,
-                dailyCurriculumRepository
+                studentTestRepository
         );
     }
 
