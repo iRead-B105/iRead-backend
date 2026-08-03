@@ -65,6 +65,17 @@ public class AppTrainingController {
         return trainingService.reset(teacherId, studentId, trainingId);
     }
 
+    @PostMapping("/pronunciation-attempts/reset")
+    public void resetPronunciationAttempts(
+            @CurrentTeacherId Long teacherId,
+            @CurrentStudentId Long authenticatedStudentId,
+            @PathVariable Long studentId,
+            @PathVariable Long trainingId
+    ) {
+        requireSameStudent(authenticatedStudentId, studentId);
+        trainingService.resetPronunciationAttempts(teacherId, studentId, trainingId);
+    }
+
     @PostMapping(
             value = "/questions/{questionNumber}/recordings",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE

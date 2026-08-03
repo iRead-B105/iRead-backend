@@ -177,6 +177,18 @@ public class AppTrainingService {
     }
 
     @Transactional
+    public void resetPronunciationAttempts(Long teacherId, Long studentId, Long trainingId) {
+        TrainingEntity training = findOwnedTrainingForUpdate(teacherId, studentId, trainingId);
+        if (training.getStatus() != TrainingStatus.IN_PROGRESS) {
+            return;
+        }
+        ObjectNode result = readObjectOrNew(training.getResult());
+        result.putArray("pronunciationAnalyses");
+        result.putArray("wordAttempts");
+        training.recordProgressResult(writeJson(result));
+    }
+
+    @Transactional
     public TrainingRecordingResponse saveRecording(
             Long teacherId,
             Long studentId,
