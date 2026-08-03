@@ -17,9 +17,7 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -109,7 +107,7 @@ class DemoAllTrainingCurriculumInitializerTest {
     }
 
     @Test
-    void refreshesQuestionsForEveryExistingCatalogTraining() throws Exception {
+    void preservesQuestionsAndProgressForExistingCatalogTraining() {
         DailyCurriculumRepository curriculumRepository =
                 mock(DailyCurriculumRepository.class);
         TrainingTemplateRepository templateRepository =
@@ -136,24 +134,12 @@ class DemoAllTrainingCurriculumInitializerTest {
                     100L + index
             );
         }
-        Map<Long, TrainingDataEntity> dataByTrainingId = curriculum.getTrainings().stream()
-                .collect(Collectors.toMap(
-                        training -> training.getId(),
-                        training -> new TrainingDataEntity(training, "{\"questions\":[]}")
-                ));
         when(curriculumRepository.findForGeneration(
                 DemoAllTrainingCurriculumInitializer.DEMO_CURRICULUM_ID
         )).thenReturn(Optional.of(curriculum));
         when(templateRepository.findCanonicalCatalog(1L, 34L)).thenReturn(templates);
-        when(dataRepository.findByTrainingId(any())).thenAnswer(invocation ->
-                Optional.ofNullable(dataByTrainingId.get(invocation.getArgument(0)))
-        );
-        when(generationService.generate(any())).thenAnswer(invocation -> {
-            ObjectNode generated = objectMapper.createObjectNode();
-            IntStream.rangeClosed(1, 5).forEach(questionNo -> generated.withArray("questions")
-                    .addObject().put("questionNo", questionNo).put("type", "REFRESHED"));
-            return generated;
-        });
+        when(dataRepository.findByTrainingId(any()))
+                .thenReturn(Optional.of(mock(TrainingDataEntity.class)));
 
         DemoAllTrainingCurriculumInitializer initializer =
                 new DemoAllTrainingCurriculumInitializer(
@@ -166,22 +152,8 @@ class DemoAllTrainingCurriculumInitializerTest {
 
         initializer.run(mock(org.springframework.boot.ApplicationArguments.class));
 
-        assertThat(dataByTrainingId.values()).allSatisfy(refreshed -> {
-            try {
-                assertThat(objectMapper.readTree(refreshed.getGeneratedData()).path("questions"))
-                        .hasSize(5);
-                assertThat(objectMapper.readTree(refreshed.getGeneratedData())
-                        .path("questions").get(0).path("type").asText())
-                        .isEqualTo("REFRESHED");
-            } catch (Exception exception) {
-                throw new AssertionError(exception);
-            }
-        });
-        verify(
-                generationService,
-                times(DemoAllTrainingCurriculumInitializer.DEMO_TEMPLATE_COUNT)
-        ).generate(any());
-        verify(dataRepository).flush();
+        verify(generationService, times(0)).generate(any());
+        verify(dataRepository, times(0)).flush();
     }
 
     private List<TrainingTemplateEntity> canonicalTemplates() {

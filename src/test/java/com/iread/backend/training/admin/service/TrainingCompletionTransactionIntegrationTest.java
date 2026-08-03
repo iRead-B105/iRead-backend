@@ -28,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -152,7 +153,7 @@ class TrainingCompletionTransactionIntegrationTest {
     }
 
     @Test
-    void downstreamFailureRollsBackResultCompletionTimeAndCurriculumStatus() {
+    void followUpFailureDoesNotRollbackCompletedTraining() {
         when(aiClient.evaluateTraining(any())).thenAnswer(invocation -> {
             assertThat(TransactionSynchronizationManager.isActualTransactionActive())
                     .isFalse();
@@ -166,38 +167,31 @@ class TrainingCompletionTransactionIntegrationTest {
                 .when(studentFeatureProfileService)
                 .recalculate(any());
 
-        assertThatThrownBy(() -> trainingService.completeTraining(
+        BigDecimal accuracy = trainingService.completeTraining(
                 TEACHER_ID,
                 STUDENT_ID,
                 TRAINING_ID,
                 objectMapper.createObjectNode(),
                 LocalDateTime.of(2026, 7, 31, 11, 0)
-        ))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessage("프로필 집계 실패");
+        );
 
-        assertThat(trainingValue("status", String.class)).isEqualTo("NOT_STARTED");
-        assertThat(trainingValue("result", String.class)).isNull();
-        assertThat(trainingValue("accuracy", Integer.class)).isNull();
-        assertThat(trainingValue("started_at", LocalDateTime.class)).isNull();
-        assertThat(trainingValue("finished_at", LocalDateTime.class)).isNull();
+        assertThat(accuracy).isEqualByComparingTo("84.25");
+        assertThat(trainingValue("status", String.class)).isEqualTo("COMPLETED");
+        assertThat(trainingValue("result", String.class)).isNotNull();
+        assertThat(trainingValue("accuracy", Integer.class)).isEqualTo(843);
+        assertThat(trainingValue("started_at", LocalDateTime.class)).isNotNull();
+        assertThat(trainingValue("finished_at", LocalDateTime.class)).isNotNull();
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT status FROM daily_curriculums WHERE id = ?",
                 String.class,
                 CURRICULUM_ID
-        )).isEqualTo("NOT_STARTED");
+        )).isEqualTo("COMPLETED");
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT completed_at FROM daily_curriculums WHERE id = ?",
                 LocalDateTime.class,
                 CURRICULUM_ID
-        )).isNull();
-        verify(realtimeEventPublisher, never()).publishAfterCommit(
-                any(),
-                any(),
-                any(),
-                any(),
-                any()
-        );
+        )).isNotNull();
+        verify(studentFeatureProfileService, timeout(5_000)).recalculate(any());
     }
 
     @Test

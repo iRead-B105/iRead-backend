@@ -91,6 +91,9 @@ public class AppTrainingService {
                 training.getStatus(),
                 training.getTrainingTemplate().getName(),
                 studentGeneratedData(generatedData),
+                completedQuestionNumbers(readObjectOrNew(training.getResult())).stream()
+                        .sorted()
+                        .toList(),
                 training.getStartedAt(),
                 training.getFinishedAt()
         );

@@ -6,7 +6,6 @@ import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
 import com.iread.backend.gaze.analysis.GazeWordAnalysisAdapter;
 import com.iread.backend.exception.ConflictException;
 import com.iread.backend.exception.ResourceNotFoundException;
-import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
 import com.iread.backend.realtime.RealtimeEventPublisher;
 import com.iread.backend.realtime.RealtimeResource;
 import com.iread.backend.student.domain.StudentEntity;
@@ -14,7 +13,7 @@ import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.teacher.domain.TeacherEntity;
 import com.iread.backend.test.domain.TestCurriculumEntity;
 import com.iread.backend.training.domain.*;
-import com.iread.backend.training.curriculum.PersonalizedCurriculumPlanner;
+import com.iread.backend.training.completion.TrainingCompletionAfterCommitPublisher;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.repository.*;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
@@ -67,8 +66,7 @@ class TrainingServiceTest {
     @Mock GazeWordAnalysisAdapter gazeWordAnalysisAdapter;
     @Mock AiClient aiClient;
     @Mock PersonalizedTrainingGenerationService personalizedTrainingGenerationService;
-    @Mock StudentFeatureProfileService studentFeatureProfileService;
-    @Mock PersonalizedCurriculumPlanner personalizedCurriculumPlanner;
+    @Mock TrainingCompletionAfterCommitPublisher completionFollowUpPublisher;
     @Mock TrainingInputRequirementService trainingInputRequirementService;
     private TransactionTemplate transactionTemplate;
     @Mock RealtimeEventPublisher realtimeEventPublisher;
@@ -105,8 +103,7 @@ class TrainingServiceTest {
                 gazeWordAnalysisAdapter,
                 aiClient,
                 personalizedTrainingGenerationService,
-                studentFeatureProfileService,
-                personalizedCurriculumPlanner,
+                completionFollowUpPublisher,
                 trainingInputRequirementService,
                 realtimeEventPublisher,
                 transactionTemplate,
@@ -462,7 +459,7 @@ class TrainingServiceTest {
         assertThat(captor.getValue().requestId()).isEqualTo("training-evaluation-1");
         assertThat(captor.getValue().result()).isEqualTo(resultJson);
         verify(trainingInputRequirementService).validateCompletion(1L);
-        verify(personalizedCurriculumPlanner).createNextIfAbsent(any(StudentEntity.class));
+        verify(completionFollowUpPublisher).processAfterCommit(10L, true);
     }
 
     @Test
@@ -557,7 +554,7 @@ class TrainingServiceTest {
 
         assertThat(training.getStatus()).isEqualTo(TrainingStatus.COMPLETED);
         assertThat(nextTraining.getStatus()).isEqualTo(TrainingStatus.NOT_STARTED);
-        verify(personalizedCurriculumPlanner, never()).createNextIfAbsent(any());
+        verify(completionFollowUpPublisher).processAfterCommit(10L, false);
     }
 
     @Test
