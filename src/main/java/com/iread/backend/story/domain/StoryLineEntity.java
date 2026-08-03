@@ -50,6 +50,9 @@ public class StoryLineEntity {
     @Column(name = "read_at")
     private LocalDateTime readAt;
 
+    @Column(name = "revision", nullable = false, columnDefinition = "bigint default 0")
+    private Long revision = 0L;
+
     public StoryLineEntity(StoryLineEntity previousStoryLine, StorySceneEntity scene,
                            boolean requiresBranchInput, String content, Integer sequenceNo) {
         this(previousStoryLine, scene, requiresBranchInput, content, null, sequenceNo);
@@ -70,6 +73,14 @@ public class StoryLineEntity {
             throw new IllegalArgumentException("스토리 대사 content는 필수입니다.");
         }
         this.content = content;
+    }
+
+    public void updateBranchPrompt(String branchPrompt) {
+        this.branchPrompt = branchPrompt;
+    }
+
+    public void incrementRevision() {
+        revision = (revision == null ? 0L : revision) + 1L;
     }
 
     public void markRead(LocalDateTime readAt) {
