@@ -21,6 +21,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -35,13 +37,13 @@ class LearningEntryServiceTest {
     @Test
     void returnsChallengeRequiredForStudentWithoutTestOrTrainingHistory() {
         allowOwnedStudent();
-        when(testCurriculumRepository
-                .findFirstByStudentIdAndStatusInOrderByCreatedAtDescIdDesc(any(), any()))
-                .thenReturn(Optional.empty());
         when(testCurriculumRepository.existsByStudentIdAndStatus(
                 20L, TestStatus.COMPLETED.name()
         )).thenReturn(false);
         when(dailyCurriculumRepository.existsByStudentId(20L)).thenReturn(false);
+        when(testCurriculumRepository
+                .findFirstByStudentIdAndStatusInOrderByCreatedAtDescIdDesc(any(), any()))
+                .thenReturn(Optional.empty());
 
         var response = service.getLearningEntry(1L, 20L);
 
@@ -53,8 +55,12 @@ class LearningEntryServiceTest {
     }
 
     @Test
-    void returnsChallengeInProgressBeforeConsideringTrainingHistory() {
+    void returnsChallengeInProgressForStudentWithoutPriorLearningHistory() {
         allowOwnedStudent();
+        when(testCurriculumRepository.existsByStudentIdAndStatus(
+                20L, TestStatus.COMPLETED.name()
+        )).thenReturn(false);
+        when(dailyCurriculumRepository.existsByStudentId(20L)).thenReturn(false);
         TestCurriculumEntity curriculum = mock(TestCurriculumEntity.class);
         when(curriculum.getId()).thenReturn(50L);
         when(testCurriculumRepository
@@ -71,15 +77,11 @@ class LearningEntryServiceTest {
         assertThat(response.testCurriculumId()).isEqualTo(50L);
         assertThat(response.completedQuestions()).isEqualTo(4);
         assertThat(response.totalQuestions()).isEqualTo(9);
-        verifyNoInteractions(dailyCurriculumRepository);
     }
 
     @Test
     void returnsHomeWhenInitialChallengeWasCompleted() {
         allowOwnedStudent();
-        when(testCurriculumRepository
-                .findFirstByStudentIdAndStatusInOrderByCreatedAtDescIdDesc(any(), any()))
-                .thenReturn(Optional.empty());
         when(testCurriculumRepository.existsByStudentIdAndStatus(
                 20L, TestStatus.COMPLETED.name()
         )).thenReturn(true);
@@ -92,11 +94,24 @@ class LearningEntryServiceTest {
     }
 
     @Test
+    void completedChallengeWinsOverStaleIncompleteChallenge() {
+        allowOwnedStudent();
+        when(testCurriculumRepository.existsByStudentIdAndStatus(
+                20L, TestStatus.COMPLETED.name()
+        )).thenReturn(true);
+
+        var response = service.getLearningEntry(1L, 20L);
+
+        assertThat(response.entryStatus()).isEqualTo(LearningEntryStatus.HOME);
+        assertThat(response.testCurriculumId()).isNull();
+        verify(testCurriculumRepository, never())
+                .findFirstByStudentIdAndStatusInOrderByCreatedAtDescIdDesc(any(), any());
+        verifyNoInteractions(studentTestRepository, dailyCurriculumRepository);
+    }
+
+    @Test
     void returnsHomeWhenTrainingCurriculumHistoryExists() {
         allowOwnedStudent();
-        when(testCurriculumRepository
-                .findFirstByStudentIdAndStatusInOrderByCreatedAtDescIdDesc(any(), any()))
-                .thenReturn(Optional.empty());
         when(testCurriculumRepository.existsByStudentIdAndStatus(
                 20L, TestStatus.COMPLETED.name()
         )).thenReturn(false);

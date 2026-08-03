@@ -30,6 +30,17 @@ public class LearningEntryService {
         studentRepository.findByIdAndTeacherId(studentId, teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException("학생을 찾을 수 없습니다."));
 
+        if (testCurriculumRepository.existsByStudentIdAndStatus(
+                studentId,
+                TestStatus.COMPLETED.name()
+        )) {
+            return home(studentId);
+        }
+
+        if (dailyCurriculumRepository.existsByStudentId(studentId)) {
+            return home(studentId);
+        }
+
         var inProgress = testCurriculumRepository
                 .findFirstByStudentIdAndStatusInOrderByCreatedAtDescIdDesc(
                         studentId,
@@ -53,17 +64,6 @@ public class LearningEntryService {
                     completedQuestions,
                     TOTAL_CHALLENGE_QUESTIONS
             );
-        }
-
-        if (testCurriculumRepository.existsByStudentIdAndStatus(
-                studentId,
-                TestStatus.COMPLETED.name()
-        )) {
-            return home(studentId);
-        }
-
-        if (dailyCurriculumRepository.existsByStudentId(studentId)) {
-            return home(studentId);
         }
 
         return new LearningEntryResponse(
