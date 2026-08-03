@@ -25,7 +25,10 @@ import com.iread.backend.training.repository.TrainingRepository;
 import com.iread.backend.training.input.TrainingInputRequirementService;
 import com.iread.backend.training.input.TrainingInputType;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -35,6 +38,7 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+@Slf4j
 public class GazeService {
     private final StudentRepository studentRepository;
     private final StudentTestRepository testRepository;
@@ -137,18 +141,18 @@ public class GazeService {
         }
         GazeSessionEntity gazeSession = findOwnedGazeSessionForUpdate(gazeSessionId, request.studentId());
         requireRunning(gazeSession);
+        if (request.endStatus() == GazeSessionStatus.COMPLETED) {
+            gazeWordMetricMergeService.merge(gazeSession, request.data());
+            updateTestGazeDepartureMetric(gazeSession, request.data());
+        }
         String dataUrl = request.data() == null
                 ? null
-                : gazeDataStorage.store(
+                : storeWithRollbackCleanup(
                         request.studentId(),
                         gazeSession.getId(),
                         request.data().toString()
                 );
         gazeSession.end(request.endStatus(), LocalDateTime.now(), dataUrl);
-        if (request.endStatus() == GazeSessionStatus.COMPLETED) {
-            gazeWordMetricMergeService.merge(gazeSession, request.data());
-            updateTestGazeDepartureMetric(gazeSession, request.data());
-        }
         realtimeEventPublisher.publishAfterCommit(
                 teacherId,
                 request.studentId(),
@@ -157,6 +161,36 @@ public class GazeService {
                 request.endStatus().name()
         );
         return toSessionResponse(gazeSession);
+    }
+
+    private String storeWithRollbackCleanup(
+            Long studentId,
+            Long gazeSessionId,
+            String rawData
+    ) {
+        String dataUrl = gazeDataStorage.store(studentId, gazeSessionId, rawData);
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+                        @Override
+                        public void afterCompletion(int status) {
+                            if (status != TransactionSynchronization.STATUS_ROLLED_BACK) {
+                                return;
+                            }
+                            try {
+                                gazeDataStorage.delete(dataUrl);
+                            } catch (RuntimeException cleanupFailure) {
+                                log.error(
+                                        "롤백된 시선 원시 파일을 삭제하지 못했습니다. dataUrl={}",
+                                        dataUrl,
+                                        cleanupFailure
+                                );
+                            }
+                        }
+                    }
+            );
+        }
+        return dataUrl;
     }
 
     @Transactional

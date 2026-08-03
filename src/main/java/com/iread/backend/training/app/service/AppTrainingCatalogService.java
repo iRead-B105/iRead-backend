@@ -7,6 +7,7 @@ import com.iread.backend.training.curriculum.ActiveCurriculumPolicy;
 import com.iread.backend.training.domain.DailyCurriculumEntity;
 import com.iread.backend.training.repository.DailyCurriculumRepository;
 import com.iread.backend.training.generation.TrainingTemplateContract;
+import com.iread.backend.training.generation.TrainingCatalogPolicy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,12 +29,16 @@ public class AppTrainingCatalogService {
         DailyCurriculumEntity curriculum = ActiveCurriculumPolicy
                 .find(dailyCurriculumRepository, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException(
+                        "ACTIVE_CURRICULUM_NOT_FOUND",
                         "현재 진행 가능한 커리큘럼을 찾을 수 없습니다."
                 ));
         return new CurrentTrainingListResponse(
                 curriculum.getId(),
                 curriculum.getStatus(),
                 curriculum.getTrainings().stream()
+                        .filter(training -> TrainingCatalogPolicy.isSelectable(
+                                training.getTrainingTemplate()
+                        ))
                         .map(training -> new CurrentTrainingListResponse.TrainingItem(
                                 training.getId(),
                                 training.getTrainingTemplate().getId(),

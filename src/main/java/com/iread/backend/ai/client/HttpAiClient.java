@@ -41,6 +41,9 @@ import java.util.Objects;
 @Component
 public class HttpAiClient implements AiClient {
 
+    private static final MediaType TEXT_PLAIN_UTF8 =
+            new MediaType("text", "plain", StandardCharsets.UTF_8);
+
     static final String GENERATE_TRAINING_PATH = "/api/v1/trainings/generate";
     static final String EVALUATE_TRAINING_PATH = "/api/v1/trainings/evaluate";
     static final String GENERATE_STORY_PATH = "/api/v1/story/generate";
@@ -367,10 +370,10 @@ public class HttpAiClient implements AiClient {
         }
         try (TemporaryAudioStorage.StagedAudio stagedAudio = temporaryAudioStorage.stage(audioFile)) {
             MultipartBodyBuilder body = new MultipartBodyBuilder();
-            body.part("requestId", requestId);
-            body.part("studentId", studentId.toString());
+            body.part("requestId", requestId).contentType(TEXT_PLAIN_UTF8);
+            body.part("studentId", studentId.toString()).contentType(TEXT_PLAIN_UTF8);
             if (expectedText != null && !expectedText.isBlank()) {
-                body.part("expectedText", expectedText);
+                body.part("expectedText", expectedText).contentType(TEXT_PLAIN_UTF8);
             }
             body.part("audioFile", new FileSystemResource(stagedAudio.path()) {
                 @Override
@@ -419,8 +422,8 @@ public class HttpAiClient implements AiClient {
         }
         try {
             MultipartBodyBuilder body = new MultipartBodyBuilder();
-            body.part("requestId", request.requestId());
-            body.part("expectedText", request.expectedText());
+            body.part("requestId", request.requestId()).contentType(TEXT_PLAIN_UTF8);
+            body.part("expectedText", request.expectedText()).contentType(TEXT_PLAIN_UTF8);
             body.part("audioFile", new ByteArrayResource(request.audio()) {
                 @Override
                 public String getFilename() {

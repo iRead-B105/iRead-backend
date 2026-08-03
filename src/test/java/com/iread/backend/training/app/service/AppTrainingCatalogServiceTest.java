@@ -102,6 +102,29 @@ class AppTrainingCatalogServiceTest {
     }
 
     @Test
+    void hidesRetiredClassificationTrainingFromAnExistingCurriculum() {
+        StudentEntity student = mock(StudentEntity.class);
+        DailyCurriculumEntity curriculum = mock(DailyCurriculumEntity.class);
+        TrainingEntity retiredTraining = mock(TrainingEntity.class);
+        TrainingTemplateEntity retiredTemplate = mock(TrainingTemplateEntity.class);
+        when(studentRepository.findByIdAndTeacherId(20L, 1L))
+                .thenReturn(Optional.of(student));
+        when(dailyCurriculumRepository.findByStudentIdAndStatus(
+                20L,
+                DailyCurriculumStatus.IN_PROGRESS
+        )).thenReturn(Optional.of(curriculum));
+        when(curriculum.getId()).thenReturn(31L);
+        when(curriculum.getStatus()).thenReturn(DailyCurriculumStatus.IN_PROGRESS);
+        when(curriculum.getTrainings()).thenReturn(List.of(retiredTraining));
+        when(retiredTraining.getTrainingTemplate()).thenReturn(retiredTemplate);
+        when(retiredTemplate.getId()).thenReturn(6L);
+
+        var response = service.getCurrentTrainingList(1L, 20L);
+
+        assertThat(response.trainings()).isEmpty();
+    }
+
+    @Test
     void rejectsStudentOutsideAuthenticatedTeacher() {
         when(studentRepository.findByIdAndTeacherId(20L, 1L))
                 .thenReturn(Optional.empty());
@@ -130,6 +153,9 @@ class AppTrainingCatalogServiceTest {
         when(curriculum.isAvailableToStudent()).thenReturn(false);
 
         assertThatThrownBy(() -> service.getCurrentTrainingList(1L, 20L))
-                .isInstanceOf(ResourceNotFoundException.class);
+                .isInstanceOfSatisfying(ResourceNotFoundException.class, exception -> {
+                    assertThat(exception.code()).isEqualTo("ACTIVE_CURRICULUM_NOT_FOUND");
+                    assertThat(exception).hasMessage("현재 진행 가능한 커리큘럼을 찾을 수 없습니다.");
+                });
     }
 }
