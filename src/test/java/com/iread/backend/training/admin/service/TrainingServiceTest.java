@@ -29,6 +29,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallback;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.json.JsonMapper;
@@ -41,6 +44,8 @@ import java.util.Optional;
 import java.util.stream.StreamSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -65,12 +70,18 @@ class TrainingServiceTest {
     @Mock StudentFeatureProfileService studentFeatureProfileService;
     @Mock PersonalizedCurriculumPlanner personalizedCurriculumPlanner;
     @Mock TrainingInputRequirementService trainingInputRequirementService;
+    private TransactionTemplate transactionTemplate;
     @Mock RealtimeEventPublisher realtimeEventPublisher;
 
     private TrainingService trainingService;
 
     @BeforeEach
     void setUp() {
+        transactionTemplate = mock(TransactionTemplate.class);
+        lenient().when(transactionTemplate.execute(any())).thenAnswer(invocation -> {
+            TransactionCallback<?> callback = invocation.getArgument(0);
+            return callback.doInTransaction(mock(TransactionStatus.class));
+        });
         trainingService = new TrainingService(
                 studentRepository,
                 dailyCurriculumRepository,
@@ -98,6 +109,7 @@ class TrainingServiceTest {
                 personalizedCurriculumPlanner,
                 trainingInputRequirementService,
                 realtimeEventPublisher,
+                transactionTemplate,
                 JsonMapper.builder().build()
         );
     }

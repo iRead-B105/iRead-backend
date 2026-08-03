@@ -12,6 +12,8 @@ import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.ai.config.AiClientProperties;
 import com.iread.backend.global.audio.AudioUploadPolicy;
 import com.iread.backend.global.audio.TemporaryAudioStorage;
+import com.iread.backend.global.storage.FileStorage;
+import com.iread.backend.global.storage.StoredFile;
 import com.iread.backend.pronunciation.PronunciationAnalysisRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,18 +54,20 @@ class HttpAiClientTest {
 
     private MockRestServiceServer server;
     private HttpAiClient aiClient;
+    private FileStorage fileStorage;
 
     @BeforeEach
     void setUp() {
         RestClient.Builder builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
+        fileStorage = org.mockito.Mockito.mock(FileStorage.class);
         aiClient = new HttpAiClient(
                 builder.baseUrl("http://localhost:8081").build(),
                 new AiClientProperties(
                         URI.create("http://localhost:8081"),
                         Duration.ofSeconds(1),
                         Duration.ofSeconds(1),
-                        "",
+                        "test-api-key",
                         false,
                         false,
                         false,
@@ -81,7 +85,8 @@ class HttpAiClientTest {
                                 DataSize.ofMegabytes(20),
                                 "audio/webm,audio/wav,audio/mpeg,audio/mp4"
                         )
-                )
+                ),
+                fileStorage
         );
     }
 
@@ -124,7 +129,8 @@ class HttpAiClientTest {
     }
 
     @Test
-    void 이미지_생성_요청의_상대_URL을_공개_URL로_변환한다() {
+    void 이미지_생성_결과를_백엔드_스토리지에_보관한다() {
+        byte[] png = new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
         server.expect(once(), requestTo("http://localhost:8081/api/v1/images/generate"))
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(header("Idempotency-Key", "image-request-1"))
@@ -135,6 +141,14 @@ class HttpAiClientTest {
                           "provider": "MOCK_IMAGE_V1"
                         }
                         """, MediaType.APPLICATION_JSON));
+        server.expect(once(), requestTo("http://localhost:8081/api/v1/images/mock/example.svg"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(png, MediaType.IMAGE_PNG));
+        org.mockito.Mockito.when(fileStorage.store(
+                "ai-image-request-1.png", "image/png", png
+        )).thenReturn(new StoredFile(
+                "ai-image-request-1.png", "stored.png", png.length, "/uploads/images/stored.png"
+        ));
 
         var response = aiClient.generateImage(new GenerateImageRequest(
                 "image-request-1",
@@ -142,7 +156,7 @@ class HttpAiClientTest {
         ));
 
         assertThat(response.imageUrl())
-                .isEqualTo("http://localhost:8081/api/v1/images/mock/example.svg");
+                .isEqualTo("/uploads/images/stored.png");
         assertThat(response.provider()).isEqualTo("MOCK_IMAGE_V1");
         server.verify();
     }
@@ -160,15 +174,12 @@ class HttpAiClientTest {
         ));
 
         assertThat(response.requestId()).isEqualTo("image-request-mock");
-        assertThat(response.provider()).isEqualTo("BACKEND_MOCK_IMAGE_V1");
-        assertThat(response.imageUrl()).startsWith("data:image/svg+xml;base64,");
-        String svg = new String(
-                Base64.getDecoder().decode(response.imageUrl().substring(
-                        "data:image/svg+xml;base64,".length()
-                )),
-                StandardCharsets.UTF_8
-        );
-        assertThat(svg).contains("우산을 쓰는 아이");
+        assertThat(response.provider()).isEqualTo("BACKEND_MOCK_IMAGE_PNG_V1");
+        assertThat(response.imageUrl()).startsWith("data:image/png;base64,");
+        byte[] png = Base64.getDecoder().decode(response.imageUrl().substring(
+                "data:image/png;base64,".length()
+        ));
+        assertThat(png).startsWith(0x89, 0x50, 0x4e, 0x47);
         server.verify();
     }
 
@@ -184,16 +195,8 @@ class HttpAiClientTest {
                 "[STORY_CHARACTER] 별빛 숲의 친구 주인공"
         ));
 
-        assertThat(response.provider()).isEqualTo("BACKEND_MOCK_STORY_CHARACTER_V1");
-        String svg = new String(
-                Base64.getDecoder().decode(response.imageUrl().substring(
-                        "data:image/svg+xml;base64,".length()
-                )),
-                StandardCharsets.UTF_8
-        );
-        assertThat(svg)
-                .contains("별빛 숲의 친구 주인공")
-                .contains("#f3aa59");
+        assertThat(response.provider()).isEqualTo("BACKEND_MOCK_STORY_CHARACTER_PNG_V1");
+        assertThat(response.imageUrl()).startsWith("data:image/png;base64,");
         server.verify();
     }
 
@@ -467,7 +470,7 @@ class HttpAiClientTest {
                         URI.create("http://localhost:8081"),
                         Duration.ofSeconds(1),
                         Duration.ofSeconds(1),
-                        "",
+                        "test-api-key",
                         true,
                         true,
                         true,
@@ -485,7 +488,8 @@ class HttpAiClientTest {
                                 DataSize.ofMegabytes(20),
                                 "audio/webm,audio/wav,audio/mpeg,audio/mp4"
                         )
-                )
+                ),
+                org.mockito.Mockito.mock(FileStorage.class)
         );
         speechServer.expect(once(), requestTo(
                         "http://localhost:8081/api/v1/speech/pronunciation/analyze"
@@ -675,7 +679,7 @@ class HttpAiClientTest {
                         URI.create("http://localhost:8081"),
                         Duration.ofSeconds(1),
                         Duration.ofSeconds(1),
-                        "",
+                        "test-api-key",
                         mockGenerate,
                         false,
                         false,
@@ -693,7 +697,8 @@ class HttpAiClientTest {
                                 DataSize.ofMegabytes(20),
                                 "audio/webm,audio/wav,audio/mpeg,audio/mp4"
                         )
-                )
+                ),
+                org.mockito.Mockito.mock(FileStorage.class)
         );
     }
 }

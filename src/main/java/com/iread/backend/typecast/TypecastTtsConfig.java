@@ -1,5 +1,6 @@
-package com.iread.backend.ai.config;
+package com.iread.backend.typecast;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -8,24 +9,25 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
 @Configuration
-@EnableConfigurationProperties(AiClientProperties.class)
-public class AiClientConfig {
+@EnableConfigurationProperties(TypecastTtsProperties.class)
+public class TypecastTtsConfig {
 
-    @Bean("aiRestClient")
-    public RestClient aiRestClient(RestClient.Builder builder, AiClientProperties properties) {
+    @Bean
+    @Qualifier("typecastRestClient")
+    public RestClient typecastRestClient(
+            RestClient.Builder builder,
+            TypecastTtsProperties properties
+    ) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(properties.connectTimeout());
         requestFactory.setReadTimeout(properties.readTimeout());
 
-        RestClient.Builder aiClientBuilder = builder
+        RestClient.Builder typecastBuilder = builder
                 .baseUrl(properties.baseUrl().toString())
-                .requestFactory(requestFactory)
-                .requestInterceptor(new AiRetryInterceptor());
-
+                .requestFactory(requestFactory);
         if (StringUtils.hasText(properties.apiKey())) {
-            aiClientBuilder.defaultHeader("X-API-Key", properties.apiKey());
+            typecastBuilder.defaultHeader("X-API-KEY", properties.apiKey());
         }
-
-        return aiClientBuilder.build();
+        return typecastBuilder.build();
     }
 }

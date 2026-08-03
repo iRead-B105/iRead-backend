@@ -80,7 +80,7 @@ class LearningEntryServiceTest {
     }
 
     @Test
-    void returnsHomeWhenInitialChallengeWasCompleted() {
+    void returnsHomeWhenAnyChallengeWasCompletedEvenIfAnotherIsInProgress() {
         allowOwnedStudent();
         when(testCurriculumRepository.existsByStudentIdAndStatus(
                 20L, TestStatus.COMPLETED.name()
@@ -131,8 +131,7 @@ class LearningEntryServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
         verifyNoInteractions(
                 testCurriculumRepository,
-                studentTestRepository,
-                dailyCurriculumRepository
+                studentTestRepository
         );
     }
 

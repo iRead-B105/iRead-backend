@@ -731,9 +731,11 @@ class StoryServiceTest {
             return saved;
         });
         when(aiClient.generateStory(any())).thenReturn(new GenerateStoryResponse(
-                "ignored", 1, 50, false,
+                "ignored", 1, 4, false,
                 List.of(
                         new GeneratedStoryLine("토끼가 깡충 뛰었어요.", false),
+                        new GeneratedStoryLine("거북이가 천천히 따라왔어요.", false),
+                        new GeneratedStoryLine("두 친구 앞에 갈림길이 나타났어요.", false),
                         new GeneratedStoryLine("어디로 갈까요?", true, branchPrompt())
                 )
         ));
@@ -772,9 +774,11 @@ class StoryServiceTest {
             return saved;
         });
         when(aiClient.generateStory(any())).thenReturn(new GenerateStoryResponse(
-                "ignored", 1, 50, false,
+                "ignored", 1, 4, false,
                 List.of(
                         new GeneratedStoryLine("토끼가 깡충 뛰었어요.", false),
+                        new GeneratedStoryLine("거북이가 천천히 따라왔어요.", false),
+                        new GeneratedStoryLine("두 친구 앞에 갈림길이 나타났어요.", false),
                         new GeneratedStoryLine("어디로 갈까요?", true, branchPrompt())
                 )
         ));

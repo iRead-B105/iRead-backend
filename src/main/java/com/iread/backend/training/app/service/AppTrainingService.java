@@ -490,14 +490,18 @@ public class AppTrainingService {
         if (!expectedText.equals(storedText)) {
             throw new IllegalArgumentException("요청한 텍스트가 생성된 훈련 문항과 일치하지 않습니다.");
         }
+        String pronunciationText = "CONSONANT_TRACE".equals(question.path("type").asText())
+                ? KoreanConsonantPronunciation.withEu(storedText)
+                : storedText;
         if (tokenIndex != null) {
             return new RecordingTarget(
                     resolvedTargetIndex,
-                    storedText,
-                    List.of(new PronunciationReferenceWord(tokenIndex, storedText))
+                    pronunciationText,
+                    List.of(new PronunciationReferenceWord(tokenIndex, pronunciationText))
             );
         }
-        if (storedText.equals(question.path("text").asText())
+        if (pronunciationText.equals(storedText)
+                && storedText.equals(question.path("text").asText())
                 && question.path("words").isArray()
                 && !question.path("words").isEmpty()) {
             List<PronunciationReferenceWord> words = new ArrayList<>();
@@ -509,14 +513,14 @@ public class AppTrainingService {
             ));
             return new RecordingTarget(resolvedTargetIndex, storedText, words);
         }
-        List<PronunciationReferenceWord> tokenized = tokenize(storedText);
+        List<PronunciationReferenceWord> tokenized = tokenize(pronunciationText);
         if (tokenized.size() == 1) {
             tokenized = List.of(new PronunciationReferenceWord(
                     null,
                     tokenized.getFirst().surface()
             ));
         }
-        return new RecordingTarget(resolvedTargetIndex, storedText, tokenized);
+        return new RecordingTarget(resolvedTargetIndex, pronunciationText, tokenized);
     }
 
     private int resolveTargetIndex(

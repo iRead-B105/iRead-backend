@@ -319,7 +319,7 @@ class StudentFeatureProfileServiceTest {
                 ReadingFeatureCategory.GRAPHEME, ReadingFeatureScope.CHARACTER
         );
         when(testCurriculumRepository
-                .findFirstByStudentIdAndStatusOrderByCreatedAtAscIdAsc(15L, "COMPLETED"))
+                .findFirstByStudentIdAndStatusOrderByCreatedAtDescIdDesc(15L, "COMPLETED"))
                 .thenReturn(Optional.of(curriculum));
         when(studentTestRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(500L))
                 .thenReturn(List.of(test));
@@ -382,7 +382,7 @@ class StudentFeatureProfileServiceTest {
                 ReadingFeatureCategory.WORD, ReadingFeatureScope.WORD
         );
         when(testCurriculumRepository
-                .findFirstByStudentIdAndStatusOrderByCreatedAtAscIdAsc(15L, "COMPLETED"))
+                .findFirstByStudentIdAndStatusOrderByCreatedAtDescIdDesc(15L, "COMPLETED"))
                 .thenReturn(Optional.of(curriculum));
         when(studentTestRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(500L))
                 .thenReturn(List.of(test));

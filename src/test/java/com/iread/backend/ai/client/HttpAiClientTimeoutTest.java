@@ -6,6 +6,7 @@ import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.global.audio.AudioUploadPolicy;
 import com.iread.backend.global.audio.TemporaryAudioStorage;
+import com.iread.backend.global.storage.FileStorage;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -90,7 +91,7 @@ class HttpAiClientTimeoutTest {
                 baseUrl,
                 connectTimeout,
                 readTimeout,
-                "",
+                "test-api-key",
                 false,
                 false,
                 false,
@@ -111,7 +112,8 @@ class HttpAiClientTimeoutTest {
                 new MockTrainingEvaluator(),
                 new MockStoryGenerator(),
                 new MockSpeechProcessor(),
-                new TemporaryAudioStorage(tempDir.resolve("audio").toString(), uploadPolicy)
+                new TemporaryAudioStorage(tempDir.resolve("audio").toString(), uploadPolicy),
+                org.mockito.Mockito.mock(FileStorage.class)
         );
     }
 

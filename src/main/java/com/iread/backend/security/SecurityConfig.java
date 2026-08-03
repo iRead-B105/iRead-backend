@@ -64,6 +64,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/app/student-login").hasAuthority("AUD_learning-bootstrap")
                 .requestMatchers("/api/auth/admin/logout", "/api/admin/**").hasAuthority("AUD_admin-app")
                 .requestMatchers("/api/auth/app/logout").hasAnyRole("TEACHER", "STUDENT")
+                .requestMatchers("/api/app/tts").hasRole("STUDENT")
                 .requestMatchers("/api/app/**").hasAuthority("AUD_learning-app")
                 .anyRequest().authenticated()
         );
