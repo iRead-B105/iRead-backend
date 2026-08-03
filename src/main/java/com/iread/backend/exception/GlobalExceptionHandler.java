@@ -5,6 +5,7 @@ import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.global.api.ApiErrorResponse;
 import com.iread.backend.report.admin.exception.ReportCreationException;
 import com.iread.backend.training.admin.exception.LessonMaterialException;
+import com.iread.backend.typecast.TypecastTtsException;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
@@ -81,6 +82,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorResponse> handleAiClient(AiClientException exception) {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(
                 ApiErrorResponse.of("AI_UPSTREAM_ERROR", "AI 처리 중 오류가 발생했습니다.")
+        );
+    }
+
+    @ExceptionHandler(TypecastTtsException.class)
+    public ResponseEntity<ApiErrorResponse> handleTypecastTts(TypecastTtsException exception) {
+        return ResponseEntity.status(exception.status()).body(
+                ApiErrorResponse.of(exception.code(), exception.getMessage())
         );
     }
 
