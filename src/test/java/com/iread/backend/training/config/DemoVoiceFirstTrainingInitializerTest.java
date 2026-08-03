@@ -23,10 +23,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Transactional
 class DemoVoiceFirstTrainingInitializerTest {
 
-    private static final long CURRICULUM_ID =
-            DemoVoiceFirstTrainingInitializer.TARGET_CURRICULUM_ID;
-    private static final long STUDENT_ID = 2002L;
-    private static final long TRAINING_ID = 181021L;
+    private static final long CURRICULUM_ID = 180003L;
+    private static final long STUDENT_ID = 2103L;
+    private static final long TRAINING_ID = 181031L;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -53,7 +52,7 @@ class DemoVoiceFirstTrainingInitializerTest {
                 """);
         jdbcTemplate.update("""
                 INSERT INTO students (id, teacher_id, name, birthday, gender, school, created_at)
-                VALUES (?, 9001, '한결', '2018-09-21', 'boy', '데모초등학교', CURRENT_TIMESTAMP)
+                VALUES (?, 9001, '박서아', '2019-02-18', 'girl', '데모초등학교', CURRENT_TIMESTAMP)
                 """, STUDENT_ID);
         jdbcTemplate.update("""
                 INSERT INTO daily_curriculums (id, student_id, status, created_at)
@@ -84,10 +83,10 @@ class DemoVoiceFirstTrainingInitializerTest {
         assertThat(templateId).isEqualTo(DemoVoiceFirstTrainingInitializer.VOICE_TEMPLATE_ID);
 
         JsonNode question = firstQuestion();
-        assertThat(question.path("type").asText()).isEqualTo("SENTENCE_REPEAT");
+        assertThat(question.path("type").asText()).isEqualTo("WORD_READING");
         assertThat(TrainingInputPolicy.forQuestion(question))
                 .contains(TrainingInputType.VOICE);
-        // 녹음 제출이 analysisTargets로 대상 문장을 찾으므로 분석 결과가 있어야 한다.
+        // 녹음 제출이 analysisTargets로 대상 낱말을 찾으므로 분석 결과가 있어야 한다.
         assertThat(question.path("analysisTargets")).isNotEmpty();
         assertThat(question.path("answer").path("expectedText").asText()).isNotBlank();
     }
@@ -103,22 +102,59 @@ class DemoVoiceFirstTrainingInitializerTest {
     }
 
     @Test
-    void 다른_데모_학습자의_교육과정은_건드리지_않는다() {
-        jdbcTemplate.update("""
-                INSERT INTO daily_curriculums (id, student_id, status, created_at)
-                VALUES (180003, ?, 'NOT_STARTED', CURRENT_TIMESTAMP)
-                """, STUDENT_ID);
+    void 기존_낱말_읽기_훈련이_있으면_데이터_연결을_유지하고_첫_순서로_옮긴다() {
         jdbcTemplate.update("""
                 INSERT INTO trainings
                     (id, training_template_id, daily_curriculum_id, sequence_no,
                      created_at, status)
-                VALUES (181031, 4, 180003, 1, CURRENT_TIMESTAMP, 'NOT_STARTED')
+                VALUES (181033, 22, ?, 3, CURRENT_TIMESTAMP, 'NOT_READY')
+                """, CURRICULUM_ID);
+
+        initializer.run(new DefaultApplicationArguments());
+
+        Integer voiceSequence = jdbcTemplate.queryForObject(
+                "SELECT sequence_no FROM trainings WHERE id = 181033",
+                Integer.class
+        );
+        String voiceStatus = jdbcTemplate.queryForObject(
+                "SELECT status FROM trainings WHERE id = 181033",
+                String.class
+        );
+        Integer previousFirstSequence = jdbcTemplate.queryForObject(
+                "SELECT sequence_no FROM trainings WHERE id = ?",
+                Integer.class,
+                TRAINING_ID
+        );
+        assertThat(voiceSequence).isEqualTo(1);
+        assertThat(voiceStatus).isEqualTo("NOT_STARTED");
+        assertThat(previousFirstSequence).isEqualTo(3);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM training_datas WHERE train_id = 181033",
+                Integer.class
+        )).isEqualTo(1);
+    }
+
+    @Test
+    void 다른_데모_학습자의_교육과정은_건드리지_않는다() {
+        jdbcTemplate.update("""
+                INSERT INTO students (id, teacher_id, name, birthday, gender, school, created_at)
+                VALUES (2002, 9001, '한결', '2018-09-21', 'boy', '데모초등학교', CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO daily_curriculums (id, student_id, status, created_at)
+                VALUES (180002, 2002, 'NOT_STARTED', CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO trainings
+                    (id, training_template_id, daily_curriculum_id, sequence_no,
+                     created_at, status)
+                VALUES (181021, 4, 180002, 1, CURRENT_TIMESTAMP, 'NOT_STARTED')
                 """);
 
         initializer.run(new DefaultApplicationArguments());
 
         Long untouched = jdbcTemplate.queryForObject(
-                "SELECT training_template_id FROM trainings WHERE id = 181031",
+                "SELECT training_template_id FROM trainings WHERE id = 181021",
                 Long.class
         );
         assertThat(untouched).isEqualTo(4L);
