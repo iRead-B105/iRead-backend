@@ -22,28 +22,33 @@ class MockStoryGeneratorTest {
         var response = generator.generate(request);
 
         assertThat(response).isEqualTo(generator.generate(request));
-        assertThat(response.nextProgress()).isEqualTo(50);
-        assertThat(response.lines()).hasSize(5);
+        assertThat(response.nextProgress()).isEqualTo(4);
+        assertThat(response.lines()).hasSize(4);
         assertThat(response.lines())
                 .extracting(line -> line.requiresBranchInput())
-                .containsExactly(false, false, false, false, true);
+                .containsExactly(false, false, false, true);
     }
 
     @Test
-    void completesStoryAtOneHundredProgress() {
+    void reflectsBranchIntentInFirstDailyContinuation() {
         ContinueStoryRequest request = new ContinueStoryRequest(
-                "request-2", 10L, 20L, 1, 50, template, 40L,
-                "친구를 따라간다", List.of(new StoryHistoryLine(40L, "어디로 갈까요?", true))
+                "request-2", 10L, 20L, 1, 4, template, 40L,
+                "토끼가 이긴다", List.of(
+                        new StoryHistoryLine(37L, "첫 장면", false),
+                        new StoryHistoryLine(38L, "둘째 장면", false),
+                        new StoryHistoryLine(39L, "셋째 장면", false),
+                        new StoryHistoryLine(40L, "어디로 갈까요?", true)
+                )
         );
 
         var response = generator.continueStory(request);
 
-        assertThat(response.completed()).isTrue();
-        assertThat(response.nextProgress()).isEqualTo(100);
+        assertThat(response.completed()).isFalse();
+        assertThat(response.nextProgress()).isEqualTo(9);
         assertThat(response.lines()).hasSize(5);
         assertThat(response.lines())
                 .extracting(line -> line.requiresBranchInput())
-                .containsOnly(false);
-        assertThat(response.lines().getFirst().content()).contains("친구를 따라간다");
+                .containsExactly(false, false, false, false, true);
+        assertThat(response.lines().getFirst().content()).contains("토끼가 이긴다");
     }
 }

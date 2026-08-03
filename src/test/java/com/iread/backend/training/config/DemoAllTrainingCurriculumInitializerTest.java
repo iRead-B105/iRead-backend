@@ -60,8 +60,7 @@ class DemoAllTrainingCurriculumInitializerTest {
         when(curriculumRepository.findForGeneration(
                 DemoAllTrainingCurriculumInitializer.SHOWCASE_CURRICULUM_ID
         )).thenReturn(Optional.of(curriculum));
-        when(templateRepository
-                .findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc())
+        when(templateRepository.findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc())
                 .thenReturn(templates);
         when(generationService.generate(any())).thenAnswer(invocation -> {
             ObjectNode generated = objectMapper.createObjectNode();

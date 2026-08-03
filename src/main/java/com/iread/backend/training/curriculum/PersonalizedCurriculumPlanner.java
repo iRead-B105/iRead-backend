@@ -7,6 +7,7 @@ import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.DailyCurriculumEntity;
 import com.iread.backend.training.domain.DailyCurriculumStatus;
 import com.iread.backend.training.domain.TrainingTemplateEntity;
+import com.iread.backend.training.generation.TrainingCatalogPolicy;
 import com.iread.backend.training.repository.DailyCurriculumRepository;
 import com.iread.backend.training.repository.TrainingTemplateRepository;
 import lombok.RequiredArgsConstructor;
@@ -49,8 +50,11 @@ public class PersonalizedCurriculumPlanner {
     }
 
     List<TrainingTemplateEntity> selectTemplates(Long studentId) {
-        List<TrainingTemplateEntity> catalog =
-                templateRepository.findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc();
+        List<TrainingTemplateEntity> catalog = templateRepository
+                .findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc()
+                .stream()
+                .filter(TrainingCatalogPolicy::isSelectable)
+                .toList();
         if (catalog.size() < TRAINING_COUNT) {
             throw new IllegalStateException("맞춤 커리큘럼을 편성할 훈련 템플릿이 부족합니다.");
         }

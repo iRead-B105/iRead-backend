@@ -37,6 +37,7 @@ import org.springframework.web.multipart.MultipartFile;
 import tools.jackson.databind.JsonNode;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -130,9 +131,22 @@ public class StoryService {
     @Transactional
     public StoryLinesResponse getStoryLines(Long teacherId, Long studentId, Long storyId) {
         StoryEntity story = findOwnedStory(teacherId, studentId, storyId);
-        return new StoryLinesResponse(toLineResponses(
-                storyLineRepository.findAllByStoryIdOrderBySequenceNoAsc(story.getId())
-        ));
+        List<StoryLineEntity> lines = prepareAvailableDay(story);
+        int availableDay = StoryReadingPlan.availableDay(story.getCreatedAt(), LocalDate.now());
+        boolean dayComplete = StoryReadingPlan.closesDay(lines.size())
+                && !lines.isEmpty()
+                && lines.getLast().getReadAt() != null
+                && !story.getStatus().equals(StoryStatus.COMPLETED);
+        return new StoryLinesResponse(
+                story.getId(),
+                story.getStatus(),
+                StoryReadingPlan.currentDay(lines.size()),
+                availableDay,
+                StoryReadingPlan.TOTAL_DAYS,
+                StoryReadingPlan.PAGES_PER_DAY,
+                dayComplete,
+                toLineResponses(lines)
+        );
     }
 
     @Transactional
@@ -151,8 +165,8 @@ public class StoryService {
                 toTemplateData(template)
         ));
 
-        appendGeneratedLines(story, null, generated);
-        updateProgress(story, generated);
+        GeneratedSegment segment = appendGeneratedLines(story, null, generated);
+        updateProgress(story, generated, segment.lines().size());
         if (generated.completed()) {
             createStoryCharacter(story, List.of(), generated);
         }
@@ -218,7 +232,7 @@ public class StoryService {
         ));
 
         GeneratedSegment segment = appendGeneratedLines(story, selectedLine, generated);
-        updateProgress(story, generated);
+        updateProgress(story, generated, historyLines.size() + segment.lines().size());
         if (generated.completed()) {
             createStoryCharacter(story, historyLines, generated);
         }
@@ -478,20 +492,59 @@ public class StoryService {
             }
         }
 
-        boolean lastRequiresBranchInput = response.lines().getLast().requiresBranchInput();
-        if (response.completed() == lastRequiresBranchInput) {
-            throw new AiClientException("AI 서버 응답의 완료 상태와 마지막 분기 입력 상태가 일치하지 않습니다.");
+        if (response.completed() && response.lines().getLast().requiresBranchInput()) {
+            throw new AiClientException("완료된 이야기의 마지막 대사에는 분기 입력이 올 수 없습니다.");
         }
     }
 
-    private void updateProgress(StoryEntity story, GenerateStoryResponse response) {
+    private void updateProgress(StoryEntity story, GenerateStoryResponse response, int expectedPageCount) {
         if (response.nextProgress() < story.getProgress() || response.nextProgress() > 100) {
             throw new AiClientException("AI 서버 응답의 nextProgress가 유효하지 않습니다.");
+        }
+        int expectedProgress = Math.min(expectedPageCount, StoryReadingPlan.TOTAL_PAGES);
+        if (response.nextProgress() != expectedProgress) {
+            throw new AiClientException("AI 서버 응답의 진행률이 생성된 페이지 수와 일치하지 않습니다.");
         }
         if (response.completed() != (response.nextProgress() == 100)) {
             throw new AiClientException("AI 서버 응답의 완료 상태와 진행률이 일치하지 않습니다.");
         }
         story.updateProgress(response.nextProgress());
+    }
+
+    private List<StoryLineEntity> prepareAvailableDay(StoryEntity story) {
+        List<StoryLineEntity> history = storyLineRepository
+                .findAllByStoryIdOrderBySequenceNoAsc(story.getId());
+        if (!story.isInProgress()
+                || history.isEmpty()
+                || !StoryReadingPlan.closesDay(history.size())
+                || history.size() >= StoryReadingPlan.TOTAL_PAGES
+                || history.getLast().getReadAt() == null) {
+            return history;
+        }
+
+        int completedDay = history.size() / StoryReadingPlan.PAGES_PER_DAY;
+        int availableDay = StoryReadingPlan.availableDay(story.getCreatedAt(), LocalDate.now());
+        if (availableDay <= completedDay) {
+            return history;
+        }
+
+        StoryLineEntity lastLine = history.getLast();
+        GenerateStoryResponse generated = aiClient.continueStory(new ContinueStoryRequest(
+                UUID.randomUUID().toString(),
+                story.getId(),
+                story.getStudent().getId(),
+                STORY_SCHEMA_VERSION,
+                story.getProgress(),
+                toTemplateData(story.getStoryTemplate()),
+                lastLine.getId(),
+                "다음 날 이야기를 이어 간다",
+                history.stream().map(this::toHistoryLine).toList()
+        ));
+        GeneratedSegment segment = appendGeneratedLines(story, lastLine, generated);
+        updateProgress(story, generated, history.size() + segment.lines().size());
+        List<StoryLineEntity> prepared = new ArrayList<>(history);
+        prepared.addAll(segment.lines());
+        return List.copyOf(prepared);
     }
 
     private void createStoryCharacter(StoryEntity story, List<StoryLineEntity> historyLines,

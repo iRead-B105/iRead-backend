@@ -113,7 +113,8 @@ CREATE TABLE `training_datas` (
 	`train_id` bigint NOT NULL,
 	`generated_data` json NULL COMMENT '훈련에서 쓰일 AI 생성 단어 또는 문장',
 	`created_at` timestamp NULL,
-	CONSTRAINT `PK_TRAINING_DATAS` PRIMARY KEY (`id`)
+	CONSTRAINT `PK_TRAINING_DATAS` PRIMARY KEY (`id`),
+	CONSTRAINT `UK_TRAINING_DATAS_TRAIN_ID` UNIQUE (`train_id`)
 );
 
 CREATE TABLE `stories` (

@@ -11,6 +11,7 @@ import com.iread.backend.pronunciation.PronunciationAnalysisResult;
 import com.iread.backend.pronunciation.PronunciationReferenceWord;
 import com.iread.backend.pronunciation.PronunciationWordAligner;
 import com.iread.backend.pronunciation.PronunciationWordResult;
+import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
 import com.iread.backend.realtime.RealtimeEventPublisher;
 import com.iread.backend.realtime.RealtimeResource;
 import com.iread.backend.student.domain.StudentEntity;
@@ -26,6 +27,7 @@ import com.iread.backend.test.repository.TestCurriculumRepository;
 import com.iread.backend.test.repository.TestDataRepository;
 import com.iread.backend.training.domain.TrainingTemplateEntity;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
+import com.iread.backend.training.generation.TrainingCatalogPolicy;
 import com.iread.backend.training.generation.TrainingType;
 import com.iread.backend.training.domain.WordEntity;
 import com.iread.backend.training.input.TrainingInputPolicy;
@@ -79,6 +81,7 @@ public class AppTestService {
     private final ObjectMapper objectMapper;
     private final AppLearningQuestionSupport learningQuestionSupport;
     private final RealtimeEventPublisher realtimeEventPublisher;
+    private final StudentFeatureProfileService studentFeatureProfileService;
 
     @Autowired
     public AppTestService(
@@ -96,7 +99,8 @@ public class AppTestService {
             WordAttemptScoreCalculator wordAttemptScoreCalculator,
             ObjectMapper objectMapper,
             AppLearningQuestionSupport learningQuestionSupport,
-            RealtimeEventPublisher realtimeEventPublisher
+            RealtimeEventPublisher realtimeEventPublisher,
+            StudentFeatureProfileService studentFeatureProfileService
     ) {
         this.studentRepository = studentRepository;
         this.testRepository = testRepository;
@@ -113,6 +117,7 @@ public class AppTestService {
         this.objectMapper = objectMapper;
         this.learningQuestionSupport = learningQuestionSupport;
         this.realtimeEventPublisher = realtimeEventPublisher;
+        this.studentFeatureProfileService = studentFeatureProfileService;
     }
 
     AppTestService(
@@ -134,7 +139,8 @@ public class AppTestService {
                 null, null, wordRepository, wordAttemptLogRepository,
                 pronunciationAnalysisAdapter, pronunciationWordAligner,
                 audioUploadPolicy, wordAttemptScoreCalculator, objectMapper,
-                learningQuestionSupport, realtimeEventPublisher
+                learningQuestionSupport, realtimeEventPublisher,
+                null
         );
     }
 
@@ -547,6 +553,8 @@ public class AppTestService {
                 test.getTestCurriculum().complete(completedAt);
             }
         }
+        StudentEntity student = findOwnedStudent(teacherId, studentId);
+        studentFeatureProfileService.recalculate(student);
         realtimeEventPublisher.publishAfterCommit(
                 teacherId,
                 studentId,
@@ -558,8 +566,11 @@ public class AppTestService {
     }
 
     private TestCurriculumEntity createChallenge(StudentEntity student) {
-        List<TrainingTemplateEntity> templates =
-                trainingTemplateRepository.findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc();
+        List<TrainingTemplateEntity> templates = trainingTemplateRepository
+                .findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc()
+                .stream()
+                .filter(TrainingCatalogPolicy::isSelectable)
+                .toList();
         List<TrainingTemplateEntity> selected = new ArrayList<>(TOTAL_QUESTION_COUNT);
         selected.addAll(selectTemplates(templates, PHONOLOGICAL_TYPES, "음운 인식 및 파닉스"));
         selected.addAll(selectTemplates(templates, SHORT_TEXT_TYPES, "글 해독 및 문장 이해"));
@@ -601,8 +612,11 @@ public class AppTestService {
                     "진행 중인 기존 검사는 9문항 실력도전으로 자동 전환할 수 없습니다."
             );
         }
-        List<TrainingTemplateEntity> allTemplates =
-                trainingTemplateRepository.findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc();
+        List<TrainingTemplateEntity> allTemplates = trainingTemplateRepository
+                .findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc()
+                .stream()
+                .filter(TrainingCatalogPolicy::isSelectable)
+                .toList();
         LocalDateTime createdAt = LocalDateTime.now();
         List<StudentTestEntity> result = new ArrayList<>(existing);
         for (int trackIndex = 0; trackIndex < 3; trackIndex++) {

@@ -59,6 +59,16 @@ public class DailyCurriculumEntity {
         completedAt = null;
     }
 
+    public void removeTrainings(List<TrainingEntity> targets) {
+        trainings.removeAll(targets);
+    }
+
+    public void resequenceTrainings() {
+        for (int index = 0; index < trainings.size(); index++) {
+            trainings.get(index).moveToSequence(index + 1);
+        }
+    }
+
     public void refreshCompletion(LocalDateTime now) {
         if (!trainings.isEmpty() && trainings.stream().allMatch(TrainingEntity::isCompleted)) {
             status = DailyCurriculumStatus.COMPLETED;

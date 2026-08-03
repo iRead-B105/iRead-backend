@@ -71,6 +71,7 @@ public class TrainingEntity {
     }
     public void markNotReady() { status = TrainingStatus.NOT_READY; }
     public void markReady() { status = TrainingStatus.NOT_STARTED; }
+    public void moveToSequence(int sequenceNo) { this.sequenceNo = sequenceNo; }
 
     public void start(LocalDateTime startedAt) {
         this.startedAt = startedAt;

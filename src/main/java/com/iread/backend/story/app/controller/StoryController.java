@@ -112,7 +112,7 @@ public class StoryController {
             @CurrentStudentId Long authenticatedStudentId,
             @PathVariable Long studentId,
             @PathVariable Long storyId,
-            @RequestPart("lineId") Long lineId,
+            @RequestParam("lineId") Long lineId,
             @RequestPart("audioFile") MultipartFile audioFile
     ) {
         authorizeStudent(authenticatedStudentId, studentId);

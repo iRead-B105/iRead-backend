@@ -7,6 +7,7 @@ import com.iread.backend.pronunciation.PronunciationAnalysisResult;
 import com.iread.backend.pronunciation.PronunciationWordAligner;
 import com.iread.backend.pronunciation.PronunciationWordResult;
 import com.iread.backend.realtime.RealtimeEventPublisher;
+import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.learning.app.service.AppLearningQuestionSupport;
@@ -70,6 +71,7 @@ class AppTestServiceTest {
     @Mock WordAttemptScoreCalculator wordAttemptScoreCalculator;
     @Mock ObjectMapper objectMapper;
     @Mock RealtimeEventPublisher realtimeEventPublisher;
+    @Mock StudentFeatureProfileService studentFeatureProfileService;
     @InjectMocks AppTestService appTestService;
 
     @Test
@@ -191,7 +193,10 @@ class AppTestServiceTest {
         AppTestService service = new AppTestService(
                 studentRepository,
                 testRepository,
+                testCurriculumRepository,
                 testDataRepository,
+                trainingTemplateRepository,
+                trainingGenerationService,
                 wordRepository,
                 wordAttemptLogRepository,
                 pronunciationAnalysisAdapter,
@@ -200,7 +205,8 @@ class AppTestServiceTest {
                 wordAttemptScoreCalculator,
                 mapper,
                 new AppLearningQuestionSupport(mapper),
-                realtimeEventPublisher
+                realtimeEventPublisher,
+                studentFeatureProfileService
         );
 
         var result = service.complete(

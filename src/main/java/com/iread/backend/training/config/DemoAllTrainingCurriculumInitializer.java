@@ -5,6 +5,7 @@ import com.iread.backend.training.domain.TrainingDataEntity;
 import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.domain.TrainingTemplateEntity;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
+import com.iread.backend.training.generation.TrainingCatalogPolicy;
 import com.iread.backend.training.repository.DailyCurriculumRepository;
 import com.iread.backend.training.repository.TrainingDataRepository;
 import com.iread.backend.training.repository.TrainingTemplateRepository;
@@ -31,7 +32,7 @@ import java.util.List;
 public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
 
     static final long SHOWCASE_CURRICULUM_ID = 190001L;
-    static final int EXPECTED_TEMPLATE_COUNT = 34;
+    static final int EXPECTED_TEMPLATE_COUNT = 32;
 
     private final DailyCurriculumRepository dailyCurriculumRepository;
     private final TrainingTemplateRepository trainingTemplateRepository;
@@ -53,28 +54,72 @@ public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
             return;
         }
 
-        List<TrainingTemplateEntity> templates =
-                trainingTemplateRepository
-                        .findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc();
+        List<TrainingTemplateEntity> templates = trainingTemplateRepository
+                .findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc()
+                .stream()
+                .filter(TrainingCatalogPolicy::isSelectable)
+                .toList();
         if (templates.size() != EXPECTED_TEMPLATE_COUNT) {
             throw new IllegalStateException(
-                    "전체 훈련 체험 커리큘럼에는 34개 템플릿이 필요합니다."
+                    "전체 훈련 체험 커리큘럼에는 32개 활성 템플릿이 필요합니다."
             );
         }
 
-        curriculum.replaceTrainings(templates);
+        if (curriculum.getTrainings().isEmpty()) {
+            curriculum.replaceTrainings(templates);
+        } else if (curriculum.getTrainings().stream()
+                .anyMatch(training -> !TrainingCatalogPolicy.isSelectable(
+                        training.getTrainingTemplate()
+                ))) {
+            consolidateRetiredTrainings(curriculum);
+        } else if (curriculum.getTrainings().size() != EXPECTED_TEMPLATE_COUNT) {
+            throw new IllegalStateException(
+                    "전체 훈련 체험 커리큘럼 구성이 활성 훈련 템플릿과 일치하지 않습니다."
+            );
+        }
         dailyCurriculumRepository.flush();
 
         List<TrainingEntity> trainings = curriculum.getTrainings();
         for (TrainingEntity training : trainings) {
             ObjectNode generated = generationService.generate(training);
             keepFirstQuestion(generated);
-            trainingDataRepository.save(
-                    new TrainingDataEntity(training, writeJson(generated))
-            );
+            String generatedJson = writeJson(generated);
+            trainingDataRepository.findByTrainingId(training.getId())
+                    .ifPresentOrElse(
+                            data -> data.updateGeneratedData(generatedJson),
+                            () -> trainingDataRepository.save(
+                                    new TrainingDataEntity(training, generatedJson)
+                            )
+                    );
         }
         trainings.getFirst().markReady();
         trainingDataRepository.flush();
+    }
+
+    private void consolidateRetiredTrainings(DailyCurriculumEntity curriculum) {
+        List<TrainingEntity> retired = curriculum.getTrainings().stream()
+                .filter(training -> !TrainingCatalogPolicy.isSelectable(training.getTrainingTemplate()))
+                .toList();
+        if (retired.isEmpty()
+                || curriculum.getTrainings().size() - retired.size() != EXPECTED_TEMPLATE_COUNT) {
+            throw new IllegalStateException(
+                    "전체 훈련 체험 커리큘럼 구성이 예상한 32개 활성 템플릿과 다릅니다."
+            );
+        }
+
+        for (TrainingEntity training : curriculum.getTrainings()) {
+            if (!retired.contains(training)) {
+                training.moveToSequence(training.getSequenceNo() + 100000);
+            }
+        }
+        for (TrainingEntity training : retired) {
+            trainingDataRepository.deleteByTrainingId(training.getId());
+        }
+        trainingDataRepository.flush();
+
+        curriculum.removeTrainings(retired);
+        dailyCurriculumRepository.flush();
+        curriculum.resequenceTrainings();
     }
 
     private void refreshAllQuestions(DailyCurriculumEntity curriculum) {
