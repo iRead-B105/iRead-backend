@@ -17,6 +17,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import tools.jackson.databind.ObjectMapper;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -152,13 +153,15 @@ class TrainingCompletionTransactionIntegrationTest {
 
     @Test
     void downstreamFailureRollsBackResultCompletionTimeAndCurriculumStatus() {
-        when(aiClient.evaluateTraining(any())).thenReturn(
-                new EvaluateTrainingResponse(
-                        "training-evaluation-" + TRAINING_ID,
-                        1,
-                        new BigDecimal("84.25")
-                )
-        );
+        when(aiClient.evaluateTraining(any())).thenAnswer(invocation -> {
+            assertThat(TransactionSynchronizationManager.isActualTransactionActive())
+                    .isFalse();
+            return new EvaluateTrainingResponse(
+                    "training-evaluation-" + TRAINING_ID,
+                    1,
+                    new BigDecimal("84.25")
+            );
+        });
         org.mockito.Mockito.doThrow(new IllegalStateException("프로필 집계 실패"))
                 .when(studentFeatureProfileService)
                 .recalculate(any());

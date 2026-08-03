@@ -19,7 +19,8 @@ public class AiClientConfig {
 
         RestClient.Builder aiClientBuilder = builder
                 .baseUrl(properties.baseUrl().toString())
-                .requestFactory(requestFactory);
+                .requestFactory(requestFactory)
+                .requestInterceptor(new AiRetryInterceptor());
 
         if (StringUtils.hasText(properties.apiKey())) {
             aiClientBuilder.defaultHeader("X-API-Key", properties.apiKey());

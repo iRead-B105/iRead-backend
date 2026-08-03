@@ -30,7 +30,9 @@ import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
 import com.iread.backend.wordattempt.service.WordAttemptScoreCalculator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -60,6 +62,7 @@ public class TrainingService {
     private final PersonalizedCurriculumPlanner personalizedCurriculumPlanner;
     private final TrainingInputRequirementService trainingInputRequirementService;
     private final RealtimeEventPublisher realtimeEventPublisher;
+    private final TransactionTemplate transactionTemplate;
     private final ObjectMapper objectMapper;
 
     public List<CurriculumLogResponse> getCurriculumLogs(
@@ -322,7 +325,7 @@ public class TrainingService {
         return generatedData;
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public BigDecimal completeTraining(
             Long teacherId,
             Long studentId,
@@ -330,12 +333,48 @@ public class TrainingService {
             JsonNode result,
             LocalDateTime completedAt
     ) {
-        StudentEntity student = validateStudentOwner(teacherId, studentId);
+        TrainingEvaluationContext context = Objects.requireNonNull(
+                transactionTemplate.execute(status -> prepareTrainingEvaluation(
+                        teacherId, studentId, trainingId, result
+                ))
+        );
+        if (context.completedAccuracy() != null) {
+            return context.completedAccuracy();
+        }
+
+        String requestId = "training-evaluation-" + trainingId;
+        EvaluateTrainingResponse response = aiClient.evaluateTraining(new EvaluateTrainingRequest(
+                requestId,
+                trainingId,
+                studentId,
+                context.trainingTemplateId(),
+                1,
+                context.finalResult()
+        ));
+        BigDecimal accuracy = response.accuracy().setScale(2, RoundingMode.HALF_UP);
+        return Objects.requireNonNull(transactionTemplate.execute(status ->
+                finishTrainingEvaluation(
+                        teacherId,
+                        studentId,
+                        trainingId,
+                        context.finalResult(),
+                        accuracy,
+                        completedAt
+                )
+        ));
+    }
+
+    private TrainingEvaluationContext prepareTrainingEvaluation(
+            Long teacherId,
+            Long studentId,
+            Long trainingId,
+            JsonNode result
+    ) {
+        validateStudentOwner(teacherId, studentId);
         TrainingEntity training = trainingRepository.findForUpdate(trainingId, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("훈련을 찾을 수 없습니다."));
-
         if (training.isCompleted()) {
-            return training.getAccuracy();
+            return new TrainingEvaluationContext(training.getAccuracy(), null, null);
         }
         if (!training.isCompletable()) {
             throw new ConflictException("준비되지 않은 훈련은 완료할 수 없습니다.");
@@ -351,17 +390,31 @@ public class TrainingService {
                 finalResult.set("wordAttempts", progressAttempts.deepCopy());
             }
         }
-
-        String requestId = "training-evaluation-" + trainingId;
-        EvaluateTrainingResponse response = aiClient.evaluateTraining(new EvaluateTrainingRequest(
-                requestId,
-                trainingId,
-                studentId,
+        return new TrainingEvaluationContext(
+                null,
                 training.getTrainingTemplate().getId(),
-                1,
                 finalResult
-        ));
-        BigDecimal accuracy = response.accuracy().setScale(2, RoundingMode.HALF_UP);
+        );
+    }
+
+    private BigDecimal finishTrainingEvaluation(
+            Long teacherId,
+            Long studentId,
+            Long trainingId,
+            ObjectNode finalResult,
+            BigDecimal accuracy,
+            LocalDateTime completedAt
+    ) {
+        StudentEntity student = validateStudentOwner(teacherId, studentId);
+        TrainingEntity training = trainingRepository.findForUpdate(trainingId, studentId)
+                .orElseThrow(() -> new ResourceNotFoundException("훈련을 찾을 수 없습니다."));
+        if (training.isCompleted()) {
+            return training.getAccuracy();
+        }
+        if (!training.isCompletable()) {
+            throw new ConflictException("준비되지 않은 훈련은 완료할 수 없습니다.");
+        }
+
         LocalDateTime finishedAt = completedAt == null ? LocalDateTime.now() : completedAt;
         if (training.getStartedAt() == null) {
             training.start(finishedAt);
@@ -381,6 +434,13 @@ public class TrainingService {
                 "COMPLETED"
         );
         return accuracy;
+    }
+
+    private record TrainingEvaluationContext(
+            BigDecimal completedAccuracy,
+            Long trainingTemplateId,
+            ObjectNode finalResult
+    ) {
     }
 
     private void activateNextTraining(TrainingEntity completedTraining) {

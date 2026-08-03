@@ -15,6 +15,8 @@ import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
 import com.iread.backend.ai.config.AiClientProperties;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.global.audio.TemporaryAudioStorage;
+import com.iread.backend.global.storage.FileStorage;
+import com.iread.backend.global.storage.StoredFile;
 import com.iread.backend.pronunciation.DeterministicPronunciationAnalysisAdapter;
 import com.iread.backend.pronunciation.PronunciationAnalysisRequest;
 import com.iread.backend.pronunciation.PronunciationAnalysisResult;
@@ -31,6 +33,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Objects;
@@ -54,6 +57,7 @@ public class HttpAiClient implements AiClient {
     private final MockStoryGenerator mockStoryGenerator;
     private final MockSpeechProcessor mockSpeechProcessor;
     private final TemporaryAudioStorage temporaryAudioStorage;
+    private final FileStorage fileStorage;
     private final DeterministicPronunciationAnalysisAdapter mockPronunciationAnalyzer =
             new DeterministicPronunciationAnalysisAdapter();
 
@@ -64,7 +68,8 @@ public class HttpAiClient implements AiClient {
             MockTrainingEvaluator mockTrainingEvaluator,
             MockStoryGenerator mockStoryGenerator,
             MockSpeechProcessor mockSpeechProcessor,
-            TemporaryAudioStorage temporaryAudioStorage
+            TemporaryAudioStorage temporaryAudioStorage,
+            FileStorage fileStorage
     ) {
         this.restClient = restClient;
         this.properties = properties;
@@ -73,6 +78,7 @@ public class HttpAiClient implements AiClient {
         this.mockStoryGenerator = mockStoryGenerator;
         this.mockSpeechProcessor = mockSpeechProcessor;
         this.temporaryAudioStorage = temporaryAudioStorage;
+        this.fileStorage = fileStorage;
     }
 
     @Override
@@ -188,18 +194,51 @@ public class HttpAiClient implements AiClient {
                     || response.imageUrl().isBlank()) {
                 throw new AiClientException("AI 이미지 생성 응답 값이 유효하지 않습니다.");
             }
-            String publicImageUrl = properties.baseUrl()
-                    .resolve(response.imageUrl())
-                    .toString();
+            URI imageUri = properties.baseUrl().resolve(response.imageUrl());
+            validateSameAiOrigin(imageUri);
+            var imageResponse = restClient.get()
+                    .uri(imageUri)
+                    .accept(MediaType.IMAGE_PNG, MediaType.IMAGE_JPEG)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (httpRequest, httpResponse) -> {
+                        throw new AiClientException(
+                                "AI 서버가 생성 이미지 조회 오류를 반환했습니다.",
+                                httpResponse.getStatusCode().value()
+                        );
+                    })
+                    .toEntity(byte[].class);
+            byte[] content = imageResponse.getBody();
+            MediaType contentType = imageResponse.getHeaders().getContentType();
+            if (content == null || content.length == 0 || contentType == null) {
+                throw new AiClientException("AI 생성 이미지 본문 또는 형식이 없습니다.");
+            }
+            String extension = switch (contentType.toString()) {
+                case "image/png" -> "png";
+                case "image/jpeg" -> "jpg";
+                default -> throw new AiClientException("AI 생성 이미지 형식이 유효하지 않습니다.");
+            };
+            StoredFile stored = fileStorage.store(
+                    "ai-" + request.requestId() + "." + extension,
+                    contentType.toString(),
+                    content
+            );
             return new GenerateImageResponse(
                     response.requestId(),
-                    publicImageUrl,
+                    stored.url(),
                     response.provider()
             );
         } catch (AiClientException exception) {
             throw exception;
         } catch (RestClientException exception) {
             throw new AiClientException("AI 서버와 이미지 생성 통신 중 실패했습니다.", exception);
+        }
+    }
+
+    private void validateSameAiOrigin(URI imageUri) {
+        URI base = properties.baseUrl();
+        if (!Objects.equals(base.getScheme(), imageUri.getScheme())
+                || !Objects.equals(base.getAuthority(), imageUri.getAuthority())) {
+            throw new AiClientException("AI 생성 이미지 URL의 출처가 유효하지 않습니다.");
         }
     }
 
