@@ -8,6 +8,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ByteArrayInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -36,10 +37,37 @@ public class LocalFileStorage implements FileStorage {
 
     @Override
     public StoredFile store(MultipartFile file) {
-        validate(file);
+        if (file == null) {
+            throw new IllegalArgumentException("업로드할 이미지가 비어 있습니다.");
+        }
+        return store(
+                StringUtils.cleanPath(file.getOriginalFilename()),
+                file.getContentType(),
+                file.getSize(),
+                () -> file.getInputStream()
+        );
+    }
 
-        String originalFileName = StringUtils.cleanPath(file.getOriginalFilename());
-        String extension = extensionOf(originalFileName);
+    @Override
+    public StoredFile store(String originalFileName, String contentType, byte[] content) {
+        if (content == null) {
+            throw new IllegalArgumentException("업로드할 이미지가 비어 있습니다.");
+        }
+        return store(
+                StringUtils.cleanPath(originalFileName),
+                contentType,
+                content.length,
+                () -> new ByteArrayInputStream(content)
+        );
+    }
+
+    private StoredFile store(
+            String originalFileName,
+            String contentType,
+            long size,
+            InputStreamSource source
+    ) {
+        String extension = validate(originalFileName, contentType, size, source);
         String storeFileName = UUID.randomUUID() + "." + extension;
         Path target = uploadDirectory.resolve(storeFileName).normalize();
 
@@ -49,7 +77,7 @@ public class LocalFileStorage implements FileStorage {
 
         try {
             Files.createDirectories(uploadDirectory);
-            try (InputStream inputStream = file.getInputStream()) {
+            try (InputStream inputStream = source.open()) {
                 Files.copy(inputStream, target, StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (IOException exception) {
@@ -59,7 +87,7 @@ public class LocalFileStorage implements FileStorage {
         return new StoredFile(
                 originalFileName,
                 storeFileName,
-                file.getSize(),
+                size,
                 publicUrlPrefix + "/" + storeFileName
         );
     }
@@ -78,32 +106,38 @@ public class LocalFileStorage implements FileStorage {
         }
     }
 
-    private void validate(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
+    private String validate(
+            String originalFileName,
+            String contentType,
+            long size,
+            InputStreamSource source
+    ) {
+        if (size <= 0) {
             throw new IllegalArgumentException("업로드할 이미지가 비어 있습니다.");
         }
-        if (file.getSize() > MAX_IMAGE_BYTES) {
+        if (size > MAX_IMAGE_BYTES) {
             throw new IllegalArgumentException("이미지는 5MB 이하만 업로드할 수 있습니다.");
         }
-        if (!ALLOWED_CONTENT_TYPES.contains(file.getContentType())) {
+        if (!ALLOWED_CONTENT_TYPES.contains(contentType)) {
             throw new IllegalArgumentException("JPG 또는 PNG 이미지만 업로드할 수 있습니다.");
         }
 
-        String extension = extensionOf(StringUtils.cleanPath(file.getOriginalFilename()));
+        String extension = extensionOf(originalFileName);
         if (!ALLOWED_EXTENSIONS.contains(extension)) {
             throw new IllegalArgumentException("JPG 또는 PNG 이미지만 업로드할 수 있습니다.");
         }
-        if (("png".equals(extension) && !"image/png".equals(file.getContentType()))
-                || (!"png".equals(extension) && !"image/jpeg".equals(file.getContentType()))) {
+        if (("png".equals(extension) && !"image/png".equals(contentType))
+                || (!"png".equals(extension) && !"image/jpeg".equals(contentType))) {
             throw new IllegalArgumentException("이미지 확장자와 형식이 일치하지 않습니다.");
         }
-        if (!hasExpectedSignature(file, extension)) {
+        if (!hasExpectedSignature(source, extension)) {
             throw new IllegalArgumentException("이미지 파일 내용이 JPG 또는 PNG 형식이 아닙니다.");
         }
+        return extension;
     }
 
-    private boolean hasExpectedSignature(MultipartFile file, String extension) {
-        try (InputStream inputStream = file.getInputStream()) {
+    private boolean hasExpectedSignature(InputStreamSource source, String extension) {
+        try (InputStream inputStream = source.open()) {
             byte[] header = inputStream.readNBytes(8);
             if ("png".equals(extension)) {
                 byte[] png = new byte[]{
@@ -127,5 +161,10 @@ public class LocalFileStorage implements FileStorage {
             throw new IllegalArgumentException("파일 확장자가 필요합니다.");
         }
         return fileName.substring(dotIndex + 1).toLowerCase(Locale.ROOT);
+    }
+
+    @FunctionalInterface
+    private interface InputStreamSource {
+        InputStream open() throws IOException;
     }
 }

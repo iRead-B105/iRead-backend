@@ -153,7 +153,7 @@ public class StudentFeatureProfileService {
             Map<String, List<Evidence>> evidenceByFeature
     ) {
         TestCurriculumEntity curriculum = testCurriculumRepository
-                .findFirstByStudentIdAndStatusOrderByCreatedAtAscIdAsc(
+                .findFirstByStudentIdAndStatusOrderByCreatedAtDescIdDesc(
                         studentId,
                         TestStatus.COMPLETED.name()
                 )

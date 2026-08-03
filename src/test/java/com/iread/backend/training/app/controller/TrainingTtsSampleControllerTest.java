@@ -17,6 +17,7 @@ import com.iread.backend.ai.client.MockTrainingGenerator;
 import com.iread.backend.ai.config.AiClientProperties;
 import com.iread.backend.global.audio.AudioUploadPolicy;
 import com.iread.backend.global.audio.TemporaryAudioStorage;
+import com.iread.backend.global.storage.FileStorage;
 import org.springframework.util.unit.DataSize;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.json.JsonMapper;
@@ -110,7 +111,8 @@ class TrainingTtsSampleControllerTest {
                 new TemporaryAudioStorage(
                         Path.of(System.getProperty("java.io.tmpdir"), "tts-test").toString(),
                         new AudioUploadPolicy(DataSize.ofMegabytes(20), "audio/webm,audio/wav")
-                )
+                ),
+                org.mockito.Mockito.mock(FileStorage.class)
         );
         TrainingTtsSampleController mockedTts = new TrainingTtsSampleController(
                 trainingDataRepository, new StudentResourceAccessPolicy(), realClient, mapper

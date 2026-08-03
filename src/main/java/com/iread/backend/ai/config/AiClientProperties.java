@@ -6,6 +6,8 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.Objects;
 
+import org.springframework.util.StringUtils;
+
 /**
  * {@code ai.mock-speech}는 음성 3종(발음 평가·STT·TTS)의 기본값이고
  * {@code ai.mock-pronunciation} · {@code ai.mock-transcribe} · {@code ai.mock-tts}로
@@ -30,6 +32,14 @@ public record AiClientProperties(
         Objects.requireNonNull(baseUrl, "ai.base-url은 필수입니다.");
         requirePositive(connectTimeout, "ai.connect-timeout");
         requirePositive(readTimeout, "ai.read-timeout");
+        boolean realSpeech = !(mockPronunciation == null ? mockSpeech : mockPronunciation)
+                || !(mockTranscribe == null ? mockSpeech : mockTranscribe)
+                || !(mockTts == null ? mockSpeech : mockTts);
+        if ((!mockGenerate || !mockEvaluate || realSpeech) && !StringUtils.hasText(apiKey)) {
+            throw new IllegalArgumentException(
+                    "AI 실제 연동을 사용하려면 ai.api-key가 필요합니다."
+            );
+        }
     }
 
     public boolean pronunciationMocked() {

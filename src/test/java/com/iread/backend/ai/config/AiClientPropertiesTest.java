@@ -6,6 +6,7 @@ import java.net.URI;
 import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AiClientPropertiesTest {
 
@@ -36,6 +37,23 @@ class AiClientPropertiesTest {
         assertThat(properties.ttsMocked()).isTrue();
     }
 
+    @Test
+    void 실제_AI_연동은_공유_API_키가_필수다() {
+        assertThatThrownBy(() -> new AiClientProperties(
+                URI.create("http://localhost:8081"),
+                Duration.ofSeconds(3),
+                Duration.ofSeconds(30),
+                "",
+                false,
+                true,
+                true,
+                null,
+                null,
+                null
+        )).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("ai.api-key");
+    }
+
     private AiClientProperties properties(
             boolean mockSpeech,
             Boolean mockPronunciation,
@@ -46,7 +64,7 @@ class AiClientPropertiesTest {
                 URI.create("http://localhost:8081"),
                 Duration.ofSeconds(3),
                 Duration.ofSeconds(30),
-                "",
+                "test-api-key",
                 true,
                 true,
                 mockSpeech,
