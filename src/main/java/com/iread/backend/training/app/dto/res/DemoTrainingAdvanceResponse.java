@@ -1,5 +1,7 @@
 package com.iread.backend.training.app.dto.res;
 
+import java.time.LocalDate;
+
 public record DemoTrainingAdvanceResponse(
         String action,
         Long curriculumId,
@@ -7,6 +9,7 @@ public record DemoTrainingAdvanceResponse(
         Long completedTrainingId,
         String completedTrainingStatus,
         Long nextTrainingId,
-        String nextTrainingStatus
+        String nextTrainingStatus,
+        LocalDate currentDate
 ) {
 }
