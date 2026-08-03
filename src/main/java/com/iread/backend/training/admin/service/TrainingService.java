@@ -20,6 +20,7 @@ import com.iread.backend.training.domain.*;
 import com.iread.backend.training.curriculum.ActiveCurriculumPolicy;
 import com.iread.backend.training.curriculum.PersonalizedCurriculumPlanner;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
+import com.iread.backend.training.generation.TrainingCatalogPolicy;
 import com.iread.backend.training.input.TrainingInputRequirementService;
 import com.iread.backend.training.input.TrainingInputType;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
@@ -120,7 +121,9 @@ public class TrainingService {
                         TrainingEntity::getAccuracy,
                         BigDecimal::max
                 ));
-        return trainingTemplateRepository.findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc().stream()
+        return trainingTemplateRepository
+                .findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc().stream()
+                .filter(TrainingCatalogPolicy::isSelectable)
                 .map(template -> new TrainingCatalogResponse(
                         template.getId(), template.getCurriculumUnit().getUnitName(), template.getSequenceNo(),
                         template.getName(), achievements.get(template.getId())
@@ -590,6 +593,9 @@ public class TrainingService {
                 .collect(Collectors.toMap(TrainingTemplateEntity::getId, Function.identity()));
         if (templates.size() != uniqueIds.size()) {
             throw new ResourceNotFoundException("존재하지 않는 훈련 템플릿이 있습니다.");
+        }
+        if (templates.values().stream().anyMatch(template -> !TrainingCatalogPolicy.isSelectable(template))) {
+            throw new IllegalArgumentException("더 이상 제공하지 않는 훈련 템플릿이 포함되어 있습니다.");
         }
         return ids.stream().map(templates::get).toList();
     }

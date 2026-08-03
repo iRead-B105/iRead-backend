@@ -87,7 +87,9 @@ class DemoTrainingProgressResetInitializerTest {
                 "INSERT INTO gaze_analysis_results (id, gaze_session_id) VALUES (1, 1)"
         );
 
-        new DemoTrainingProgressResetInitializer(jdbcTemplate).run(null);
+        DemoTrainingProgressResetService resetService =
+                new DemoTrainingProgressResetService(jdbcTemplate);
+        new DemoTrainingProgressResetInitializer(resetService).run(null);
 
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT status FROM daily_curriculums WHERE id = 190001",

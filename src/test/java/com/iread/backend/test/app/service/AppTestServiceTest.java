@@ -7,6 +7,7 @@ import com.iread.backend.pronunciation.PronunciationAnalysisResult;
 import com.iread.backend.pronunciation.PronunciationWordAligner;
 import com.iread.backend.pronunciation.PronunciationWordResult;
 import com.iread.backend.realtime.RealtimeEventPublisher;
+import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.learning.app.service.AppLearningQuestionSupport;
@@ -75,6 +76,7 @@ class AppTestServiceTest {
     @Mock WordAttemptScoreCalculator wordAttemptScoreCalculator;
     @Mock ObjectMapper objectMapper;
     @Mock RealtimeEventPublisher realtimeEventPublisher;
+    @Mock StudentFeatureProfileService studentFeatureProfileService;
     @Mock TestRecommendationAfterCommitPublisher recommendationPublisher;
     @InjectMocks AppTestService appTestService;
 
@@ -135,6 +137,7 @@ class AppTestServiceTest {
                 mapper,
                 new AppLearningQuestionSupport(mapper),
                 realtimeEventPublisher,
+                null,
                 null
         );
         StudentEntity student = mock(StudentEntity.class);
@@ -402,7 +405,10 @@ class AppTestServiceTest {
         AppTestService service = new AppTestService(
                 studentRepository,
                 testRepository,
+                testCurriculumRepository,
                 testDataRepository,
+                trainingTemplateRepository,
+                trainingGenerationService,
                 wordRepository,
                 wordAttemptLogRepository,
                 pronunciationAnalysisAdapter,
@@ -412,6 +418,7 @@ class AppTestServiceTest {
                 mapper,
                 new AppLearningQuestionSupport(mapper),
                 realtimeEventPublisher,
+                studentFeatureProfileService,
                 recommendationPublisher
         );
 
@@ -437,6 +444,7 @@ class AppTestServiceTest {
         assertThat(result.messageKey()).isEqualTo("TEST_COMPLETE_GREAT_JOB");
         assertThat(result.completedAt()).isEqualTo(completedAt);
         verify(curriculum).complete(any(LocalDateTime.class));
+        verify(studentFeatureProfileService).recalculate(student);
         verify(recommendationPublisher).processAfterCommit(50L);
     }
 
@@ -492,7 +500,10 @@ class AppTestServiceTest {
         AppTestService service = new AppTestService(
                 studentRepository,
                 testRepository,
+                testCurriculumRepository,
                 testDataRepository,
+                trainingTemplateRepository,
+                trainingGenerationService,
                 wordRepository,
                 wordAttemptLogRepository,
                 pronunciationAnalysisAdapter,
@@ -501,7 +512,9 @@ class AppTestServiceTest {
                 wordAttemptScoreCalculator,
                 mapper,
                 new AppLearningQuestionSupport(mapper),
-                realtimeEventPublisher
+                realtimeEventPublisher,
+                studentFeatureProfileService,
+                null
         );
         UUID submissionId = UUID.fromString("00000000-0000-0000-0000-000000000010");
 

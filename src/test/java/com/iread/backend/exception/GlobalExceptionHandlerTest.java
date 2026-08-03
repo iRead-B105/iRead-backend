@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import com.iread.backend.report.admin.exception.ReportCreationException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -120,5 +121,15 @@ class GlobalExceptionHandlerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
         assertThat(response.getBody().error().code()).isEqualTo("INVALID_REQUEST");
         assertThat(response.getBody().error().message()).doesNotContain("20971520");
+    }
+
+    @Test
+    void mapsUnsupportedMultipartPartTypeToInvalidRequestEnvelope() {
+        var response = handler.handleMalformedRequest(
+                new HttpMediaTypeNotSupportedException("application/octet-stream")
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().error().code()).isEqualTo("INVALID_REQUEST");
     }
 }
