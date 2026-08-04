@@ -7,6 +7,7 @@ import com.iread.backend.ai.dto.req.GenerateImageRequest;
 import com.iread.backend.ai.dto.res.GeneratedStoryBranchOption;
 import com.iread.backend.ai.dto.res.GeneratedStoryBranchPrompt;
 import com.iread.backend.global.storage.FileStorage;
+import com.iread.backend.global.storage.LoadedFile;
 import com.iread.backend.story.admin.domain.StoryPageEditAuditEntity;
 import com.iread.backend.story.admin.dto.req.StoryPageUpdateRequest;
 import com.iread.backend.story.admin.dto.res.StoryPageEditResponse;
@@ -29,6 +30,7 @@ import com.iread.backend.story.domain.StoryStatus;
 import com.iread.backend.story.repository.StoryChoiceRepository;
 import com.iread.backend.story.repository.StoryLineRepository;
 import com.iread.backend.story.repository.StoryRepository;
+import com.iread.backend.story.repository.StorySceneRepository;
 import com.iread.backend.story.repository.StoryTemplateRepository;
 import com.iread.backend.student.repository.StudentRepository;
 import lombok.RequiredArgsConstructor;
@@ -64,6 +66,7 @@ public class StoryAdminService {
 
     private final StudentRepository studentRepository;
     private final StoryRepository storyRepository;
+    private final StorySceneRepository storySceneRepository;
     private final StoryTemplateRepository storyTemplateRepository;
     private final StoryLineRepository storyLineRepository;
     private final StoryChoiceRepository storyChoiceRepository;
@@ -75,6 +78,23 @@ public class StoryAdminService {
     private final StoryPageEditAuditRepository storyPageEditAuditRepository;
     private final AiClient aiClient;
     private final FileStorage fileStorage;
+
+    public LoadedFile getStoryImage(
+            Long teacherId,
+            Long studentId,
+            Long storyId,
+            String fileName
+    ) {
+        validateStudentOwner(teacherId, studentId);
+        findVisibleStory(studentId, storyId);
+        if (fileName == null || !fileName.matches("[0-9a-f-]{36}\\.(png|jpg|jpeg)")) {
+            throw new IllegalArgumentException("올바르지 않은 이미지 파일 이름입니다.");
+        }
+        if (!storySceneRepository.existsByStoryIdAndImageUrlEndingWith(storyId, "/" + fileName)) {
+            throw new ResourceNotFoundException("이야기 이미지를 찾을 수 없습니다.");
+        }
+        return fileStorage.load(fileName);
+    }
 
     @Transactional
     public StoryPageEditResponse updateUnreadPage(
@@ -139,7 +159,8 @@ public class StoryAdminService {
         String requestId = "teacher-story-image-" + storyLineId + "-" + revision;
         var generated = aiClient.generateImage(new GenerateImageRequest(
                 requestId,
-                storyLineContentService.textOf(line)
+                storyLineContentService.textOf(line),
+                line.getStory().getStoryTemplate().getId()
         ));
         line.getScene().updateImageUrl(generated.imageUrl());
         line.incrementRevision();
@@ -501,10 +522,18 @@ public class StoryAdminService {
                 : readCount == totalCount
                 ? StoryHistoryResponse.ReadingStatus.COMPLETED
                 : StoryHistoryResponse.ReadingStatus.IN_PROGRESS;
+        String chapterTitle = lines.stream()
+                .filter(StoryLineEntity::isRequiresBranchInput)
+                .map(this::branchPromptOf)
+                .map(GeneratedStoryBranchPrompt::subtitle)
+                .filter(subtitle -> !subtitle.isBlank())
+                .reduce((first, second) -> second)
+                .orElse(null);
         return new StoryHistoryResponse.StorySummary(
                 story.getId(),
                 story.getStoryTemplate().getId(),
                 story.getStoryTemplate().getTitle(),
+                chapterTitle,
                 story.getStoryTemplate().getImageUrl(),
                 story.getStatus(),
                 story.getProgress(),

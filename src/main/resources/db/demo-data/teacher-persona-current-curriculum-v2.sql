@@ -54,11 +54,7 @@ VALUES
      JSON_ARRAY(JSON_OBJECT('text', '사과')), JSON_OBJECT('answerIndex', 0)),
     (11, 120113, 131113, 136113, 11, 'WORD_FINAL_SOUND_CHOICE', JSON_ARRAY(),
      JSON_OBJECT('audioText', '산', 'choices', JSON_ARRAY('ㄴ', 'ㄹ', 'ㅁ'), 'answerIndex', 0),
-     JSON_ARRAY(JSON_OBJECT('text', '산')), JSON_OBJECT('answerIndex', 0)),
-    (12, 120123, 131213, 136213, 14, 'PHONEME_BLEND', JSON_ARRAY('VOICE'),
-     JSON_OBJECT('audioParts', JSON_ARRAY('ㄱ', 'ㅏ'), 'cards', JSON_ARRAY('ㄱ', 'ㅏ', 'ㄴ'),
-                 'answerOrder', JSON_ARRAY(0, 1), 'result', '가'),
-     JSON_ARRAY(JSON_OBJECT('text', '가')), JSON_OBJECT('expectedText', '가'));
+     JSON_ARRAY(JSON_OBJECT('text', '산')), JSON_OBJECT('answerIndex', 0));
 
 INSERT INTO trainings
     (id, training_template_id, daily_curriculum_id, sequence_no, created_at,

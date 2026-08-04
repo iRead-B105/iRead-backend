@@ -47,6 +47,30 @@ class ResourceAuthorizationIntegrationTest {
     }
 
     @Test
+    void bootstrapTokenCanReachLinkedStudentProfileImageLookup() throws Exception {
+        String token = jwtTokenService.issueBootstrapToken(1L).value();
+
+        mockMvc.perform(get("/api/auth/app/students/999999/profile-image")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void adminTokenCannotReachLinkedStudentProfileImageLookup() throws Exception {
+        String token = jwtTokenService.issueAdminAccessToken(1L).value();
+
+        mockMvc.perform(get("/api/auth/app/students/999999/profile-image")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void unauthenticatedClientCannotReadLinkedStudentProfileImage() throws Exception {
+        mockMvc.perform(get("/api/auth/app/students/999999/profile-image"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void 학습토큰으로다른학생의성장정보에접근하면403을반환한다() throws Exception {
         String token = jwtTokenService.issueLearningAccessToken(1L, 20L).value();
 

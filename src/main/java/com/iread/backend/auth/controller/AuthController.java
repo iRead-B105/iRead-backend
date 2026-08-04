@@ -16,15 +16,20 @@ import com.iread.backend.auth.security.AuthPrincipal;
 import com.iread.backend.auth.service.AuthCookieService;
 import com.iread.backend.auth.service.AuthService;
 import com.iread.backend.auth.service.PasswordResetService;
+import com.iread.backend.auth.service.StudentProfileImageService;
+import com.iread.backend.global.storage.LoadedFile;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -38,15 +43,18 @@ public class AuthController {
     private final AuthService authService;
     private final AuthCookieService cookieService;
     private final PasswordResetService passwordResetService;
+    private final StudentProfileImageService studentProfileImageService;
 
     public AuthController(
             AuthService authService,
             AuthCookieService cookieService,
-            PasswordResetService passwordResetService
+            PasswordResetService passwordResetService,
+            StudentProfileImageService studentProfileImageService
     ) {
         this.authService = authService;
         this.cookieService = cookieService;
         this.passwordResetService = passwordResetService;
+        this.studentProfileImageService = studentProfileImageService;
     }
 
     @Operation(summary = "관리자 앱 로그인")
@@ -147,6 +155,19 @@ public class AuthController {
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookieService.learningRefresh(result.refreshToken()).toString())
                 .body(result.response());
+    }
+
+    @Operation(summary = "학습 앱 연결 아동 프로필 이미지 조회")
+    @GetMapping("/app/students/{studentId}/profile-image")
+    public ResponseEntity<byte[]> studentProfileImage(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @PathVariable String studentId
+    ) {
+        LoadedFile image = studentProfileImageService.load(principal, studentId);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(image.contentType()))
+                .header(HttpHeaders.CACHE_CONTROL, "private, max-age=300")
+                .body(image.content());
     }
 
     @Operation(summary = "학습 앱 교수자 로그인")

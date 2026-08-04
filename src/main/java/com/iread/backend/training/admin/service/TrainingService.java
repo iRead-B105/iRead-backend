@@ -25,6 +25,7 @@ import com.iread.backend.training.input.TrainingInputRequirementService;
 import com.iread.backend.training.input.TrainingInputType;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.admin.dto.res.*;
+import com.iread.backend.training.admin.result.TrainingQuestionResultAssembler;
 import com.iread.backend.training.repository.*;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
@@ -64,6 +65,7 @@ public class TrainingService {
     private final RealtimeEventPublisher realtimeEventPublisher;
     private final TransactionTemplate transactionTemplate;
     private final ObjectMapper objectMapper;
+    private final TrainingQuestionResultAssembler trainingQuestionResultAssembler;
 
     public List<CurriculumLogResponse> getCurriculumLogs(
             Long teacherId,
@@ -91,12 +93,15 @@ public class TrainingService {
     public TrainingLogResponse getTrainingLog(Long teacherId, Long studentId, Long curriculumId) {
         validateStudentOwner(teacherId, studentId);
         DailyCurriculumEntity curriculum = findCurriculum(studentId, curriculumId);
-        return new TrainingLogResponse(curriculum.getTrainings().stream().map(training ->
-                new TrainingLogResponse.TrainingItem(
+        return new TrainingLogResponse(curriculum.getTrainings().stream().map(training -> {
+            List<TrainingLogResponse.TrainingQuestionResult> questions =
+                    trainingQuestionResultAssembler.assembleAll(training);
+            return new TrainingLogResponse.TrainingItem(
                         training.getId(), training.getTrainingTemplate().getName(), training.getStartedAt(),
-                        training.getFinishedAt(), parseQuestionResults(training.getResult()),
-                        training.getAccuracy(), parseIncorrectItems(training.getResult())
-                )).toList());
+                        training.getFinishedAt(), toLegacyQuestionResults(questions),
+                        training.getAccuracy(), toLegacyIncorrectItems(questions), questions
+                );
+        }).toList());
     }
 
     public TrainingStatisticsResponse getStatistics(Long teacherId, Long studentId, Long curriculumId) {
@@ -749,35 +754,40 @@ public class TrainingService {
         return training.getFinishedAt() == null ? null : training.getFinishedAt().toLocalDate();
     }
 
-    private List<TrainingLogResponse.QuestionResult> parseQuestionResults(String result) {
-        if (result == null || result.isBlank()) return List.of();
-        JsonNode questions = parseObject(result).path("questions");
-        if (!questions.isArray()) return List.of();
-        List<TrainingLogResponse.QuestionResult> response = new ArrayList<>();
-        questions.forEach(q -> response.add(new TrainingLogResponse.QuestionResult(
-                q.path("questionNumber").asInt(),
-                q.path("isCorrect").asBoolean()
-        )));
-        return response;
+    private List<TrainingLogResponse.QuestionResult> toLegacyQuestionResults(
+            List<TrainingLogResponse.TrainingQuestionResult> questions
+    ) {
+        return questions.stream().map(question -> new TrainingLogResponse.QuestionResult(
+                question.questionNo(),
+                question.correct()
+        )).toList();
     }
 
-    private List<TrainingLogResponse.IncorrectItem> parseIncorrectItems(String result) {
-        if (result == null || result.isBlank()) return List.of();
-        JsonNode questions = parseObject(result).path("questions");
-        if (!questions.isArray()) return List.of();
-        List<TrainingLogResponse.IncorrectItem> response = new ArrayList<>();
-        questions.forEach(question -> {
-            if (question.path("isCorrect").asBoolean()) {
-                return;
-            }
-            response.add(new TrainingLogResponse.IncorrectItem(
-                    question.path("questionNumber").asInt(),
-                    question.path("question").asText(null),
-                    question.path("correctAnswer").asText(null),
-                    question.path("selectedAnswer").asText(null)
-            ));
-        });
-        return response;
+    private List<TrainingLogResponse.IncorrectItem> toLegacyIncorrectItems(
+            List<TrainingLogResponse.TrainingQuestionResult> questions
+    ) {
+        return questions.stream()
+                .filter(question -> Boolean.FALSE.equals(question.correct()))
+                .map(question -> new TrainingLogResponse.IncorrectItem(
+                        question.questionNo(),
+                        legacyText(question.question()),
+                        legacyText(question.correctAnswer()),
+                        legacyText(question.selectedAnswer())
+                ))
+                .toList();
+    }
+
+    private String legacyText(JsonNode value) {
+        if (value == null || value.isNull() || value.isMissingNode()) {
+            return null;
+        }
+        if (value.isTextual()) {
+            return value.asText();
+        }
+        if (value.isObject() && value.size() == 1 && value.path("text").isTextual()) {
+            return value.path("text").asText();
+        }
+        return value.toString();
     }
 
     private TrainingDataEntity findOrCreateTrainingData(TrainingEntity training) {

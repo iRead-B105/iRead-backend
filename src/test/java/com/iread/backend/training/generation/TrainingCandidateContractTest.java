@@ -35,7 +35,7 @@ class TrainingCandidateContractTest {
             root = objectMapper.readTree(input);
         }
 
-        assertThat(root.path("templates")).hasSize(34);
+        assertThat(root.path("templates")).hasSize(31);
         for (JsonNode template : root.path("templates")) {
             JsonNode prompt = template.path("prompt");
             TrainingType type = TrainingType.from(prompt.path("trainingType").asText());
@@ -93,7 +93,7 @@ class TrainingCandidateContractTest {
         try (var input = getClass().getClassLoader().getResourceAsStream("training-templates.json")) {
             root = objectMapper.readTree(input);
         }
-        JsonNode prompt = root.path("templates").get(18).path("prompt");
+        JsonNode prompt = root.path("templates").get(16).path("prompt");
         TrainingCandidateRequest request = new TrainingCandidateRequest(
                 "invalid-final-delete",
                 2,

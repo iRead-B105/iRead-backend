@@ -93,6 +93,29 @@ public class LocalFileStorage implements FileStorage {
     }
 
     @Override
+    public LoadedFile load(String storeFileName) {
+        if (storeFileName == null || !storeFileName.matches(
+                "[0-9a-f-]{36}\\.(png|jpg|jpeg)"
+        )) {
+            throw new IllegalArgumentException("올바르지 않은 이미지 파일 이름입니다.");
+        }
+        Path target = uploadDirectory.resolve(storeFileName).normalize();
+        if (!target.getParent().equals(uploadDirectory) || !Files.isRegularFile(target)) {
+            throw new com.iread.backend.exception.ResourceNotFoundException(
+                    "이미지 파일을 찾을 수 없습니다."
+            );
+        }
+        String contentType = storeFileName.endsWith(".png")
+                ? "image/png"
+                : "image/jpeg";
+        try {
+            return new LoadedFile(Files.readAllBytes(target), contentType);
+        } catch (IOException exception) {
+            throw new IllegalStateException("이미지 파일을 읽는 데 실패했습니다.");
+        }
+    }
+
+    @Override
     public void delete(String storeFileName) {
         if (!StringUtils.hasText(storeFileName)) return;
 

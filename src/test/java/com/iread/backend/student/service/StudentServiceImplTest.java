@@ -147,6 +147,42 @@ class StudentServiceImplTest {
     }
 
     @Test
+    void usesBoyProfileImageByDefaultWhenCreatingBoy() {
+        when(teacherRepository.findById(1L)).thenReturn(Optional.of(teacher));
+
+        studentService.createStudent(1L, request(null, Gender.Boy));
+
+        ArgumentCaptor<StudentEntity> captor = ArgumentCaptor.forClass(StudentEntity.class);
+        verify(studentRepository).save(captor.capture());
+        assertThat(captor.getValue().getImageUrl())
+                .isEqualTo("/images/student-profile-boy.png");
+    }
+
+    @Test
+    void usesGirlProfileImageByDefaultWhenCreatingGirl() {
+        when(teacherRepository.findById(1L)).thenReturn(Optional.of(teacher));
+
+        studentService.createStudent(1L, request(null, Gender.Girl));
+
+        ArgumentCaptor<StudentEntity> captor = ArgumentCaptor.forClass(StudentEntity.class);
+        verify(studentRepository).save(captor.capture());
+        assertThat(captor.getValue().getImageUrl())
+                .isEqualTo("/images/student-profile-girl.png");
+    }
+
+    @Test
+    void preservesExplicitProfileImageWhenCreatingStudent() {
+        when(teacherRepository.findById(1L)).thenReturn(Optional.of(teacher));
+
+        studentService.createStudent(1L, request("/images/custom-profile.png", Gender.Girl));
+
+        ArgumentCaptor<StudentEntity> captor = ArgumentCaptor.forClass(StudentEntity.class);
+        verify(studentRepository).save(captor.capture());
+        assertThat(captor.getValue().getImageUrl())
+                .isEqualTo("/images/custom-profile.png");
+    }
+
+    @Test
     void deletesUploadedFileWhenStudentSaveFails() {
         StudentRequest request = request(null);
         MockMultipartFile image = imageFile("profile.png");
@@ -550,8 +586,12 @@ class StudentServiceImplTest {
     }
 
     private StudentRequest request(String imageUrl) {
+        return request(imageUrl, Gender.Boy);
+    }
+
+    private StudentRequest request(String imageUrl, Gender gender) {
         return new StudentRequest(
-                "학생", LocalDate.of(2016, 3, 10), Gender.Boy,
+                "학생", LocalDate.of(2016, 3, 10), gender,
                 "학교", "보호자", "010-0000-0000", "guardian@test.com", "주소", imageUrl, null
         );
     }

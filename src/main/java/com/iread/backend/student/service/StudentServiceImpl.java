@@ -5,6 +5,7 @@ import com.iread.backend.global.storage.StoredFile;
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.realtime.RealtimeEventPublisher;
 import com.iread.backend.realtime.RealtimeResource;
+import com.iread.backend.student.domain.Gender;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.domain.LearningEventType;
 import com.iread.backend.student.dto.req.StudentRequest;
@@ -49,6 +50,10 @@ import java.util.stream.Collectors;
 public class StudentServiceImpl implements StudentService {
 
     private static final BigDecimal MILLIS_PER_MINUTE = BigDecimal.valueOf(60_000);
+    private static final String DEFAULT_BOY_PROFILE_IMAGE_URL =
+            "/images/student-profile-boy.png";
+    private static final String DEFAULT_GIRL_PROFILE_IMAGE_URL =
+            "/images/student-profile-girl.png";
 
     private final StudentRepository studentRepository;
     private final StudentDeletionRepository studentDeletionRepository;
@@ -134,7 +139,7 @@ public class StudentServiceImpl implements StudentService {
         }
         boolean uploaded = imageFile != null && !imageFile.isEmpty();
         StoredFile storedFile = uploaded ? fileStorage.store(imageFile) : null;
-        String imageUrl = uploaded ? storedFile.url() : request.imageUrl();
+        String imageUrl = resolveCreateImageUrl(request, storedFile);
 
         StudentEntity student = StudentEntity.builder()
                 .teacher(teacher)
@@ -565,6 +570,22 @@ public class StudentServiceImpl implements StudentService {
         if (imageUrl == null || imageUrl.isBlank()) return null;
         int slash = imageUrl.lastIndexOf('/');
         return slash < 0 ? imageUrl : imageUrl.substring(slash + 1);
+    }
+
+    private String resolveCreateImageUrl(StudentRequest request, StoredFile storedFile) {
+        if (storedFile != null) {
+            return storedFile.url();
+        }
+        if (request.imageUrl() != null && !request.imageUrl().isBlank()) {
+            return request.imageUrl();
+        }
+        if (request.gender() == Gender.Boy) {
+            return DEFAULT_BOY_PROFILE_IMAGE_URL;
+        }
+        if (request.gender() == Gender.Girl) {
+            return DEFAULT_GIRL_PROFILE_IMAGE_URL;
+        }
+        return null;
     }
 
     private String normalizeAddress(Object address) {

@@ -33,7 +33,7 @@ class MySqlSkillChallengeReferenceDataIntegrationTest {
                  ORDER BY installed_rank
                 """,
                 String.class
-        )).containsExactly("1", "2", "3", "4", "5");
+        )).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11");
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM curriculum_units WHERE id BETWEEN 1 AND 8",
                 Integer.class
@@ -41,7 +41,11 @@ class MySqlSkillChallengeReferenceDataIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM training_templates WHERE id BETWEEN 1 AND 34",
                 Integer.class
-        )).isEqualTo(34);
+        )).isEqualTo(31);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM training_templates WHERE id IN (6, 14, 24)",
+                Integer.class
+        )).isZero();
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT unit_name FROM curriculum_units WHERE id = 1",
                 String.class
@@ -83,7 +87,7 @@ class MySqlSkillChallengeReferenceDataIntegrationTest {
                             ON training.daily_curriculum_id = curriculum.id
                          WHERE curriculum.id IN (
                                120023, 120033, 120053, 120063, 120073,
-                               120083, 120093, 120103, 120113, 120123
+                               120083, 120093, 120103, 120113
                          )
                          GROUP BY curriculum.id
                         HAVING COUNT(*) = 5
@@ -91,7 +95,7 @@ class MySqlSkillChallengeReferenceDataIntegrationTest {
                   ) corrected
                 """,
                 Integer.class
-        )).isEqualTo(10);
+        )).isEqualTo(9);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -101,7 +105,7 @@ class MySqlSkillChallengeReferenceDataIntegrationTest {
                     ON template.id = training.training_template_id
                  WHERE training.id IN (
                        130213, 130313, 130513, 130613, 130713,
-                       130813, 130913, 131013, 131113, 131213
+                       130813, 130913, 131013, 131113
                  )
                    AND JSON_LENGTH(JSON_EXTRACT(data.generated_data, '$.questions')) = 3
                    AND JSON_UNQUOTE(
@@ -117,20 +121,19 @@ class MySqlSkillChallengeReferenceDataIntegrationTest {
                          WHEN 130913 THEN 5
                          WHEN 131013 THEN 8
                          WHEN 131113 THEN 11
-                         WHEN 131213 THEN 14
                        END
                 """,
                 Integer.class
-        )).isEqualTo(10);
+        )).isEqualTo(9);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM trainings WHERE daily_curriculum_id = 190001",
                 Integer.class
-        )).isEqualTo(34);
+        )).isEqualTo(31);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(DISTINCT training_template_id) FROM trainings "
                         + "WHERE daily_curriculum_id = 190001",
                 Integer.class
-        )).isEqualTo(34);
+        )).isEqualTo(31);
 
         assertThat(jdbcTemplate.queryForObject(
                 """

@@ -2,7 +2,7 @@ package com.iread.backend.training.app.service;
 
 import java.util.Map;
 
-final class KoreanConsonantPronunciation {
+public final class KoreanConsonantPronunciation {
     private static final Map<String, String> WITH_EU = Map.ofEntries(
             Map.entry("ㄱ", "그"),
             Map.entry("ㄲ", "끄"),
@@ -28,7 +28,7 @@ final class KoreanConsonantPronunciation {
     private KoreanConsonantPronunciation() {
     }
 
-    static String withEu(String text) {
+    public static String withEu(String text) {
         return WITH_EU.getOrDefault(text, text);
     }
 }

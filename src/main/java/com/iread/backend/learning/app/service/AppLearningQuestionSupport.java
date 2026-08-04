@@ -367,8 +367,33 @@ public class AppLearningQuestionSupport {
         );
         value.put(
                 "imageUrl",
-                aiClient.generateImage(new GenerateImageRequest(requestId, prompt)).imageUrl()
+                aiClient.generateImage(new GenerateImageRequest(requestId, prompt, null)).imageUrl()
         );
+    }
+
+    /**
+     * 학습자 App recordingTargets 규칙과 동일하게 계산한 권장 녹음 대상.
+     * 시선 단어 지표의 targetIndex·토큰 기준 문장이 되므로, 녹음 없이 완료되는
+     * 문항의 단어 시도 로그도 이 대상을 기준으로 남겨야 시선 병합과 좌표가 일치한다.
+     */
+    public RecommendedRecordingTarget recommendedRecordingTarget(JsonNode question) {
+        JsonNode targets = question.path("analysisTargets");
+        if (!targets.isArray() || targets.isEmpty()) {
+            return null;
+        }
+        String recommendedText = recommendedRecordingText(answer(question));
+        for (int index = 0; index < targets.size(); index++) {
+            if (recommendedText.equals(targets.path(index).path("text").asText())) {
+                return new RecommendedRecordingTarget(
+                        index,
+                        targets.path(index).path("text").asText()
+                );
+            }
+        }
+        return new RecommendedRecordingTarget(0, targets.path(0).path("text").asText());
+    }
+
+    public record RecommendedRecordingTarget(int targetIndex, String text) {
     }
 
     private void addRecordingTargets(ObjectNode result, JsonNode question) {
