@@ -6,6 +6,7 @@ import com.iread.backend.training.domain.TrainingDataEntity;
 import com.iread.backend.training.domain.TrainingStatus;
 import com.iread.backend.training.domain.TrainingTemplateEntity;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
+import com.iread.backend.training.generation.TrainingCatalogPolicy;
 import com.iread.backend.training.repository.DailyCurriculumRepository;
 import com.iread.backend.training.repository.TrainingDataRepository;
 import com.iread.backend.training.repository.TrainingTemplateRepository;
@@ -29,8 +30,11 @@ import static org.mockito.Mockito.when;
 
 class DemoAllTrainingCurriculumInitializerTest {
 
+    /** 기준 템플릿 34개 중 은퇴 템플릿(6, 14, 24)을 제외한 진행 가능 훈련 수 */
+    private static final int SELECTABLE_TEMPLATE_COUNT = 31;
+
     @Test
-    void createsAllThirtyFourCatalogTrainingsAndUnlocksOnlyTheFirst() throws Exception {
+    void createsSelectableCatalogTrainingsAndUnlocksOnlyTheFirst() throws Exception {
         DailyCurriculumRepository curriculumRepository =
                 mock(DailyCurriculumRepository.class);
         TrainingTemplateRepository templateRepository =
@@ -77,20 +81,23 @@ class DemoAllTrainingCurriculumInitializerTest {
 
         initializer.run(mock(org.springframework.boot.ApplicationArguments.class));
 
+        assertThat(curriculum.getTrainings()).hasSize(SELECTABLE_TEMPLATE_COUNT);
         assertThat(curriculum.getTrainings())
-                .hasSize(DemoAllTrainingCurriculumInitializer.DEMO_TEMPLATE_COUNT);
+                .allMatch(training -> TrainingCatalogPolicy.isSelectable(
+                        training.getTrainingTemplate()
+                ));
         assertThat(curriculum.getTrainings().getFirst().getStatus())
                 .isEqualTo(TrainingStatus.NOT_STARTED);
         assertThat(curriculum.getTrainings().subList(
                 1,
-                DemoAllTrainingCurriculumInitializer.DEMO_TEMPLATE_COUNT
+                SELECTABLE_TEMPLATE_COUNT
         )).allMatch(training -> training.getStatus() == TrainingStatus.NOT_READY);
 
         ArgumentCaptor<TrainingDataEntity> captor =
                 ArgumentCaptor.forClass(TrainingDataEntity.class);
         verify(
                 dataRepository,
-                times(DemoAllTrainingCurriculumInitializer.DEMO_TEMPLATE_COUNT)
+                times(SELECTABLE_TEMPLATE_COUNT)
         ).save(captor.capture());
         assertThat(captor.getAllValues()).allSatisfy(data -> {
             try {
@@ -121,7 +128,11 @@ class DemoAllTrainingCurriculumInitializerTest {
         StudentEntity student = StudentEntity.builder().name("샛별").build();
         ReflectionTestUtils.setField(student, "id", 2001L);
         List<TrainingTemplateEntity> templates = canonicalTemplates();
-        DailyCurriculumEntity curriculum = new DailyCurriculumEntity(student, templates);
+        // 이미 은퇴 템플릿이 제외된 상태의 커리큘럼은 재생성하지 않아야 한다
+        DailyCurriculumEntity curriculum = new DailyCurriculumEntity(
+                student,
+                templates.stream().filter(TrainingCatalogPolicy::isSelectable).toList()
+        );
         ReflectionTestUtils.setField(
                 curriculum,
                 "id",

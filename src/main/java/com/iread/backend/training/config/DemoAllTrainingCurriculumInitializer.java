@@ -5,6 +5,7 @@ import com.iread.backend.training.domain.TrainingDataEntity;
 import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.domain.TrainingTemplateEntity;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
+import com.iread.backend.training.generation.TrainingCatalogPolicy;
 import com.iread.backend.training.repository.DailyCurriculumRepository;
 import com.iread.backend.training.repository.TrainingDataRepository;
 import com.iread.backend.training.repository.TrainingTemplateRepository;
@@ -93,14 +94,18 @@ public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
                 );
             }
         }
-        return templates;
+        // 은퇴 템플릿은 앱 목록에서 숨겨져 진행할 수 없으므로 커리큘럼에 넣지 않는다.
+        // 포함하면 순차 잠금 해제가 은퇴 훈련을 다음 차례로 지정해 진행이 교착된다.
+        return templates.stream()
+                .filter(TrainingCatalogPolicy::isSelectable)
+                .toList();
     }
 
     private boolean isAlreadyInitialized(
             DailyCurriculumEntity curriculum,
             List<TrainingTemplateEntity> templates
     ) {
-        if (curriculum.getTrainings().size() != DEMO_TEMPLATE_COUNT) {
+        if (curriculum.getTrainings().size() != templates.size()) {
             return false;
         }
         for (int index = 0; index < templates.size(); index++) {
