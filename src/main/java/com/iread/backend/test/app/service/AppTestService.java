@@ -381,9 +381,11 @@ public class AppTestService {
                 analysis.words()
         );
         ObjectNode progressResult = readObjectOrNew(test.getResult());
-        int attemptNo = countQuestionPronunciationAnalyses(
+        int attemptNo = countTargetPronunciationAnalyses(
                 progressResult,
-                questionNumber
+                questionNumber,
+                target.targetIndex(),
+                request.tokenIndex()
         ) + 1;
         if (attemptNo > MAX_PRONUNCIATION_ATTEMPTS) {
             throw new ConflictException("발음 문항의 최대 시도 횟수를 초과했습니다.");
@@ -411,6 +413,7 @@ public class AppTestService {
                 storedWords,
                 analysis,
                 alignment.insertionCount(),
+                request.tokenIndex(),
                 attemptNo,
                 passed,
                 questionCompleted
@@ -976,7 +979,20 @@ public class AppTestService {
         if (!questions.isArray()) {
             throw new IllegalStateException("저장된 검사 문항 형식이 올바르지 않습니다.");
         }
-        return questions;
+        ArrayNode normalized = objectMapper.createArrayNode();
+        questions.forEach(question -> {
+            if (!question.isObject()) {
+                throw new IllegalStateException("저장된 검사 문항 형식이 올바르지 않습니다.");
+            }
+            ObjectNode copy = (ObjectNode) question.deepCopy();
+            TrainingType type = TrainingType.from(copy.path("type").asText());
+            ArrayNode requiredInputs = copy.putArray("requiredInputs");
+            TrainingInputPolicy.expectedFor(type).forEach(input ->
+                    requiredInputs.add(input.name())
+            );
+            normalized.add(copy);
+        });
+        return normalized;
     }
 
     private JsonNode readGeneratedData(Long testId) {
@@ -1020,6 +1036,7 @@ public class AppTestService {
             List<StoredPronunciationWord> storedWords,
             PronunciationAnalysisResult analysis,
             int insertionCount,
+            Integer evaluatedTokenIndex,
             int attemptNo,
             boolean passed,
             boolean questionCompleted
@@ -1065,6 +1082,8 @@ public class AppTestService {
         ObjectNode analysisLink = result.withArray("pronunciationAnalyses").addObject();
         analysisLink.put("questionNo", questionNumber);
         analysisLink.put("targetIndex", target.targetIndex());
+        if (evaluatedTokenIndex == null) analysisLink.putNull("tokenIndex");
+        else analysisLink.put("tokenIndex", evaluatedTokenIndex);
         analysisLink.put("referenceText", target.referenceText());
         analysisLink.put(
                 "pronunciationAccuracyScore",
@@ -1332,13 +1351,20 @@ public class AppTestService {
                 .forEach(WordAttemptLogEntity::markNotFinal);
     }
 
-    private int countQuestionPronunciationAnalyses(
+    private int countTargetPronunciationAnalyses(
             ObjectNode result,
-            int questionNumber
+            int questionNumber,
+            int targetIndex,
+            Integer tokenIndex
     ) {
         int count = 0;
         for (JsonNode analysis : result.withArray("pronunciationAnalyses")) {
-            if (analysis.path("questionNo").asInt() == questionNumber) {
+            if (analysis.path("questionNo").asInt() == questionNumber
+                    && analysis.path("targetIndex").asInt() == targetIndex
+                    && java.util.Objects.equals(
+                    nullableInt(analysis, "tokenIndex"),
+                    tokenIndex
+            )) {
                 count++;
             }
         }
