@@ -32,7 +32,7 @@ class ReadingMetricAggregationServiceTest {
     void returnsAccuracySourceRecordsWithRawCountsAndContractMetadata() {
         LocalDate from = LocalDate.of(2026, 7, 1);
         LocalDate to = LocalDate.of(2026, 7, 31);
-        var row = accuracyRow(101L, from.atTime(10, 0), 0L, 4L);
+        var row = accuracyRow(101L, "받침 소리 구분", from.atTime(10, 0), 0L, 4L);
         when(studentRepository.findAccuracyRecords(
                 10L,
                 from.atStartOfDay(),
@@ -48,6 +48,7 @@ class ReadingMetricAggregationServiceTest {
         assertThat(result.records()).singleElement().satisfies(record -> {
             assertThat(record.sourceType()).isEqualTo("TRAINING");
             assertThat(record.sourceId()).isEqualTo(101L);
+            assertThat(record.trainingName()).isEqualTo("받침 소리 구분");
             assertThat(record.correctAttemptCount()).isZero();
             assertThat(record.attemptCount()).isEqualTo(4L);
             assertThat(record.accuracyRate()).isEqualByComparingTo("0.00");
@@ -59,8 +60,8 @@ class ReadingMetricAggregationServiceTest {
     @Test
     void aggregatesDailyAccuracyFromSummedNumeratorAndDenominator() {
         LocalDate date = LocalDate.now().minusDays(1);
-        var firstRow = accuracyRow(101L, date.atTime(10, 0), 1L, 1L);
-        var secondRow = accuracyRow(102L, date.atTime(11, 0), 9L, 99L);
+        var firstRow = accuracyRow(101L, "첫소리 구분", date.atTime(10, 0), 1L, 1L);
+        var secondRow = accuracyRow(102L, "받침 구분", date.atTime(11, 0), 9L, 99L);
         when(studentRepository.findAccuracyRecords(
                 10L,
                 date.minusDays(28).atStartOfDay(),
@@ -84,8 +85,8 @@ class ReadingMetricAggregationServiceTest {
     void returnsOnlyVoiceReadingSpeedRecordsWithValidDuration() {
         LocalDate from = LocalDate.of(2026, 7, 1);
         LocalDate to = LocalDate.of(2026, 7, 31);
-        var validRow = speedRow(201L, from.atTime(10, 0), 60L, 60_000L, 40L, 40_000L);
-        var invalidVoiceRow = speedRow(202L, from.atTime(11, 0), 5L, 0L, 5L, 5_000L);
+        var validRow = speedRow(201L, "짧은 이야기 읽기", from.atTime(10, 0), 60L, 60_000L, 40L, 40_000L);
+        var invalidVoiceRow = speedRow(202L, "문장 따라 읽기", from.atTime(11, 0), 5L, 0L, 5L, 5_000L);
         when(studentRepository.findReadingSpeedTrainings(
                 10L,
                 from.atStartOfDay(),
@@ -102,6 +103,7 @@ class ReadingMetricAggregationServiceTest {
         assertThat(result.records()).singleElement().satisfies(record -> {
             assertThat(record.sourceType()).isEqualTo("TRAINING");
             assertThat(record.sourceId()).isEqualTo(201L);
+            assertThat(record.trainingName()).isEqualTo("짧은 이야기 읽기");
             assertThat(record.correctWordCount()).isEqualTo(60L);
             assertThat(record.measuredDurationMs()).isEqualTo(60_000L);
             assertThat(record.readingSpeed()).isEqualByComparingTo("60.00");
@@ -111,8 +113,8 @@ class ReadingMetricAggregationServiceTest {
     @Test
     void aggregatesVoiceSpeedFromSourceCountsWithoutMixingGazeSpeed() {
         LocalDate date = LocalDate.of(2026, 7, 10);
-        var firstRow = speedRow(201L, date.atTime(10, 0), 10L, 10_000L, 10L, 20_000L);
-        var secondRow = speedRow(202L, date.atTime(11, 0), 20L, 20_000L, 20L, 10_000L);
+        var firstRow = speedRow(201L, "첫 문장 읽기", date.atTime(10, 0), 10L, 10_000L, 10L, 20_000L);
+        var secondRow = speedRow(202L, "둘째 문장 읽기", date.atTime(11, 0), 20L, 20_000L, 20L, 10_000L);
         when(studentRepository.findReadingSpeedTrainings(
                 10L,
                 date.atStartOfDay(),
@@ -150,6 +152,7 @@ class ReadingMetricAggregationServiceTest {
 
     private StudentRepository.AccuracyRecordProjection accuracyRow(
             Long sourceId,
+            String trainingName,
             LocalDateTime measuredAt,
             Long correctAttemptCount,
             Long attemptCount
@@ -158,6 +161,7 @@ class ReadingMetricAggregationServiceTest {
                 StudentRepository.AccuracyRecordProjection.class
         );
         when(row.getSourceId()).thenReturn(sourceId);
+        when(row.getTrainingName()).thenReturn(trainingName);
         when(row.getMeasuredAt()).thenReturn(measuredAt);
         when(row.getCorrectAttemptCount()).thenReturn(correctAttemptCount);
         when(row.getAttemptCount()).thenReturn(attemptCount);
@@ -166,6 +170,7 @@ class ReadingMetricAggregationServiceTest {
 
     private StudentRepository.ReadingSpeedTrainingProjection speedRow(
             Long trainingId,
+            String trainingName,
             LocalDateTime measuredAt,
             Long correctWordCount,
             Long voiceDurationMs,
@@ -176,6 +181,7 @@ class ReadingMetricAggregationServiceTest {
                 StudentRepository.ReadingSpeedTrainingProjection.class
         );
         org.mockito.Mockito.lenient().when(row.getTrainingId()).thenReturn(trainingId);
+        org.mockito.Mockito.lenient().when(row.getTrainingName()).thenReturn(trainingName);
         org.mockito.Mockito.lenient().when(row.getMeasuredAt()).thenReturn(measuredAt);
         org.mockito.Mockito.lenient().when(row.getCorrectWordCount()).thenReturn(correctWordCount);
         org.mockito.Mockito.lenient().when(row.getVoiceDurationMs()).thenReturn(voiceDurationMs);
