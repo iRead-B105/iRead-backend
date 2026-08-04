@@ -16,7 +16,8 @@ public record StoryShelfResponse(
             LocalDateTime createdAt,
             StoryStatus storyStatus,
             int progress,
-            String latestBranchSubtitle
+            String latestBranchSubtitle,
+            String entryImageUrl
     ) {
     }
 

@@ -14,6 +14,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import tools.jackson.databind.ObjectMapper;
@@ -28,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -73,8 +74,16 @@ class TrainingCompletionTransactionIntegrationTest {
     @MockitoBean
     private TestDataRepository testDataRepository;
 
+    @MockitoBean(name = "trainingCompletionTaskExecutor")
+    private TaskExecutor trainingCompletionTaskExecutor;
+
     @BeforeEach
     void setUp() {
+        doAnswer(invocation -> {
+            invocation.<Runnable>getArgument(0).run();
+            return null;
+        }).when(trainingCompletionTaskExecutor).execute(any(Runnable.class));
+
         jdbcTemplate.update("""
                 INSERT INTO teachers (id, email, password, name, created_at)
                 VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -191,7 +200,7 @@ class TrainingCompletionTransactionIntegrationTest {
                 LocalDateTime.class,
                 CURRICULUM_ID
         )).isNotNull();
-        verify(studentFeatureProfileService, timeout(5_000)).recalculate(any());
+        verify(studentFeatureProfileService).recalculate(any());
     }
 
     @Test

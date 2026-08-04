@@ -145,7 +145,7 @@ class MySqlDemoSeedIntegrationTest {
                   FROM trainings training
                   JOIN training_templates template
                     ON template.id = training.training_template_id
-                 WHERE training.daily_curriculum_id = 180002
+                 WHERE training.daily_curriculum_id = 180003
                    AND training.sequence_no = 1
                    AND JSON_CONTAINS(
                          JSON_EXTRACT(template.prompt, '$.requiredInputs'),
@@ -161,7 +161,7 @@ class MySqlDemoSeedIntegrationTest {
                  WHERE daily_curriculum_id = 190001
                 """,
                 Integer.class
-        )).isEqualTo(33);
+        )).isEqualTo(34);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -187,7 +187,7 @@ class MySqlDemoSeedIntegrationTest {
                  WHERE daily_curriculum_id = 190001
                 """,
                 Integer.class
-        )).isEqualTo(33);
+        )).isEqualTo(34);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -199,7 +199,7 @@ class MySqlDemoSeedIntegrationTest {
                        ) = 5
                 """,
                 Integer.class
-        )).isEqualTo(33);
+        )).isEqualTo(34);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -211,7 +211,7 @@ class MySqlDemoSeedIntegrationTest {
                        )
                 """,
                 Integer.class
-        )).isEqualTo(33);
+        )).isEqualTo(34);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)

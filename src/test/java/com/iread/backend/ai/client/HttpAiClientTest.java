@@ -6,6 +6,7 @@ import com.iread.backend.ai.dto.req.GenerateStoryRequest;
 import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
 import com.iread.backend.ai.dto.req.GenerateImageRequest;
 import com.iread.backend.ai.dto.req.StoryHistoryLine;
+import com.iread.backend.ai.dto.req.StoryBranchInputReviewRequest;
 import com.iread.backend.ai.dto.req.StoryTemplateData;
 import com.iread.backend.ai.dto.req.SpeechSynthesisRequest;
 import com.iread.backend.ai.exception.AiClientException;
@@ -88,6 +89,44 @@ class HttpAiClientTest {
                 ),
                 fileStorage
         );
+    }
+
+    @Test
+    void 이야기_분기_STT_원문을_경량_검토_API로_보낸다() {
+        StoryBranchInputReviewRequest request = new StoryBranchInputReviewRequest(
+                "review-1",
+                "토끼는 이제 무엇을 할까요?",
+                List.of("다리를 건너요", "친구를 불러요", "숲으로 돌아가요"),
+                "강을 따라가 볼래요"
+        );
+        server.expect(once(), requestTo(
+                        "http://localhost:8081/api/v1/story/branch-input/review"
+                ))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(header("Idempotency-Key", "review-1"))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(content().json("""
+                        {
+                          "requestId": "review-1",
+                          "question": "토끼는 이제 무엇을 할까요?",
+                          "options": ["다리를 건너요", "친구를 불러요", "숲으로 돌아가요"],
+                          "transcript": "강을 따라가 볼래요"
+                        }
+                        """))
+                .andRespond(withSuccess("""
+                        {
+                          "requestId": "review-1",
+                          "decision": "ALLOW",
+                          "reasonCode": "OK",
+                          "policyVersion": "story-branch-input-v1"
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        var response = aiClient.reviewStoryBranchInput(request);
+
+        assertThat(response.decision().name()).isEqualTo("ALLOW");
+        assertThat(response.reasonCode().name()).isEqualTo("OK");
+        server.verify();
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.iread.backend.story.app.service;
 import com.iread.backend.ai.client.AiClient;
 import com.iread.backend.ai.dto.req.ContinueStoryRequest;
 import com.iread.backend.ai.dto.req.GenerateImageRequest;
+import com.iread.backend.ai.dto.req.StoryBranchInputReviewRequest;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.ai.dto.res.GenerateImageResponse;
 import com.iread.backend.ai.dto.res.GenerateStoryResponse;
@@ -10,6 +11,7 @@ import com.iread.backend.ai.dto.res.GeneratedStoryBranchOption;
 import com.iread.backend.ai.dto.res.GeneratedStoryBranchPrompt;
 import com.iread.backend.ai.dto.res.GeneratedStoryLine;
 import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
+import com.iread.backend.ai.dto.res.StoryBranchInputReviewResponse;
 import com.iread.backend.exception.ConflictException;
 import com.iread.backend.mypage.domain.CharacterEntity;
 import com.iread.backend.story.app.dto.res.StoryLineResponse;
@@ -20,6 +22,7 @@ import com.iread.backend.pronunciation.PronunciationWordAligner;
 import com.iread.backend.pronunciation.PronunciationWordResult;
 import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
 import com.iread.backend.realtime.RealtimeEventPublisher;
+import com.iread.backend.realtime.RealtimeResource;
 import com.iread.backend.story.analysis.StoryLineContentService;
 import com.iread.backend.story.app.dto.req.StoryBranchSelectionRequest;
 import com.iread.backend.story.domain.*;
@@ -76,6 +79,7 @@ class StoryServiceTest {
     @Mock WordAttemptScoreCalculator wordAttemptScoreCalculator;
     @Mock StudentFeatureProfileService studentFeatureProfileService;
     @Mock RealtimeEventPublisher realtimeEventPublisher;
+    @Mock StoryBranchReviewTokenService storyBranchReviewTokenService;
     @Spy PronunciationWordAligner pronunciationWordAligner = new PronunciationWordAligner();
     @Spy StoryLineContentService storyLineContentService = new StoryLineContentService(
             new KoreanTextAnalyzer(new KoreanG2pEngine()),
@@ -96,14 +100,21 @@ class StoryServiceTest {
         lenient().when(template.getTitle()).thenReturn("신비한 숲");
         lenient().when(template.getContent()).thenReturn("숲에서 친구를 만나는 이야기");
         lenient().when(template.getImageUrl()).thenReturn("/images/mystic-forest.png");
+        lenient().when(studentRepository.findByIdAndTeacherIdForUpdate(20L, 1L))
+                .thenReturn(Optional.of(student));
     }
 
     @Test
     void 책장은_삭제되지_않은_학생_스토리와_모든_템플릿을_반환한다() {
         StoryEntity story = story(100L);
-        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        StoryLineEntity entryLine = mock(StoryLineEntity.class);
+        when(entryLine.getStory()).thenReturn(story);
+        when(entryLine.getImageUrl()).thenReturn("/images/entry-scene.png");
+        lenient().when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(storyRepository.findAllByStudentIdAndStatusNotOrderByCreatedAtDesc(20L, StoryStatus.DELETED))
                 .thenReturn(List.of(story));
+        when(storyLineRepository.findAllByStoryIdInOrderBySequenceNoAsc(List.of(100L)))
+                .thenReturn(List.of(entryLine));
         when(storyTemplateRepository.findAllByOrderByIdAsc()).thenReturn(List.of(template));
 
         var response = storyService.getStoryShelf(1L, 20L);
@@ -111,6 +122,8 @@ class StoryServiceTest {
         assertThat(response.stories()).hasSize(1);
         assertThat(response.stories().getFirst().storyId()).isEqualTo(100L);
         assertThat(response.stories().getFirst().progress()).isZero();
+        assertThat(response.stories().getFirst().entryImageUrl())
+                .isEqualTo("/images/entry-scene.png");
         assertThat(response.storyTemplates()).hasSize(1);
         assertThat(response.storyTemplates().getFirst().storyTemplateId()).isEqualTo(30L);
         assertThat(response.storyTemplates().getFirst().imageUrl())
@@ -119,7 +132,7 @@ class StoryServiceTest {
 
     @Test
     void 신규_세션은_첫_선택지까지_생성하여_순서대로_저장한다() {
-        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        lenient().when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(storyTemplateRepository.findById(30L)).thenReturn(Optional.of(template));
         when(storyRepository.saveAndFlush(any(StoryEntity.class))).thenAnswer(invocation -> {
             StoryEntity saved = invocation.getArgument(0);
@@ -240,7 +253,7 @@ class StoryServiceTest {
     }
 
     @Test
-    void 자연어_선택지를_저장하고_선택을_반영한_다음_다섯_페이지를_생성한다() {
+    void 검토된_자유_음성_원문을_저장하고_선택을_반영한_다음_다섯_페이지를_생성한다() {
         StoryEntity story = story(100L);
         StoryLineEntity firstLine = line(1000L, story, null, false, "숲에 도착했어요.", 1,
                 LocalDateTime.of(2026, 7, 22, 10, 5));
@@ -270,13 +283,6 @@ class StoryServiceTest {
                         new GeneratedStoryLine("다음에는 어떻게 할까요?", true, branchPrompt())
                 )
         ));
-        when(aiClient.transcribeSpeech(anyString(), eq(20L), isNull(), any()))
-                .thenReturn(new SpeechTranscriptionResponse(
-                        "ignored-by-service-mock",
-                        "토끼가 이긴다",
-                        1.0,
-                        1_000
-                ));
         mockSceneSave(201L);
         mockLineSave(1004L);
         when(storyChoiceRepository.saveAndFlush(any())).thenAnswer(invocation -> {
@@ -287,7 +293,11 @@ class StoryServiceTest {
 
         var response = storyService.chooseStoryDirection(
                 1L, 20L, 100L, 1003L,
-                new MockMultipartFile("audioFile", "answer.webm", "audio/webm", new byte[]{1})
+                new StoryBranchSelectionRequest("토끼가 이긴다", "review-token")
+        );
+
+        verify(storyBranchReviewTokenService).verify(
+                "review-token", 100L, 1003L, "토끼가 이긴다"
         );
 
         assertThat(response.choiceId()).isEqualTo(300L);
@@ -308,6 +318,76 @@ class StoryServiceTest {
         // 병합된 StoryService는 장면 삽화를 함께 만든다. 완료되지 않았으므로 이야기 친구는 만들지 않는다.
         verify(aiClient).generateImage(any());
         verify(characterRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void STT_원문을_교정하지_않고_검토한_뒤_확인_토큰을_발급한다() {
+        StoryEntity story = story(100L);
+        StoryLineEntity choiceLine = line(1003L, story, null, true, "어떻게 할까요?", 4,
+                LocalDateTime.of(2026, 7, 22, 10, 10));
+        ownedStory(story);
+        when(storyLineRepository.findByIdAndStoryIdForUpdate(1003L, 100L))
+                .thenReturn(Optional.of(choiceLine));
+        when(storyChoiceRepository.findByStoryLineId(1003L)).thenReturn(Optional.empty());
+        when(storyLineRepository.findFirstByStoryIdOrderBySequenceNoDesc(100L))
+                .thenReturn(Optional.of(choiceLine));
+        when(aiClient.transcribeSpeech(anyString(), eq(20L), isNull(), any()))
+                .thenReturn(new SpeechTranscriptionResponse("speech", "강을 건너 갈래요", 0.21, 1_000));
+        when(aiClient.reviewStoryBranchInput(any())).thenReturn(new StoryBranchInputReviewResponse(
+                "review", StoryBranchInputReviewResponse.Decision.CONFIRM,
+                StoryBranchInputReviewResponse.ReasonCode.AMBIGUOUS,
+                "story-branch-input-v1"
+        ));
+        when(storyBranchReviewTokenService.issue(
+                100L, 1003L, "강을 건너 갈래요", "story-branch-input-v1"
+        )).thenReturn("review-token");
+
+        var response = storyService.transcribeBranchIntent(
+                1L, 20L, 100L, 1003L,
+                new MockMultipartFile("audioFile", "answer.webm", "audio/webm", new byte[]{1})
+        );
+
+        assertThat(response.transcript()).isEqualTo("강을 건너 갈래요");
+        assertThat(response.confidence()).isEqualTo(0.21);
+        assertThat(response.decision()).isEqualTo("CONFIRM");
+        assertThat(response.reviewToken()).isEqualTo("review-token");
+        ArgumentCaptor<StoryBranchInputReviewRequest> captor =
+                ArgumentCaptor.forClass(StoryBranchInputReviewRequest.class);
+        verify(aiClient).reviewStoryBranchInput(captor.capture());
+        assertThat(captor.getValue().question()).isEqualTo("어떻게 할까요?");
+        assertThat(captor.getValue().options()).hasSize(3);
+        assertThat(captor.getValue().transcript()).isEqualTo("강을 건너 갈래요");
+    }
+
+    @Test
+    void 차단된_STT_원문은_반환하거나_토큰을_발급하지_않는다() {
+        StoryEntity story = story(100L);
+        StoryLineEntity choiceLine = line(1003L, story, null, true, "어떻게 할까요?", 4,
+                LocalDateTime.of(2026, 7, 22, 10, 10));
+        ownedStory(story);
+        when(storyLineRepository.findByIdAndStoryIdForUpdate(1003L, 100L))
+                .thenReturn(Optional.of(choiceLine));
+        when(storyChoiceRepository.findByStoryLineId(1003L)).thenReturn(Optional.empty());
+        when(storyLineRepository.findFirstByStoryIdOrderBySequenceNoDesc(100L))
+                .thenReturn(Optional.of(choiceLine));
+        when(aiClient.transcribeSpeech(anyString(), eq(20L), isNull(), any()))
+                .thenReturn(new SpeechTranscriptionResponse("speech", "차단할 원문", 0.99, 1_000));
+        when(aiClient.reviewStoryBranchInput(any())).thenReturn(new StoryBranchInputReviewResponse(
+                "review", StoryBranchInputReviewResponse.Decision.BLOCK,
+                StoryBranchInputReviewResponse.ReasonCode.SEVERE_VIOLENCE,
+                "story-branch-input-v1"
+        ));
+
+        var response = storyService.transcribeBranchIntent(
+                1L, 20L, 100L, 1003L,
+                new MockMultipartFile("audioFile", "answer.webm", "audio/webm", new byte[]{1})
+        );
+
+        assertThat(response.transcript()).isEmpty();
+        assertThat(response.decision()).isEqualTo("BLOCK");
+        assertThat(response.reviewToken()).isNull();
+        verifyNoInteractions(storyBranchReviewTokenService);
+        verify(aiClient, never()).continueStory(any());
     }
 
     @Test
@@ -377,7 +457,7 @@ class StoryServiceTest {
 
     @Test
     void 생성된_대사는_형태소분석_결과와_함께_저장된다() {
-        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        lenient().when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(storyTemplateRepository.findById(30L)).thenReturn(Optional.of(template));
         when(storyRepository.saveAndFlush(any(StoryEntity.class))).thenAnswer(invocation -> {
             StoryEntity saved = invocation.getArgument(0);
@@ -415,7 +495,7 @@ class StoryServiceTest {
     void 대사를_읽으면_단어별로_시도_로그를_적재하고_약점_프로파일을_갱신한다() {
         StoryEntity story = story(100L);
         StoryLineEntity line = line(1000L, story, null, false, "토끼가 뛰었어요.", 1, null);
-        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        lenient().when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(storyRepository.findByIdAndStudentId(100L, 20L)).thenReturn(Optional.of(story));
         when(storyLineRepository.findByIdAndStoryId(1000L, 100L)).thenReturn(Optional.of(line));
         when(aiClient.transcribeSpeech(any(), eq(20L), eq("토끼가 뛰었어요."), any()))
@@ -484,7 +564,7 @@ class StoryServiceTest {
                 student, new WordEntity("토끼가"), line, "토끼가", true,
                 900, 0, 400, false, true, 900, 0
         );
-        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        lenient().when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(storyRepository.findByIdAndStudentId(100L, 20L)).thenReturn(Optional.of(story));
         when(storyLineRepository.findByIdAndStoryId(1000L, 100L)).thenReturn(Optional.of(line));
         when(aiClient.transcribeSpeech(any(), eq(20L), eq("토끼가"), any()))
@@ -547,7 +627,7 @@ class StoryServiceTest {
 
         var response = storyService.chooseStoryDirection(
                 1L, 20L, 100L, 1001L,
-                new MockMultipartFile("audioFile", "answer.webm", "audio/webm", new byte[]{1})
+                new StoryBranchSelectionRequest(1)
         );
 
         assertThat(response.choiceId()).isEqualTo(300L);
@@ -572,7 +652,7 @@ class StoryServiceTest {
 
         assertThatThrownBy(() -> storyService.chooseStoryDirection(
                 1L, 20L, 100L, 1001L,
-                new MockMultipartFile("audioFile", "answer.webm", "audio/webm", new byte[]{1})
+                new StoryBranchSelectionRequest(1)
         ))
                 .isInstanceOf(ConflictException.class)
                 .hasMessage("현재 마지막 분기 장면에만 답할 수 있습니다.");
@@ -593,7 +673,7 @@ class StoryServiceTest {
 
         assertThatThrownBy(() -> storyService.chooseStoryDirection(
                 1L, 20L, 100L, 1001L,
-                new MockMultipartFile("audioFile", "answer.webm", "audio/webm", new byte[]{1})
+                new StoryBranchSelectionRequest(1)
         ))
                 .isInstanceOf(ConflictException.class)
                 .hasMessage("장면을 읽은 후 선택지를 제출할 수 있습니다.");
@@ -667,8 +747,46 @@ class StoryServiceTest {
         assertThat(response.branchChoices()).isEmpty();
     }
 
+    @Test
+    void 진행_중_이야기가_15권이면_새_이야기를_시작할_수_없다() {
+        when(storyRepository.countByStudentIdAndStatus(20L, StoryStatus.IN_PROGRESS))
+                .thenReturn(15L);
+
+        assertThatThrownBy(() -> storyService.startStory(1L, 20L, 30L))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("15권");
+
+        verifyNoInteractions(aiClient);
+        verify(storyRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void 진행_중_이야기를_삭제하면_DELETED로_변경하고_이벤트를_발행한다() {
+        StoryEntity story = story(100L);
+        ownedStory(story);
+
+        storyService.deleteStory(1L, 20L, 100L);
+
+        assertThat(story.getStatus()).isEqualTo(StoryStatus.DELETED);
+        verify(realtimeEventPublisher).publishAfterCommit(
+                1L, 20L, RealtimeResource.STORY, 100L, "DELETED"
+        );
+    }
+
+    @Test
+    void 완료한_이야기는_삭제할_수_없다() {
+        StoryEntity story = story(100L);
+        story.complete();
+        ownedStory(story);
+
+        assertThatThrownBy(() -> storyService.deleteStory(1L, 20L, 100L))
+                .isInstanceOf(ConflictException.class);
+
+        verifyNoInteractions(realtimeEventPublisher);
+    }
+
     private void ownedStory(StoryEntity story) {
-        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        lenient().when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(storyRepository.findByIdAndStudentId(100L, 20L)).thenReturn(Optional.of(story));
     }
 
@@ -723,7 +841,7 @@ class StoryServiceTest {
 
     @Test
     void 장면을_만들_때_대사로_삽화를_함께_생성한다() {
-        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        lenient().when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(storyTemplateRepository.findById(30L)).thenReturn(Optional.of(template));
         when(storyRepository.saveAndFlush(any(StoryEntity.class))).thenAnswer(invocation -> {
             StoryEntity saved = invocation.getArgument(0);
@@ -766,7 +884,7 @@ class StoryServiceTest {
 
     @Test
     void 삽화_생성이_실패해도_이야기는_진행한다() {
-        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        lenient().when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(storyTemplateRepository.findById(30L)).thenReturn(Optional.of(template));
         when(storyRepository.saveAndFlush(any(StoryEntity.class))).thenAnswer(invocation -> {
             StoryEntity saved = invocation.getArgument(0);

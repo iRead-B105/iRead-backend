@@ -262,7 +262,7 @@ public class GazeService {
     }
 
     private void saveSentenceMetrics(GazeSessionEntity gazeSession, GazeAnalysisResultRequest request) {
-        if (request.sentenceMetrics() == null) {
+        if (request.sentenceMetrics() == null || request.sentenceMetrics().isEmpty()) {
             return;
         }
         if (gazeSession.getContentType() != GazeContentType.STORY) {
