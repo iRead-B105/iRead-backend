@@ -6,6 +6,7 @@ import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
 import com.iread.backend.gaze.analysis.GazeWordAnalysisAdapter;
 import com.iread.backend.exception.ConflictException;
 import com.iread.backend.exception.ResourceNotFoundException;
+import com.iread.backend.learning.app.service.AppLearningQuestionSupport;
 import com.iread.backend.realtime.RealtimeEventPublisher;
 import com.iread.backend.realtime.RealtimeResource;
 import com.iread.backend.student.domain.StudentEntity;
@@ -15,6 +16,7 @@ import com.iread.backend.test.domain.TestCurriculumEntity;
 import com.iread.backend.training.domain.*;
 import com.iread.backend.training.completion.TrainingCompletionAfterCommitPublisher;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
+import com.iread.backend.training.admin.result.TrainingQuestionResultAssembler;
 import com.iread.backend.training.repository.*;
 import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
 import com.iread.backend.training.input.TrainingInputRequirementService;
@@ -107,7 +109,13 @@ class TrainingServiceTest {
                 trainingInputRequirementService,
                 realtimeEventPublisher,
                 transactionTemplate,
-                JsonMapper.builder().build()
+                JsonMapper.builder().build(),
+                new TrainingQuestionResultAssembler(
+                        trainingDataRepository,
+                        wordAttemptLogRepository,
+                        new AppLearningQuestionSupport(JsonMapper.builder().build()),
+                        JsonMapper.builder().build()
+                )
         );
     }
 
@@ -174,6 +182,12 @@ class TrainingServiceTest {
 
         var result = trainingService.getTrainingLog(1L, 10L, 100L);
 
+        var canonical = result.trainings().getFirst().questions().getFirst();
+        assertThat(canonical.questionNo()).isEqualTo(1);
+        assertThat(canonical.question().path("text").asText()).isEqualTo("사과");
+        assertThat(canonical.selectedAnswer().asText()).isEqualTo("사가");
+        assertThat(canonical.correctAnswer().asText()).isEqualTo("사과");
+        assertThat(canonical.correct()).isFalse();
         var question = result.trainings().getFirst().questionResults().getFirst();
         assertThat(question.questionNumber()).isEqualTo(1);
         assertThat(question.isCorrect()).isFalse();
