@@ -1,7 +1,6 @@
 package com.iread.backend.learning.app.service;
 
 import com.iread.backend.ai.client.AiClient;
-import com.iread.backend.ai.dto.req.GenerateImageRequest;
 import com.iread.backend.learning.app.dto.LearningErrorLocation;
 import com.iread.backend.learning.app.dto.LearningResponseType;
 import com.iread.backend.learning.app.dto.LearningSubmission;
@@ -17,8 +16,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.nio.charset.StandardCharsets;
-import java.util.UUID;
 
 @Component
 public class AppLearningQuestionSupport {
@@ -343,32 +340,8 @@ public class AppLearningQuestionSupport {
     }
 
     private void enrichImageUrls(ObjectNode content) {
-        if (aiClient == null) {
-            return;
-        }
-        addImageUrl(content);
-        JsonNode choices = content.path("choices");
-        if (choices.isArray()) {
-            choices.forEach(choice -> {
-                if (choice instanceof ObjectNode object) {
-                    addImageUrl(object);
-                }
-            });
-        }
-    }
-
-    private void addImageUrl(ObjectNode value) {
-        String prompt = value.path("imagePrompt").asText();
-        if (prompt.isBlank() || value.hasNonNull("imageUrl")) {
-            return;
-        }
-        String requestId = "training-image-" + UUID.nameUUIDFromBytes(
-                prompt.getBytes(StandardCharsets.UTF_8)
-        );
-        value.put(
-                "imageUrl",
-                aiClient.generateImage(new GenerateImageRequest(requestId, prompt, null)).imageUrl()
-        );
+        // 이미지 생성 정책·비용 방침이 확정될 때까지 학습 문항 이미지는 AI로 생성하지 않는다.
+        // imagePrompt는 content에 그대로 남아 App이 이미지 대신 설명 텍스트로 표시한다.
     }
 
     /**
