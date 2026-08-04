@@ -2,6 +2,7 @@ package com.iread.backend.gaze.admin.controller;
 
 import com.iread.backend.auth.annotation.CurrentTeacherId;
 import com.iread.backend.gaze.app.dto.res.GazeAnalysisDetailResponse;
+import com.iread.backend.gaze.app.dto.res.TestQuestionGazeAnalysisResponse;
 import com.iread.backend.gaze.app.service.GazeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -22,6 +23,22 @@ public class GazeAdminController {
             @PathVariable Long testId
     ) {
         return gazeService.getTestGazeAnalysis(teacherId, studentId, testId);
+    }
+
+    @Operation(summary = "Get gaze analysis for one test question")
+    @GetMapping("/api/admin/test/{studentId}/{testId}/questions/{questionNo}/gaze-analysis")
+    public TestQuestionGazeAnalysisResponse getTestQuestionGazeAnalysis(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @PathVariable Long testId,
+            @PathVariable Integer questionNo
+    ) {
+        return gazeService.getTestQuestionGazeAnalysis(
+                teacherId,
+                studentId,
+                testId,
+                questionNo
+        );
     }
 
     @Operation(summary = "훈련 시선 분석 결과 조회")

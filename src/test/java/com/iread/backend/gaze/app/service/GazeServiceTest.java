@@ -22,6 +22,8 @@ import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.repository.TrainingRepository;
 import com.iread.backend.training.input.TrainingInputRequirementService;
 import com.iread.backend.training.input.TrainingInputType;
+import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
+import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -52,6 +54,7 @@ class GazeServiceTest {
     @Mock StoryRepository storyRepository;
     @Mock GazeSessionRepository gazeSessionRepository;
     @Mock GazeAnalysisResultRepository gazeAnalysisResultRepository;
+    @Mock WordAttemptLogRepository wordAttemptLogRepository;
     @Mock TrainingInputRequirementService trainingInputRequirementService;
     @Mock GazeWordMetricMergeService gazeWordMetricMergeService;
     @Mock RealtimeEventPublisher realtimeEventPublisher;
@@ -69,6 +72,7 @@ class GazeServiceTest {
                 storyRepository,
                 gazeSessionRepository,
                 gazeAnalysisResultRepository,
+                wordAttemptLogRepository,
                 trainingInputRequirementService,
                 new com.iread.backend.gaze.analysis.GazeDepartureCounter(),
                 gazeWordMetricMergeService,
@@ -102,6 +106,90 @@ class GazeServiceTest {
         assertThat(response.dwellCount()).isEqualTo(8);
         assertThat(response.regressionCount()).isEqualTo(2);
         assertThat(response.averageFixationTime()).isEqualTo(150);
+    }
+
+    @Test
+    void aggregatesOnlyRequestedTestQuestionGazeMetrics() {
+        StudentEntity student = mock(StudentEntity.class);
+        StudentTestEntity test = mock(StudentTestEntity.class);
+        GazeAnalysisResultEntity result = questionAnalysisResult();
+        WordAttemptLogEntity first = gazeAttempt("first", 200, 2, 1);
+        WordAttemptLogEntity second = gazeAttempt("second", 400, 2, 0);
+        when(student.getId()).thenReturn(10L);
+        when(test.getStudent()).thenReturn(student);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L))
+                .thenReturn(Optional.of(student));
+        when(testRepository.findById(20L)).thenReturn(Optional.of(test));
+        when(gazeAnalysisResultRepository
+                .findFirstByGazeSessionStudentIdAndGazeSessionTestIdOrderByCreatedAtDesc(
+                        10L, 20L
+                ))
+                .thenReturn(Optional.of(result));
+        when(wordAttemptLogRepository
+                .findAllByTestIdAndQuestionNoAndFinalAttemptTrue(20L, 2))
+                .thenReturn(List.of(first, second));
+
+        var response = gazeService.getTestQuestionGazeAnalysis(1L, 10L, 20L, 2);
+
+        assertThat(response.testId()).isEqualTo(20L);
+        assertThat(response.questionNo()).isEqualTo(2);
+        assertThat(response.gazeSessionId()).isEqualTo(30L);
+        assertThat(response.gazeAnalysisId()).isEqualTo(40L);
+        assertThat(response.totalDwellTime()).isEqualTo(600);
+        assertThat(response.dwellCount()).isEqualTo(4);
+        assertThat(response.regressionCount()).isEqualTo(1);
+        assertThat(response.averageFixationTime()).isEqualTo(150);
+        assertThat(response.wordMetrics()).extracting(metric -> metric.text())
+                .containsExactly("first", "second");
+        assertThat(response.analysisMeta().calculationVersion())
+                .isEqualTo("gaze-word-v1");
+    }
+
+    @Test
+    void doesNotReturnTestLevelAggregateWhenQuestionGazeMetricsAreMissing() {
+        StudentEntity student = mock(StudentEntity.class);
+        StudentTestEntity test = mock(StudentTestEntity.class);
+        GazeAnalysisResultEntity result = mock(GazeAnalysisResultEntity.class);
+        when(student.getId()).thenReturn(10L);
+        when(test.getStudent()).thenReturn(student);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L))
+                .thenReturn(Optional.of(student));
+        when(testRepository.findById(20L)).thenReturn(Optional.of(test));
+        when(gazeAnalysisResultRepository
+                .findFirstByGazeSessionStudentIdAndGazeSessionTestIdOrderByCreatedAtDesc(
+                        10L, 20L
+                ))
+                .thenReturn(Optional.of(result));
+        when(wordAttemptLogRepository
+                .findAllByTestIdAndQuestionNoAndFinalAttemptTrue(20L, 3))
+                .thenReturn(List.of());
+
+        assertThatThrownBy(() -> gazeService.getTestQuestionGazeAnalysis(
+                1L, 10L, 20L, 3
+        )).isInstanceOf(com.iread.backend.exception.ResourceNotFoundException.class)
+                .hasMessageContaining("Question-level");
+    }
+
+    @Test
+    void rejectsQuestionGazeLookupForAnotherStudentsTest() {
+        StudentEntity ownedStudent = mock(StudentEntity.class);
+        StudentEntity otherStudent = mock(StudentEntity.class);
+        StudentTestEntity otherTest = mock(StudentTestEntity.class);
+        when(otherStudent.getId()).thenReturn(11L);
+        when(otherTest.getStudent()).thenReturn(otherStudent);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L))
+                .thenReturn(Optional.of(ownedStudent));
+        when(testRepository.findById(20L)).thenReturn(Optional.of(otherTest));
+
+        assertThatThrownBy(() -> gazeService.getTestQuestionGazeAnalysis(
+                1L, 10L, 20L, 1
+        )).isInstanceOf(com.iread.backend.exception.ResourceNotFoundException.class);
+
+        verify(gazeAnalysisResultRepository, never())
+                .findFirstByGazeSessionStudentIdAndGazeSessionTestIdOrderByCreatedAtDesc(
+                        10L,
+                        20L
+                );
     }
 
     @Test
@@ -441,5 +529,29 @@ class GazeServiceTest {
         when(result.getReverseReadCount()).thenReturn(2);
         when(result.getAvgVisitedDuration()).thenReturn(150);
         return result;
+    }
+
+    private GazeAnalysisResultEntity questionAnalysisResult() {
+        GazeAnalysisResultEntity result = mock(GazeAnalysisResultEntity.class);
+        GazeSessionEntity session = mock(GazeSessionEntity.class);
+        when(result.getGazeSession()).thenReturn(session);
+        when(session.getId()).thenReturn(30L);
+        when(result.getId()).thenReturn(40L);
+        return result;
+    }
+
+    private WordAttemptLogEntity gazeAttempt(
+            String text,
+            int dwellDuration,
+            int visitCount,
+            int regressionCount
+    ) {
+        WordAttemptLogEntity attempt = mock(WordAttemptLogEntity.class);
+        when(attempt.isHasGazeData()).thenReturn(true);
+        when(attempt.getSurfaceText()).thenReturn(text);
+        when(attempt.getFixationDurationMs()).thenReturn(dwellDuration);
+        when(attempt.getFixationCount()).thenReturn(visitCount);
+        when(attempt.getRegressionCount()).thenReturn(regressionCount);
+        return attempt;
     }
 }

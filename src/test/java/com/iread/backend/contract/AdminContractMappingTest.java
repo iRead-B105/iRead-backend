@@ -96,6 +96,7 @@ class AdminContractMappingTest {
                 route(RequestMethod.GET, "/api/admin/test/{studentId}/compare"),
                 route(RequestMethod.GET, "/api/admin/test/{studentId}/list"),
                 route(RequestMethod.GET, "/api/admin/test/{studentId}/{testId}/gaze-analysis"),
+                route(RequestMethod.GET, "/api/admin/test/{studentId}/{testId}/questions/{questionNo}/gaze-analysis"),
 
                 route(RequestMethod.GET, "/api/admin/training/{studentId}"),
                 route(RequestMethod.POST, "/api/admin/training/{studentId}/ai-recommendation"),
