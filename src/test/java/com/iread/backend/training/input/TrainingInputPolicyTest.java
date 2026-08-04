@@ -58,10 +58,10 @@ class TrainingInputPolicyTest {
     @Test
     void restoresLegacyQuestionPolicyFromTrainingType() throws Exception {
         JsonNode question = objectMapper.readTree("""
-                {"questionNo":1,"type":"SYLLABLE_BLEND"}
+                {"questionNo":1,"type":"SENTENCE_READING"}
                 """);
 
         assertThat(TrainingInputPolicy.forQuestion(question))
-                .isEqualTo(Set.of(TrainingInputType.VOICE));
+                .isEqualTo(Set.of(TrainingInputType.VOICE, TrainingInputType.GAZE));
     }
 }
