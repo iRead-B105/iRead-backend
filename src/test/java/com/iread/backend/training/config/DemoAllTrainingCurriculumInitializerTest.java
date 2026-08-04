@@ -30,8 +30,7 @@ import static org.mockito.Mockito.when;
 
 class DemoAllTrainingCurriculumInitializerTest {
 
-    /** 기준 템플릿 34개 중 은퇴 템플릿(6, 14, 24)을 제외한 진행 가능 훈련 수 */
-    private static final int SELECTABLE_TEMPLATE_COUNT = 31;
+    private static final int CANONICAL_TEMPLATE_COUNT = 31;
 
     @Test
     void createsSelectableCatalogTrainingsAndUnlocksOnlyTheFirst() throws Exception {
@@ -81,7 +80,7 @@ class DemoAllTrainingCurriculumInitializerTest {
 
         initializer.run(mock(org.springframework.boot.ApplicationArguments.class));
 
-        assertThat(curriculum.getTrainings()).hasSize(SELECTABLE_TEMPLATE_COUNT);
+        assertThat(curriculum.getTrainings()).hasSize(CANONICAL_TEMPLATE_COUNT);
         assertThat(curriculum.getTrainings())
                 .allMatch(training -> TrainingCatalogPolicy.isSelectable(
                         training.getTrainingTemplate()
@@ -90,14 +89,14 @@ class DemoAllTrainingCurriculumInitializerTest {
                 .isEqualTo(TrainingStatus.NOT_STARTED);
         assertThat(curriculum.getTrainings().subList(
                 1,
-                SELECTABLE_TEMPLATE_COUNT
+                CANONICAL_TEMPLATE_COUNT
         )).allMatch(training -> training.getStatus() == TrainingStatus.NOT_READY);
 
         ArgumentCaptor<TrainingDataEntity> captor =
                 ArgumentCaptor.forClass(TrainingDataEntity.class);
         verify(
                 dataRepository,
-                times(SELECTABLE_TEMPLATE_COUNT)
+                times(CANONICAL_TEMPLATE_COUNT)
         ).save(captor.capture());
         assertThat(captor.getAllValues()).allSatisfy(data -> {
             try {
@@ -131,7 +130,7 @@ class DemoAllTrainingCurriculumInitializerTest {
         // 이미 은퇴 템플릿이 제외된 상태의 커리큘럼은 재생성하지 않아야 한다
         DailyCurriculumEntity curriculum = new DailyCurriculumEntity(
                 student,
-                templates.stream().filter(TrainingCatalogPolicy::isSelectable).toList()
+                templates
         );
         ReflectionTestUtils.setField(
                 curriculum,
@@ -168,10 +167,8 @@ class DemoAllTrainingCurriculumInitializerTest {
     }
 
     private List<TrainingTemplateEntity> canonicalTemplates() {
-        return IntStream.rangeClosed(
-                        1,
-                        DemoAllTrainingCurriculumInitializer.DEMO_TEMPLATE_COUNT
-                )
+        return IntStream.rangeClosed(1, 34)
+                .filter(id -> id != 6 && id != 14 && id != 24)
                 .mapToObj(this::template)
                 .toList();
     }

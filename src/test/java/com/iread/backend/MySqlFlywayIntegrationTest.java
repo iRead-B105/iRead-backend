@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@SpringBootTest(properties = "spring.flyway.ignore-migration-patterns=versioned:missing")
+@SpringBootTest
 @ActiveProfiles("mysql-test")
 @EnabledIfEnvironmentVariable(named = "IREAD_MYSQL_TEST_ENABLED", matches = "true")
 class MySqlFlywayIntegrationTest {
@@ -173,7 +173,19 @@ class MySqlFlywayIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM training_templates WHERE id BETWEEN 1 AND 34",
                 Integer.class
-        )).isEqualTo(34);
+        )).isEqualTo(31);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM training_templates WHERE id IN (6, 14, 24)",
+                Integer.class
+        )).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM trainings WHERE training_template_id IN (6, 14, 24)",
+                Integer.class
+        )).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM tests WHERE training_template_id IN (6, 14, 24)",
+                Integer.class
+        )).isZero();
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT unit_name FROM curriculum_units WHERE id = 1",
                 String.class
