@@ -36,7 +36,12 @@ class StoryBranchReviewTokenServiceTest {
     @Test
     void 서명이_변조된_검토_토큰을_거부한다() {
         String token = service.issue(100L, 1003L, "강을 따라가요", "story-branch-input-v1");
-        String tampered = token.substring(0, token.length() - 1) + "A";
+        int signatureStart = token.lastIndexOf('.') + 1;
+        char signatureHead = token.charAt(signatureStart);
+        char replacement = signatureHead == 'A' ? 'B' : 'A';
+        String tampered = token.substring(0, signatureStart)
+                + replacement
+                + token.substring(signatureStart + 1);
 
         assertThatThrownBy(() -> service.verify(tampered, 100L, 1003L, "강을 따라가요"))
                 .isInstanceOf(IllegalArgumentException.class);
