@@ -3,6 +3,7 @@ package com.iread.backend.story.app.service;
 import com.iread.backend.ai.client.AiClient;
 import com.iread.backend.ai.dto.req.ContinueStoryRequest;
 import com.iread.backend.ai.dto.req.GenerateImageRequest;
+import com.iread.backend.ai.dto.req.StoryBranchInputReviewRequest;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.ai.dto.res.GenerateImageResponse;
 import com.iread.backend.ai.dto.res.GenerateStoryResponse;
@@ -10,6 +11,7 @@ import com.iread.backend.ai.dto.res.GeneratedStoryBranchOption;
 import com.iread.backend.ai.dto.res.GeneratedStoryBranchPrompt;
 import com.iread.backend.ai.dto.res.GeneratedStoryLine;
 import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
+import com.iread.backend.ai.dto.res.StoryBranchInputReviewResponse;
 import com.iread.backend.exception.ConflictException;
 import com.iread.backend.mypage.domain.CharacterEntity;
 import com.iread.backend.story.app.dto.res.StoryLineResponse;
@@ -76,6 +78,7 @@ class StoryServiceTest {
     @Mock WordAttemptScoreCalculator wordAttemptScoreCalculator;
     @Mock StudentFeatureProfileService studentFeatureProfileService;
     @Mock RealtimeEventPublisher realtimeEventPublisher;
+    @Mock StoryBranchReviewTokenService storyBranchReviewTokenService;
     @Spy PronunciationWordAligner pronunciationWordAligner = new PronunciationWordAligner();
     @Spy StoryLineContentService storyLineContentService = new StoryLineContentService(
             new KoreanTextAnalyzer(new KoreanG2pEngine()),
@@ -240,7 +243,7 @@ class StoryServiceTest {
     }
 
     @Test
-    void 자연어_선택지를_저장하고_선택을_반영한_다음_다섯_페이지를_생성한다() {
+    void 검토된_자유_음성_원문을_저장하고_선택을_반영한_다음_다섯_페이지를_생성한다() {
         StoryEntity story = story(100L);
         StoryLineEntity firstLine = line(1000L, story, null, false, "숲에 도착했어요.", 1,
                 LocalDateTime.of(2026, 7, 22, 10, 5));
@@ -270,13 +273,6 @@ class StoryServiceTest {
                         new GeneratedStoryLine("다음에는 어떻게 할까요?", true, branchPrompt())
                 )
         ));
-        when(aiClient.transcribeSpeech(anyString(), eq(20L), isNull(), any()))
-                .thenReturn(new SpeechTranscriptionResponse(
-                        "ignored-by-service-mock",
-                        "토끼가 이긴다",
-                        1.0,
-                        1_000
-                ));
         mockSceneSave(201L);
         mockLineSave(1004L);
         when(storyChoiceRepository.saveAndFlush(any())).thenAnswer(invocation -> {
@@ -287,7 +283,11 @@ class StoryServiceTest {
 
         var response = storyService.chooseStoryDirection(
                 1L, 20L, 100L, 1003L,
-                new MockMultipartFile("audioFile", "answer.webm", "audio/webm", new byte[]{1})
+                new StoryBranchSelectionRequest("토끼가 이긴다", "review-token")
+        );
+
+        verify(storyBranchReviewTokenService).verify(
+                "review-token", 100L, 1003L, "토끼가 이긴다"
         );
 
         assertThat(response.choiceId()).isEqualTo(300L);
@@ -308,6 +308,76 @@ class StoryServiceTest {
         // 병합된 StoryService는 장면 삽화를 함께 만든다. 완료되지 않았으므로 이야기 친구는 만들지 않는다.
         verify(aiClient).generateImage(any());
         verify(characterRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void STT_원문을_교정하지_않고_검토한_뒤_확인_토큰을_발급한다() {
+        StoryEntity story = story(100L);
+        StoryLineEntity choiceLine = line(1003L, story, null, true, "어떻게 할까요?", 4,
+                LocalDateTime.of(2026, 7, 22, 10, 10));
+        ownedStory(story);
+        when(storyLineRepository.findByIdAndStoryIdForUpdate(1003L, 100L))
+                .thenReturn(Optional.of(choiceLine));
+        when(storyChoiceRepository.findByStoryLineId(1003L)).thenReturn(Optional.empty());
+        when(storyLineRepository.findFirstByStoryIdOrderBySequenceNoDesc(100L))
+                .thenReturn(Optional.of(choiceLine));
+        when(aiClient.transcribeSpeech(anyString(), eq(20L), isNull(), any()))
+                .thenReturn(new SpeechTranscriptionResponse("speech", "강을 건너 갈래요", 0.21, 1_000));
+        when(aiClient.reviewStoryBranchInput(any())).thenReturn(new StoryBranchInputReviewResponse(
+                "review", StoryBranchInputReviewResponse.Decision.CONFIRM,
+                StoryBranchInputReviewResponse.ReasonCode.AMBIGUOUS,
+                "story-branch-input-v1"
+        ));
+        when(storyBranchReviewTokenService.issue(
+                100L, 1003L, "강을 건너 갈래요", "story-branch-input-v1"
+        )).thenReturn("review-token");
+
+        var response = storyService.transcribeBranchIntent(
+                1L, 20L, 100L, 1003L,
+                new MockMultipartFile("audioFile", "answer.webm", "audio/webm", new byte[]{1})
+        );
+
+        assertThat(response.transcript()).isEqualTo("강을 건너 갈래요");
+        assertThat(response.confidence()).isEqualTo(0.21);
+        assertThat(response.decision()).isEqualTo("CONFIRM");
+        assertThat(response.reviewToken()).isEqualTo("review-token");
+        ArgumentCaptor<StoryBranchInputReviewRequest> captor =
+                ArgumentCaptor.forClass(StoryBranchInputReviewRequest.class);
+        verify(aiClient).reviewStoryBranchInput(captor.capture());
+        assertThat(captor.getValue().question()).isEqualTo("어떻게 할까요?");
+        assertThat(captor.getValue().options()).hasSize(3);
+        assertThat(captor.getValue().transcript()).isEqualTo("강을 건너 갈래요");
+    }
+
+    @Test
+    void 차단된_STT_원문은_반환하거나_토큰을_발급하지_않는다() {
+        StoryEntity story = story(100L);
+        StoryLineEntity choiceLine = line(1003L, story, null, true, "어떻게 할까요?", 4,
+                LocalDateTime.of(2026, 7, 22, 10, 10));
+        ownedStory(story);
+        when(storyLineRepository.findByIdAndStoryIdForUpdate(1003L, 100L))
+                .thenReturn(Optional.of(choiceLine));
+        when(storyChoiceRepository.findByStoryLineId(1003L)).thenReturn(Optional.empty());
+        when(storyLineRepository.findFirstByStoryIdOrderBySequenceNoDesc(100L))
+                .thenReturn(Optional.of(choiceLine));
+        when(aiClient.transcribeSpeech(anyString(), eq(20L), isNull(), any()))
+                .thenReturn(new SpeechTranscriptionResponse("speech", "차단할 원문", 0.99, 1_000));
+        when(aiClient.reviewStoryBranchInput(any())).thenReturn(new StoryBranchInputReviewResponse(
+                "review", StoryBranchInputReviewResponse.Decision.BLOCK,
+                StoryBranchInputReviewResponse.ReasonCode.SEVERE_VIOLENCE,
+                "story-branch-input-v1"
+        ));
+
+        var response = storyService.transcribeBranchIntent(
+                1L, 20L, 100L, 1003L,
+                new MockMultipartFile("audioFile", "answer.webm", "audio/webm", new byte[]{1})
+        );
+
+        assertThat(response.transcript()).isEmpty();
+        assertThat(response.decision()).isEqualTo("BLOCK");
+        assertThat(response.reviewToken()).isNull();
+        verifyNoInteractions(storyBranchReviewTokenService);
+        verify(aiClient, never()).continueStory(any());
     }
 
     @Test
@@ -547,7 +617,7 @@ class StoryServiceTest {
 
         var response = storyService.chooseStoryDirection(
                 1L, 20L, 100L, 1001L,
-                new MockMultipartFile("audioFile", "answer.webm", "audio/webm", new byte[]{1})
+                new StoryBranchSelectionRequest(1)
         );
 
         assertThat(response.choiceId()).isEqualTo(300L);
@@ -572,7 +642,7 @@ class StoryServiceTest {
 
         assertThatThrownBy(() -> storyService.chooseStoryDirection(
                 1L, 20L, 100L, 1001L,
-                new MockMultipartFile("audioFile", "answer.webm", "audio/webm", new byte[]{1})
+                new StoryBranchSelectionRequest(1)
         ))
                 .isInstanceOf(ConflictException.class)
                 .hasMessage("현재 마지막 분기 장면에만 답할 수 있습니다.");
@@ -593,7 +663,7 @@ class StoryServiceTest {
 
         assertThatThrownBy(() -> storyService.chooseStoryDirection(
                 1L, 20L, 100L, 1001L,
-                new MockMultipartFile("audioFile", "answer.webm", "audio/webm", new byte[]{1})
+                new StoryBranchSelectionRequest(1)
         ))
                 .isInstanceOf(ConflictException.class)
                 .hasMessage("장면을 읽은 후 선택지를 제출할 수 있습니다.");

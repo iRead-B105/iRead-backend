@@ -6,12 +6,14 @@ import com.iread.backend.ai.dto.req.GenerateStoryRequest;
 import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
 import com.iread.backend.ai.dto.req.GenerateImageRequest;
 import com.iread.backend.ai.dto.req.SpeechSynthesisRequest;
+import com.iread.backend.ai.dto.req.StoryBranchInputReviewRequest;
 import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
 import com.iread.backend.ai.dto.res.GenerateStoryResponse;
 import com.iread.backend.ai.dto.res.GenerateTrainingResponse;
 import com.iread.backend.ai.dto.res.GenerateImageResponse;
 import com.iread.backend.ai.dto.res.SpeechSynthesisResponse;
 import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
+import com.iread.backend.ai.dto.res.StoryBranchInputReviewResponse;
 import com.iread.backend.pronunciation.PronunciationAnalysisRequest;
 import com.iread.backend.pronunciation.PronunciationAnalysisResult;
 import org.springframework.web.multipart.MultipartFile;
@@ -30,6 +32,10 @@ public interface AiClient {
 
     SpeechTranscriptionResponse transcribeSpeech(
             String requestId, Long studentId, String expectedText, MultipartFile audioFile
+    );
+
+    StoryBranchInputReviewResponse reviewStoryBranchInput(
+            StoryBranchInputReviewRequest request
     );
 
     PronunciationAnalysisResult analyzePronunciation(PronunciationAnalysisRequest request);

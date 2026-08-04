@@ -8,6 +8,7 @@ import com.iread.backend.ai.dto.res.GeneratedStoryBranchPrompt;
 import com.iread.backend.ai.dto.res.GenerateStoryResponse;
 import com.iread.backend.ai.dto.res.GeneratedStoryLine;
 import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
+import com.iread.backend.ai.dto.res.StoryBranchInputReviewResponse;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.exception.ConflictException;
@@ -78,6 +79,7 @@ public class StoryService {
     private final WordAttemptScoreCalculator wordAttemptScoreCalculator;
     private final StudentFeatureProfileService studentFeatureProfileService;
     private final RealtimeEventPublisher realtimeEventPublisher;
+    private final StoryBranchReviewTokenService storyBranchReviewTokenService;
     private final ObjectMapper objectMapper;
 
     public StoryShelfResponse getStoryShelf(Long teacherId, Long studentId) {
@@ -262,32 +264,21 @@ public class StoryService {
 
     @Transactional
     public StoryChoiceResponse chooseStoryDirection(Long teacherId, Long studentId, Long storyId,
-                                                    Long storyLineId, MultipartFile audioFile) {
-        BranchContext context = prepareBranch(teacherId, studentId, storyId, storyLineId);
-        if (context.existingChoice().isPresent()) {
-            return replayChoice(context.story(), context.line(), context.existingChoice().get());
-        }
-
-        storyAudioStorage.store(studentId, audioFile);
-        String transcript = aiClient.transcribeSpeech(
-                UUID.randomUUID().toString(), studentId, null, audioFile
-        ).transcript();
-        return continueStoryDirection(
-                teacherId, studentId, context.story(), context.line(), transcript
-        );
-    }
-
-    @Transactional
-    public StoryChoiceResponse chooseStoryDirection(Long teacherId, Long studentId, Long storyId,
                                                     Long storyLineId,
                                                     StoryBranchSelectionRequest request) {
         BranchContext context = prepareBranch(teacherId, studentId, storyId, storyLineId);
         if (context.existingChoice().isPresent()) {
             return replayChoice(context.story(), context.line(), context.existingChoice().get());
         }
-        String branchIntent = request.optionNo() == null
-                ? validateBranchIntent(request.branchIntent())
-                : resolveBranchOption(context.line(), request.optionNo());
+        String branchIntent;
+        if (request.optionNo() == null) {
+            branchIntent = normalizeBranchIntent(request.branchIntent());
+            storyBranchReviewTokenService.verify(
+                    request.reviewToken(), storyId, storyLineId, branchIntent
+            );
+        } else {
+            branchIntent = resolveBranchOption(context.line(), request.optionNo());
+        }
         return continueStoryDirection(
                 teacherId, studentId, context.story(), context.line(), branchIntent
         );
@@ -297,22 +288,43 @@ public class StoryService {
     public StoryBranchTranscriptionResponse transcribeBranchIntent(
             Long teacherId, Long studentId, Long storyId, Long storyLineId, MultipartFile audioFile
     ) {
-        prepareBranch(teacherId, studentId, storyId, storyLineId);
+        BranchContext context = prepareBranch(teacherId, studentId, storyId, storyLineId);
         SpeechTranscriptionResponse speech = aiClient.transcribeSpeech(
                 UUID.randomUUID().toString(), studentId, null, audioFile
         );
-        String transcript = validateBranchIntent(speech.transcript());
+        String transcript = normalizeBranchIntent(speech.transcript());
+        StoryBranchPromptResponse prompt = toBranchPrompt(context.line().getBranchPrompt());
+        if (prompt == null || prompt.options().size() != 3) {
+            throw new ConflictException("현재 분기 선택지를 확인할 수 없습니다.");
+        }
+        String reviewRequestId = UUID.randomUUID().toString();
+        StoryBranchInputReviewResponse review = aiClient.reviewStoryBranchInput(
+                new StoryBranchInputReviewRequest(
+                        reviewRequestId,
+                        storyLineContentService.textOf(context.line()),
+                        prompt.options().stream().map(StoryBranchPromptResponse.Option::label).toList(),
+                        transcript
+                )
+        );
+        String reviewToken = review.mayConfirm()
+                ? storyBranchReviewTokenService.issue(
+                        storyId, storyLineId, transcript, review.policyVersion()
+                )
+                : null;
         return new StoryBranchTranscriptionResponse(
-                transcript,
+                review.decision() == StoryBranchInputReviewResponse.Decision.BLOCK ? "" : transcript,
                 Math.round(speech.confidence() * 10_000.0) / 10_000.0,
-                speech.confidence() >= 0.55
+                review.decision().name(),
+                review.reasonCode().name(),
+                review.policyVersion(),
+                reviewToken
         );
     }
 
-    private String validateBranchIntent(String value) {
+    private String normalizeBranchIntent(String value) {
         String intent = value == null ? "" : value.strip();
-        if (intent.isBlank() || intent.length() > 80 || intent.chars().anyMatch(Character::isISOControl)) {
-            throw new IllegalArgumentException("음성 선택 내용은 1~80자의 안전한 문장이어야 합니다.");
+        if (intent.isBlank()) {
+            throw new IllegalArgumentException("음성 선택 내용이 필요합니다.");
         }
         return intent;
     }
