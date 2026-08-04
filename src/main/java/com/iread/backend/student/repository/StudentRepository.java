@@ -77,20 +77,28 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
     List<StudentLearningSummaryProjection> findLearningSummaries(@Param("teacherId") Long teacherId);
 
     @Query(value = """
-            SELECT DATE(t.finished_at) AS learningDate,
-                   AVG(wal.total_score) AS averageScore
+            SELECT t.id AS sourceId,
+                   t.finished_at AS measuredAt,
+                   SUM(CASE WHEN wal.is_correct = TRUE THEN 1 ELSE 0 END) AS correctAttemptCount,
+                   COUNT(*) AS attemptCount
               FROM word_attempt_logs wal
               JOIN trainings t ON t.id = wal.training_id
               JOIN daily_curriculums dc ON dc.id = t.daily_curriculum_id
              WHERE dc.student_id = :studentId
                AND wal.use_location = 'TRAINING'
-               AND wal.total_score IS NOT NULL
+               AND wal.is_final = TRUE
+               AND wal.is_correct IS NOT NULL
                AND t.status = 'COMPLETED'
-               AND t.finished_at IS NOT NULL
-             GROUP BY DATE(t.finished_at)
-             ORDER BY DATE(t.finished_at)
+               AND t.finished_at >= :fromDateTime
+               AND t.finished_at < :toDateTimeExclusive
+             GROUP BY t.id, t.finished_at
+             ORDER BY t.finished_at, t.id
             """, nativeQuery = true)
-    List<AccuracyTrendProjection> findAccuracyTrend(@Param("studentId") Long studentId);
+    List<AccuracyRecordProjection> findAccuracyRecords(
+            @Param("studentId") Long studentId,
+            @Param("fromDateTime") LocalDateTime fromDateTime,
+            @Param("toDateTimeExclusive") LocalDateTime toDateTimeExclusive
+    );
 
     @Query(value = """
             SELECT t.id AS trainingId, DATE(t.started_at) AS learningDate, tt.name AS learningType,
@@ -370,7 +378,7 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
 
     @Query(value = """
             SELECT wal.training_id AS trainingId,
-                   DATE(t.finished_at) AS learningDate,
+                   t.finished_at AS measuredAt,
                    SUM(
                        CASE
                            WHEN wal.has_audio_data = TRUE
@@ -381,7 +389,7 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
                             AND COALESCE(wal.is_skipped, FALSE) = FALSE
                            THEN 1 ELSE 0
                        END
-                   ) AS voiceWordCount,
+                   ) AS correctWordCount,
                    MAX(
                        CASE
                            WHEN wal.has_audio_data = TRUE
@@ -429,6 +437,7 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
               JOIN training_templates tt ON tt.id = t.training_template_id
              WHERE dc.student_id = :studentId
                AND wal.use_location = 'TRAINING'
+               AND wal.is_final = TRUE
                AND t.status = 'COMPLETED'
                AND t.finished_at >= :fromDateTime
                AND t.finished_at < :toDateTimeExclusive
@@ -437,8 +446,8 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
                    'SENTENCE_READING',
                    'SHORT_PASSAGE_READING'
                )
-             GROUP BY wal.training_id, DATE(t.finished_at)
-             ORDER BY DATE(t.finished_at), wal.training_id
+             GROUP BY wal.training_id, t.finished_at
+             ORDER BY t.finished_at, wal.training_id
             """, nativeQuery = true)
     List<ReadingSpeedTrainingProjection> findReadingSpeedTrainings(
             @Param("studentId") Long studentId,
@@ -455,9 +464,11 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
         Long getWeeklyCompletedCount();
     }
 
-    interface AccuracyTrendProjection {
-        LocalDate getLearningDate();
-        BigDecimal getAverageScore();
+    interface AccuracyRecordProjection {
+        Long getSourceId();
+        LocalDateTime getMeasuredAt();
+        Long getCorrectAttemptCount();
+        Long getAttemptCount();
     }
 
     interface TrainingHistoryProjection {
@@ -473,8 +484,8 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
 
     interface ReadingSpeedTrainingProjection {
         Long getTrainingId();
-        LocalDate getLearningDate();
-        Long getVoiceWordCount();
+        LocalDateTime getMeasuredAt();
+        Long getCorrectWordCount();
         Long getVoiceDurationMs();
         Long getGazeWordCount();
         Long getGazeDurationMs();

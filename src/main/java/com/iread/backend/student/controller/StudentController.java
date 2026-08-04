@@ -3,12 +3,14 @@ package com.iread.backend.student.controller;
 import com.iread.backend.auth.annotation.CurrentTeacherId;
 import com.iread.backend.student.dto.req.StudentRequest;
 import com.iread.backend.student.domain.LearningEventType;
+import com.iread.backend.student.dto.res.AccuracyRecordsResponse;
 import com.iread.backend.student.dto.res.AccuracyTrendDataResponse;
 import com.iread.backend.student.dto.res.CreateStudentResponse;
 import com.iread.backend.student.dto.res.LearningEventResponse;
 import com.iread.backend.student.dto.res.LearningEventListResponse;
 import com.iread.backend.student.dto.res.LearningSummaryResponse;
 import com.iread.backend.student.dto.res.ReadingSpeedTrendResponse;
+import com.iread.backend.student.dto.res.ReadingSpeedRecordsResponse;
 import com.iread.backend.student.dto.res.StudentListDataResponse;
 import com.iread.backend.student.dto.res.StudentResponse;
 import com.iread.backend.student.dto.res.StudentSummaryResponse;
@@ -127,9 +129,20 @@ public class StudentController {
             @CurrentTeacherId Long teacherId,
             @PathVariable Long studentId
     ) {
-        return new AccuracyTrendDataResponse(
-                studentService.getAccuracyTrend(teacherId, studentId)
-        );
+        return studentService.getAccuracyTrend(teacherId, studentId);
+    }
+
+    @Operation(summary = "학생의 읽기 정확도 원본 기록 조회")
+    @GetMapping("/{studentId}/accuracy-records")
+    public AccuracyRecordsResponse getAccuracyRecords(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return studentService.getAccuracyRecords(teacherId, studentId, from, to);
     }
 
     @Operation(summary = "학생의 학습 기록 조회")
@@ -193,6 +206,19 @@ public class StudentController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
         return studentService.getReadingSpeedTrend(teacherId, studentId, from, to);
+    }
+
+    @Operation(summary = "학생의 음성 읽기 속도 원본 기록 조회")
+    @GetMapping("/{studentId}/reading-speed-records")
+    public ReadingSpeedRecordsResponse getReadingSpeedRecords(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return studentService.getReadingSpeedRecords(teacherId, studentId, from, to);
     }
 
 }
