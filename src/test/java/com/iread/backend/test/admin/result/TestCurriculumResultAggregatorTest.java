@@ -183,6 +183,7 @@ class TestCurriculumResultAggregatorTest {
         String track = new TestTrackResolver().resolve(sequenceNo).code();
         return new TestCurriculumDetailResponse.QuestionResult(
                 (long) sequenceNo,
+                1,
                 sequenceNo,
                 track,
                 "TYPE",
