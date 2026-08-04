@@ -57,7 +57,8 @@ class StudentServiceImplTest {
                 teacherRepository,
                 fileStorage,
                 realtimeEventPublisher,
-                JsonMapper.builder().build()
+                JsonMapper.builder().build(),
+                new ReadingMetricAggregationService(studentRepository)
         );
         teacher = new TeacherEntity(
                 "teacher@test.com", "encoded-password", "교사", "기관",
@@ -456,22 +457,29 @@ class StudentServiceImplTest {
     }
 
     @Test
-    void convertsAverageWordAttemptScoreToReadingAccuracyPercentage() {
+    void aggregatesFinalAttemptAccuracyRecordsByDate() {
         StudentEntity student = StudentEntity.builder()
                 .teacher(teacher).name("학생").build();
         ReflectionTestUtils.setField(student, "id", 10L);
-        StudentRepository.AccuracyTrendProjection row =
-                org.mockito.Mockito.mock(StudentRepository.AccuracyTrendProjection.class);
+        StudentRepository.AccuracyRecordProjection row =
+                org.mockito.Mockito.mock(StudentRepository.AccuracyRecordProjection.class);
+        LocalDate learningDate = LocalDate.now().minusDays(1);
         when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
-        when(studentRepository.findAccuracyTrend(10L)).thenReturn(List.of(row));
-        when(row.getLearningDate()).thenReturn(LocalDate.of(2026, 7, 23));
-        when(row.getAverageScore()).thenReturn(new BigDecimal("845.55"));
+        when(studentRepository.findAccuracyRecords(any(), any(), any())).thenReturn(List.of(row));
+        when(row.getSourceId()).thenReturn(100L);
+        when(row.getMeasuredAt()).thenReturn(learningDate.atTime(15, 30));
+        when(row.getCorrectAttemptCount()).thenReturn(8L);
+        when(row.getAttemptCount()).thenReturn(10L);
 
         var result = studentService.getAccuracyTrend(1L, 10L);
 
-        assertThat(result).hasSize(1);
-        assertThat(result.getFirst().date()).isEqualTo(LocalDate.of(2026, 7, 23));
-        assertThat(result.getFirst().accuracyRate()).isEqualByComparingTo("84.56");
+        assertThat(result.unit()).isEqualTo("PERCENT");
+        assertThat(result.calculationVersion()).isEqualTo("reading-metrics-v1");
+        assertThat(result.dailyAccuracy()).hasSize(1);
+        assertThat(result.dailyAccuracy().getFirst().date()).isEqualTo(learningDate);
+        assertThat(result.dailyAccuracy().getFirst().correctAttemptCount()).isEqualTo(8L);
+        assertThat(result.dailyAccuracy().getFirst().attemptCount()).isEqualTo(10L);
+        assertThat(result.dailyAccuracy().getFirst().accuracyRate()).isEqualByComparingTo("80.00");
     }
 
     @Test
@@ -556,11 +564,12 @@ class StudentServiceImplTest {
 
         var result = studentService.getReadingSpeedTrend(1L, 10L, firstDate, lastDate);
 
-        assertThat(result.unit()).isEqualTo("WORDS_PER_MINUTE");
+        assertThat(result.unit()).isEqualTo("CORRECT_WORDS_PER_MINUTE");
+        assertThat(result.calculationVersion()).isEqualTo("reading-metrics-v1");
         assertThat(result.points()).hasSize(2);
         assertThat(result.points().getFirst().voiceSpeed()).isEqualByComparingTo("60.00");
         assertThat(result.points().getFirst().gazeSpeed()).isEqualByComparingTo("90.00");
-        assertThat(result.points().getFirst().voiceWordCount()).isEqualTo(30L);
+        assertThat(result.points().getFirst().correctWordCount()).isEqualTo(30L);
         assertThat(result.points().getFirst().gazeWordCount()).isEqualTo(30L);
         assertThat(result.points().getFirst().trainingCount()).isEqualTo(2);
         assertThat(result.points().getLast().voiceSpeed()).isEqualByComparingTo("72.00");
@@ -626,15 +635,15 @@ class StudentServiceImplTest {
 
     private StudentRepository.ReadingSpeedTrainingProjection readingSpeedRow(
             LocalDate learningDate,
-            Long voiceWordCount,
+            Long correctWordCount,
             Long voiceDurationMs,
             Long gazeWordCount,
             Long gazeDurationMs
     ) {
         StudentRepository.ReadingSpeedTrainingProjection row =
                 org.mockito.Mockito.mock(StudentRepository.ReadingSpeedTrainingProjection.class);
-        when(row.getLearningDate()).thenReturn(learningDate);
-        when(row.getVoiceWordCount()).thenReturn(voiceWordCount);
+        when(row.getMeasuredAt()).thenReturn(learningDate.atTime(12, 0));
+        when(row.getCorrectWordCount()).thenReturn(correctWordCount);
         when(row.getVoiceDurationMs()).thenReturn(voiceDurationMs);
         when(row.getGazeWordCount()).thenReturn(gazeWordCount);
         when(row.getGazeDurationMs()).thenReturn(gazeDurationMs);

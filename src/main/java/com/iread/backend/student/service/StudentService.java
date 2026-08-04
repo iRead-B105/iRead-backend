@@ -2,11 +2,13 @@ package com.iread.backend.student.service;
 
 import com.iread.backend.student.dto.req.StudentRequest;
 import com.iread.backend.student.domain.LearningEventType;
-import com.iread.backend.student.dto.res.AccuracyTrendResponse;
+import com.iread.backend.student.dto.res.AccuracyRecordsResponse;
+import com.iread.backend.student.dto.res.AccuracyTrendDataResponse;
 import com.iread.backend.student.dto.res.LearningEventResponse;
 import com.iread.backend.student.dto.res.LearningEventListResponse;
 import com.iread.backend.student.dto.res.LearningSummaryResponse;
 import com.iread.backend.student.dto.res.ReadingSpeedTrendResponse;
+import com.iread.backend.student.dto.res.ReadingSpeedRecordsResponse;
 import com.iread.backend.student.dto.res.StudentListResponse;
 import com.iread.backend.student.dto.res.StudentListDataResponse;
 import com.iread.backend.student.dto.res.StudentResponse;
@@ -34,7 +36,13 @@ public interface StudentService {
     void updateStudent(Long teacherId, Long studentId, StudentRequest request);
     void updateStudent(Long teacherId, Long studentId, StudentRequest request, MultipartFile imageFile);
     void updateTeacherMemo(Long teacherId, Long studentId, String teacherMemo);
-    List<AccuracyTrendResponse> getAccuracyTrend(Long teacherId, Long studentId);
+    AccuracyTrendDataResponse getAccuracyTrend(Long teacherId, Long studentId);
+    AccuracyRecordsResponse getAccuracyRecords(
+            Long teacherId,
+            Long studentId,
+            LocalDate from,
+            LocalDate to
+    );
     List<TrainingHistoryResponse> getTrainingHistory(
             Long teacherId,
             Long studentId,
@@ -54,6 +62,12 @@ public interface StudentService {
             Long eventId
     );
     ReadingSpeedTrendResponse getReadingSpeedTrend(
+            Long teacherId,
+            Long studentId,
+            LocalDate from,
+            LocalDate to
+    );
+    ReadingSpeedRecordsResponse getReadingSpeedRecords(
             Long teacherId,
             Long studentId,
             LocalDate from,

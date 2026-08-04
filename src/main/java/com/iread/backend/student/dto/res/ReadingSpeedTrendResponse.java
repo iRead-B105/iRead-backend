@@ -8,6 +8,7 @@ public record ReadingSpeedTrendResponse(
         LocalDate from,
         LocalDate to,
         String unit,
+        String calculationVersion,
         BigDecimal voiceChangeRate,
         BigDecimal gazeChangeRate,
         List<Point> points
@@ -16,9 +17,9 @@ public record ReadingSpeedTrendResponse(
             LocalDate date,
             BigDecimal voiceSpeed,
             BigDecimal gazeSpeed,
-            Long voiceWordCount,
-            Long gazeWordCount,
+            Long correctWordCount,
             Long voiceDurationMs,
+            Long gazeWordCount,
             Long gazeDurationMs,
             Integer trainingCount
     ) {

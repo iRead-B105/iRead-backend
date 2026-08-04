@@ -244,19 +244,62 @@ class MySqlFlywayIntegrationTest {
                     curriculumId,
                     included.size() + 1
             );
-            insertWordAttempt(studentId, wordId, trainingId, 900, 900, 1, 0, 0);
+            long attemptId = insertWordAttempt(
+                    studentId, wordId, trainingId, 900, 900, 1, 0, 0
+            );
+            jdbcTemplate.update(
+                    """
+                    UPDATE word_attempt_logs
+                       SET is_correct = TRUE,
+                           speech_start_offset_ms = 0,
+                           speech_end_offset_ms = 1000
+                     WHERE id = ?
+                    """,
+                    attemptId
+            );
             if (templateId != 15L) {
                 included.add(trainingId);
             }
         }
 
+        long nonFinalAttemptId = insertWordAttempt(
+                studentId, wordId, included.getFirst(), 100, 100, 2, 0, 0
+        );
+        jdbcTemplate.update(
+                """
+                UPDATE word_attempt_logs
+                   SET is_correct = FALSE,
+                       is_final = FALSE,
+                       speech_start_offset_ms = 0,
+                       speech_end_offset_ms = 5000
+                 WHERE id = ?
+                """,
+                nonFinalAttemptId
+        );
+
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
-        assertThat(studentRepository.findReadingSpeedTrainings(
+        var readingRows = studentRepository.findReadingSpeedTrainings(
                 studentId,
                 now.minusDays(1),
                 now.plusDays(1)
-        )).extracting(StudentRepository.ReadingSpeedTrainingProjection::getTrainingId)
+        );
+        assertThat(readingRows)
+                .extracting(StudentRepository.ReadingSpeedTrainingProjection::getTrainingId)
                 .containsExactlyInAnyOrderElementsOf(included);
+        assertThat(readingRows)
+                .allSatisfy(row -> {
+                    assertThat(row.getCorrectWordCount()).isEqualTo(1L);
+                    assertThat(row.getVoiceDurationMs()).isEqualTo(1000L);
+                });
+
+        assertThat(studentRepository.findAccuracyRecords(
+                studentId,
+                now.minusDays(1),
+                now.plusDays(1)
+        )).allSatisfy(row -> {
+            assertThat(row.getCorrectAttemptCount()).isEqualTo(1L);
+            assertThat(row.getAttemptCount()).isEqualTo(1L);
+        });
     }
 
     @Test
