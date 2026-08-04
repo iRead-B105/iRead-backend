@@ -15,6 +15,7 @@ import com.iread.backend.gaze.domain.GazeAnalysisResultEntity;
 import com.iread.backend.gaze.domain.GazeContentType;
 import com.iread.backend.gaze.domain.GazeSessionEntity;
 import com.iread.backend.gaze.domain.GazeSessionStatus;
+import com.iread.backend.gaze.app.service.GazeDataStorage;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
 import com.iread.backend.story.admin.dto.res.StoryGazeAnalysisResponse;
@@ -36,6 +37,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -66,6 +69,7 @@ public class StoryAdminService {
     private final StoryChoiceRepository storyChoiceRepository;
     private final GazeSessionRepository gazeSessionRepository;
     private final GazeAnalysisResultRepository gazeAnalysisResultRepository;
+    private final GazeDataStorage gazeDataStorage;
     private final StoryLineContentService storyLineContentService;
     private final ObjectMapper objectMapper;
     private final StoryPageEditAuditRepository storyPageEditAuditRepository;
@@ -255,14 +259,17 @@ public class StoryAdminService {
         validateStudentOwner(teacherId, studentId);
         StoryEntity story = findVisibleStory(studentId, storyId);
         StoryContext context = loadContext(studentId, List.of(story));
-        GazeSessionEntity session = context.latestCompletedSessionByStory().get(storyId);
-        if (session == null || session.getStatus() != GazeSessionStatus.COMPLETED) {
-            throw new ResourceNotFoundException("A completed story gaze session was not found.");
-        }
-        GazeAnalysisResultEntity result = context.analysisBySession().get(session.getId());
-        if (result == null) {
+        // 페이지마다 세션이 끝날 수 있으므로 최신 세션이 아니라, 분석까지 완료된
+        // 모든 페이지 세션을 모아야 이전 페이지 리플레이가 사라지지 않는다.
+        List<GazeAnalysisResultEntity> results = context.analysisBySession().values().stream()
+                .filter(result -> result.getGazeSession().getStory().getId().equals(storyId))
+                .sorted(Comparator.comparing(GazeAnalysisResultEntity::getCreatedAt).reversed())
+                .toList();
+        if (results.isEmpty()) {
             throw new ResourceNotFoundException("A story gaze analysis result was not found.");
         }
+        GazeAnalysisResultEntity result = results.getFirst();
+        GazeSessionEntity session = result.getGazeSession();
 
         List<StoryLineEntity> lines = context.linesByStory().getOrDefault(storyId, List.of());
         Map<Long, Integer> pageByLine = new LinkedHashMap<>();
@@ -272,9 +279,10 @@ public class StoryAdminService {
             lineById.put(lines.get(index).getId(), lines.get(index));
         }
 
-        JsonNode regressionNodes = readArray(result.getRegressions());
         Map<Long, StoryGazeAnalysisResponse.PageMetric> metrics = new LinkedHashMap<>();
-        for (JsonNode metric : readArray(result.getSentenceMetrics())) {
+        for (GazeAnalysisResultEntity pageResult : results) {
+            JsonNode regressionNodes = readArray(pageResult.getRegressions());
+            for (JsonNode metric : readArray(pageResult.getSentenceMetrics())) {
             Long lineId = nullableLong(metric, "storyLineId");
             Integer pageNo = pageByLine.get(lineId);
             if (lineId == null || pageNo == null || metrics.containsKey(lineId)) {
@@ -298,6 +306,7 @@ public class StoryAdminService {
                     metric.path("lastGazeOffsetMs").asInt(0),
                     regressions
             ));
+            }
         }
 
         return new StoryGazeAnalysisResponse(
@@ -306,11 +315,12 @@ public class StoryAdminService {
                 session.getCalibrationStatus(),
                 offset(session.getStartedAt()),
                 offset(session.getEndedAt()),
-                result.getTotalVisitedDuration(),
-                result.getTotalVisitedCount(),
-                result.getReverseReadCount(),
-                result.getAvgVisitedDuration(),
+                results.stream().mapToInt(item -> item.getTotalVisitedDuration()).sum(),
+                results.stream().mapToInt(item -> item.getTotalVisitedCount()).sum(),
+                results.stream().mapToInt(item -> item.getReverseReadCount()).sum(),
+                totalAverageFixationTime(results),
                 List.copyOf(metrics.values()),
+                storyReplay(results.stream().map(GazeAnalysisResultEntity::getGazeSession).toList()),
                 readNullable(result.getAnalysisMeta())
         );
     }
@@ -525,6 +535,11 @@ public class StoryAdminService {
                 && context.analysisBySession().containsKey(session.getId())) {
             return StoryHistoryResponse.GazeAnalysisStatus.AVAILABLE;
         }
+        boolean hasCompletedPageAnalysis = context.analysisBySession().values().stream()
+                .anyMatch(result -> result.getGazeSession().getStory().getId().equals(storyId));
+        if (hasCompletedPageAnalysis) {
+            return StoryHistoryResponse.GazeAnalysisStatus.AVAILABLE;
+        }
         return StoryHistoryResponse.GazeAnalysisStatus.RUNNING;
     }
 
@@ -593,6 +608,58 @@ public class StoryAdminService {
     private JsonNode readArray(String value) {
         JsonNode node = readNullable(value);
         return node != null && node.isArray() ? node : objectMapper.createArrayNode();
+    }
+
+    private Integer totalAverageFixationTime(List<GazeAnalysisResultEntity> results) {
+        int count = results.stream().mapToInt(item -> item.getTotalVisitedCount()).sum();
+        if (count == 0) {
+            return null;
+        }
+        return results.stream().mapToInt(item -> item.getTotalVisitedDuration()).sum() / count;
+    }
+
+    private JsonNode storyReplay(List<GazeSessionEntity> sessions) {
+        ObjectNode replay = objectMapper.createObjectNode();
+        ArrayNode words = objectMapper.createArrayNode();
+        ArrayNode samples = objectMapper.createArrayNode();
+        for (GazeSessionEntity session : sessions) {
+            if (session.getDataUrl() == null || session.getDataUrl().isBlank()) {
+                continue;
+            }
+            JsonNode stored = readNullable(gazeDataStorage.load(session.getDataUrl()));
+            JsonNode data = stored != null && stored.path("rawData").isObject()
+                    ? stored.path("rawData")
+                    : stored;
+            if (data == null || !data.isObject()) {
+                continue;
+            }
+            JsonNode sourceWords = data.path("replayWords").isArray()
+                    ? data.path("replayWords")
+                    : data.path("words");
+            if (sourceWords.isArray()) {
+                sourceWords.forEach(word -> words.add(word.deepCopy()));
+            }
+            JsonNode sourceSamples = data.path("samples");
+            if (!sourceSamples.isArray()) {
+                continue;
+            }
+            for (JsonNode sourceSample : sourceSamples) {
+                if (!sourceSample.isObject()) {
+                    continue;
+                }
+                ObjectNode sample = ((ObjectNode) sourceSample).deepCopy();
+                if (!sample.hasNonNull("questionNumber") && sample.hasNonNull("pageNo")) {
+                    sample.set("questionNumber", sample.path("pageNo").deepCopy());
+                }
+                samples.add(sample);
+            }
+        }
+        if (words.isEmpty() && samples.isEmpty()) {
+            return null;
+        }
+        replay.set("words", words);
+        replay.set("samples", samples);
+        return replay;
     }
 
     private JsonNode readNullable(String value) {

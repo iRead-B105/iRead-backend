@@ -17,10 +17,12 @@ public record StoryGazeAnalysisResponse(
         Integer regressionCount,
         Integer averageFixationTime,
         List<PageMetric> pageMetrics,
+        JsonNode replay,
         JsonNode analysisMeta
 ) {
     public StoryGazeAnalysisResponse {
         pageMetrics = List.copyOf(pageMetrics);
+        replay = replay == null ? null : replay.deepCopy();
         analysisMeta = analysisMeta == null ? null : analysisMeta.deepCopy();
     }
 

@@ -5,6 +5,7 @@ import com.iread.backend.gaze.domain.GazeCalibrationStatus;
 import com.iread.backend.gaze.domain.GazeContentType;
 import com.iread.backend.gaze.domain.GazeSessionEntity;
 import com.iread.backend.gaze.domain.GazeSessionStatus;
+import com.iread.backend.gaze.app.service.GazeDataStorage;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
 import com.iread.backend.ai.client.AiClient;
@@ -56,6 +57,7 @@ class StoryAdminServiceTest {
     @Mock StoryChoiceRepository storyChoiceRepository;
     @Mock GazeSessionRepository gazeSessionRepository;
     @Mock GazeAnalysisResultRepository gazeAnalysisResultRepository;
+    @Mock GazeDataStorage gazeDataStorage;
     @Mock StoryPageEditAuditRepository storyPageEditAuditRepository;
     @Mock AiClient aiClient;
     @Mock FileStorage fileStorage;
@@ -81,6 +83,7 @@ class StoryAdminServiceTest {
                 storyChoiceRepository,
                 gazeSessionRepository,
                 gazeAnalysisResultRepository,
+                gazeDataStorage,
                 new StoryLineContentService(koreanTextAnalyzer, objectMapper),
                 objectMapper,
                 storyPageEditAuditRepository,
@@ -265,6 +268,9 @@ class StoryAdminServiceTest {
         allowStudent();
         when(storyRepository.findByIdAndStudentId(30L, 10L)).thenReturn(Optional.of(story));
         allowContext();
+        when(gazeDataStorage.load("{}")).thenReturn("""
+                {"rawData":{"replayWords":[{"questionNo":1,"tokenIndex":2,"text":"word"}],"samples":[{"pageNo":1,"tokenIndex":2,"text":"word","capturedAtMs":120}]}}
+                """);
 
         var response = service.getStoryGazeAnalysis(1L, 10L, 30L);
 
@@ -276,6 +282,8 @@ class StoryAdminServiceTest {
         assertThat(metric.pageNo()).isEqualTo(1);
         assertThat(metric.regressionCount()).isEqualTo(2);
         assertThat(metric.regressions()).hasSize(1);
+        assertThat(response.replay().path("words").size()).isEqualTo(1);
+        assertThat(response.replay().path("samples").get(0).path("questionNumber").asInt()).isEqualTo(1);
         assertThat(metric.averageFixationTimeMs()).isEqualTo(857);
     }
 
