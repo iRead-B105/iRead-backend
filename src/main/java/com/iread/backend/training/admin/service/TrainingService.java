@@ -767,7 +767,7 @@ public class TrainingService {
             List<TrainingLogResponse.TrainingQuestionResult> questions
     ) {
         return questions.stream()
-                .filter(question -> !Boolean.TRUE.equals(question.correct()))
+                .filter(question -> Boolean.FALSE.equals(question.correct()))
                 .map(question -> new TrainingLogResponse.IncorrectItem(
                         question.questionNo(),
                         legacyText(question.question()),
