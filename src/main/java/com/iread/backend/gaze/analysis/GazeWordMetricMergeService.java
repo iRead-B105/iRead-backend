@@ -5,6 +5,7 @@ import com.iread.backend.gaze.domain.GazeContentType;
 import com.iread.backend.gaze.domain.GazeSessionEntity;
 import com.iread.backend.test.domain.TestDataEntity;
 import com.iread.backend.test.repository.TestDataRepository;
+import com.iread.backend.training.app.service.KoreanConsonantPronunciation;
 import com.iread.backend.training.input.TrainingInputPolicy;
 import com.iread.backend.training.input.TrainingInputRequirementService;
 import com.iread.backend.training.input.TrainingInputType;
@@ -12,6 +13,7 @@ import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
 import com.iread.backend.wordattempt.service.WordAttemptScoreCalculator;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -23,6 +25,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GazeWordMetricMergeService {
@@ -173,6 +176,18 @@ public class GazeWordMetricMergeService {
         }
 
         if (attempts.size() != 1) {
+            log.warn(
+                    "시선 단어 지표 병합 실패: contentType={}, sessionId={}, questionNo={}, "
+                            + "targetIndex={}, tokenIndex={}, text='{}', 최종시도={}건, 이력={}건",
+                    session.getContentType(),
+                    session.getId(),
+                    metric.questionNo(),
+                    metric.targetIndex(),
+                    metric.tokenIndex(),
+                    metric.text(),
+                    attempts.size(),
+                    attemptHistory.size()
+            );
             throw new ConflictException(
                     "단어별 시선 지표를 최종 단어 시도와 하나로 연결할 수 없습니다."
             );
@@ -372,8 +387,15 @@ public class GazeWordMetricMergeService {
         }
     }
 
-    private boolean sameText(String first, String second) {
-        return normalize(first).equals(normalize(second));
+    /**
+     * 시선 지표 텍스트(화면 표기)와 시도 로그 표면(발음 기준)을 비교한다.
+     * 자음 따라 보기는 화면에 'ㄱ'을 보여주고 발음은 '그'로 저장하므로
+     * 자음 → '으' 결합 발음형도 같은 단어로 취급한다.
+     */
+    private boolean sameText(String metricText, String attemptSurface) {
+        String surface = normalize(attemptSurface);
+        return normalize(metricText).equals(surface)
+                || normalize(KoreanConsonantPronunciation.withEu(metricText)).equals(surface);
     }
 
     private boolean sameTokenPosition(Integer metricTokenIndex, Integer attemptTokenIndex) {

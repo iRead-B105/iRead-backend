@@ -310,7 +310,7 @@ public class AppTrainingService {
             int questionNumber,
             LearningSubmission request
     ) {
-        findOwnedStudent(teacherId, studentId);
+        StudentEntity student = findOwnedStudent(teacherId, studentId);
         TrainingEntity training = findInProgressTrainingForUpdate(studentId, trainingId);
         JsonNode question = findQuestion(trainingId, questionNumber);
         ObjectNode result = readObjectOrNew(training.getResult());
@@ -374,6 +374,13 @@ public class AppTrainingService {
                     scoredCorrect ? evaluation.totalScore() : 0,
                     request.submissionId(),
                     correctionRequired
+            );
+            recordSelectionWordAttempts(
+                    student,
+                    training,
+                    question,
+                    questionNumber,
+                    scoredCorrect
             );
         }
         training.recordProgressResult(writeJson(result));
@@ -576,6 +583,79 @@ public class AppTrainingService {
             );
         }
         return matchedIndex;
+    }
+
+    /**
+     * 음성 녹음 없이 완료되는 문항(선택·조립형 등)도 단어 시도 로그를 남긴다.
+     * 시선 세션 종료 시 단어별 시선 지표가 최종 단어 시도와 1:1로 연결되어야 하는데,
+     * 녹음 경로가 없으면 로그가 전혀 없어 병합이 실패하기 때문이다.
+     * 좌표는 학습자 App 시선 지표와 동일하게 권장 녹음 대상의
+     * (targetIndex, 토큰 순서 tokenIndex)를 사용한다.
+     */
+    private void recordSelectionWordAttempts(
+            StudentEntity student,
+            TrainingEntity training,
+            JsonNode question,
+            int questionNumber,
+            boolean correct
+    ) {
+        Set<TrainingInputType> inputs = trainingInputRequirementService
+                .inputsForQuestion(training.getId(), questionNumber);
+        if (!inputs.contains(TrainingInputType.GAZE)) {
+            return;
+        }
+        AppLearningQuestionSupport.RecommendedRecordingTarget target =
+                learningQuestionSupport.recommendedRecordingTarget(question);
+        if (target == null || !WORD_PATTERN.matcher(target.text()).find()) {
+            return;
+        }
+        // 이미 최종 시도가 있는 위치(음성 녹음 등)는 건너뛴다.
+        // 시선 병합과 같은 규칙으로 tokenIndex 0과 null을 같은 위치로 본다.
+        List<WordAttemptLogEntity> existingFinals = wordAttemptLogRepository
+                .findAllByTrainingIdAndQuestionNoAndTargetIndexAndFinalAttemptTrue(
+                        training.getId(),
+                        questionNumber,
+                        target.targetIndex()
+                );
+        List<WordAttemptLogEntity> attempts = new ArrayList<>();
+        for (PronunciationReferenceWord token : tokenize(target.text())) {
+            boolean alreadyLogged = existingFinals.stream().anyMatch(attempt ->
+                    java.util.Objects.equals(attempt.getTokenIndex(), token.tokenIndex())
+                            || (token.tokenIndex() != null
+                            && token.tokenIndex() == 0
+                            && attempt.getTokenIndex() == null)
+            );
+            if (alreadyLogged) {
+                continue;
+            }
+            attempts.add(new WordAttemptLogEntity(
+                    student,
+                    resolveWord(token.surface(), null),
+                    training,
+                    token.surface(),
+                    false,
+                    false,
+                    null,
+                    null,
+                    null,
+                    null,
+                    false,
+                    null,
+                    null,
+                    null,
+                    null,
+                    correct,
+                    // 발음 점수가 없어 종합 점수는 시선 병합 시 계산된다
+                    null,
+                    questionNumber,
+                    target.targetIndex(),
+                    token.tokenIndex(),
+                    true
+            ));
+        }
+        if (!attempts.isEmpty()) {
+            wordAttemptLogRepository.saveAllAndFlush(attempts);
+        }
     }
 
     private JsonNode findQuestionWord(JsonNode question, int tokenIndex) {
