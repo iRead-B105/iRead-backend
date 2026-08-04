@@ -145,7 +145,7 @@
       "id": 14, "curriculumUnitId": 3, "sequenceNo": 1, "name": "음소 합쳐 음절 만들기",
       "prompt": {
         "trainingType": "PHONEME_BLEND",
-        "requiredInputs": ["VOICE"],
+        "requiredInputs": [],
         "additionalPrompt": "분리된 초성, 중성, 필요한 경우 종성을 순서대로 합쳐 한글 음절을 만든다. cards에는 정답 음소와 방해 카드를 넣고 answerOrder는 result를 만드는 cards 인덱스 순서다.",
         "outputTemplate": {"type": "PHONEME_BLEND", "data": [{"audioParts": ["<string>"], "cards": ["<string>"], "answerOrder": ["<integer>"], "result": "<string>"}]},
         "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
@@ -155,7 +155,7 @@
       "id": 15, "curriculumUnitId": 3, "sequenceNo": 2, "name": "음절 합쳐 낱말 만들기",
       "prompt": {
         "trainingType": "SYLLABLE_BLEND",
-        "requiredInputs": ["VOICE"],
+        "requiredInputs": [],
         "additionalPrompt": "분리된 음절을 순서대로 합쳐 친숙한 실제 낱말을 만든다. cards에는 정답과 방해 음절을 넣고 answerOrder는 result를 만드는 cards 인덱스 순서다.",
         "outputTemplate": {"type": "SYLLABLE_BLEND", "data": [{"audioParts": ["<string>"], "cards": ["<string>"], "answerOrder": ["<integer>"], "result": "<string>"}]},
         "supportedFeatureCategories": ["SYLLABLE", "WORD"], "supportedScopes": ["SYLLABLE", "WORD"]
@@ -165,7 +165,7 @@
       "id": 16, "curriculumUnitId": 3, "sequenceNo": 3, "name": "기본 글자 만들기",
       "prompt": {
         "trainingType": "BASIC_SYLLABLE_BUILD",
-        "requiredInputs": ["VOICE"],
+        "requiredInputs": [],
         "additionalPrompt": "받침 없는 동일한 음절을 듣고 초성과 중성을 조합한다. initialChoices와 medialChoices에는 각각 올바른 자모만 넣고 정답 인덱스의 자모 결합은 result와 일치해야 한다.",
         "outputTemplate": {"type": "BASIC_SYLLABLE_BUILD", "data": [{"targetAudioText": "<string>", "initialChoices": ["<string>"], "medialChoices": ["<string>"], "initialAnswerIndex": "<integer>", "medialAnswerIndex": "<integer>", "result": "<string>"}]},
         "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
@@ -175,7 +175,7 @@
       "id": 17, "curriculumUnitId": 3, "sequenceNo": 4, "name": "받침 글자 만들기",
       "prompt": {
         "trainingType": "FINAL_SYLLABLE_BUILD",
-        "requiredInputs": ["VOICE"],
+        "requiredInputs": [],
         "additionalPrompt": "받침 있는 동일한 음절을 듣고 초성, 중성, 홑받침을 조합한다. 각 choices에는 올바른 종류의 자모만 넣고 세 정답 자모의 결합은 result와 일치해야 한다.",
         "outputTemplate": {"type": "FINAL_SYLLABLE_BUILD", "data": [{"targetAudioText": "<string>", "initialChoices": ["<string>"], "medialChoices": ["<string>"], "finalChoices": ["<string>"], "initialAnswerIndex": "<integer>", "medialAnswerIndex": "<integer>", "finalAnswerIndex": "<integer>", "result": "<string>"}]},
         "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
@@ -185,7 +185,7 @@
       "id": 18, "curriculumUnitId": 3, "sequenceNo": 5, "name": "겹받침 글자 만들기",
       "prompt": {
         "trainingType": "DOUBLE_FINAL_BUILD",
-        "requiredInputs": ["VOICE"],
+        "requiredInputs": [],
         "additionalPrompt": "겹받침이 포함된 음절 범위로 일관되게 생성한다. finalChoices에는 정답 겹받침과 혼동 가능한 홑받침 또는 다른 겹받침을 넣고 정답 자모 결합은 result의 목표 음절과 일치해야 한다.",
         "outputTemplate": {"type": "DOUBLE_FINAL_BUILD", "data": [{"targetAudioText": "<string>", "initialChoices": ["<string>"], "medialChoices": ["<string>"], "finalChoices": ["<string>"], "initialAnswerIndex": "<integer>", "medialAnswerIndex": "<integer>", "finalAnswerIndex": "<integer>", "result": "<string>"}]},
         "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
@@ -195,7 +195,7 @@
       "id": 19, "curriculumUnitId": 4, "sequenceNo": 1, "name": "받침 빼기",
       "prompt": {
         "trainingType": "FINAL_CONSONANT_DELETE",
-        "requiredInputs": ["VOICE"],
+        "requiredInputs": [],
         "additionalPrompt": "받침 있는 한글 음절 source에서 종성만 제거한다. removableUnits에는 방해 자음 없이 source를 분해한 초성, 중성, 종성을 순서대로 넣고 answerIndex는 종성 위치를 가리킨다. targetAudioText와 result는 종성을 제거한 음절로 같아야 한다.",
         "outputTemplate": {"type": "FINAL_CONSONANT_DELETE", "data": [{"source": "<string>", "targetAudioText": "<string>", "removableUnits": ["<string>"], "answerIndex": "<integer>", "result": "<string>"}]},
         "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
@@ -205,7 +205,7 @@
       "id": 20, "curriculumUnitId": 4, "sequenceNo": 2, "name": "음절 빼기",
       "prompt": {
         "trainingType": "SYLLABLE_DELETE",
-        "requiredInputs": ["VOICE"],
+        "requiredInputs": [],
         "additionalPrompt": "두 음절 이상의 source를 syllables 순서로 분해하고 deleteIndex의 한 음절을 제거해 result를 만든다. targetAudioText와 result는 같은 내용이어야 한다.",
         "outputTemplate": {"type": "SYLLABLE_DELETE", "data": [{"source": "<string>", "targetAudioText": "<string>", "syllables": ["<string>"], "deleteIndex": "<integer>", "result": "<string>"}]},
         "supportedFeatureCategories": ["SYLLABLE", "WORD"], "supportedScopes": ["SYLLABLE", "WORD"]
@@ -215,7 +215,7 @@
       "id": 21, "curriculumUnitId": 5, "sequenceNo": 1, "name": "음절 바꾸기",
       "prompt": {
         "trainingType": "SYLLABLE_REPLACE",
-        "requiredInputs": ["VOICE"],
+        "requiredInputs": [],
         "additionalPrompt": "두 음절 이상의 source와 result는 정확히 한 음절만 달라야 한다. replaceIndex와 answerIndex의 선택지를 적용하면 result가 되며 가능한 한 친숙한 실제 낱말을 사용한다.",
         "outputTemplate": {"type": "SYLLABLE_REPLACE", "data": [{"source": "<string>", "targetAudioText": "<string>", "replaceIndex": "<integer>", "choices": ["<string>"], "answerIndex": "<integer>", "result": "<string>"}]},
         "supportedFeatureCategories": ["SYLLABLE", "WORD"], "supportedScopes": ["SYLLABLE", "WORD"]
