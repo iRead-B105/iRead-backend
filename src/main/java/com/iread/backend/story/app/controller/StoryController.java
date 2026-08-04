@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -86,6 +87,17 @@ public class StoryController {
                                            @PathVariable Long storyTemplateId) {
         authorizeStudent(authenticatedStudentId, studentId);
         return storyService.startStory(teacherId, studentId, storyTemplateId);
+    }
+
+    @Operation(summary = "진행 중인 이야기 삭제")
+    @DeleteMapping("/{studentId}/sessions/{storyId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteStory(@CurrentTeacherId Long teacherId,
+                            @CurrentStudentId Long authenticatedStudentId,
+                            @PathVariable Long studentId,
+                            @PathVariable Long storyId) {
+        authorizeStudent(authenticatedStudentId, studentId);
+        storyService.deleteStory(teacherId, studentId, storyId);
     }
 
     @Operation(summary = "스토리 대사 목록 조회")

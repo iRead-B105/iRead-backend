@@ -22,6 +22,7 @@ import com.iread.backend.pronunciation.PronunciationWordAligner;
 import com.iread.backend.pronunciation.PronunciationWordResult;
 import com.iread.backend.readingfeature.service.StudentFeatureProfileService;
 import com.iread.backend.realtime.RealtimeEventPublisher;
+import com.iread.backend.realtime.RealtimeResource;
 import com.iread.backend.story.analysis.StoryLineContentService;
 import com.iread.backend.story.app.dto.req.StoryBranchSelectionRequest;
 import com.iread.backend.story.domain.*;
@@ -99,14 +100,21 @@ class StoryServiceTest {
         lenient().when(template.getTitle()).thenReturn("신비한 숲");
         lenient().when(template.getContent()).thenReturn("숲에서 친구를 만나는 이야기");
         lenient().when(template.getImageUrl()).thenReturn("/images/mystic-forest.png");
+        lenient().when(studentRepository.findByIdAndTeacherIdForUpdate(20L, 1L))
+                .thenReturn(Optional.of(student));
     }
 
     @Test
     void 책장은_삭제되지_않은_학생_스토리와_모든_템플릿을_반환한다() {
         StoryEntity story = story(100L);
-        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        StoryLineEntity entryLine = mock(StoryLineEntity.class);
+        when(entryLine.getStory()).thenReturn(story);
+        when(entryLine.getImageUrl()).thenReturn("/images/entry-scene.png");
+        lenient().when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(storyRepository.findAllByStudentIdAndStatusNotOrderByCreatedAtDesc(20L, StoryStatus.DELETED))
                 .thenReturn(List.of(story));
+        when(storyLineRepository.findAllByStoryIdInOrderBySequenceNoAsc(List.of(100L)))
+                .thenReturn(List.of(entryLine));
         when(storyTemplateRepository.findAllByOrderByIdAsc()).thenReturn(List.of(template));
 
         var response = storyService.getStoryShelf(1L, 20L);
@@ -114,6 +122,8 @@ class StoryServiceTest {
         assertThat(response.stories()).hasSize(1);
         assertThat(response.stories().getFirst().storyId()).isEqualTo(100L);
         assertThat(response.stories().getFirst().progress()).isZero();
+        assertThat(response.stories().getFirst().entryImageUrl())
+                .isEqualTo("/images/entry-scene.png");
         assertThat(response.storyTemplates()).hasSize(1);
         assertThat(response.storyTemplates().getFirst().storyTemplateId()).isEqualTo(30L);
         assertThat(response.storyTemplates().getFirst().imageUrl())
@@ -122,7 +132,7 @@ class StoryServiceTest {
 
     @Test
     void 신규_세션은_첫_선택지까지_생성하여_순서대로_저장한다() {
-        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        lenient().when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(storyTemplateRepository.findById(30L)).thenReturn(Optional.of(template));
         when(storyRepository.saveAndFlush(any(StoryEntity.class))).thenAnswer(invocation -> {
             StoryEntity saved = invocation.getArgument(0);
@@ -447,7 +457,7 @@ class StoryServiceTest {
 
     @Test
     void 생성된_대사는_형태소분석_결과와_함께_저장된다() {
-        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        lenient().when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(storyTemplateRepository.findById(30L)).thenReturn(Optional.of(template));
         when(storyRepository.saveAndFlush(any(StoryEntity.class))).thenAnswer(invocation -> {
             StoryEntity saved = invocation.getArgument(0);
@@ -485,7 +495,7 @@ class StoryServiceTest {
     void 대사를_읽으면_단어별로_시도_로그를_적재하고_약점_프로파일을_갱신한다() {
         StoryEntity story = story(100L);
         StoryLineEntity line = line(1000L, story, null, false, "토끼가 뛰었어요.", 1, null);
-        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        lenient().when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(storyRepository.findByIdAndStudentId(100L, 20L)).thenReturn(Optional.of(story));
         when(storyLineRepository.findByIdAndStoryId(1000L, 100L)).thenReturn(Optional.of(line));
         when(aiClient.transcribeSpeech(any(), eq(20L), eq("토끼가 뛰었어요."), any()))
@@ -554,7 +564,7 @@ class StoryServiceTest {
                 student, new WordEntity("토끼가"), line, "토끼가", true,
                 900, 0, 400, false, true, 900, 0
         );
-        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        lenient().when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(storyRepository.findByIdAndStudentId(100L, 20L)).thenReturn(Optional.of(story));
         when(storyLineRepository.findByIdAndStoryId(1000L, 100L)).thenReturn(Optional.of(line));
         when(aiClient.transcribeSpeech(any(), eq(20L), eq("토끼가"), any()))
@@ -737,8 +747,46 @@ class StoryServiceTest {
         assertThat(response.branchChoices()).isEmpty();
     }
 
+    @Test
+    void 진행_중_이야기가_15권이면_새_이야기를_시작할_수_없다() {
+        when(storyRepository.countByStudentIdAndStatus(20L, StoryStatus.IN_PROGRESS))
+                .thenReturn(15L);
+
+        assertThatThrownBy(() -> storyService.startStory(1L, 20L, 30L))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("15권");
+
+        verifyNoInteractions(aiClient);
+        verify(storyRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void 진행_중_이야기를_삭제하면_DELETED로_변경하고_이벤트를_발행한다() {
+        StoryEntity story = story(100L);
+        ownedStory(story);
+
+        storyService.deleteStory(1L, 20L, 100L);
+
+        assertThat(story.getStatus()).isEqualTo(StoryStatus.DELETED);
+        verify(realtimeEventPublisher).publishAfterCommit(
+                1L, 20L, RealtimeResource.STORY, 100L, "DELETED"
+        );
+    }
+
+    @Test
+    void 완료한_이야기는_삭제할_수_없다() {
+        StoryEntity story = story(100L);
+        story.complete();
+        ownedStory(story);
+
+        assertThatThrownBy(() -> storyService.deleteStory(1L, 20L, 100L))
+                .isInstanceOf(ConflictException.class);
+
+        verifyNoInteractions(realtimeEventPublisher);
+    }
+
     private void ownedStory(StoryEntity story) {
-        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        lenient().when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(storyRepository.findByIdAndStudentId(100L, 20L)).thenReturn(Optional.of(story));
     }
 
@@ -793,7 +841,7 @@ class StoryServiceTest {
 
     @Test
     void 장면을_만들_때_대사로_삽화를_함께_생성한다() {
-        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        lenient().when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(storyTemplateRepository.findById(30L)).thenReturn(Optional.of(template));
         when(storyRepository.saveAndFlush(any(StoryEntity.class))).thenAnswer(invocation -> {
             StoryEntity saved = invocation.getArgument(0);
@@ -836,7 +884,7 @@ class StoryServiceTest {
 
     @Test
     void 삽화_생성이_실패해도_이야기는_진행한다() {
-        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        lenient().when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(storyTemplateRepository.findById(30L)).thenReturn(Optional.of(template));
         when(storyRepository.saveAndFlush(any(StoryEntity.class))).thenAnswer(invocation -> {
             StoryEntity saved = invocation.getArgument(0);

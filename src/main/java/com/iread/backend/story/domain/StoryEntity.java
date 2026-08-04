@@ -52,6 +52,13 @@ public class StoryEntity {
         status = StoryStatus.COMPLETED;
     }
 
+    public void delete() {
+        if (!isInProgress()) {
+            throw new IllegalStateException("진행 중인 이야기만 삭제할 수 있습니다.");
+        }
+        status = StoryStatus.DELETED;
+    }
+
     public void updateProgress(int nextProgress) {
         if (nextProgress < progress || nextProgress > 100) {
             throw new IllegalArgumentException("이야기 진행률은 현재값 이상 100 이하여야 합니다.");

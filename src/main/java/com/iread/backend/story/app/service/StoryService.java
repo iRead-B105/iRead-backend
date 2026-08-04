@@ -55,6 +55,7 @@ import java.util.*;
 public class StoryService {
 
     private static final int STORY_SCHEMA_VERSION = 1;
+    private static final int MAX_IN_PROGRESS_STORIES = 15;
     private static final Logger log = LoggerFactory.getLogger(StoryService.class);
 
     private static final String STORY_CHARACTER_PROMPT_PREFIX = "[STORY_CHARACTER] ";
@@ -88,10 +89,15 @@ public class StoryService {
         List<StoryEntity> storyEntities = storyRepository
                 .findAllByStudentIdAndStatusNotOrderByCreatedAtDesc(studentId, StoryStatus.DELETED);
         Map<Long, String> latestBranchSubtitles = new HashMap<>();
+        Map<Long, List<StoryLineEntity>> linesByStoryId = new HashMap<>();
         if (!storyEntities.isEmpty()) {
             storyLineRepository.findAllByStoryIdInOrderBySequenceNoAsc(
                             storyEntities.stream().map(StoryEntity::getId).toList()
-                    ).stream()
+                    ).forEach(line -> linesByStoryId
+                            .computeIfAbsent(line.getStory().getId(), ignored -> new ArrayList<>())
+                            .add(line));
+            linesByStoryId.values().stream()
+                    .flatMap(Collection::stream)
                     .filter(StoryLineEntity::isRequiresBranchInput)
                     .filter(line -> line.getBranchPrompt() != null && !line.getBranchPrompt().isBlank())
                     .forEach(line -> latestBranchSubtitles.put(
@@ -111,7 +117,8 @@ public class StoryService {
                         latestBranchSubtitles.getOrDefault(
                                 story.getId(),
                                 story.getStoryTemplate().getTitle()
-                        )
+                        ),
+                        entryImageUrl(story, linesByStoryId.getOrDefault(story.getId(), List.of()))
                 ))
                 .toList();
 
@@ -125,6 +132,19 @@ public class StoryService {
                 .toList();
 
         return new StoryShelfResponse(stories, templates);
+    }
+
+    private String entryImageUrl(StoryEntity story, List<StoryLineEntity> lines) {
+        if (lines.isEmpty()) {
+            return null;
+        }
+        StoryLineEntity entryLine = story.isInProgress()
+                ? lines.stream()
+                        .filter(line -> line.getReadAt() == null)
+                        .findFirst()
+                        .orElse(lines.getLast())
+                : lines.getFirst();
+        return entryLine.getImageUrl();
     }
 
     public StoryTemplateResponse getStoryTemplate(Long teacherId, Long studentId, Long storyTemplateId) {
@@ -230,7 +250,15 @@ public class StoryService {
 
     @Transactional
     public StorySessionResponse startStory(Long teacherId, Long studentId, Long storyTemplateId) {
-        StudentEntity student = findStudentOwner(teacherId, studentId);
+        StudentEntity student = studentRepository.findByIdAndTeacherIdForUpdate(studentId, teacherId)
+                .orElseThrow(() -> new ResourceNotFoundException("학생을 찾을 수 없습니다."));
+        long inProgressCount = storyRepository.countByStudentIdAndStatus(
+                studentId,
+                StoryStatus.IN_PROGRESS
+        );
+        if (inProgressCount >= MAX_IN_PROGRESS_STORIES) {
+            throw new ConflictException("읽고 있는 이야기는 최대 15권까지 보관할 수 있습니다.");
+        }
         StoryTemplateEntity template = findTemplate(storyTemplateId);
         StoryEntity story = storyRepository.saveAndFlush(new StoryEntity(student, template));
 
@@ -259,6 +287,23 @@ public class StoryService {
 
         return new StorySessionResponse(
                 story.getId(), teacherId, template.getId(), story.getCreatedAt(), story.getStatus()
+        );
+    }
+
+    @Transactional
+    public void deleteStory(Long teacherId, Long studentId, Long storyId) {
+        StoryEntity story = findOwnedStory(teacherId, studentId, storyId);
+        if (!story.isInProgress()) {
+            throw new ConflictException("진행 중인 이야기만 삭제할 수 있습니다.");
+        }
+
+        story.delete();
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.STORY,
+                storyId,
+                "DELETED"
         );
     }
 
@@ -873,8 +918,12 @@ public class StoryService {
 
     private StoryEntity findOwnedStory(Long teacherId, Long studentId, Long storyId) {
         validateStudentOwner(teacherId, studentId);
-        return storyRepository.findByIdAndStudentId(storyId, studentId)
+        StoryEntity story = storyRepository.findByIdAndStudentId(storyId, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("스토리를 찾을 수 없습니다."));
+        if (story.getStatus() == StoryStatus.DELETED) {
+            throw new ResourceNotFoundException("이야기를 찾을 수 없습니다.");
+        }
+        return story;
     }
 
     private StoryLineEntity findLine(Long storyId, Long storyLineId) {
