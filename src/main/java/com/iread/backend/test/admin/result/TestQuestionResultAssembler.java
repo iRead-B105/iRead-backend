@@ -17,7 +17,9 @@ import tools.jackson.databind.node.ObjectNode;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -42,14 +44,26 @@ public class TestQuestionResultAssembler {
     public List<TestCurriculumDetailResponse.QuestionResult> assembleAll(StudentTestEntity test) {
         JsonNode questions = readQuestions(test.getId());
         JsonNode result = readObject(test.getResult(), "저장된 검사 결과");
+        Set<Integer> questionNos = new HashSet<>();
         return java.util.stream.IntStream.range(0, questions.size())
-                .mapToObj(index -> assemble(
-                        test,
-                        questions.get(index),
-                        result,
-                        index,
-                        questions.size()
-                ))
+                .mapToObj(index -> {
+                    JsonNode question = questions.get(index);
+                    int questionNo = resolveQuestionNo(question, index);
+                    if (!questionNos.add(questionNo)) {
+                        throw new IllegalStateException(
+                                "Duplicate test questionNo: testId=" + test.getId()
+                                        + ", questionNo=" + questionNo
+                        );
+                    }
+                    return assemble(
+                            test,
+                            question,
+                            result,
+                            questionNo,
+                            index,
+                            questions.size()
+                    );
+                })
                 .toList();
     }
 
@@ -57,10 +71,10 @@ public class TestQuestionResultAssembler {
             StudentTestEntity test,
             JsonNode question,
             JsonNode result,
+            int questionNo,
             int questionIndex,
             int questionCount
     ) {
-        int questionNo = question.path("questionNo").asInt(1);
         JsonNode submission = findSubmission(result.path("submissions"), questionNo);
         JsonNode legacyResult = findLegacyQuestionResult(
                 result.path("questions"), questionNo, questionIndex
@@ -81,10 +95,11 @@ public class TestQuestionResultAssembler {
 
         return new TestCurriculumDetailResponse.QuestionResult(
                 test.getId(),
+                questionNo,
                 sequenceNo,
                 track.code(),
                 questionType(question),
-                questionText(question, legacyResult, test.getTrainingTemplate().getName()),
+                questionText(question, legacyResult),
                 responseType.name(),
                 selectedAnswer(responseType, question, submission, legacyResult),
                 correctAnswer(responseType, question, legacyResult),
@@ -94,6 +109,17 @@ public class TestQuestionResultAssembler {
                 questionIndex == 0 ? nullableLong(result.get("solvingTimeSeconds")) : null,
                 questionIndex == 0 ? nullableInteger(result.get("gazeDepartureCount")) : null
         );
+    }
+
+    private int resolveQuestionNo(JsonNode question, int questionIndex) {
+        JsonNode stored = question.get("questionNo");
+        if (stored == null || stored.isNull() || stored.isMissingNode()) {
+            return questionIndex + 1;
+        }
+        if (!stored.isIntegralNumber() || stored.asInt() < 1) {
+            throw new IllegalStateException("Test questionNo must be a positive integer.");
+        }
+        return stored.asInt();
     }
 
     private JsonNode readQuestions(Long testId) {
@@ -370,8 +396,7 @@ public class TestQuestionResultAssembler {
 
     private String questionText(
             JsonNode question,
-            JsonNode legacyResult,
-            String templateName
+            JsonNode legacyResult
     ) {
         for (JsonNode candidate : List.of(
                 question.path("text"),
@@ -387,7 +412,7 @@ public class TestQuestionResultAssembler {
                 && !legacyResult.path("question").asText().isBlank()) {
             return legacyResult.path("question").asText();
         }
-        return templateName;
+        return null;
     }
 
     private JsonNode copyOrNull(JsonNode node) {

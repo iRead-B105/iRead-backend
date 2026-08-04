@@ -4,7 +4,6 @@ import com.iread.backend.learning.app.service.AppLearningQuestionSupport;
 import com.iread.backend.test.domain.StudentTestEntity;
 import com.iread.backend.test.domain.TestDataEntity;
 import com.iread.backend.test.repository.TestDataRepository;
-import com.iread.backend.training.domain.TrainingTemplateEntity;
 import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
 import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,6 +17,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -66,6 +66,7 @@ class TestQuestionResultAssemblerTest {
 
         var result = assembler.assemble(test);
 
+        assertThat(result.questionNo()).isEqualTo(1);
         assertThat(result.trackCode()).isEqualTo("phonological");
         assertThat(result.responseType()).isEqualTo("SINGLE_CHOICE");
         assertThat(result.selectedAnswer().asText()).isEqualTo("ㄱ");
@@ -167,6 +168,9 @@ class TestQuestionResultAssemblerTest {
         var results = assembler.assembleAll(test);
 
         assertThat(results).extracting(
+                result -> result.questionNo()
+        ).containsExactly(1, 2, 3);
+        assertThat(results).extracting(
                 result -> result.sequenceNo()
         ).containsExactly(4, 5, 6);
         assertThat(results).extracting(
@@ -182,15 +186,62 @@ class TestQuestionResultAssemblerTest {
                 result -> result.gazeDepartureCount()
         ).containsExactly(2, null, null);
     }
+
+    @Test
+    void assignsQuestionNoFromOneBasedIndexForLegacyGeneratedQuestions() {
+        StudentTestEntity test = test(14L, 1, BigDecimal.valueOf(50), "{}");
+        generated(test, """
+                {"questions":[
+                  {"type":"SENTENCE_READING","text":"first"},
+                  {"type":"SENTENCE_READING","text":"second"},
+                  {"type":"SENTENCE_READING","text":"third"}
+                ]}
+                """);
+
+        var results = assembler.assembleAll(test);
+
+        assertThat(results).extracting(result -> result.questionNo())
+                .containsExactly(1, 2, 3);
+    }
+
+    @Test
+    void returnsNullWhenQuestionOriginalIsMissing() {
+        StudentTestEntity test = test(15L, 1, BigDecimal.valueOf(0), "{}");
+        generated(test, """
+                {"questions":[{
+                  "questionNo":1,
+                  "type":"CONSONANT_SOUND_CHOICE",
+                  "content":{"choices":["a","b"]},
+                  "answer":{"answerIndex":0}
+                }]}
+                """);
+
+        var result = assembler.assemble(test);
+
+        assertThat(result.question()).isNull();
+    }
+
+    @Test
+    void rejectsDuplicateQuestionNoWithinOneTest() {
+        StudentTestEntity test = test(16L, 1, BigDecimal.valueOf(0), "{}");
+        generated(test, """
+                {"questions":[
+                  {"questionNo":1,"type":"SENTENCE_READING","text":"first"},
+                  {"questionNo":1,"type":"SENTENCE_READING","text":"second"}
+                ]}
+                """);
+
+        assertThatThrownBy(() -> assembler.assembleAll(test))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Duplicate test questionNo");
+    }
+
     private StudentTestEntity test(Long id, int sequenceNo, BigDecimal accuracy, String result) {
         StudentTestEntity test = mock(StudentTestEntity.class);
-        TrainingTemplateEntity template = mock(TrainingTemplateEntity.class);
         when(test.getId()).thenReturn(id);
         when(test.getSequenceNo()).thenReturn(sequenceNo);
         when(test.getAccuracy()).thenReturn(accuracy);
         when(test.getResult()).thenReturn(result);
-        when(test.getTrainingTemplate()).thenReturn(template);
-        when(template.getName()).thenReturn("검사 문항");
         return test;
     }
 
