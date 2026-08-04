@@ -88,6 +88,7 @@ class StoryAdminServiceTest {
                 gazeSessionRepository,
                 gazeAnalysisResultRepository,
                 gazeDataStorage,
+                new StoryGazeWordAnalysisService(),
                 new StoryLineContentService(koreanTextAnalyzer, objectMapper),
                 objectMapper,
                 storyPageEditAuditRepository,
@@ -287,7 +288,14 @@ class StoryAdminServiceTest {
         when(storyRepository.findByIdAndStudentId(30L, 10L)).thenReturn(Optional.of(story));
         allowContext();
         when(gazeDataStorage.load("{}")).thenReturn("""
-                {"rawData":{"replayWords":[{"questionNo":1,"tokenIndex":2,"text":"word"}],"samples":[{"pageNo":1,"tokenIndex":2,"text":"word","capturedAtMs":120}]}}
+                {"rawData":{
+                  "replayWords":[{"questionNo":1,"storyLineId":50,"tokenIndex":0,"text":"First","dwellMs":160}],
+                  "samples":[
+                    {"x":10,"y":20,"pageNo":1,"storyLineId":50,"tokenIndex":0,"text":"First","capturedAtMs":1000},
+                    {"x":11,"y":21,"pageNo":1,"storyLineId":50,"tokenIndex":0,"text":"First","capturedAtMs":1080},
+                    {"x":12,"y":22,"pageNo":1,"storyLineId":50,"tokenIndex":1,"text":"line","capturedAtMs":1160}
+                  ]
+                }}
                 """);
 
         var response = service.getStoryGazeAnalysis(1L, 10L, 30L);
@@ -300,8 +308,16 @@ class StoryAdminServiceTest {
         assertThat(metric.pageNo()).isEqualTo(1);
         assertThat(metric.regressionCount()).isEqualTo(2);
         assertThat(metric.regressions()).hasSize(1);
+        assertThat(response.wordMetrics()).hasSize(2);
+        assertThat(response.wordMetrics().getFirst().text()).isEqualTo("First");
+        assertThat(response.wordMetrics().getFirst().firstSeenMs()).isZero();
         assertThat(response.replay().path("words").size()).isEqualTo(1);
         assertThat(response.replay().path("samples").get(0).path("questionNumber").asInt()).isEqualTo(1);
+        assertThat(response.replay().path("samples").get(0).has("x")).isFalse();
+        assertThat(response.replay().path("samples").get(0).has("y")).isFalse();
+        assertThat(response.replay().path("events").size()).isEqualTo(2);
+        assertThat(response.analysisMeta().calculationVersion()).isEqualTo("story-gaze-word-v1");
+        assertThat(response.analysisMeta().maxSampleGapMs()).isEqualTo(250);
         assertThat(metric.averageFixationTimeMs()).isEqualTo(857);
     }
 
