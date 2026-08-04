@@ -50,6 +50,7 @@ public class ReadingMetricAggregationService {
                     return new AccuracyRecordsResponse.Record(
                             SOURCE_TYPE_TRAINING,
                             row.getSourceId(),
+                            row.getTrainingName(),
                             row.getMeasuredAt(),
                             correctAttemptCount,
                             attemptCount,
@@ -96,6 +97,7 @@ public class ReadingMetricAggregationService {
                     return new ReadingSpeedRecordsResponse.Record(
                             SOURCE_TYPE_TRAINING,
                             row.getTrainingId(),
+                            row.getTrainingName(),
                             row.getMeasuredAt(),
                             correctWordCount,
                             measuredDurationMs,

@@ -19,6 +19,7 @@ public record ReadingSpeedRecordsResponse(
     public record Record(
             String sourceType,
             Long sourceId,
+            String trainingName,
             LocalDateTime measuredAt,
             long correctWordCount,
             long measuredDurationMs,
