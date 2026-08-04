@@ -29,6 +29,7 @@ public record StoryHistoryResponse(
             Long storyId,
             Long storyTemplateId,
             String storyTemplateTitle,
+            String chapterTitle,
             String storyTemplateImageUrl,
             StoryStatus storyStatus,
             int generationProgress,

@@ -13,6 +13,8 @@ import com.iread.backend.ai.dto.res.GeneratedStoryLine;
 import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
 import com.iread.backend.ai.dto.res.StoryBranchInputReviewResponse;
 import com.iread.backend.exception.ConflictException;
+import com.iread.backend.global.storage.FileStorage;
+import com.iread.backend.global.storage.LoadedFile;
 import com.iread.backend.mypage.domain.CharacterEntity;
 import com.iread.backend.story.app.dto.res.StoryLineResponse;
 import com.iread.backend.mypage.repository.CharacterRepository;
@@ -80,6 +82,7 @@ class StoryServiceTest {
     @Mock StudentFeatureProfileService studentFeatureProfileService;
     @Mock RealtimeEventPublisher realtimeEventPublisher;
     @Mock StoryBranchReviewTokenService storyBranchReviewTokenService;
+    @Mock FileStorage fileStorage;
     @Spy PronunciationWordAligner pronunciationWordAligner = new PronunciationWordAligner();
     @Spy StoryLineContentService storyLineContentService = new StoryLineContentService(
             new KoreanTextAnalyzer(new KoreanG2pEngine()),
@@ -108,13 +111,15 @@ class StoryServiceTest {
     void 책장은_삭제되지_않은_학생_스토리와_모든_템플릿을_반환한다() {
         StoryEntity story = story(100L);
         StoryLineEntity entryLine = mock(StoryLineEntity.class);
+        StoryLineEntity latestLine = mock(StoryLineEntity.class);
         when(entryLine.getStory()).thenReturn(story);
-        when(entryLine.getImageUrl()).thenReturn("/images/entry-scene.png");
+        when(latestLine.getStory()).thenReturn(story);
+        when(latestLine.getImageUrl()).thenReturn("/images/latest-generated-scene.png");
         lenient().when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(storyRepository.findAllByStudentIdAndStatusNotOrderByCreatedAtDesc(20L, StoryStatus.DELETED))
                 .thenReturn(List.of(story));
         when(storyLineRepository.findAllByStoryIdInOrderBySequenceNoAsc(List.of(100L)))
-                .thenReturn(List.of(entryLine));
+                .thenReturn(List.of(entryLine, latestLine));
         when(storyTemplateRepository.findAllByOrderByIdAsc()).thenReturn(List.of(template));
 
         var response = storyService.getStoryShelf(1L, 20L);
@@ -123,7 +128,7 @@ class StoryServiceTest {
         assertThat(response.stories().getFirst().storyId()).isEqualTo(100L);
         assertThat(response.stories().getFirst().progress()).isZero();
         assertThat(response.stories().getFirst().entryImageUrl())
-                .isEqualTo("/images/entry-scene.png");
+                .isEqualTo("/images/latest-generated-scene.png");
         assertThat(response.storyTemplates()).hasSize(1);
         assertThat(response.storyTemplates().getFirst().storyTemplateId()).isEqualTo(30L);
         assertThat(response.storyTemplates().getFirst().imageUrl())
@@ -785,6 +790,40 @@ class StoryServiceTest {
         verifyNoInteractions(realtimeEventPublisher);
     }
 
+    @Test
+    void 소유한_이야기에_저장된_이미지만_조회한다() {
+        StoryEntity story = story(100L);
+        ownedStory(story);
+        String fileName = "123e4567-e89b-12d3-a456-426614174000.png";
+        when(storySceneRepository.existsByStoryIdAndImageUrlEndingWith(
+                100L, "/" + fileName
+        )).thenReturn(true);
+        when(fileStorage.load(fileName)).thenReturn(
+                new LoadedFile(new byte[]{1, 2, 3}, "image/png")
+        );
+
+        LoadedFile image = storyService.getStoryImage(1L, 20L, 100L, fileName);
+
+        assertThat(image.contentType()).isEqualTo("image/png");
+        assertThat(image.content()).containsExactly(1, 2, 3);
+    }
+
+    @Test
+    void 다른_이야기의_이미지는_조회할_수_없다() {
+        StoryEntity story = story(100L);
+        ownedStory(story);
+        String fileName = "123e4567-e89b-12d3-a456-426614174000.png";
+        when(storySceneRepository.existsByStoryIdAndImageUrlEndingWith(
+                100L, "/" + fileName
+        )).thenReturn(false);
+
+        assertThatThrownBy(() -> storyService.getStoryImage(
+                1L, 20L, 100L, fileName
+        )).isInstanceOf(com.iread.backend.exception.ResourceNotFoundException.class);
+
+        verify(fileStorage, never()).load(anyString());
+    }
+
     private void ownedStory(StoryEntity story) {
         lenient().when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
         when(storyRepository.findByIdAndStudentId(100L, 20L)).thenReturn(Optional.of(story));
@@ -880,6 +919,7 @@ class StoryServiceTest {
                 .startsWith("[STORY_SCENE]")
                 .contains(template.getTitle())
                 .contains("토끼가 깡충 뛰었어요.");
+        assertThat(imageCaptor.getValue().storyTemplateId()).isEqualTo(template.getId());
     }
 
     @Test

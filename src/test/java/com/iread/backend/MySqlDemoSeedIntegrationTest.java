@@ -43,7 +43,7 @@ class MySqlDemoSeedIntegrationTest {
                  ORDER BY installed_rank
                 """,
                 String.class
-        )).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9");
+        )).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10");
 
         String passwordHash = jdbcTemplate.queryForObject(
                 "SELECT password FROM teachers WHERE id = 1001",
@@ -94,6 +94,18 @@ class MySqlDemoSeedIntegrationTest {
                 Integer.class
         )).isZero();
         assertThat(demoStudentCount()).isEqualTo(13);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM students
+                 WHERE (id IN (2001, 2002) OR id BETWEEN 2101 AND 2111)
+                   AND image_url = CASE gender
+                         WHEN 'Boy' THEN '/images/student-profile-boy.png'
+                         WHEN 'Girl' THEN '/images/student-profile-girl.png'
+                       END
+                """,
+                Integer.class
+        )).isEqualTo(13);
         assertThat(trainingCount(2001L)).isGreaterThanOrEqualTo(50);
         assertThat(trainingCount(2002L)).isGreaterThanOrEqualTo(50);
         assertThat(jdbcTemplate.queryForObject(

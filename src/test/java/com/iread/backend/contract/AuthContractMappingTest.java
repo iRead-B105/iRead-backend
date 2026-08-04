@@ -39,7 +39,8 @@ class AuthContractMappingTest {
                 route("/api/auth/app/logout"),
                 route("/api/auth/app/refresh"),
                 route("/api/auth/app/student-login"),
-                route("/api/auth/app/teacher-login")
+                route("/api/auth/app/teacher-login"),
+                new Route(RequestMethod.GET, "/api/auth/app/students/{studentId}/profile-image")
         ));
         assertThat(actual).doesNotContain(
                 route("/api/auth/admin/find-id"),

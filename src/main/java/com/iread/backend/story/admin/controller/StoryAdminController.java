@@ -8,10 +8,14 @@ import com.iread.backend.story.admin.dto.req.StoryPageImageRegenerateRequest;
 import com.iread.backend.story.admin.dto.req.StoryPageUpdateRequest;
 import com.iread.backend.story.admin.dto.res.StoryPageEditResponse;
 import com.iread.backend.story.admin.service.StoryAdminService;
+import com.iread.backend.global.storage.LoadedFile;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -58,6 +62,23 @@ public class StoryAdminController {
             @PathVariable Long storyId
     ) {
         return storyAdminService.getStoryHistoryDetail(teacherId, studentId, storyId);
+    }
+
+    @Operation(summary = "Get an authenticated generated story image")
+    @GetMapping("/api/admin/student/{studentId}/story-history/{storyId}/images/{fileName}")
+    public ResponseEntity<byte[]> getStoryImage(
+            @CurrentTeacherId Long teacherId,
+            @PathVariable Long studentId,
+            @PathVariable Long storyId,
+            @PathVariable String fileName
+    ) {
+        LoadedFile image = storyAdminService.getStoryImage(
+                teacherId, studentId, storyId, fileName
+        );
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "private, max-age=300")
+                .contentType(MediaType.parseMediaType(image.contentType()))
+                .body(image.content());
     }
 
     @Operation(summary = "Update an unread generated story page")

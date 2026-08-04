@@ -367,7 +367,7 @@ public class AppLearningQuestionSupport {
         );
         value.put(
                 "imageUrl",
-                aiClient.generateImage(new GenerateImageRequest(requestId, prompt)).imageUrl()
+                aiClient.generateImage(new GenerateImageRequest(requestId, prompt, null)).imageUrl()
         );
     }
 

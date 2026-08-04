@@ -101,7 +101,14 @@ SET student.teacher_memo = persona.teacher_memo,
         CONCAT('guardian', student.id, '@example.invalid')
     ),
     student.address = COALESCE(student.address, '서울시 데모구 읽기마을'),
-    student.image_url = COALESCE(student.image_url, '/images/student-profile.png');
+    student.image_url = COALESCE(
+        student.image_url,
+        CASE student.gender
+            WHEN 'Boy' THEN '/images/student-profile-boy.png'
+            WHEN 'Girl' THEN '/images/student-profile-girl.png'
+            ELSE NULL
+        END
+    );
 
 UPDATE daily_curriculums curriculum
 JOIN demo_personas persona ON persona.student_id = curriculum.student_id

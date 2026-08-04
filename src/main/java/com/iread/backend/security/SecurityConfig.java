@@ -3,6 +3,7 @@ package com.iread.backend.security;
 import jakarta.servlet.DispatcherType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -61,6 +62,8 @@ public class SecurityConfig {
                         "/swagger-ui/**",
                         "/error"
                 ).permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/auth/app/students/*/profile-image")
+                .hasAnyAuthority("AUD_learning-bootstrap", "AUD_learning-app")
                 .requestMatchers("/api/auth/app/student-login").hasAuthority("AUD_learning-bootstrap")
                 .requestMatchers("/api/auth/admin/logout", "/api/admin/**").hasAuthority("AUD_admin-app")
                 .requestMatchers("/api/auth/app/logout").hasAnyRole("TEACHER", "STUDENT")
