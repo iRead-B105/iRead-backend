@@ -62,16 +62,6 @@
       }
     },
     {
-      "id": 6, "curriculumUnitId": 2, "sequenceNo": 3, "name": "자음·모음 구별하기",
-      "prompt": {
-        "trainingType": "CONSONANT_VOWEL_CLASSIFICATION",
-        "requiredInputs": [],
-        "additionalPrompt": "한글 자모의 소리를 듣고 자음인지 모음인지 구별한다. choices는 반드시 CONSONANT과 VOWEL 두 값이며 정답은 목표 자모의 실제 분류와 일치해야 한다.",
-        "outputTemplate": {"type": "CONSONANT_VOWEL_CLASSIFICATION", "data": [{"audioText": "<string>", "choices": ["<string>"], "answerIndex": "<integer>"}]},
-        "supportedFeatureCategories": ["GRAPHEME"], "supportedScopes": ["CHARACTER"]
-      }
-    },
-    {
       "id": 7, "curriculumUnitId": 2, "sequenceNo": 4, "name": "음절의 첫소리 찾기",
       "prompt": {
         "trainingType": "SYLLABLE_INITIAL_CHOICE",
@@ -138,16 +128,6 @@
         "requiredInputs": [],
         "additionalPrompt": "soundGroup은 PLAIN_ASPIRATED, PLAIN_TENSE, ASPIRATED_TENSE, SIMILAR_PLACE 중 하나다. audioText에는 목표 자음 또는 간단한 음절을 넣고 choices는 해당 유사 소리 그룹으로 구성한다.",
         "outputTemplate": {"type": "SIMILAR_SOUND_CHOICE", "data": [{"soundGroup": "<string>", "audioText": "<string>", "choices": ["<string>"], "answerIndex": "<integer>"}]},
-        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
-      }
-    },
-    {
-      "id": 14, "curriculumUnitId": 3, "sequenceNo": 1, "name": "음소 합쳐 음절 만들기",
-      "prompt": {
-        "trainingType": "PHONEME_BLEND",
-        "requiredInputs": [],
-        "additionalPrompt": "분리된 초성, 중성, 필요한 경우 종성을 순서대로 합쳐 한글 음절을 만든다. cards에는 정답 음소와 방해 카드를 넣고 answerOrder는 result를 만드는 cards 인덱스 순서다.",
-        "outputTemplate": {"type": "PHONEME_BLEND", "data": [{"audioParts": ["<string>"], "cards": ["<string>"], "answerOrder": ["<integer>"], "result": "<string>"}]},
         "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
       }
     },
@@ -239,16 +219,6 @@
         "additionalPrompt": "실제 낱말과 발음 가능한 비단어를 생성한다. isNonword=true는 일반적으로 쓰이는 실제 낱말이 아니고 false는 실제 낱말이어야 하며 두 종류 요청 시 모두 포함한다.",
         "outputTemplate": {"type": "NONWORD_READING", "data": [{"words": [{"text": "<string>", "isNonword": "<boolean>"}]}]},
         "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE", "PHONOLOGY", "WORD"], "supportedScopes": ["CHARACTER", "SYLLABLE", "WORD", "WORD_BOUNDARY"]
-      }
-    },
-    {
-      "id": 24, "curriculumUnitId": 6, "sequenceNo": 3, "name": "어려운 단어 먼저 읽기",
-      "prompt": {
-        "trainingType": "DIFFICULT_WORD_PREVIEW",
-        "requiredInputs": ["VOICE", "GAZE"],
-        "additionalPrompt": "문장에 동일한 표기로 포함된 어려운 낱말을 먼저 음절 단위로 연습한다. syllables 결합은 word와 같고 sentence는 초등학생이 이해할 수 있는 자연스러운 한 문장이다.",
-        "outputTemplate": {"type": "DIFFICULT_WORD_PREVIEW", "data": [{"difficultWords": [{"word": "<string>", "syllables": ["<string>"]}], "sentence": "<string>"}]},
-        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE", "PHONOLOGY", "WORD", "SENTENCE"], "supportedScopes": ["CHARACTER", "SYLLABLE", "WORD", "WORD_BOUNDARY", "SENTENCE"]
       }
     },
     {

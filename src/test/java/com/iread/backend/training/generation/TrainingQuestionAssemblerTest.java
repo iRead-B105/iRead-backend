@@ -202,7 +202,7 @@ class TrainingQuestionAssemblerTest {
         DeterministicTrainingCandidateProvider provider =
                 new DeterministicTrainingCandidateProvider(objectMapper);
 
-        assertThat(root.path("templates")).hasSize(34);
+        assertThat(root.path("templates")).hasSize(31);
         for (JsonNode template : root.path("templates")) {
             JsonNode prompt = template.path("prompt");
             TrainingType type = TrainingType.from(prompt.path("trainingType").asText());

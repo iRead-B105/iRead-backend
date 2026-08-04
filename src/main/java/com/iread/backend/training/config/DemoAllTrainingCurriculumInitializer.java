@@ -31,7 +31,7 @@ import java.util.List;
 public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
 
     static final long DEMO_CURRICULUM_ID = 190001L;
-    static final int DEMO_TEMPLATE_COUNT = 34;
+    static final int DEMO_TEMPLATE_COUNT = 31;
     private static final long FIRST_TEMPLATE_ID = 1L;
     private static final long LAST_TEMPLATE_ID = 34L;
 
@@ -84,21 +84,15 @@ public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
         );
         if (templates.size() != DEMO_TEMPLATE_COUNT) {
             throw new IllegalStateException(
-                    "전 유형 확인용 데모에는 기준 템플릿 34개가 필요합니다."
+                    "전 유형 확인용 데모에는 사용 가능한 기준 템플릿 31개가 필요합니다."
             );
         }
-        for (int index = 0; index < templates.size(); index++) {
-            if (!Long.valueOf(index + 1L).equals(templates.get(index).getId())) {
-                throw new IllegalStateException(
-                        "전 유형 확인용 데모의 템플릿 ID는 1부터 34까지여야 합니다."
-                );
-            }
+        if (templates.stream().anyMatch(template -> !TrainingCatalogPolicy.isSelectable(template))) {
+            throw new IllegalStateException(
+                    "전 유형 확인용 데모에는 더 이상 제공하지 않는 템플릿을 포함할 수 없습니다."
+            );
         }
-        // 은퇴 템플릿은 앱 목록에서 숨겨져 진행할 수 없으므로 커리큘럼에 넣지 않는다.
-        // 포함하면 순차 잠금 해제가 은퇴 훈련을 다음 차례로 지정해 진행이 교착된다.
-        return templates.stream()
-                .filter(TrainingCatalogPolicy::isSelectable)
-                .toList();
+        return templates;
     }
 
     private boolean isAlreadyInitialized(
