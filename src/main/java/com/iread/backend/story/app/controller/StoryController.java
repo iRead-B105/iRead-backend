@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -88,6 +89,17 @@ public class StoryController {
         return storyService.startStory(teacherId, studentId, storyTemplateId);
     }
 
+    @Operation(summary = "진행 중인 이야기 삭제")
+    @DeleteMapping("/{studentId}/sessions/{storyId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteStory(@CurrentTeacherId Long teacherId,
+                            @CurrentStudentId Long authenticatedStudentId,
+                            @PathVariable Long studentId,
+                            @PathVariable Long storyId) {
+        authorizeStudent(authenticatedStudentId, studentId);
+        storyService.deleteStory(teacherId, studentId, storyId);
+    }
+
     @Operation(summary = "스토리 대사 목록 조회")
     @GetMapping("/{studentId}/{storyId}/lines")
     public StoryLinesResponse getStoryLines(@CurrentTeacherId Long teacherId,
@@ -98,22 +110,7 @@ public class StoryController {
         return storyService.getStoryLines(teacherId, studentId, storyId);
     }
 
-    @Operation(summary = "자연어 선택지를 저장하고 다음 스토리 생성")
-    @PostMapping(
-            value = "/{studentId}/{storyId}/lines/{lineId}/branches",
-            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
-    )
-    public StoryChoiceResponse chooseStoryDirection(@CurrentTeacherId Long teacherId,
-                                                    @CurrentStudentId Long authenticatedStudentId,
-                                                    @PathVariable Long studentId,
-                                                    @PathVariable Long storyId,
-                                                    @PathVariable Long lineId,
-                                                    @RequestPart("audioFile") MultipartFile audioFile) {
-        authorizeStudent(authenticatedStudentId, studentId);
-        return storyService.chooseStoryDirection(teacherId, studentId, storyId, lineId, audioFile);
-    }
-
-    @Operation(summary = "AI가 생성한 선택지를 저장하고 다음 스토리 생성")
+    @Operation(summary = "검토·확인된 음성 원문 또는 AI 선택지로 다음 스토리 생성")
     @PostMapping(
             value = "/{studentId}/{storyId}/lines/{lineId}/branches",
             consumes = MediaType.APPLICATION_JSON_VALUE

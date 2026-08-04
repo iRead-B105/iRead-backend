@@ -8,6 +8,7 @@ import com.iread.backend.ai.dto.res.GeneratedStoryBranchPrompt;
 import com.iread.backend.ai.dto.res.GenerateStoryResponse;
 import com.iread.backend.ai.dto.res.GeneratedStoryLine;
 import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
+import com.iread.backend.ai.dto.res.StoryBranchInputReviewResponse;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.exception.ConflictException;
@@ -54,6 +55,7 @@ import java.util.*;
 public class StoryService {
 
     private static final int STORY_SCHEMA_VERSION = 1;
+    private static final int MAX_IN_PROGRESS_STORIES = 15;
     private static final Logger log = LoggerFactory.getLogger(StoryService.class);
 
     private static final String STORY_CHARACTER_PROMPT_PREFIX = "[STORY_CHARACTER] ";
@@ -78,6 +80,7 @@ public class StoryService {
     private final WordAttemptScoreCalculator wordAttemptScoreCalculator;
     private final StudentFeatureProfileService studentFeatureProfileService;
     private final RealtimeEventPublisher realtimeEventPublisher;
+    private final StoryBranchReviewTokenService storyBranchReviewTokenService;
     private final ObjectMapper objectMapper;
 
     public StoryShelfResponse getStoryShelf(Long teacherId, Long studentId) {
@@ -86,10 +89,15 @@ public class StoryService {
         List<StoryEntity> storyEntities = storyRepository
                 .findAllByStudentIdAndStatusNotOrderByCreatedAtDesc(studentId, StoryStatus.DELETED);
         Map<Long, String> latestBranchSubtitles = new HashMap<>();
+        Map<Long, List<StoryLineEntity>> linesByStoryId = new HashMap<>();
         if (!storyEntities.isEmpty()) {
             storyLineRepository.findAllByStoryIdInOrderBySequenceNoAsc(
                             storyEntities.stream().map(StoryEntity::getId).toList()
-                    ).stream()
+                    ).forEach(line -> linesByStoryId
+                            .computeIfAbsent(line.getStory().getId(), ignored -> new ArrayList<>())
+                            .add(line));
+            linesByStoryId.values().stream()
+                    .flatMap(Collection::stream)
                     .filter(StoryLineEntity::isRequiresBranchInput)
                     .filter(line -> line.getBranchPrompt() != null && !line.getBranchPrompt().isBlank())
                     .forEach(line -> latestBranchSubtitles.put(
@@ -109,7 +117,8 @@ public class StoryService {
                         latestBranchSubtitles.getOrDefault(
                                 story.getId(),
                                 story.getStoryTemplate().getTitle()
-                        )
+                        ),
+                        entryImageUrl(story, linesByStoryId.getOrDefault(story.getId(), List.of()))
                 ))
                 .toList();
 
@@ -123,6 +132,19 @@ public class StoryService {
                 .toList();
 
         return new StoryShelfResponse(stories, templates);
+    }
+
+    private String entryImageUrl(StoryEntity story, List<StoryLineEntity> lines) {
+        if (lines.isEmpty()) {
+            return null;
+        }
+        StoryLineEntity entryLine = story.isInProgress()
+                ? lines.stream()
+                        .filter(line -> line.getReadAt() == null)
+                        .findFirst()
+                        .orElse(lines.getLast())
+                : lines.getFirst();
+        return entryLine.getImageUrl();
     }
 
     public StoryTemplateResponse getStoryTemplate(Long teacherId, Long studentId, Long storyTemplateId) {
@@ -228,7 +250,15 @@ public class StoryService {
 
     @Transactional
     public StorySessionResponse startStory(Long teacherId, Long studentId, Long storyTemplateId) {
-        StudentEntity student = findStudentOwner(teacherId, studentId);
+        StudentEntity student = studentRepository.findByIdAndTeacherIdForUpdate(studentId, teacherId)
+                .orElseThrow(() -> new ResourceNotFoundException("학생을 찾을 수 없습니다."));
+        long inProgressCount = storyRepository.countByStudentIdAndStatus(
+                studentId,
+                StoryStatus.IN_PROGRESS
+        );
+        if (inProgressCount >= MAX_IN_PROGRESS_STORIES) {
+            throw new ConflictException("읽고 있는 이야기는 최대 15권까지 보관할 수 있습니다.");
+        }
         StoryTemplateEntity template = findTemplate(storyTemplateId);
         StoryEntity story = storyRepository.saveAndFlush(new StoryEntity(student, template));
 
@@ -261,19 +291,19 @@ public class StoryService {
     }
 
     @Transactional
-    public StoryChoiceResponse chooseStoryDirection(Long teacherId, Long studentId, Long storyId,
-                                                    Long storyLineId, MultipartFile audioFile) {
-        BranchContext context = prepareBranch(teacherId, studentId, storyId, storyLineId);
-        if (context.existingChoice().isPresent()) {
-            return replayChoice(context.story(), context.line(), context.existingChoice().get());
+    public void deleteStory(Long teacherId, Long studentId, Long storyId) {
+        StoryEntity story = findOwnedStory(teacherId, studentId, storyId);
+        if (!story.isInProgress()) {
+            throw new ConflictException("진행 중인 이야기만 삭제할 수 있습니다.");
         }
 
-        storyAudioStorage.store(studentId, audioFile);
-        String transcript = aiClient.transcribeSpeech(
-                UUID.randomUUID().toString(), studentId, null, audioFile
-        ).transcript();
-        return continueStoryDirection(
-                teacherId, studentId, context.story(), context.line(), transcript
+        story.delete();
+        realtimeEventPublisher.publishAfterCommit(
+                teacherId,
+                studentId,
+                RealtimeResource.STORY,
+                storyId,
+                "DELETED"
         );
     }
 
@@ -285,9 +315,15 @@ public class StoryService {
         if (context.existingChoice().isPresent()) {
             return replayChoice(context.story(), context.line(), context.existingChoice().get());
         }
-        String branchIntent = request.optionNo() == null
-                ? validateBranchIntent(request.branchIntent())
-                : resolveBranchOption(context.line(), request.optionNo());
+        String branchIntent;
+        if (request.optionNo() == null) {
+            branchIntent = normalizeBranchIntent(request.branchIntent());
+            storyBranchReviewTokenService.verify(
+                    request.reviewToken(), storyId, storyLineId, branchIntent
+            );
+        } else {
+            branchIntent = resolveBranchOption(context.line(), request.optionNo());
+        }
         return continueStoryDirection(
                 teacherId, studentId, context.story(), context.line(), branchIntent
         );
@@ -297,22 +333,43 @@ public class StoryService {
     public StoryBranchTranscriptionResponse transcribeBranchIntent(
             Long teacherId, Long studentId, Long storyId, Long storyLineId, MultipartFile audioFile
     ) {
-        prepareBranch(teacherId, studentId, storyId, storyLineId);
+        BranchContext context = prepareBranch(teacherId, studentId, storyId, storyLineId);
         SpeechTranscriptionResponse speech = aiClient.transcribeSpeech(
                 UUID.randomUUID().toString(), studentId, null, audioFile
         );
-        String transcript = validateBranchIntent(speech.transcript());
+        String transcript = normalizeBranchIntent(speech.transcript());
+        StoryBranchPromptResponse prompt = toBranchPrompt(context.line().getBranchPrompt());
+        if (prompt == null || prompt.options().size() != 3) {
+            throw new ConflictException("현재 분기 선택지를 확인할 수 없습니다.");
+        }
+        String reviewRequestId = UUID.randomUUID().toString();
+        StoryBranchInputReviewResponse review = aiClient.reviewStoryBranchInput(
+                new StoryBranchInputReviewRequest(
+                        reviewRequestId,
+                        storyLineContentService.textOf(context.line()),
+                        prompt.options().stream().map(StoryBranchPromptResponse.Option::label).toList(),
+                        transcript
+                )
+        );
+        String reviewToken = review.mayConfirm()
+                ? storyBranchReviewTokenService.issue(
+                        storyId, storyLineId, transcript, review.policyVersion()
+                )
+                : null;
         return new StoryBranchTranscriptionResponse(
-                transcript,
+                review.decision() == StoryBranchInputReviewResponse.Decision.BLOCK ? "" : transcript,
                 Math.round(speech.confidence() * 10_000.0) / 10_000.0,
-                speech.confidence() >= 0.55
+                review.decision().name(),
+                review.reasonCode().name(),
+                review.policyVersion(),
+                reviewToken
         );
     }
 
-    private String validateBranchIntent(String value) {
+    private String normalizeBranchIntent(String value) {
         String intent = value == null ? "" : value.strip();
-        if (intent.isBlank() || intent.length() > 80 || intent.chars().anyMatch(Character::isISOControl)) {
-            throw new IllegalArgumentException("음성 선택 내용은 1~80자의 안전한 문장이어야 합니다.");
+        if (intent.isBlank()) {
+            throw new IllegalArgumentException("음성 선택 내용이 필요합니다.");
         }
         return intent;
     }
@@ -861,8 +918,12 @@ public class StoryService {
 
     private StoryEntity findOwnedStory(Long teacherId, Long studentId, Long storyId) {
         validateStudentOwner(teacherId, studentId);
-        return storyRepository.findByIdAndStudentId(storyId, studentId)
+        StoryEntity story = storyRepository.findByIdAndStudentId(storyId, studentId)
                 .orElseThrow(() -> new ResourceNotFoundException("스토리를 찾을 수 없습니다."));
+        if (story.getStatus() == StoryStatus.DELETED) {
+            throw new ResourceNotFoundException("이야기를 찾을 수 없습니다.");
+        }
+        return story;
     }
 
     private StoryLineEntity findLine(Long storyId, Long storyLineId) {

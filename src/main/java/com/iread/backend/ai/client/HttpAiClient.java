@@ -6,12 +6,14 @@ import com.iread.backend.ai.dto.req.GenerateStoryRequest;
 import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
 import com.iread.backend.ai.dto.req.GenerateImageRequest;
 import com.iread.backend.ai.dto.req.SpeechSynthesisRequest;
+import com.iread.backend.ai.dto.req.StoryBranchInputReviewRequest;
 import com.iread.backend.ai.dto.res.EvaluateTrainingResponse;
 import com.iread.backend.ai.dto.res.GenerateStoryResponse;
 import com.iread.backend.ai.dto.res.GenerateTrainingResponse;
 import com.iread.backend.ai.dto.res.GenerateImageResponse;
 import com.iread.backend.ai.dto.res.SpeechSynthesisResponse;
 import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
+import com.iread.backend.ai.dto.res.StoryBranchInputReviewResponse;
 import com.iread.backend.ai.config.AiClientProperties;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.global.audio.TemporaryAudioStorage;
@@ -50,6 +52,7 @@ public class HttpAiClient implements AiClient {
     static final String EVALUATE_TRAINING_PATH = "/api/v1/trainings/evaluate";
     static final String GENERATE_STORY_PATH = "/api/v1/story/generate";
     static final String CONTINUE_STORY_PATH = "/api/v1/story/continue";
+    static final String REVIEW_STORY_BRANCH_INPUT_PATH = "/api/v1/story/branch-input/review";
     static final String TRANSCRIBE_SPEECH_PATH = "/api/v1/speech/transcribe";
     static final String ANALYZE_PRONUNCIATION_PATH = "/api/v1/speech/pronunciation/analyze";
     static final String SYNTHESIZE_SPEECH_PATH = "/api/v1/speech/synthesize";
@@ -171,6 +174,60 @@ public class HttpAiClient implements AiClient {
                 request.requestId(),
                 request.schemaVersion(),
                 request.currentProgress()
+        );
+    }
+
+    @Override
+    public StoryBranchInputReviewResponse reviewStoryBranchInput(
+            StoryBranchInputReviewRequest request
+    ) {
+        if (properties.storyMocked()) {
+            return mockStoryBranchInputReview(request);
+        }
+        try {
+            StoryBranchInputReviewResponse response = restClient.post()
+                    .uri(REVIEW_STORY_BRANCH_INPUT_PATH)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .header("Idempotency-Key", request.requestId())
+                    .body(request)
+                    .retrieve()
+                    .onStatus(HttpStatusCode::isError, (httpRequest, httpResponse) -> {
+                        throw new AiClientException(
+                                "AI 서버가 분기 입력 검토 오류를 반환했습니다.",
+                                httpResponse.getStatusCode().value()
+                        );
+                    })
+                    .requiredBody(StoryBranchInputReviewResponse.class);
+            if (!Objects.equals(request.requestId(), response.requestId())
+                    || response.decision() == null
+                    || response.reasonCode() == null
+                    || response.policyVersion() == null
+                    || response.policyVersion().isBlank()) {
+                throw new AiClientException("AI 분기 입력 검토 응답 값이 유효하지 않습니다.");
+            }
+            return response;
+        } catch (AiClientException exception) {
+            throw exception;
+        } catch (RestClientException exception) {
+            throw new AiClientException("AI 서버와 분기 입력 검토 통신 중 실패했습니다.", exception);
+        }
+    }
+
+    private StoryBranchInputReviewResponse mockStoryBranchInputReview(
+            StoryBranchInputReviewRequest request
+    ) {
+        String transcript = Objects.toString(request.transcript(), "");
+        StoryBranchInputReviewResponse.ReasonCode reason =
+                transcript.matches(".*(자살|죽고 싶|목을 잘라|성폭행|진짜 죽일|시스템 프롬프트|이전 지시를 무시).*")
+                        ? StoryBranchInputReviewResponse.ReasonCode.SELF_HARM
+                        : StoryBranchInputReviewResponse.ReasonCode.OK;
+        StoryBranchInputReviewResponse.Decision decision =
+                reason == StoryBranchInputReviewResponse.ReasonCode.OK
+                        ? StoryBranchInputReviewResponse.Decision.ALLOW
+                        : StoryBranchInputReviewResponse.Decision.BLOCK;
+        return new StoryBranchInputReviewResponse(
+                request.requestId(), decision, reason, "story-branch-input-v1"
         );
     }
 
