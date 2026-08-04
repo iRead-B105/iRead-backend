@@ -88,6 +88,45 @@ WHERE JSON_UNQUOTE(JSON_EXTRACT(prompt, '$.trainingType')) IN (
 );
 SET @demo_reading_template_count = (SELECT COUNT(*) FROM demo_reading_templates);
 
+CREATE TEMPORARY TABLE demo_training_templates AS
+SELECT
+    id,
+    ROW_NUMBER() OVER (ORDER BY id) AS template_no
+FROM training_templates;
+SET @demo_training_template_count = (SELECT COUNT(*) FROM demo_training_templates);
+
+CREATE TEMPORARY TABLE demo_persona_current_template_corrections (
+    persona_no INT PRIMARY KEY,
+    template_id BIGINT NOT NULL
+);
+INSERT INTO demo_persona_current_template_corrections (persona_no, template_id)
+VALUES
+    (2, 18),
+    (3, 21),
+    (5, 27),
+    (6, 30),
+    (7, 33),
+    (8, 2),
+    (9, 5),
+    (10, 8),
+    (11, 11);
+
+CREATE TEMPORARY TABLE demo_persona_training_templates AS
+SELECT
+    persona.persona_no,
+    template.id,
+    ROW_NUMBER() OVER (
+        PARTITION BY persona.persona_no
+        ORDER BY template.id
+    ) AS template_no,
+    COUNT(*) OVER (PARTITION BY persona.persona_no) AS template_count
+FROM demo_personas persona
+JOIN training_templates template
+LEFT JOIN demo_persona_current_template_corrections correction
+  ON correction.persona_no = persona.persona_no
+ AND correction.template_id = template.id
+WHERE correction.template_id IS NULL;
+
 UPDATE students student
 JOIN demo_personas persona ON persona.student_id = student.id
 SET student.teacher_memo = persona.teacher_memo,
@@ -205,8 +244,14 @@ SELECT
     END
 FROM demo_personas persona
 JOIN demo_numbers number ON number.seq <= 12
+JOIN demo_persona_training_templates catalog
+  ON catalog.persona_no = persona.persona_no
+ AND catalog.template_no = 1 + MOD(
+      persona.persona_no * 3 + number.seq - 2,
+      catalog.template_count
+  )
 JOIN training_templates template
-  ON template.id = 1 + MOD(persona.persona_no * 3 + number.seq - 2, 34)
+  ON template.id = catalog.id
 WHERE NOT EXISTS (
     SELECT 1 FROM trainings existing
     WHERE existing.id = 130000 + persona.persona_no * 100 + number.seq
@@ -751,7 +796,7 @@ INSERT INTO tests
 SELECT
     141000 + persona.persona_no * 10 + number.seq,
     140000 + persona.persona_no,
-    1 + MOD(persona.persona_no * 5 + number.seq - 1, 34),
+    catalog.id,
     'COMPLETED',
     JSON_OBJECT(
         'overallScore', LEAST(98, GREATEST(45,
@@ -821,6 +866,11 @@ SELECT
     number.seq
 FROM demo_personas persona
 JOIN demo_numbers number ON number.seq <= 3
+JOIN demo_training_templates catalog
+  ON catalog.template_no = 1 + MOD(
+      persona.persona_no * 5 + number.seq - 1,
+      @demo_training_template_count
+  )
 WHERE NOT EXISTS (
     SELECT 1 FROM tests existing
     WHERE existing.id = 141000 + persona.persona_no * 10 + number.seq
@@ -1444,6 +1494,9 @@ WHERE NOT EXISTS (
     WHERE existing.id = 200000 + persona.persona_no * 100 + number.seq
 );
 
+DROP TEMPORARY TABLE demo_persona_training_templates;
+DROP TEMPORARY TABLE demo_persona_current_template_corrections;
+DROP TEMPORARY TABLE demo_training_templates;
 DROP TEMPORARY TABLE demo_reading_templates;
 DROP TEMPORARY TABLE demo_features;
 DROP TEMPORARY TABLE demo_token_numbers;
