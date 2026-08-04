@@ -73,6 +73,7 @@ public class StoryAdminService {
     private final GazeSessionRepository gazeSessionRepository;
     private final GazeAnalysisResultRepository gazeAnalysisResultRepository;
     private final GazeDataStorage gazeDataStorage;
+    private final StoryGazeWordAnalysisService storyGazeWordAnalysisService;
     private final StoryLineContentService storyLineContentService;
     private final ObjectMapper objectMapper;
     private final StoryPageEditAuditRepository storyPageEditAuditRepository;
@@ -300,6 +301,22 @@ public class StoryAdminService {
             lineById.put(lines.get(index).getId(), lines.get(index));
         }
 
+        List<GazeSessionEntity> completedSessions = results.stream()
+                .map(GazeAnalysisResultEntity::getGazeSession)
+                .toList();
+        List<JsonNode> storedReplayPayloads = loadStoryReplayPayloads(completedSessions);
+        List<StoryGazeWordAnalysisService.Page> analysisPages = new ArrayList<>();
+        for (int index = 0; index < lines.size(); index++) {
+            StoryLineEntity line = lines.get(index);
+            analysisPages.add(new StoryGazeWordAnalysisService.Page(
+                    line.getId(),
+                    index + 1,
+                    storyLineContentService.textOf(line)
+            ));
+        }
+        StoryGazeWordAnalysisService.Analysis wordAnalysis =
+                storyGazeWordAnalysisService.analyze(analysisPages, storedReplayPayloads);
+
         Map<Long, StoryGazeAnalysisResponse.PageMetric> metrics = new LinkedHashMap<>();
         for (GazeAnalysisResultEntity pageResult : results) {
             JsonNode regressionNodes = readArray(pageResult.getRegressions());
@@ -341,8 +358,9 @@ public class StoryAdminService {
                 results.stream().mapToInt(item -> item.getReverseReadCount()).sum(),
                 totalAverageFixationTime(results),
                 List.copyOf(metrics.values()),
-                storyReplay(results.stream().map(GazeAnalysisResultEntity::getGazeSession).toList()),
-                readNullable(result.getAnalysisMeta())
+                wordAnalysis.wordMetrics(),
+                storyReplay(storedReplayPayloads, wordAnalysis.events()),
+                StoryGazeAnalysisResponse.AnalysisMeta.storyGazeWordV1()
         );
     }
 
@@ -646,18 +664,29 @@ public class StoryAdminService {
         return results.stream().mapToInt(item -> item.getTotalVisitedDuration()).sum() / count;
     }
 
-    private JsonNode storyReplay(List<GazeSessionEntity> sessions) {
-        ObjectNode replay = objectMapper.createObjectNode();
-        ArrayNode words = objectMapper.createArrayNode();
-        ArrayNode samples = objectMapper.createArrayNode();
+    private List<JsonNode> loadStoryReplayPayloads(List<GazeSessionEntity> sessions) {
+        List<JsonNode> payloads = new ArrayList<>();
         for (GazeSessionEntity session : sessions) {
             if (session.getDataUrl() == null || session.getDataUrl().isBlank()) {
                 continue;
             }
             JsonNode stored = readNullable(gazeDataStorage.load(session.getDataUrl()));
-            JsonNode data = stored != null && stored.path("rawData").isObject()
-                    ? stored.path("rawData")
-                    : stored;
+            if (stored != null && stored.isObject()) {
+                payloads.add(stored);
+            }
+        }
+        return List.copyOf(payloads);
+    }
+
+    private JsonNode storyReplay(
+            List<JsonNode> storedPayloads,
+            List<StoryGazeAnalysisResponse.ReplayEvent> events
+    ) {
+        ObjectNode replay = objectMapper.createObjectNode();
+        ArrayNode words = objectMapper.createArrayNode();
+        ArrayNode samples = objectMapper.createArrayNode();
+        for (JsonNode stored : storedPayloads) {
+            JsonNode data = unwrapRawData(stored);
             if (data == null || !data.isObject()) {
                 continue;
             }
@@ -665,7 +694,7 @@ public class StoryAdminService {
                     ? data.path("replayWords")
                     : data.path("words");
             if (sourceWords.isArray()) {
-                sourceWords.forEach(word -> words.add(word.deepCopy()));
+                sourceWords.forEach(word -> words.add(sanitizeReplayWord(word)));
             }
             JsonNode sourceSamples = data.path("samples");
             if (!sourceSamples.isArray()) {
@@ -675,19 +704,68 @@ public class StoryAdminService {
                 if (!sourceSample.isObject()) {
                     continue;
                 }
-                ObjectNode sample = ((ObjectNode) sourceSample).deepCopy();
+                ObjectNode sample = sanitizeReplaySample(sourceSample);
                 if (!sample.hasNonNull("questionNumber") && sample.hasNonNull("pageNo")) {
                     sample.set("questionNumber", sample.path("pageNo").deepCopy());
                 }
                 samples.add(sample);
             }
         }
-        if (words.isEmpty() && samples.isEmpty()) {
+        if (words.isEmpty() && samples.isEmpty() && events.isEmpty()) {
             return null;
         }
         replay.set("words", words);
         replay.set("samples", samples);
+        replay.set("events", objectMapper.valueToTree(events));
         return replay;
+    }
+
+    private JsonNode unwrapRawData(JsonNode stored) {
+        JsonNode current = stored;
+        for (int depth = 0;
+             depth < 4 && current != null && current.path("rawData").isObject();
+             depth++) {
+            current = current.path("rawData");
+        }
+        return current;
+    }
+
+    private ObjectNode sanitizeReplayWord(JsonNode source) {
+        return copyFields(source, List.of(
+                "questionNo",
+                "storyLineId",
+                "targetIndex",
+                "tokenIndex",
+                "text",
+                "dwellMs",
+                "visitCount",
+                "skipped",
+                "regressionCount",
+                "firstSeenMs",
+                "lastSeenMs"
+        ));
+    }
+
+    private ObjectNode sanitizeReplaySample(JsonNode source) {
+        return copyFields(source, List.of(
+                "questionNumber",
+                "pageNo",
+                "storyLineId",
+                "targetIndex",
+                "tokenIndex",
+                "text",
+                "capturedAtMs"
+        ));
+    }
+
+    private ObjectNode copyFields(JsonNode source, List<String> fields) {
+        ObjectNode target = objectMapper.createObjectNode();
+        for (String field : fields) {
+            if (source.has(field)) {
+                target.set(field, source.path(field).deepCopy());
+            }
+        }
+        return target;
     }
 
     private JsonNode readNullable(String value) {
