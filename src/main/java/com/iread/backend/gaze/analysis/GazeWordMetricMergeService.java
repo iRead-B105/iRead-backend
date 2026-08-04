@@ -139,6 +139,31 @@ public class GazeWordMetricMergeService {
             attempts = attemptHistory.stream()
                     .filter(WordAttemptLogEntity::isFinalAttempt)
                     .toList();
+            if (attempts.isEmpty()) {
+                // 문장·지문 읽기 훈련은 시선 지표가 권장 녹음 대상(전체 지문)의
+                // 토큰 순서로 오지만 음성 시도는 문장별 target에 저장된다.
+                // 문항의 최종 시도를 (target, token) 순으로 이어 붙인 전역 순서로 매핑한다.
+                WordAttemptLogEntity fallback = findByQuestionTokenOrder(trainingId, metric);
+                if (fallback != null) {
+                    attempts = List.of(fallback);
+                    attemptHistory = wordAttemptLogRepository
+                            .findAllByTrainingIdAndQuestionNoAndTargetIndex(
+                                    trainingId,
+                                    metric.questionNo(),
+                                    fallback.getTargetIndex()
+                            )
+                            .stream()
+                            .filter(attempt -> sameTokenPosition(
+                                    fallback.getTokenIndex() == null ? 0 : fallback.getTokenIndex(),
+                                    attempt.getTokenIndex()
+                            ))
+                            .filter(attempt -> sameText(
+                                    metric.text(),
+                                    attempt.getSurfaceText()
+                            ))
+                            .toList();
+                }
+            }
         } else {
             long testId = session.getTest().getId();
             Set<TrainingInputType> inputs = testInputs(
@@ -219,6 +244,38 @@ public class GazeWordMetricMergeService {
                 metric.regressionCount(),
                 totalScore
         );
+    }
+
+    /**
+     * 문항의 최종 시도들을 (targetIndex, tokenIndex) 오름차순으로 이어 붙였을 때
+     * 지표의 tokenIndex(전체 지문 기준 토큰 순서) 위치에 있는 시도를 찾는다.
+     * 텍스트까지 일치할 때만 매칭으로 인정한다.
+     */
+    private WordAttemptLogEntity findByQuestionTokenOrder(long trainingId, WordMetric metric) {
+        if (metric.tokenIndex() == null || metric.tokenIndex() < 0) {
+            return null;
+        }
+        List<WordAttemptLogEntity> finals = wordAttemptLogRepository
+                .findAllByTrainingIdAndQuestionNoAndFinalAttemptTrue(
+                        trainingId,
+                        metric.questionNo()
+                )
+                .stream()
+                .sorted(java.util.Comparator
+                        .comparing(
+                                (WordAttemptLogEntity attempt) ->
+                                        attempt.getTargetIndex() == null ? 0 : attempt.getTargetIndex()
+                        )
+                        .thenComparing(attempt ->
+                                attempt.getTokenIndex() == null ? 0 : attempt.getTokenIndex()
+                        )
+                )
+                .toList();
+        if (metric.tokenIndex() >= finals.size()) {
+            return null;
+        }
+        WordAttemptLogEntity candidate = finals.get(metric.tokenIndex());
+        return sameText(metric.text(), candidate.getSurfaceText()) ? candidate : null;
     }
 
     private Set<TrainingInputType> testInputs(long testId, int questionNo) {
