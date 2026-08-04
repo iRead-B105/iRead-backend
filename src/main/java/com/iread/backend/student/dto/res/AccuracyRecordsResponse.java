@@ -19,6 +19,7 @@ public record AccuracyRecordsResponse(
     public record Record(
             String sourceType,
             Long sourceId,
+            String trainingName,
             LocalDateTime measuredAt,
             long correctAttemptCount,
             long attemptCount,
