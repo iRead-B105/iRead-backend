@@ -528,17 +528,16 @@ public class StoryAdminService {
         if (session == null) {
             return StoryHistoryResponse.GazeAnalysisStatus.NOT_COLLECTED;
         }
-        if (session.getStatus() == GazeSessionStatus.FAILED) {
-            return StoryHistoryResponse.GazeAnalysisStatus.FAILED;
-        }
-        if (session.getStatus() == GazeSessionStatus.COMPLETED
-                && context.analysisBySession().containsKey(session.getId())) {
-            return StoryHistoryResponse.GazeAnalysisStatus.AVAILABLE;
-        }
+        // 페이지마다 별도 세션을 만들기 때문에, 페이지를 벗어나는 순간 샘플이 없는
+        // 신규 세션이 FAILED가 되더라도 기존에 완성된 페이지 분석을 가리면 안 된다.
+        // 교사 화면은 한 이야기의 완료된 페이지 리플레이를 우선 표시한다.
         boolean hasCompletedPageAnalysis = context.analysisBySession().values().stream()
                 .anyMatch(result -> result.getGazeSession().getStory().getId().equals(storyId));
         if (hasCompletedPageAnalysis) {
             return StoryHistoryResponse.GazeAnalysisStatus.AVAILABLE;
+        }
+        if (session.getStatus() == GazeSessionStatus.FAILED) {
+            return StoryHistoryResponse.GazeAnalysisStatus.FAILED;
         }
         return StoryHistoryResponse.GazeAnalysisStatus.RUNNING;
     }
