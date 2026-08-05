@@ -14,6 +14,8 @@ import com.iread.backend.report.domain.ReportEntity;
 import com.iread.backend.report.repository.ReportRepository;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
+import com.iread.backend.student.service.ReadingMetricAggregationService;
+import com.iread.backend.student.service.ReadingMetricSummary;
 import com.iread.backend.test.domain.StudentTestEntity;
 import com.iread.backend.test.domain.TestStatus;
 import com.iread.backend.test.repository.StudentTestRepository;
@@ -31,15 +33,19 @@ import tools.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.function.BinaryOperator;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ReportService {
+    private static final String SNAPSHOT_VERSION = "teacher-report-v2";
+
     private final ReportRepository reportRepository;
     private final StudentRepository studentRepository;
     private final TrainingRepository trainingRepository;
@@ -47,6 +53,7 @@ public class ReportService {
     private final WordAttemptLogRepository wordAttemptLogRepository;
     private final GazeAnalysisResultRepository gazeAnalysisResultRepository;
     private final GazeSessionRepository gazeSessionRepository;
+    private final ReadingMetricAggregationService readingMetricAggregationService;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -79,7 +86,7 @@ public class ReportService {
         List<StudentTestEntity> tests = testRepository
                 .findAllByTestCurriculumStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
                         request.studentId(), TestStatus.COMPLETED, start, endExclusive);
-        if (learningDayCount < 2) {
+        if (learningDayCount < 1) {
             throw ReportCreationException.insufficientLearningDays(learningDayCount);
         }
 
@@ -150,6 +157,8 @@ public class ReportService {
                 report.getEndDate().plusDays(1).atStartOfDay()
         );
         ReportSnapshot updated = new ReportSnapshot(
+                snapshot.snapshotVersion(),
+                snapshot.calculationVersion(),
                 snapshot.learningDays(),
                 snapshot.totalTrainingTimeMinutes(),
                 snapshot.completedTrainingCount(),
@@ -157,6 +166,8 @@ public class ReportService {
                 snapshot.averageReadingSpeed(),
                 snapshot.readingSpeedUnit(),
                 snapshot.growthHistory(),
+                snapshot.growthComparisonStatus(),
+                snapshot.automaticAnalysis(),
                 snapshot.areaAchievements(),
                 snapshot.frequentlyIncorrectWords(),
                 snapshot.improvedPatterns(),
@@ -191,18 +202,22 @@ public class ReportService {
                                          LocalDateTime endExclusive,
                                          List<TrainingEntity> trainings,
                                          List<StudentTestEntity> tests) {
-        long learningDays = trainings.stream().map(t -> t.getFinishedAt().toLocalDate()).distinct().count();
+        long learningDays = trainings.stream()
+                .map(TrainingEntity::getFinishedAt)
+                .filter(Objects::nonNull)
+                .map(LocalDateTime::toLocalDate)
+                .distinct()
+                .count();
         long totalMinutes = trainings.stream()
                 .filter(t -> t.getStartedAt() != null && t.getFinishedAt() != null)
                 .mapToLong(t -> Duration.between(t.getStartedAt(), t.getFinishedAt()).getSeconds()).sum() / 60;
-        BigDecimal averageAccuracy = average(trainings.stream().map(TrainingEntity::getAccuracy).toList());
-
-        List<ReportSnapshot.Growth> growth = tests.stream().map(test -> {
-            JsonNode result = parseJson(test.getResult());
-            return new ReportSnapshot.Growth(test.getCreatedAt().toLocalDate(), test.getAccuracy(),
-                    decimal(result.get("readingSpeed")), decimal(result.get("pronunciationScore")));
-        }).toList();
-        BigDecimal averageReadingSpeed = average(growth.stream().map(ReportSnapshot.Growth::readingSpeed).toList());
+        ReadingMetricSummary readingMetrics = readingMetricAggregationService.summarize(
+                studentId,
+                start.toLocalDate(),
+                endExclusive.minusDays(1).toLocalDate()
+        );
+        List<ReportSnapshot.Growth> growth = buildGrowthHistory(readingMetrics, tests);
+        ReportSnapshot.AutomaticAnalysis automaticAnalysis = buildAutomaticAnalysis(growth);
 
         Map<Long, TrainingEntity> bestTrainingByTemplate = trainings.stream()
                 .filter(training -> training.getAccuracy() != null)
@@ -230,9 +245,137 @@ public class ReportService {
                 .toList();
 
         ReportSnapshot.GazeTrend gazeTrend = buildGazeTrend(studentId, start, endExclusive);
-        return new ReportSnapshot(learningDays, totalMinutes, trainings.size(), averageAccuracy,
-                averageReadingSpeed, "CPM", growth, achievements, incorrectWords,
+        return new ReportSnapshot(SNAPSHOT_VERSION, readingMetrics.calculationVersion(),
+                learningDays, totalMinutes, trainings.size(), readingMetrics.averageAccuracy(),
+                readingMetrics.averageReadingSpeed(), readingMetrics.readingSpeedUnit(), growth,
+                automaticAnalysis.status(), automaticAnalysis, achievements, incorrectWords,
                 List.of(), List.of(), null, gazeTrend);
+    }
+
+    private List<ReportSnapshot.Growth> buildGrowthHistory(
+            ReadingMetricSummary readingMetrics,
+            List<StudentTestEntity> tests
+    ) {
+        Map<LocalDate, List<BigDecimal>> pronunciationValues = new TreeMap<>();
+        tests.stream()
+                .filter(test -> test.getCreatedAt() != null)
+                .forEach(test -> {
+                    BigDecimal score = decimal(parseJson(test.getResult()).get("pronunciationScore"));
+                    if (score != null) {
+                        pronunciationValues
+                                .computeIfAbsent(test.getCreatedAt().toLocalDate(), ignored -> new ArrayList<>())
+                                .add(score);
+                    }
+                });
+        Map<LocalDate, BigDecimal> pronunciationByDate = pronunciationValues.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> average(entry.getValue()),
+                        (left, right) -> right,
+                        TreeMap::new
+                ));
+        Map<LocalDate, ReadingMetricSummary.DailyMetric> readingByDate = readingMetrics.dailyMetrics()
+                .stream()
+                .collect(Collectors.toMap(
+                        ReadingMetricSummary.DailyMetric::date,
+                        Function.identity(),
+                        (left, right) -> right,
+                        TreeMap::new
+                ));
+        TreeSet<LocalDate> dates = new TreeSet<>(readingByDate.keySet());
+        dates.addAll(pronunciationByDate.keySet());
+        return dates.stream()
+                .map(date -> {
+                    ReadingMetricSummary.DailyMetric metric = readingByDate.get(date);
+                    return new ReportSnapshot.Growth(
+                            date,
+                            metric == null ? null : metric.accuracy(),
+                            metric == null ? null : metric.readingSpeed(),
+                            pronunciationByDate.get(date)
+                    );
+                })
+                .toList();
+    }
+
+    private ReportSnapshot.AutomaticAnalysis buildAutomaticAnalysis(
+            List<ReportSnapshot.Growth> growth
+    ) {
+        List<ReportSnapshot.MetricChange> changes = java.util.stream.Stream.of(
+                        metricChange(
+                                ReportSnapshot.MetricType.ACCURACY,
+                                growth,
+                                ReportSnapshot.Growth::accuracy
+                        ),
+                        metricChange(
+                                ReportSnapshot.MetricType.READING_SPEED,
+                                growth,
+                                ReportSnapshot.Growth::readingSpeed
+                        ),
+                        metricChange(
+                                ReportSnapshot.MetricType.PRONUNCIATION_SCORE,
+                                growth,
+                                ReportSnapshot.Growth::pronunciationScore
+                        )
+                )
+                .filter(Objects::nonNull)
+                .toList();
+        boolean hasMetric = growth.stream().anyMatch(point ->
+                point.accuracy() != null
+                        || point.readingSpeed() != null
+                        || point.pronunciationScore() != null);
+        ReportSnapshot.AnalysisStatus status = !changes.isEmpty()
+                ? ReportSnapshot.AnalysisStatus.AVAILABLE
+                : hasMetric
+                    ? ReportSnapshot.AnalysisStatus.INSUFFICIENT_DATA
+                    : ReportSnapshot.AnalysisStatus.NO_DATA;
+        List<String> descriptions = switch (status) {
+            case AVAILABLE -> changes.stream().map(this::describeMetricChange).toList();
+            case INSUFFICIENT_DATA -> List.of("비교할 기록이 부족합니다.");
+            case NO_DATA -> List.of("분석할 학습 기록이 없습니다.");
+        };
+        return new ReportSnapshot.AutomaticAnalysis(status, changes, descriptions);
+    }
+
+    private ReportSnapshot.MetricChange metricChange(
+            ReportSnapshot.MetricType metric,
+            List<ReportSnapshot.Growth> growth,
+            Function<ReportSnapshot.Growth, BigDecimal> valueExtractor
+    ) {
+        List<BigDecimal> values = growth.stream()
+                .map(valueExtractor)
+                .filter(Objects::nonNull)
+                .toList();
+        if (values.size() < 2) {
+            return null;
+        }
+        BigDecimal first = values.getFirst().setScale(2, RoundingMode.HALF_UP);
+        BigDecimal latest = values.getLast().setScale(2, RoundingMode.HALF_UP);
+        BigDecimal delta = latest.subtract(first).setScale(2, RoundingMode.HALF_UP);
+        ReportSnapshot.ChangeDirection direction = delta.signum() > 0
+                ? ReportSnapshot.ChangeDirection.INCREASED
+                : delta.signum() < 0
+                    ? ReportSnapshot.ChangeDirection.DECREASED
+                    : ReportSnapshot.ChangeDirection.UNCHANGED;
+        return new ReportSnapshot.MetricChange(metric, first, latest, delta, direction);
+    }
+
+    private String describeMetricChange(ReportSnapshot.MetricChange change) {
+        String label = switch (change.metric()) {
+            case ACCURACY -> "읽기 정확도";
+            case READING_SPEED -> "읽기 속도";
+            case PRONUNCIATION_SCORE -> "발음 점수";
+        };
+        String direction = switch (change.direction()) {
+            case INCREASED -> "증가";
+            case DECREASED -> "감소";
+            case UNCHANGED -> "유지";
+        };
+        return "%s가 %s에서 %s로 %s했습니다.".formatted(
+                label,
+                change.first().toPlainString(),
+                change.latest().toPlainString(),
+                direction
+        );
     }
 
     private ReportSnapshot.GazeTrend buildGazeTrend(
