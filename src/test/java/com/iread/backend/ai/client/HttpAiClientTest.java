@@ -567,7 +567,7 @@ class HttpAiClientTest {
                 )
         );
         var tts = client.synthesizeSpeech(
-                new SpeechSynthesisRequest("mixed-mode-3", "책을 읽어요", null)
+                new SpeechSynthesisRequest("mixed-mode-3", "책을 읽어요", null, 1.0)
         );
 
         assertThat(analysis.analysisVersion()).isEqualTo("AZURE_SPEECH_KO_KR_WORD_V1");
@@ -617,7 +617,7 @@ class HttpAiClientTest {
                 .andExpect(method(HttpMethod.POST))
                 .andExpect(header("Idempotency-Key", "tts-request-1"))
                 .andExpect(content().json("""
-                        {"requestId":"tts-request-1","text":"책을 읽어요","voice":null}
+                        {"requestId":"tts-request-1","text":"책을 읽어요","voice":null,"tempo":0.8}
                         """))
                 .andRespond(withSuccess()
                         .body(audio)
@@ -626,7 +626,7 @@ class HttpAiClientTest {
                         .header("X-Audio-Duration-Ms", "1500"));
 
         var response = aiClient.synthesizeSpeech(
-                new SpeechSynthesisRequest("tts-request-1", "책을 읽어요", null)
+                new SpeechSynthesisRequest("tts-request-1", "책을 읽어요", null, 0.8)
         );
 
         assertThat(response.audio()).isEqualTo(audio);

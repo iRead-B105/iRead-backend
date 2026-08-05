@@ -20,7 +20,7 @@ class MockSpeechProcessorTest {
     @Test
     void returnsDeterministicTtsBytesAndDuration() {
         SpeechSynthesisRequest request = new SpeechSynthesisRequest(
-                "request-1", "책을 읽어요", null
+                "request-1", "책을 읽어요", null, 1.0
         );
 
         var first = processor.synthesize(request);
@@ -29,5 +29,17 @@ class MockSpeechProcessorTest {
         assertThat(first.audio()).isEqualTo(second.audio());
         assertThat(first.durationMs()).isEqualTo(second.durationMs());
         assertThat(first.audio()).startsWith((byte) 'I', (byte) 'D', (byte) '3');
+    }
+
+    @Test
+    void adjustsDeterministicDurationByTempo() {
+        var slow = processor.synthesize(new SpeechSynthesisRequest(
+                "slow", "천천히 책을 읽어요", null, 0.5
+        ));
+        var fast = processor.synthesize(new SpeechSynthesisRequest(
+                "fast", "천천히 책을 읽어요", null, 2.0
+        ));
+
+        assertThat(slow.durationMs()).isGreaterThan(fast.durationMs());
     }
 }
