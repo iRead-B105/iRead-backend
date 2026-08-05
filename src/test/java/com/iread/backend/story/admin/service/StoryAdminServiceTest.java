@@ -9,6 +9,8 @@ import com.iread.backend.gaze.app.service.GazeDataStorage;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
 import com.iread.backend.ai.client.AiClient;
+import com.iread.backend.ai.dto.req.GenerateImageRequest;
+import com.iread.backend.ai.dto.res.GenerateImageResponse;
 import com.iread.backend.global.storage.FileStorage;
 import com.iread.backend.global.storage.LoadedFile;
 import com.iread.backend.story.admin.repository.StoryPageEditAuditRepository;
@@ -22,6 +24,7 @@ import com.iread.backend.story.domain.StoryLineEntity;
 import com.iread.backend.story.domain.StorySceneEntity;
 import com.iread.backend.story.domain.StoryStatus;
 import com.iread.backend.story.domain.StoryTemplateEntity;
+import com.iread.backend.story.generation.StorySceneImagePrompt;
 import com.iread.backend.story.repository.StoryChoiceRepository;
 import com.iread.backend.story.repository.StoryLineRepository;
 import com.iread.backend.story.repository.StoryRepository;
@@ -35,6 +38,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.json.JsonMapper;
@@ -280,6 +284,34 @@ class StoryAdminServiceTest {
         assertThat(response.editable()).isTrue();
         verify(storyLineRepository).saveAndFlush(secondLine);
         verify(storyPageEditAuditRepository).save(any());
+    }
+
+    @Test
+    void teacherRegeneratesImageWithTheSameStoryScenePromptAsInitialGeneration() {
+        allowStudent();
+        when(storyRepository.findByIdAndStudentId(30L, 10L)).thenReturn(Optional.of(story));
+        when(storyLineRepository.findByIdAndStoryIdForUpdate(51L, 30L))
+                .thenReturn(Optional.of(secondLine));
+        when(aiClient.generateImage(any())).thenReturn(new GenerateImageResponse(
+                "teacher-story-image-51-0",
+                "/uploads/images/regenerated.png",
+                "test"
+        ));
+
+        var response = service.regenerateUnreadPageImage(1L, 10L, 30L, 51L, 0L);
+
+        ArgumentCaptor<GenerateImageRequest> requestCaptor =
+                ArgumentCaptor.forClass(GenerateImageRequest.class);
+        verify(aiClient).generateImage(requestCaptor.capture());
+        GenerateImageRequest request = requestCaptor.getValue();
+        assertThat(request.requestId()).isEqualTo("teacher-story-image-51-0");
+        assertThat(request.storyTemplateId()).isEqualTo(20L);
+        assertThat(request.prompt()).isEqualTo(StorySceneImagePrompt.build(
+                "Forest",
+                "Choose a path"
+        ));
+        assertThat(request.prompt()).startsWith("[STORY_SCENE] ");
+        assertThat(response.imageUrl()).isEqualTo("/uploads/images/regenerated.png");
     }
 
     @Test

@@ -29,6 +29,7 @@ import com.iread.backend.story.analysis.StoryLineContentService;
 import com.iread.backend.story.app.dto.req.StoryTtsRequest;
 import com.iread.backend.story.app.dto.res.*;
 import com.iread.backend.story.domain.*;
+import com.iread.backend.story.generation.StorySceneImagePrompt;
 import com.iread.backend.story.repository.*;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
@@ -61,7 +62,6 @@ public class StoryService {
     private static final Logger log = LoggerFactory.getLogger(StoryService.class);
 
     private static final String STORY_CHARACTER_PROMPT_PREFIX = "[STORY_CHARACTER] ";
-    private static final String STORY_SCENE_PROMPT_PREFIX = "[STORY_SCENE] ";
     private static final int MAX_IMAGE_PROMPT_LENGTH = 1_000;
     private static final int MAX_CHARACTER_NAME_LENGTH = 50;
 
@@ -756,11 +756,9 @@ public class StoryService {
         String sceneText = response.lines().stream()
                 .map(GeneratedStoryLine::content)
                 .collect(java.util.stream.Collectors.joining(" "));
-        String prompt = truncate(
-                STORY_SCENE_PROMPT_PREFIX
-                        + "어린이 이야기 '" + story.getStoryTemplate().getTitle()
-                        + "'의 장면 삽화. 장면 내용: " + sceneText,
-                MAX_IMAGE_PROMPT_LENGTH
+        String prompt = StorySceneImagePrompt.build(
+                story.getStoryTemplate().getTitle(),
+                sceneText
         );
         try {
             GenerateImageResponse image = aiClient.generateImage(new GenerateImageRequest(

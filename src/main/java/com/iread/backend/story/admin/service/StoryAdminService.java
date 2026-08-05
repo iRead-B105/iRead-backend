@@ -27,6 +27,7 @@ import com.iread.backend.story.domain.StoryChoiceEntity;
 import com.iread.backend.story.domain.StoryEntity;
 import com.iread.backend.story.domain.StoryLineEntity;
 import com.iread.backend.story.domain.StoryStatus;
+import com.iread.backend.story.generation.StorySceneImagePrompt;
 import com.iread.backend.story.repository.StoryChoiceRepository;
 import com.iread.backend.story.repository.StoryLineRepository;
 import com.iread.backend.story.repository.StoryRepository;
@@ -158,9 +159,13 @@ public class StoryAdminService {
         StoryLineEntity line = editableLine(teacherId, studentId, storyId, storyLineId, revision);
         String before = editSnapshot(line);
         String requestId = "teacher-story-image-" + storyLineId + "-" + revision;
+        String sceneText = storyLineContentService.textOf(line);
         var generated = aiClient.generateImage(new GenerateImageRequest(
                 requestId,
-                storyLineContentService.textOf(line),
+                StorySceneImagePrompt.build(
+                        line.getStory().getStoryTemplate().getTitle(),
+                        sceneText
+                ),
                 line.getStory().getStoryTemplate().getId()
         ));
         line.getScene().updateImageUrl(generated.imageUrl());

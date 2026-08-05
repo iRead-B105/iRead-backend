@@ -102,7 +102,7 @@ public class StoryAdminController {
             @PathVariable Long studentId,
             @PathVariable Long storyId,
             @PathVariable Long storyLineId,
-            @RequestPart Long revision,
+            @RequestParam Long revision,
             @RequestPart MultipartFile image
     ) {
         return storyAdminService.uploadUnreadPageImage(
