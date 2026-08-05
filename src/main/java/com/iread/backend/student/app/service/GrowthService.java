@@ -7,6 +7,7 @@ import com.iread.backend.student.app.dto.res.TrainingProgressResponse;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.domain.TrainingStatus;
+import com.iread.backend.training.generation.TrainingCatalogPolicy;
 import com.iread.backend.training.repository.TrainingRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -100,7 +101,9 @@ public class GrowthService {
         }
 
         int totalTemplateCount() {
-            return Math.toIntExact(lastTemplateId - firstTemplateId + 1);
+            // 커버리지 분모는 실제로 편성될 수 있는 템플릿 수여야 한다.
+            // 은퇴 템플릿(통합·제거된 ID)을 분모에 넣으면 만점 커버리지가 불가능해진다.
+            return TrainingCatalogPolicy.selectableCountInRange(firstTemplateId, lastTemplateId);
         }
 
         static java.util.Optional<GrowthArea> fromTemplateId(Long templateId) {
@@ -226,13 +229,14 @@ public class GrowthService {
         }
 
         private int percentage(int count) {
-            return BigDecimal.valueOf(count * 100L)
+            // 은퇴 템플릿으로 훈련한 이력이 남아 있으면 분자가 분모를 넘을 수 있다.
+            return Math.min(100, BigDecimal.valueOf(count * 100L)
                     .divide(
                             BigDecimal.valueOf(area.totalTemplateCount()),
                             0,
                             RoundingMode.HALF_UP
                     )
-                    .intValueExact();
+                    .intValueExact());
         }
 
         private GrowthAreaResponse response() {

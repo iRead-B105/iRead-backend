@@ -12,6 +12,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
+
+import java.util.Set;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -67,6 +69,7 @@ public class TrainingTemplateDataInitializer implements ApplicationRunner {
         String serializedPrompt = writePrompt(prompt);
         if (exists("training_templates", id)) {
             synchronizeSeedContract(id, type, prompt);
+            synchronizeName(id, seed.path("name").asText());
             return;
         }
         jdbcTemplate.update("""
@@ -78,6 +81,21 @@ public class TrainingTemplateDataInitializer implements ApplicationRunner {
                 seed.path("name").asText(),
                 serializedPrompt,
                 seed.path("sequenceNo").asInt()
+        );
+    }
+
+    /** 읽기 훈련 통합으로 개명한 템플릿. 그 외 기존 행의 이름은 seed가 덮어쓰지 않는다. */
+    private static final Set<Long> CONSOLIDATION_RENAMED_TEMPLATE_IDS = Set.of(25L, 33L);
+
+    private void synchronizeName(long id, String name) {
+        if (!CONSOLIDATION_RENAMED_TEMPLATE_IDS.contains(id)) {
+            return;
+        }
+        jdbcTemplate.update(
+                "UPDATE training_templates SET name = ? WHERE id = ? AND name <> ?",
+                name,
+                id,
+                name
         );
     }
 

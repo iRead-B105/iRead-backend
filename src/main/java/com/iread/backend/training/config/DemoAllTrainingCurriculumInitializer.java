@@ -31,7 +31,9 @@ import java.util.List;
 public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
 
     static final long DEMO_CURRICULUM_ID = 190001L;
-    static final int DEMO_TEMPLATE_COUNT = 31;
+    // 전 유형 확인용 커리큘럼은 새 편성에 쓸 수 있는(은퇴 제외) 템플릿 전부를 담는다.
+    static final int DEMO_TEMPLATE_COUNT =
+            TrainingCatalogPolicy.selectableCountInRange(1L, 34L);
     private static final long FIRST_TEMPLATE_ID = 1L;
     private static final long LAST_TEMPLATE_ID = 34L;
 
@@ -80,17 +82,16 @@ public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
 
     private List<TrainingTemplateEntity> loadCanonicalTemplates() {
         List<TrainingTemplateEntity> templates = trainingTemplateRepository.findCanonicalCatalog(
-                FIRST_TEMPLATE_ID,
-                LAST_TEMPLATE_ID
-        );
+                        FIRST_TEMPLATE_ID,
+                        LAST_TEMPLATE_ID
+                )
+                .stream()
+                .filter(TrainingCatalogPolicy::isSelectable)
+                .toList();
         if (templates.size() != DEMO_TEMPLATE_COUNT) {
             throw new IllegalStateException(
-                    "전 유형 확인용 데모에는 사용 가능한 기준 템플릿 31개가 필요합니다."
-            );
-        }
-        if (templates.stream().anyMatch(template -> !TrainingCatalogPolicy.isSelectable(template))) {
-            throw new IllegalStateException(
-                    "전 유형 확인용 데모에는 더 이상 제공하지 않는 템플릿을 포함할 수 없습니다."
+                    "전 유형 확인용 데모에는 사용 가능한 기준 템플릿 "
+                            + DEMO_TEMPLATE_COUNT + "개가 필요합니다."
             );
         }
         return templates;
