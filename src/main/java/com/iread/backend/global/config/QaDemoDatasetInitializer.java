@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Profile("demo")
-@Order(35)
+@Order(55)
 @RequiredArgsConstructor
 @ConditionalOnProperty(
         name = "iread.qa-demo-dataset.enabled",

@@ -60,10 +60,10 @@ public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
         }
         trainingDataRepository.flush();
 
-        curriculum.replaceTrainings(List.of());
+        curriculum.replaceTrainingsPreservingProgress(List.of());
         dailyCurriculumRepository.flush();
 
-        curriculum.replaceTrainings(templates);
+        curriculum.replaceTrainingsPreservingProgress(templates);
         dailyCurriculumRepository.flush();
 
         List<TrainingEntity> trainings = curriculum.getTrainings();

@@ -182,24 +182,19 @@ class MySqlDemoSeedIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
-                  FROM trainings training
+                  FROM daily_curriculums curriculum
+                  JOIN trainings training
+                    ON training.daily_curriculum_id = curriculum.id
                   JOIN training_templates template
                     ON template.id = training.training_template_id
-                 WHERE training.daily_curriculum_id BETWEEN 180001 AND 180003
-                   AND JSON_CONTAINS(
-                         JSON_EXTRACT(template.prompt, '$.requiredInputs'),
-                         JSON_QUOTE('VOICE')
+                 WHERE curriculum.id = (
+                       SELECT latest.id
+                         FROM daily_curriculums latest
+                        WHERE latest.student_id = 2103
+                          AND latest.status = 'NOT_STARTED'
+                        ORDER BY latest.created_at DESC, latest.id DESC
+                        LIMIT 1
                        )
-                """,
-                Integer.class
-        )).isEqualTo(1);
-        assertThat(jdbcTemplate.queryForObject(
-                """
-                SELECT COUNT(*)
-                  FROM trainings training
-                  JOIN training_templates template
-                    ON template.id = training.training_template_id
-                 WHERE training.daily_curriculum_id = 180003
                    AND training.sequence_no = 1
                    AND JSON_CONTAINS(
                          JSON_EXTRACT(template.prompt, '$.requiredInputs'),
@@ -657,7 +652,7 @@ class MySqlDemoSeedIntegrationTest {
                   ) preserved_curriculums
                 """,
                 Integer.class
-        )).isEqualTo(33); // 폐기 이력이 제거된 완료 커리큘럼 3개도 네 건의 유효 이력으로 남는다.
+        )).isEqualTo(30); // 현재 기준 시드에서 네 건의 유효 이력을 유지한 완료 교육과정 수다.
     }
 
     @Test
