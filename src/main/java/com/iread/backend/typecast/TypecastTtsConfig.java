@@ -22,12 +22,11 @@ public class TypecastTtsConfig {
         requestFactory.setConnectTimeout(properties.connectTimeout());
         requestFactory.setReadTimeout(properties.readTimeout());
 
-        RestClient.Builder typecastBuilder = builder
+        // API 키는 회전(TypecastKeyRing)을 위해 고정 헤더가 아니라
+        // 요청 시점에 TypecastTtsClient가 붙인다.
+        return builder
                 .baseUrl(properties.baseUrl().toString())
-                .requestFactory(requestFactory);
-        if (StringUtils.hasText(properties.apiKey())) {
-            typecastBuilder.defaultHeader("X-API-KEY", properties.apiKey());
-        }
-        return typecastBuilder.build();
+                .requestFactory(requestFactory)
+                .build();
     }
 }
