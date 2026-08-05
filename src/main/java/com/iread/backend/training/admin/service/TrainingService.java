@@ -61,6 +61,8 @@ public class TrainingService {
     private final AiClient aiClient;
     private final PersonalizedTrainingGenerationService personalizedTrainingGenerationService;
     private final TrainingCompletionAfterCommitPublisher completionFollowUpPublisher;
+    private final com.iread.backend.training.curriculum.CurriculumGenerationAfterCommitTrigger
+            curriculumGenerationTrigger;
     private final TrainingInputRequirementService trainingInputRequirementService;
     private final RealtimeEventPublisher realtimeEventPublisher;
     private final TransactionTemplate transactionTemplate;
@@ -187,6 +189,8 @@ public class TrainingService {
         DailyCurriculumEntity curriculum = dailyCurriculumRepository.saveAndFlush(
                 new DailyCurriculumEntity(student, templates)
         );
+        // 교수자가 훈련마다 재생성을 누르지 않도록 커밋 직후 전체 교안을 백그라운드 생성한다.
+        curriculumGenerationTrigger.generateAfterCommit(curriculum.getId());
         realtimeEventPublisher.publishAfterCommit(
                 teacherId,
                 studentId,
@@ -219,6 +223,8 @@ public class TrainingService {
         dailyCurriculumRepository.flush();
         curriculum.replaceTrainings(templates);
         dailyCurriculumRepository.flush();
+        // 구성 변경으로 비워진 교안도 커밋 직후 백그라운드에서 다시 채운다.
+        curriculumGenerationTrigger.generateAfterCommit(curriculumId);
         realtimeEventPublisher.publishAfterCommit(
                 teacherId,
                 studentId,
