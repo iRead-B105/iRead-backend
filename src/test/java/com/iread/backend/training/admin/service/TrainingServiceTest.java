@@ -69,6 +69,8 @@ class TrainingServiceTest {
     @Mock AiClient aiClient;
     @Mock PersonalizedTrainingGenerationService personalizedTrainingGenerationService;
     @Mock TrainingCompletionAfterCommitPublisher completionFollowUpPublisher;
+    @Mock com.iread.backend.training.curriculum.CurriculumGenerationAfterCommitTrigger
+            curriculumGenerationTrigger;
     @Mock TrainingInputRequirementService trainingInputRequirementService;
     private TransactionTemplate transactionTemplate;
     @Mock RealtimeEventPublisher realtimeEventPublisher;
@@ -106,6 +108,7 @@ class TrainingServiceTest {
                 aiClient,
                 personalizedTrainingGenerationService,
                 completionFollowUpPublisher,
+                curriculumGenerationTrigger,
                 trainingInputRequirementService,
                 realtimeEventPublisher,
                 transactionTemplate,
