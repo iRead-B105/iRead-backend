@@ -799,8 +799,14 @@ public class AppTestService {
                     trackTitle + " 실력도전용 훈련 템플릿이 3개 이상 필요합니다."
             );
         }
-        Collections.shuffle(candidates);
-        return List.copyOf(candidates.subList(0, TRACK_QUESTION_COUNT));
+        // 첫 실력검증은 고정 진단지다. 템플릿 목록은 교육과정 단계 순(=난이도 오름차순)으로
+        // 정렬되어 있으므로, 무작위 대신 쉬움·중간·어려움을 고르게 뽑아 모든 아동이
+        // 같은 구성으로 검사받게 한다.
+        return List.of(
+                candidates.getFirst(),
+                candidates.get(candidates.size() / 2),
+                candidates.getLast()
+        );
     }
 
     private TrainingType templateType(TrainingTemplateEntity template) {
@@ -1168,6 +1174,19 @@ public class AppTestService {
                     List.of(new PronunciationReferenceWord(null, expectedText))
             );
         }
+        if (!expected.isObject() && tokenIndex != null) {
+            JsonNode byText = findUniqueQuestionWordByText(question, expectedText);
+            if (byText.isObject()) {
+                return new RecordingTarget(
+                        resolvedTargetIndex,
+                        expectedText,
+                        List.of(new PronunciationReferenceWord(
+                                byText.path("wordIndex").asInt(),
+                                expectedText
+                        ))
+                );
+            }
+        }
         if (!expected.isObject()) {
             throw new IllegalArgumentException("요청한 분석 대상 위치가 올바르지 않습니다.");
         }
@@ -1175,6 +1194,20 @@ public class AppTestService {
                 ? expected.path("text").asText()
                 : expected.path("surface").asText();
         if (!expectedText.equals(storedText)) {
+            // App의 tokenIndex는 화면 표시 순번이라 문항 words의 wordIndex와 좌표계가
+            // 다를 수 있다(예: content.tokens가 문장 일부만 표시). 텍스트가 문항 안에서
+            // 유일하게 일치하면 그 wordIndex로 해석한다.
+            JsonNode byText = tokenIndex == null
+                    ? objectMapper.missingNode()
+                    : findUniqueQuestionWordByText(question, expectedText);
+            if (byText.isObject()) {
+                int resolvedWordIndex = byText.path("wordIndex").asInt();
+                return new RecordingTarget(
+                        resolvedTargetIndex,
+                        expectedText,
+                        List.of(new PronunciationReferenceWord(resolvedWordIndex, expectedText))
+                );
+            }
             throw new IllegalArgumentException(
                     "요청한 텍스트가 생성된 검사 문항과 일치하지 않습니다."
             );
@@ -1257,6 +1290,19 @@ public class AppTestService {
             }
         }
         return objectMapper.missingNode();
+    }
+
+    private JsonNode findUniqueQuestionWordByText(JsonNode question, String expectedText) {
+        JsonNode matched = objectMapper.missingNode();
+        for (JsonNode word : question.path("words")) {
+            if (expectedText.equals(word.path("surface").asText())) {
+                if (matched.isObject()) {
+                    return objectMapper.missingNode();
+                }
+                matched = word;
+            }
+        }
+        return matched;
     }
 
     private List<PronunciationReferenceWord> tokenize(String text) {
