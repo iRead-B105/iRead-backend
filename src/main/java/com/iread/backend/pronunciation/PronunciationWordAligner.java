@@ -38,7 +38,8 @@ public class PronunciationWordAligner {
     }
 
     private String normalize(String value) {
-        return Normalizer.normalize(value, Normalizer.Form.NFC)
+        // 자모 기준 단어(ㅏ)는 발화 음절(아)로 평가되므로 비교 전 같은 형태로 맞춘다.
+        return Normalizer.normalize(JamoPronunciations.toSpokenText(value), Normalizer.Form.NFC)
                 .toLowerCase(Locale.ROOT)
                 .replaceAll("[^\\p{L}\\p{N}ㄱ-ㅎㅏ-ㅣ]", "");
     }
