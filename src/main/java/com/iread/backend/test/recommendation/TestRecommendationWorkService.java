@@ -19,6 +19,8 @@ public class TestRecommendationWorkService {
     private final StudentRepository studentRepository;
     private final StudentFeatureProfileService profileService;
     private final PersonalizedCurriculumPlanner curriculumPlanner;
+    private final com.iread.backend.training.curriculum.CurriculumGenerationAfterCommitTrigger
+            curriculumGenerationTrigger;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void process(Long testCurriculumId) {
@@ -29,6 +31,8 @@ public class TestRecommendationWorkService {
         StudentEntity student = studentRepository.findById(source.getStudent().getId())
                 .orElseThrow(() -> new IllegalStateException("학생을 찾을 수 없습니다."));
         profileService.recalculate(student);
-        curriculumPlanner.createRecommendedFromTestIfAbsent(student, testCurriculumId);
+        var curriculum = curriculumPlanner.createRecommendedFromTestIfAbsent(student, testCurriculumId);
+        // 새벽 배치를 기다리지 않고 커밋 직후 교안을 채워, 교수자 검토가 바로 가능하게 한다.
+        curriculumGenerationTrigger.generateAfterCommit(curriculum.getId());
     }
 }
