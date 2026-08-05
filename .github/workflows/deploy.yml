@@ -4,6 +4,10 @@
 #   1) iRead-backend / iRead-ai / iRead-frontend 각 저장소에서 develop -> main 머지
 #   2) Actions > Deploy > Run workflow 클릭
 #
+# 아동용 .exe
+#   아동 UI 를 바꾼 배포에서만 build_installer 를 켠다. Windows 러너에서 10~15분이 더 걸린다.
+#   Tobii 런타임은 라이선스 때문에 git 에 없어 EC2 의 /opt/iread/build-assets/tobii 에서 받아온다.
+#
 # 롤백
 #   backend_tag / ai_tag 에 이전 태그(main-abc1234)를 넣고 다시 실행한다.
 #   재빌드 없이 이미지만 교체하므로 30초쯤 걸린다.
@@ -32,6 +36,10 @@ on:
         default: ''
       skip_frontend:
         description: '교사 웹 UI 배포 건너뛰기'
+        type: boolean
+        default: false
+      build_installer:
+        description: '아동용 .exe 도 다시 만들어 올리기 (Windows 러너, 10~15분 추가)'
         type: boolean
         default: false
       strict_merge_check:
@@ -281,3 +289,93 @@ jobs:
             echo ""
             echo "롤백하려면 이 태그를 backend_tag / ai_tag 에 넣고 다시 실행하세요."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  # 아동용 설치 파일은 Windows 러너가 필요하고(--win nsis) 10~15분이 더 걸린다.
+  # 아동 UI 가 바뀐 배포에서만 build_installer 를 켜면 된다.
+  # Tobii 런타임은 라이선스 때문에 git 에 없어서 EC2 의 build-assets 에서 받아온다.
+  installer:
+    if: ${{ inputs.build_installer }}
+    needs: deploy
+    runs-on: windows-latest
+    timeout-minutes: 40
+
+    steps:
+      # electron-builder.yml 이 ../iRead-frontend-app/dist 를 참조하므로 형제 경로로 둔다.
+      - name: Electron 체크아웃 (main)
+        uses: actions/checkout@v4
+        with:
+          repository: iRead-B105/iRead-electron
+          ref: main
+          token: ${{ secrets.REPO_PAT || github.token }}
+          path: iRead-electron
+
+      - name: 아동 웹 UI 체크아웃 (main)
+        uses: actions/checkout@v4
+        with:
+          repository: iRead-B105/iRead-frontend-app
+          ref: main
+          token: ${{ secrets.REPO_PAT || github.token }}
+          path: iRead-frontend-app
+
+      - name: Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      # 설치본에 번들되는 아동 UI. .env.local 이 없으니 API 는 상대경로가 되고
+      # Electron main 프로세스가 IREAD_BACKEND_URL 로 중계한다.
+      - name: 아동 UI 빌드
+        working-directory: iRead-frontend-app
+        run: |
+          npm ci
+          npm run build
+
+      - name: SSH 키 준비
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.ssh" | Out-Null
+          $key = "$env:USERPROFILE\.ssh\deploy_key"
+          Set-Content -Path $key -Value $env:EC2_SSH_KEY -NoNewline
+          # Windows 의 ssh 는 키 파일 권한이 느슨하면 거부한다.
+          icacls $key /inheritance:r /grant:r "$($env:USERNAME):(R)" | Out-Null
+          ssh-keyscan -H $env:EC2_HOST 2>$null | Out-File -Append -Encoding ascii "$env:USERPROFILE\.ssh\known_hosts"
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+
+      # 라이선스 때문에 git 에 올리지 않은 브릿지 exe + DLL 을 서버에서 받아온다.
+      - name: Tobii 런타임 받기
+        shell: pwsh
+        run: |
+          $dir = "iRead-electron\tobii_gameintegration_x64"
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          scp -i "$env:USERPROFILE\.ssh\deploy_key" -o BatchMode=yes `
+            "ubuntu@${{ secrets.EC2_HOST }}:/opt/iread/build-assets/tobii/*" $dir
+          Get-ChildItem $dir | ForEach-Object { Write-Output ("  {0}  {1:N0} bytes" -f $_.Name, $_.Length) }
+          if (-not (Test-Path "$dir\tobii_native_bridge.exe")) { throw "브릿지 exe 를 받지 못했습니다" }
+          if (-not (Test-Path "$dir\tobii_gameintegration_x64.dll")) { throw "DLL 을 받지 못했습니다" }
+
+      - name: 설치 파일 빌드
+        working-directory: iRead-electron
+        run: |
+          npm ci
+          npm run dist
+
+      # 교사 웹의 다운로드 링크가 이 고정 이름을 가리키므로 버전이 올라가도 링크는 그대로다.
+      - name: EC2 로 업로드
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem "iRead-electron\release\*.exe" |
+                 Where-Object { $_.Name -notlike "*uninstall*" } |
+                 Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $exe) { throw "release 에서 .exe 를 찾지 못했습니다" }
+          Write-Output ("업로드: {0}  {1:N1} MB" -f $exe.Name, ($exe.Length/1MB))
+          scp -i "$env:USERPROFILE\.ssh\deploy_key" -o BatchMode=yes `
+            $exe.FullName "ubuntu@${{ secrets.EC2_HOST }}:/opt/iread/download/iRead-Setup.exe"
+
+      - name: 다운로드 확인
+        shell: pwsh
+        run: |
+          $r = Invoke-WebRequest -Method Head -Uri "https://${{ env.PUBLIC_DOMAIN }}/download/iRead-Setup.exe" -UseBasicParsing
+          Write-Output ("HTTP {0} / {1:N1} MB" -f $r.StatusCode, ($r.Headers['Content-Length'][0]/1MB))
+          if ($r.StatusCode -ne 200) { throw "다운로드 확인 실패" }

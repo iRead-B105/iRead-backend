@@ -108,6 +108,9 @@ services:
       # 이 플래그를 켜면 TrainingTemplateDataInitializer 가 기동 시 training-templates.json
       # 기준으로 DB 를 다시 맞춘다(synchronizeSeedContract). 멱등이라 매번 켜둬도 된다.
       IREAD_TRAINING_TEMPLATE_SEED_ENABLED: "true"
+      # 시연용 학습 치트(다음날로 이동 등). demo 프로파일 전체를 켜지 않고 이것만 연다.
+      # 기동 시 진행도를 지우는 초기화 빈은 @Profile("demo") 로 여전히 차단된다.
+      IREAD_DEMO_CHEAT_ENABLED: "true"
       AI_BASE_URL: http://ai:8080
       AI_API_KEY: ${AI_INTERNAL_API_KEY:?}
       # application.properties 기본값이 전부 true 라서 명시적으로 꺼야 실제 AI가 호출된다.

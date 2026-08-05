@@ -1,7 +1,7 @@
 package com.iread.backend.training.config;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Map;
 
 @Service
-@Profile("demo")
+@ConditionalOnProperty(name = "iread.demo-cheat.enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class DemoTrainingProgressResetService {
 

@@ -152,21 +152,47 @@ scp -i I15B105T.pem story-lexicon.sqlite3 \
 원본은 `python -m iread_ai.lexicon.install --source-db <원본>` 으로 만든다.
 원본 DB 가 저장소에 없으므로 CI 에서는 생성할 수 없다.
 
-### 4. Electron 설치 파일 업로드
+### 4. Tobii 런타임을 서버에 한 번 올려두기 (설치 파일 CI 빌드용)
 
-CI 에서 빌드할 수 없다. Tobii 런타임(`tobii_gameintegration_x64`)이 라이선스 때문에
-git 에 없고, `--win nsis` 라서 Windows 러너도 필요하다. 로컬 Windows 에서 만들어 올린다.
+`.exe` 는 워크플로에서 만들 수 있다. 다만 Tobii 런타임은 라이선스 때문에 git 에 올리지 않으므로,
+서버에 두고 CI 가 빌드할 때 받아가게 한다. 이미 올려져 있고 웹으로는 노출되지 않는다
+(nginx 문서 루트 밖이다).
+
+```
+/opt/iread/build-assets/tobii/
+  tobii_native_bridge.exe
+  tobii_gameintegration_x64.dll
+```
+
+새로 올려야 하면 이렇게 한다.
 
 ```bash
-cd iRead-frontend-app && npm run build          # 학습자 UI 를 먼저 빌드
+scp -i I15B105T.pem iRead-electron/tobii_gameintegration_x64/* \
+    ubuntu@i15b105.p.ssafy.io:/opt/iread/build-assets/tobii/
+```
+
+## 아동용 설치 파일(.exe) 만들기
+
+워크플로 실행 시 **`build_installer` 를 체크**하면 `installer` 잡이 Windows 러너에서 돌아
+`.exe` 를 만들고 `/opt/iread/download/iRead-Setup.exe` 로 올린다. 10~15분이 더 걸리므로
+**아동 UI(`iRead-frontend-app`) 나 `iRead-electron` 을 바꾼 배포에서만** 켜면 된다.
+
+`needs: deploy` 라서 서버 배포가 성공한 뒤에만 설치 파일이 올라간다.
+
+**파일명은 `iRead-Setup.exe` 로 고정된다.** 교사 UI 의 다운로드 링크가 이 이름을 가리키므로
+버전이 올라가도 링크를 고칠 필요가 없다.
+
+수동으로 만들어야 할 때(코드 서명 등)는 로컬 Windows 에서 아래처럼 한다.
+
+```bash
+cd iRead-frontend-app && npm run build          # 아동 UI 를 먼저 빌드
 cd ../iRead-electron  && npm run dist           # release/iRead Setup x.y.z.exe
 
 scp -i I15B105T.pem "release/iRead Setup 0.1.0.exe" \
     ubuntu@i15b105.p.ssafy.io:/opt/iread/download/iRead-Setup.exe
 ```
 
-**파일명은 `iRead-Setup.exe` 로 고정한다.** 교사 UI 의 다운로드 링크가 이 이름을 가리키므로
-버전이 올라가도 링크를 고칠 필요가 없다.
+서명 인증서가 없어 설치 시 Windows SmartScreen 경고가 뜬다. CI 빌드도 동일하다.
 
 ## 시연용으로 완화한 보안 설정
 
