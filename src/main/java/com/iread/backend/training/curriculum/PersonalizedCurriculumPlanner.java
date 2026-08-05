@@ -175,6 +175,15 @@ public class PersonalizedCurriculumPlanner {
                 .sum();
     }
 
+    /**
+     * 아이 경험이 사실상 같은 읽기 훈련 유사군. 하루 커리큘럼에 같은 군을
+     * 두 개 이상 편성하지 않는다. (어절별로 읽기 / 한번에 읽기 통합 결정)
+     */
+    private static final List<Set<Long>> SIMILAR_READING_GROUPS = List.of(
+            Set.of(25L, 26L),
+            Set.of(30L, 32L, 33L, 34L)
+    );
+
     private void fillFromCatalog(
             List<TrainingTemplateEntity> selected,
             Set<Long> selectedIds,
@@ -182,12 +191,18 @@ public class PersonalizedCurriculumPlanner {
             int targetSize,
             boolean includeFluency
     ) {
-        catalog.stream()
-                .filter(template -> includeFluency
-                        || unitSequence(template) != FLUENCY_UNIT_SEQUENCE)
-                .filter(template -> !selectedIds.contains(template.getId()))
-                .limit(Math.max(0, targetSize - selected.size()))
-                .forEach(template -> add(selected, selectedIds, template));
+        for (TrainingTemplateEntity template : catalog) {
+            if (selected.size() >= targetSize) {
+                return;
+            }
+            if (!includeFluency && unitSequence(template) == FLUENCY_UNIT_SEQUENCE) {
+                continue;
+            }
+            if (selectedIds.contains(template.getId())) {
+                continue;
+            }
+            add(selected, selectedIds, template);
+        }
     }
 
     private void add(
@@ -195,9 +210,22 @@ public class PersonalizedCurriculumPlanner {
             Set<Long> selectedIds,
             TrainingTemplateEntity template
     ) {
+        if (blockedBySimilarGroup(selected, template)) {
+            return;
+        }
         if (selected.size() < TRAINING_COUNT && selectedIds.add(template.getId())) {
             selected.add(template);
         }
+    }
+
+    private boolean blockedBySimilarGroup(
+            List<TrainingTemplateEntity> selected,
+            TrainingTemplateEntity template
+    ) {
+        return SIMILAR_READING_GROUPS.stream()
+                .filter(group -> group.contains(template.getId()))
+                .anyMatch(group -> selected.stream()
+                        .anyMatch(item -> group.contains(item.getId())));
     }
 
     private int unitSequence(TrainingTemplateEntity template) {
