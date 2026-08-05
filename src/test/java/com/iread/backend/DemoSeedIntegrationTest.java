@@ -18,7 +18,10 @@ import static org.assertj.core.api.Assertions.assertThat;
         "iread.teacher-demo-seed.enabled=false"
 })
 @ActiveProfiles("demo")
-@Sql("/db/demo/V2__demo_seed.sql")
+@Sql({
+        "/db/demo/V2__demo_seed.sql",
+        "/db/demo/V10__backfill_default_student_profile_images.sql"
+})
 class DemoSeedIntegrationTest {
 
     @Autowired JdbcTemplate jdbcTemplate;
@@ -36,6 +39,10 @@ class DemoSeedIntegrationTest {
                 "SELECT gender FROM students WHERE id = 2001",
                 String.class
         )).isEqualTo("Girl");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT image_url FROM students WHERE id = 2001",
+                String.class
+        )).isEqualTo("/images/student-profile-girl.png");
         assertThat(count("students", 2001L)).isEqualTo(1);
         assertThat(count("stories", 6001L)).isZero();
         assertThat(countByColumn("story_scenes", "scene_id", 6101L)).isZero();
@@ -69,6 +76,10 @@ class DemoSeedIntegrationTest {
                 "SELECT gender FROM students WHERE id = 2002",
                 String.class
         )).isEqualTo("Boy");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT image_url FROM students WHERE id = 2002",
+                String.class
+        )).isEqualTo("/images/student-profile-boy.png");
         assertThat(trainingCount(2002L)).isEqualTo(10);
         assertThat(trainingDataCount(2002L)).isEqualTo(10);
         assertThat(jdbcTemplate.queryForObject(

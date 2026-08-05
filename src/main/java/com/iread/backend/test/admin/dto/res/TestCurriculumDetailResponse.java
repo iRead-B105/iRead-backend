@@ -44,6 +44,7 @@ public record TestCurriculumDetailResponse(
 
     public record QuestionResult(
             @JsonSerialize(using = ToStringSerializer.class) Long testId,
+            int questionNo,
             int sequenceNo,
             String trackCode,
             String questionType,

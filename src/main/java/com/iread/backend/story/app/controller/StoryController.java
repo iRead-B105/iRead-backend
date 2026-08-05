@@ -7,6 +7,7 @@ import com.iread.backend.security.StudentResourceAccessPolicy;
 import com.iread.backend.story.app.dto.req.StoryTtsRequest;
 import com.iread.backend.story.app.dto.res.*;
 import com.iread.backend.story.app.service.StoryService;
+import com.iread.backend.global.storage.LoadedFile;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -77,6 +78,25 @@ public class StoryController {
                                           @PathVariable Long lineId) {
         authorizeStudent(authenticatedStudentId, studentId);
         return storyService.getStoryLine(teacherId, studentId, storyId, lineId);
+    }
+
+    @Operation(summary = "인증된 이야기 장면 이미지 조회")
+    @GetMapping("/{studentId}/{storyId}/images/{fileName}")
+    public ResponseEntity<byte[]> getStoryImage(
+            @CurrentTeacherId Long teacherId,
+            @CurrentStudentId Long authenticatedStudentId,
+            @PathVariable Long studentId,
+            @PathVariable Long storyId,
+            @PathVariable String fileName
+    ) {
+        authorizeStudent(authenticatedStudentId, studentId);
+        LoadedFile image = storyService.getStoryImage(
+                teacherId, studentId, storyId, fileName
+        );
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "private, max-age=300")
+                .contentType(MediaType.parseMediaType(image.contentType()))
+                .body(image.content());
     }
 
     @Operation(summary = "새 스토리 세션 시작")

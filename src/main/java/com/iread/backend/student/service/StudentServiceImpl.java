@@ -5,15 +5,18 @@ import com.iread.backend.global.storage.StoredFile;
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.realtime.RealtimeEventPublisher;
 import com.iread.backend.realtime.RealtimeResource;
+import com.iread.backend.student.domain.Gender;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.domain.LearningEventType;
 import com.iread.backend.student.dto.req.StudentRequest;
-import com.iread.backend.student.dto.res.AccuracyTrendResponse;
+import com.iread.backend.student.dto.res.AccuracyRecordsResponse;
+import com.iread.backend.student.dto.res.AccuracyTrendDataResponse;
 import com.iread.backend.student.dto.res.LearningEventResponse;
 import com.iread.backend.student.dto.res.LearningEventListItemResponse;
 import com.iread.backend.student.dto.res.LearningEventListResponse;
 import com.iread.backend.student.dto.res.LearningSummaryResponse;
 import com.iread.backend.student.dto.res.ReadingSpeedTrendResponse;
+import com.iread.backend.student.dto.res.ReadingSpeedRecordsResponse;
 import com.iread.backend.student.dto.res.StudentListResponse;
 import com.iread.backend.student.dto.res.StudentListDataResponse;
 import com.iread.backend.student.dto.res.StudentResponse;
@@ -37,7 +40,6 @@ import java.time.Period;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -48,7 +50,10 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class StudentServiceImpl implements StudentService {
 
-    private static final BigDecimal MILLIS_PER_MINUTE = BigDecimal.valueOf(60_000);
+    private static final String DEFAULT_BOY_PROFILE_IMAGE_URL =
+            "/images/student-profile-boy.png";
+    private static final String DEFAULT_GIRL_PROFILE_IMAGE_URL =
+            "/images/student-profile-girl.png";
 
     private final StudentRepository studentRepository;
     private final StudentDeletionRepository studentDeletionRepository;
@@ -57,6 +62,7 @@ public class StudentServiceImpl implements StudentService {
     private final FileStorage fileStorage;
     private final RealtimeEventPublisher realtimeEventPublisher;
     private final ObjectMapper objectMapper;
+    private final ReadingMetricAggregationService readingMetricAggregationService;
 
     @Override
     public StudentListDataResponse getStudents(
@@ -134,7 +140,7 @@ public class StudentServiceImpl implements StudentService {
         }
         boolean uploaded = imageFile != null && !imageFile.isEmpty();
         StoredFile storedFile = uploaded ? fileStorage.store(imageFile) : null;
-        String imageUrl = uploaded ? storedFile.url() : request.imageUrl();
+        String imageUrl = resolveCreateImageUrl(request, storedFile);
 
         StudentEntity student = StudentEntity.builder()
                 .teacher(teacher)
@@ -252,14 +258,20 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
-    public List<AccuracyTrendResponse> getAccuracyTrend(Long teacherId, Long studentId) {
+    public AccuracyTrendDataResponse getAccuracyTrend(Long teacherId, Long studentId) {
         findOwnedStudent(teacherId, studentId);
-        return studentRepository.findAccuracyTrend(studentId).stream()
-                .map(row -> new AccuracyTrendResponse(
-                        row.getLearningDate(),
-                        row.getAverageScore().divide(BigDecimal.TEN, 2, RoundingMode.HALF_UP)
-                ))
-                .toList();
+        return readingMetricAggregationService.getAccuracyTrend(studentId);
+    }
+
+    @Override
+    public AccuracyRecordsResponse getAccuracyRecords(
+            Long teacherId,
+            Long studentId,
+            LocalDate from,
+            LocalDate to
+    ) {
+        findOwnedStudent(teacherId, studentId);
+        return readingMetricAggregationService.getAccuracyRecords(studentId, from, to);
     }
 
     @Override
@@ -396,39 +408,18 @@ public class StudentServiceImpl implements StudentService {
             LocalDate to
     ) {
         findOwnedStudent(teacherId, studentId);
+        return readingMetricAggregationService.getReadingSpeedTrend(studentId, from, to);
+    }
 
-        LocalDate resolvedTo = to == null ? LocalDate.now() : to;
-        LocalDate resolvedFrom = from == null ? resolvedTo.minusDays(29) : from;
-        if (resolvedFrom.isAfter(resolvedTo)) {
-            throw new IllegalArgumentException("조회 시작일은 종료일보다 늦을 수 없습니다.");
-        }
-
-        Map<LocalDate, DailyReadingSpeed> dailySpeeds = new LinkedHashMap<>();
-        studentRepository.findReadingSpeedTrainings(
-                        studentId,
-                        resolvedFrom.atStartOfDay(),
-                        resolvedTo.plusDays(1).atStartOfDay()
-                ).forEach(row -> {
-                    if (row.getLearningDate() == null) {
-                        return;
-                    }
-                    dailySpeeds.computeIfAbsent(row.getLearningDate(), ignored -> new DailyReadingSpeed())
-                            .add(row);
-                });
-
-        List<ReadingSpeedTrendResponse.Point> points = dailySpeeds.entrySet().stream()
-                .map(entry -> entry.getValue().toPoint(entry.getKey()))
-                .filter(point -> point.voiceSpeed() != null || point.gazeSpeed() != null)
-                .toList();
-
-        return new ReadingSpeedTrendResponse(
-                resolvedFrom,
-                resolvedTo,
-                "WORDS_PER_MINUTE",
-                calculateChangeRate(points, ReadingSpeedTrendResponse.Point::voiceSpeed),
-                calculateChangeRate(points, ReadingSpeedTrendResponse.Point::gazeSpeed),
-                points
-        );
+    @Override
+    public ReadingSpeedRecordsResponse getReadingSpeedRecords(
+            Long teacherId,
+            Long studentId,
+            LocalDate from,
+            LocalDate to
+    ) {
+        findOwnedStudent(teacherId, studentId);
+        return readingMetricAggregationService.getReadingSpeedRecords(studentId, from, to);
     }
 
     private List<TrainingHistoryResponse.QuestionResult> parseTrainingQuestions(String result) {
@@ -567,6 +558,22 @@ public class StudentServiceImpl implements StudentService {
         return slash < 0 ? imageUrl : imageUrl.substring(slash + 1);
     }
 
+    private String resolveCreateImageUrl(StudentRequest request, StoredFile storedFile) {
+        if (storedFile != null) {
+            return storedFile.url();
+        }
+        if (request.imageUrl() != null && !request.imageUrl().isBlank()) {
+            return request.imageUrl();
+        }
+        if (request.gender() == Gender.Boy) {
+            return DEFAULT_BOY_PROFILE_IMAGE_URL;
+        }
+        if (request.gender() == Gender.Girl) {
+            return DEFAULT_GIRL_PROFILE_IMAGE_URL;
+        }
+        return null;
+    }
+
     private String normalizeAddress(Object address) {
         if (address == null) {
             return null;
@@ -650,78 +657,4 @@ public class StudentServiceImpl implements StudentService {
         );
     }
 
-    private BigDecimal calculateChangeRate(
-            List<ReadingSpeedTrendResponse.Point> points,
-            Function<ReadingSpeedTrendResponse.Point, BigDecimal> valueExtractor
-    ) {
-        List<BigDecimal> values = points.stream()
-                .map(valueExtractor)
-                .filter(value -> value != null)
-                .toList();
-        if (values.isEmpty() || values.getFirst().signum() == 0) {
-            return null;
-        }
-        if (values.size() == 1) {
-            return BigDecimal.ZERO.setScale(2);
-        }
-        return values.getLast()
-                .subtract(values.getFirst())
-                .multiply(BigDecimal.valueOf(100))
-                .divide(values.getFirst(), 2, RoundingMode.HALF_UP);
-    }
-
-    private static final class DailyReadingSpeed {
-        private long voiceWordCount;
-        private long voiceDurationMs;
-        private long gazeWordCount;
-        private long gazeDurationMs;
-        private int trainingCount;
-
-        private void add(StudentRepository.ReadingSpeedTrainingProjection row) {
-            boolean validTraining = false;
-            if (isPositive(row.getVoiceDurationMs())) {
-                voiceWordCount += nonNegative(row.getVoiceWordCount());
-                voiceDurationMs += row.getVoiceDurationMs();
-                validTraining = true;
-            }
-            if (isPositive(row.getGazeDurationMs())) {
-                gazeWordCount += nonNegative(row.getGazeWordCount());
-                gazeDurationMs += row.getGazeDurationMs();
-                validTraining = true;
-            }
-            if (validTraining) {
-                trainingCount++;
-            }
-        }
-
-        private ReadingSpeedTrendResponse.Point toPoint(LocalDate date) {
-            return new ReadingSpeedTrendResponse.Point(
-                    date,
-                    speed(voiceWordCount, voiceDurationMs),
-                    speed(gazeWordCount, gazeDurationMs),
-                    voiceDurationMs > 0 ? voiceWordCount : null,
-                    gazeDurationMs > 0 ? gazeWordCount : null,
-                    voiceDurationMs > 0 ? voiceDurationMs : null,
-                    gazeDurationMs > 0 ? gazeDurationMs : null,
-                    trainingCount
-            );
-        }
-
-        private static BigDecimal speed(long wordCount, long durationMs) {
-            if (durationMs <= 0) {
-                return null;
-            }
-            return BigDecimal.valueOf(wordCount)
-                    .multiply(MILLIS_PER_MINUTE)
-                    .divide(BigDecimal.valueOf(durationMs), 2, RoundingMode.HALF_UP);
-        }
-
-        private static boolean isPositive(Long value) {
-            return value != null && value > 0;
-        }
-
-        private static long nonNegative(Long value) {
-            return value == null ? 0 : Math.max(0, value);
-        }
-    }
 }

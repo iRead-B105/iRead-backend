@@ -5,4 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface StorySceneRepository extends JpaRepository<StorySceneEntity, Long> {
     long countByStoryId(Long storyId);
+    boolean existsByStoryIdAndImageUrlEndingWith(Long storyId, String imageUrlSuffix);
 }

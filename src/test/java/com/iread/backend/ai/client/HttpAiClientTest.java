@@ -191,7 +191,8 @@ class HttpAiClientTest {
 
         var response = aiClient.generateImage(new GenerateImageRequest(
                 "image-request-1",
-                "우산을 쓰는 아이"
+                "우산을 쓰는 아이",
+                null
         ));
 
         assertThat(response.imageUrl())
@@ -209,7 +210,8 @@ class HttpAiClientTest {
 
         var response = mockClient.generateImage(new GenerateImageRequest(
                 "image-request-mock",
-                "우산을 쓰는 아이"
+                "우산을 쓰는 아이",
+                null
         ));
 
         assertThat(response.requestId()).isEqualTo("image-request-mock");
@@ -231,7 +233,8 @@ class HttpAiClientTest {
 
         var response = mockClient.generateImage(new GenerateImageRequest(
                 "story-character-image",
-                "[STORY_CHARACTER] 별빛 숲의 친구 주인공"
+                "[STORY_CHARACTER] 별빛 숲의 친구 주인공",
+                1L
         ));
 
         assertThat(response.provider()).isEqualTo("BACKEND_MOCK_STORY_CHARACTER_PNG_V1");

@@ -200,7 +200,14 @@ public class GazeWordMetricMergeService {
                     .toList();
         }
 
-        if (attempts.size() != 1) {
+        // The gaze payload describes every word rendered on screen, while a
+        // pronunciation attempt exists only for words that were actually
+        // evaluated. An unpaired display-only metric must not abort the whole
+        // learning/test completion transaction.
+        if (attempts.isEmpty()) {
+            return;
+        }
+        if (attempts.size() > 1) {
             log.warn(
                     "시선 단어 지표 병합 실패: contentType={}, sessionId={}, questionNo={}, "
                             + "targetIndex={}, tokenIndex={}, text='{}', 최종시도={}건, 이력={}건",

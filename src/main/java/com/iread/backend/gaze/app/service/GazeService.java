@@ -24,6 +24,8 @@ import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.repository.TrainingRepository;
 import com.iread.backend.training.input.TrainingInputRequirementService;
 import com.iread.backend.training.input.TrainingInputType;
+import com.iread.backend.wordattempt.domain.WordAttemptLogEntity;
+import com.iread.backend.wordattempt.repository.WordAttemptLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,6 +36,7 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -46,6 +49,7 @@ public class GazeService {
     private final StoryRepository storyRepository;
     private final GazeSessionRepository gazeSessionRepository;
     private final GazeAnalysisResultRepository gazeAnalysisResultRepository;
+    private final WordAttemptLogRepository wordAttemptLogRepository;
     private final TrainingInputRequirementService trainingInputRequirementService;
     private final GazeDepartureCounter gazeDepartureCounter;
     private final GazeWordMetricMergeService gazeWordMetricMergeService;
@@ -237,6 +241,89 @@ public class GazeService {
                         "시선 분석 결과를 찾을 수 없습니다."
                 ));
         return toAnalysisDetailResponse(result);
+    }
+
+    public TestQuestionGazeAnalysisResponse getTestQuestionGazeAnalysis(
+            Long teacherId,
+            Long studentId,
+            Long testId,
+            Integer questionNo
+    ) {
+        validateStudentOwner(teacherId, studentId);
+        findOwnedTest(studentId, testId);
+        if (questionNo == null || questionNo < 1) {
+            throw new IllegalArgumentException("questionNo must be a positive integer.");
+        }
+        GazeAnalysisResultEntity result = gazeAnalysisResultRepository
+                .findFirstByGazeSessionStudentIdAndGazeSessionTestIdOrderByCreatedAtDesc(
+                        studentId,
+                        testId
+                )
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Gaze analysis result not found."
+                ));
+        List<WordAttemptLogEntity> attempts = wordAttemptLogRepository
+                .findAllByTestIdAndQuestionNoAndFinalAttemptTrue(testId, questionNo)
+                .stream()
+                .filter(WordAttemptLogEntity::isHasGazeData)
+                .toList();
+        if (attempts.isEmpty()) {
+            throw new ResourceNotFoundException(
+                    "Question-level gaze analysis result not found."
+            );
+        }
+
+        List<TestQuestionGazeAnalysisResponse.WordMetric> wordMetrics = attempts.stream()
+                .map(this::toQuestionWordMetric)
+                .toList();
+        int totalDwellTime = wordMetrics.stream()
+                .mapToInt(TestQuestionGazeAnalysisResponse.WordMetric::dwellDurationMs)
+                .sum();
+        int dwellCount = wordMetrics.stream()
+                .mapToInt(TestQuestionGazeAnalysisResponse.WordMetric::visitCount)
+                .sum();
+        int regressionCount = wordMetrics.stream()
+                .mapToInt(TestQuestionGazeAnalysisResponse.WordMetric::regressionCount)
+                .sum();
+        Integer averageFixationTime = dwellCount == 0
+                ? null
+                : totalDwellTime / dwellCount;
+
+        return new TestQuestionGazeAnalysisResponse(
+                testId,
+                questionNo,
+                result.getGazeSession().getId(),
+                result.getId(),
+                totalDwellTime,
+                dwellCount,
+                regressionCount,
+                averageFixationTime,
+                wordMetrics,
+                new TestQuestionGazeAnalysisResponse.AnalysisMeta(
+                        "gaze-word-v1",
+                        "BACKEND"
+                )
+        );
+    }
+
+    private TestQuestionGazeAnalysisResponse.WordMetric toQuestionWordMetric(
+            WordAttemptLogEntity attempt
+    ) {
+        return new TestQuestionGazeAnalysisResponse.WordMetric(
+                attempt.getTargetIndex(),
+                attempt.getTokenIndex(),
+                attempt.getSurfaceText(),
+                valueOrZero(attempt.getFixationDurationMs()),
+                valueOrZero(attempt.getFixationCount()),
+                attempt.getSkipped(),
+                valueOrZero(attempt.getRegressionCount()),
+                attempt.getGazeStartOffsetMs(),
+                attempt.getGazeEndOffsetMs()
+        );
+    }
+
+    private int valueOrZero(Integer value) {
+        return value == null ? 0 : value;
     }
 
     public GazeAnalysisDetailResponse getTrainingGazeAnalysis(Long teacherId, Long studentId, Long trainingId) {

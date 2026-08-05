@@ -12,6 +12,8 @@ import com.iread.backend.ai.dto.res.StoryBranchInputReviewResponse;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.exception.ConflictException;
+import com.iread.backend.global.storage.FileStorage;
+import com.iread.backend.global.storage.LoadedFile;
 import com.iread.backend.mypage.domain.CharacterEntity;
 import com.iread.backend.story.app.dto.req.StoryBranchSelectionRequest;
 import com.iread.backend.mypage.repository.CharacterRepository;
@@ -81,6 +83,7 @@ public class StoryService {
     private final StudentFeatureProfileService studentFeatureProfileService;
     private final RealtimeEventPublisher realtimeEventPublisher;
     private final StoryBranchReviewTokenService storyBranchReviewTokenService;
+    private final FileStorage fileStorage;
     private final ObjectMapper objectMapper;
 
     public StoryShelfResponse getStoryShelf(Long teacherId, Long studentId) {
@@ -118,7 +121,7 @@ public class StoryService {
                                 story.getId(),
                                 story.getStoryTemplate().getTitle()
                         ),
-                        entryImageUrl(story, linesByStoryId.getOrDefault(story.getId(), List.of()))
+                        entryImageUrl(linesByStoryId.getOrDefault(story.getId(), List.of()))
                 ))
                 .toList();
 
@@ -134,17 +137,15 @@ public class StoryService {
         return new StoryShelfResponse(stories, templates);
     }
 
-    private String entryImageUrl(StoryEntity story, List<StoryLineEntity> lines) {
+    private String entryImageUrl(List<StoryLineEntity> lines) {
         if (lines.isEmpty()) {
             return null;
         }
-        StoryLineEntity entryLine = story.isInProgress()
-                ? lines.stream()
-                        .filter(line -> line.getReadAt() == null)
-                        .findFirst()
-                        .orElse(lines.getLast())
-                : lines.getFirst();
-        return entryLine.getImageUrl();
+        return lines.reversed().stream()
+                .map(StoryLineEntity::getImageUrl)
+                .filter(imageUrl -> imageUrl != null && !imageUrl.isBlank())
+                .findFirst()
+                .orElse(null);
     }
 
     public StoryTemplateResponse getStoryTemplate(Long teacherId, Long studentId, Long storyTemplateId) {
@@ -225,6 +226,25 @@ public class StoryService {
                 "PROGRESS_UPDATED"
         );
         return toLineResponse(line);
+    }
+
+    public LoadedFile getStoryImage(
+            Long teacherId,
+            Long studentId,
+            Long storyId,
+            String fileName
+    ) {
+        findOwnedStory(teacherId, studentId, storyId);
+        if (fileName == null || !fileName.matches("[0-9a-f-]{36}\\.(png|jpg|jpeg)")) {
+            throw new IllegalArgumentException("올바르지 않은 이미지 파일 이름입니다.");
+        }
+        if (!storySceneRepository.existsByStoryIdAndImageUrlEndingWith(
+                storyId,
+                "/" + fileName
+        )) {
+            throw new ResourceNotFoundException("이야기 이미지를 찾을 수 없습니다.");
+        }
+        return fileStorage.load(fileName);
     }
 
     @Transactional
@@ -745,7 +765,8 @@ public class StoryService {
         try {
             GenerateImageResponse image = aiClient.generateImage(new GenerateImageRequest(
                     UUID.randomUUID().toString(),
-                    prompt
+                    prompt,
+                    story.getStoryTemplate().getId()
             ));
             String imageUrl = image == null ? null : image.imageUrl();
             return imageUrl == null || imageUrl.isBlank() ? null : imageUrl;
@@ -773,7 +794,8 @@ public class StoryService {
         );
         String imageUrl = aiClient.generateImage(new GenerateImageRequest(
                 UUID.randomUUID().toString(),
-                prompt
+                prompt,
+                template.getId()
         )).imageUrl();
         if (imageUrl == null || imageUrl.isBlank()) {
             throw new AiClientException("AI 서버가 이야기 주인공 이미지를 반환하지 않았습니다.");

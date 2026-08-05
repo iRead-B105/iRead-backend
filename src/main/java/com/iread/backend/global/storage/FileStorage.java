@@ -5,5 +5,6 @@ import org.springframework.web.multipart.MultipartFile;
 public interface FileStorage {
     StoredFile store(MultipartFile file);
     StoredFile store(String originalFileName, String contentType, byte[] content);
+    LoadedFile load(String storeFileName);
     void delete(String storeFileName);
 }

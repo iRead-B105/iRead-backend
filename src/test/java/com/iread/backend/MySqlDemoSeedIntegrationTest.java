@@ -43,7 +43,7 @@ class MySqlDemoSeedIntegrationTest {
                  ORDER BY installed_rank
                 """,
                 String.class
-        )).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9");
+        )).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11");
 
         String passwordHash = jdbcTemplate.queryForObject(
                 "SELECT password FROM teachers WHERE id = 1001",
@@ -73,7 +73,19 @@ class MySqlDemoSeedIntegrationTest {
         assertThat(count("tests", 5503L)).isEqualTo(1);
         assertThat(count("gaze_analysis_results", 7302L)).isEqualTo(1);
         assertThat(count("reports", 9101L)).isEqualTo(1);
-        assertThat(tableCount("training_templates")).isEqualTo(34);
+        assertThat(tableCount("training_templates")).isEqualTo(31);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM training_templates WHERE id IN (6, 14, 24)",
+                Integer.class
+        )).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM trainings WHERE training_template_id IN (6, 14, 24)",
+                Integer.class
+        )).isZero();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM tests WHERE training_template_id IN (6, 14, 24)",
+                Integer.class
+        )).isZero();
         assertThat(tableCount("curriculum_units")).isEqualTo(8);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT unit_name FROM curriculum_units WHERE id = 1",
@@ -94,6 +106,18 @@ class MySqlDemoSeedIntegrationTest {
                 Integer.class
         )).isZero();
         assertThat(demoStudentCount()).isEqualTo(13);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM students
+                 WHERE (id IN (2001, 2002) OR id BETWEEN 2101 AND 2111)
+                   AND image_url = CASE gender
+                         WHEN 'Boy' THEN '/images/student-profile-boy.png'
+                         WHEN 'Girl' THEN '/images/student-profile-girl.png'
+                       END
+                """,
+                Integer.class
+        )).isEqualTo(13);
         assertThat(trainingCount(2001L)).isGreaterThanOrEqualTo(50);
         assertThat(trainingCount(2002L)).isGreaterThanOrEqualTo(50);
         assertThat(jdbcTemplate.queryForObject(
@@ -161,7 +185,7 @@ class MySqlDemoSeedIntegrationTest {
                  WHERE daily_curriculum_id = 190001
                 """,
                 Integer.class
-        )).isEqualTo(34);
+        )).isEqualTo(31);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -187,7 +211,7 @@ class MySqlDemoSeedIntegrationTest {
                  WHERE daily_curriculum_id = 190001
                 """,
                 Integer.class
-        )).isEqualTo(34);
+        )).isEqualTo(31);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -199,7 +223,7 @@ class MySqlDemoSeedIntegrationTest {
                        ) = 5
                 """,
                 Integer.class
-        )).isEqualTo(34);
+        )).isEqualTo(31);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -211,7 +235,7 @@ class MySqlDemoSeedIntegrationTest {
                        )
                 """,
                 Integer.class
-        )).isEqualTo(34);
+        )).isEqualTo(31);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -222,7 +246,7 @@ class MySqlDemoSeedIntegrationTest {
                             ON training.daily_curriculum_id = curriculum.id
                          WHERE curriculum.id IN (
                                120023, 120033, 120053, 120063, 120073,
-                               120083, 120093, 120103, 120113, 120123
+                               120083, 120093, 120103, 120113
                          )
                          GROUP BY curriculum.id
                         HAVING COUNT(*) = 5
@@ -230,7 +254,7 @@ class MySqlDemoSeedIntegrationTest {
                   ) corrected
                 """,
                 Integer.class
-        )).isEqualTo(10);
+        )).isEqualTo(9);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -240,7 +264,7 @@ class MySqlDemoSeedIntegrationTest {
                     ON template.id = training.training_template_id
                  WHERE training.id IN (
                        130213, 130313, 130513, 130613, 130713,
-                       130813, 130913, 131013, 131113, 131213
+                       130813, 130913, 131013, 131113
                  )
                    AND JSON_LENGTH(JSON_EXTRACT(data.generated_data, '$.questions')) = 3
                    AND JSON_UNQUOTE(
@@ -256,11 +280,10 @@ class MySqlDemoSeedIntegrationTest {
                          WHEN 130913 THEN 5
                          WHEN 131013 THEN 8
                          WHEN 131113 THEN 11
-                         WHEN 131213 THEN 14
                        END
                 """,
                 Integer.class
-        )).isEqualTo(10);
+        )).isEqualTo(9);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT training_template_id FROM trainings WHERE id = 4001",
                 Long.class
@@ -332,7 +355,7 @@ class MySqlDemoSeedIntegrationTest {
                             ON curriculum.id = training.daily_curriculum_id
                          WHERE training.status = 'COMPLETED'
                          GROUP BY curriculum.student_id
-                        HAVING COUNT(DISTINCT training.training_template_id) = 34
+                        HAVING COUNT(DISTINCT training.training_template_id) = 31
                   ) catalog_coverage
                 """,
                 Integer.class
@@ -563,7 +586,7 @@ class MySqlDemoSeedIntegrationTest {
                           JOIN training_datas data ON data.train_id = training.id
                          WHERE curriculum.id IN (
                                120023, 120033, 120053, 120063, 120073,
-                               120083, 120093, 120103, 120113, 120123
+                               120083, 120093, 120103, 120113
                          )
                            AND curriculum.status = 'NOT_STARTED'
                          GROUP BY curriculum.id
@@ -574,7 +597,7 @@ class MySqlDemoSeedIntegrationTest {
                   ) corrected_curriculums
                 """,
                 Integer.class
-        )).isEqualTo(10);
+        )).isEqualTo(9);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -589,7 +612,7 @@ class MySqlDemoSeedIntegrationTest {
                        )
                 """,
                 Integer.class
-        )).isEqualTo(34);
+        )).isEqualTo(31);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -604,7 +627,7 @@ class MySqlDemoSeedIntegrationTest {
                   ) preserved_curriculums
                 """,
                 Integer.class
-        )).isEqualTo(30);
+        )).isEqualTo(33); // 폐기 이력이 제거된 완료 커리큘럼 3개도 네 건의 유효 이력으로 남는다.
     }
 
     @Test

@@ -174,6 +174,39 @@ class GazeWordMetricMergeServiceTest {
     }
 
     @Test
+    void ignoresDisplayOnlyGazeMetricWithoutPronunciationAttempt() {
+        TrainingEntity training = mock(TrainingEntity.class);
+        GazeSessionEntity session = mock(GazeSessionEntity.class);
+        when(session.getContentType()).thenReturn(GazeContentType.TRAINING);
+        when(session.getTraining()).thenReturn(training);
+        when(training.getId()).thenReturn(30L);
+        when(trainingInputRequirementService.inputsForQuestion(30L, 1))
+                .thenReturn(Set.of(
+                        TrainingInputType.VOICE,
+                        TrainingInputType.GAZE
+                ));
+        when(wordAttemptLogRepository
+                .findAllByTrainingIdAndQuestionNoAndTargetIndex(30L, 1, 1))
+                .thenReturn(List.of());
+
+        service.merge(session, objectMapper.readTree("""
+                {
+                  "words": [{
+                    "questionNo": 1,
+                    "targetIndex": 1,
+                    "tokenIndex": 0,
+                    "text": "나무",
+                    "dwellMs": 500,
+                    "visitCount": 1,
+                    "regressionCount": 0,
+                    "firstSeenMs": 0,
+                    "lastSeenMs": 500
+                  }]
+                }
+                """));
+    }
+
+    @Test
     void keepsReadWordUnskippedWhenFixationThresholdIsNotMet() throws Exception {
         TrainingEntity training = mock(TrainingEntity.class);
         GazeSessionEntity session = mock(GazeSessionEntity.class);

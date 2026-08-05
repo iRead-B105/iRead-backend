@@ -10,6 +10,7 @@ import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
 import com.iread.backend.ai.client.AiClient;
 import com.iread.backend.global.storage.FileStorage;
+import com.iread.backend.global.storage.LoadedFile;
 import com.iread.backend.story.admin.repository.StoryPageEditAuditRepository;
 import com.iread.backend.story.admin.dto.req.StoryPageUpdateRequest;
 import com.iread.backend.story.admin.dto.res.StoryHistoryDetailResponse;
@@ -24,6 +25,7 @@ import com.iread.backend.story.domain.StoryTemplateEntity;
 import com.iread.backend.story.repository.StoryChoiceRepository;
 import com.iread.backend.story.repository.StoryLineRepository;
 import com.iread.backend.story.repository.StoryRepository;
+import com.iread.backend.story.repository.StorySceneRepository;
 import com.iread.backend.story.repository.StoryTemplateRepository;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
@@ -52,6 +54,7 @@ class StoryAdminServiceTest {
 
     @Mock StudentRepository studentRepository;
     @Mock StoryRepository storyRepository;
+    @Mock StorySceneRepository storySceneRepository;
     @Mock StoryTemplateRepository storyTemplateRepository;
     @Mock StoryLineRepository storyLineRepository;
     @Mock StoryChoiceRepository storyChoiceRepository;
@@ -78,12 +81,14 @@ class StoryAdminServiceTest {
         service = new StoryAdminService(
                 studentRepository,
                 storyRepository,
+                storySceneRepository,
                 storyTemplateRepository,
                 storyLineRepository,
                 storyChoiceRepository,
                 gazeSessionRepository,
                 gazeAnalysisResultRepository,
                 gazeDataStorage,
+                new StoryGazeWordAnalysisService(),
                 new StoryLineContentService(koreanTextAnalyzer, objectMapper),
                 objectMapper,
                 storyPageEditAuditRepository,
@@ -155,6 +160,20 @@ class StoryAdminServiceTest {
                 "{\"contentType\":\"STORY\",\"storyId\":30}"
         );
         ReflectionTestUtils.setField(analysis, "id", 70L);
+    }
+
+    @Test
+    void loadsOnlyAnImageReferencedByTheOwnedStory() {
+        String fileName = "123e4567-e89b-12d3-a456-426614174000.png";
+        LoadedFile image = new LoadedFile(new byte[]{1, 2, 3}, "image/png");
+        allowStudent();
+        when(storyRepository.findByIdAndStudentId(30L, 10L)).thenReturn(Optional.of(story));
+        when(storySceneRepository.existsByStoryIdAndImageUrlEndingWith(30L, "/" + fileName))
+                .thenReturn(true);
+        when(fileStorage.load(fileName)).thenReturn(image);
+
+        assertThat(service.getStoryImage(1L, 10L, 30L, fileName)).isSameAs(image);
+        verify(fileStorage).load(fileName);
     }
 
     @Test
@@ -269,7 +288,14 @@ class StoryAdminServiceTest {
         when(storyRepository.findByIdAndStudentId(30L, 10L)).thenReturn(Optional.of(story));
         allowContext();
         when(gazeDataStorage.load("{}")).thenReturn("""
-                {"rawData":{"replayWords":[{"questionNo":1,"tokenIndex":2,"text":"word"}],"samples":[{"pageNo":1,"tokenIndex":2,"text":"word","capturedAtMs":120}]}}
+                {"rawData":{
+                  "replayWords":[{"questionNo":1,"storyLineId":50,"tokenIndex":0,"text":"First","dwellMs":160}],
+                  "samples":[
+                    {"x":10,"y":20,"pageNo":1,"storyLineId":50,"tokenIndex":0,"text":"First","capturedAtMs":1000},
+                    {"x":11,"y":21,"pageNo":1,"storyLineId":50,"tokenIndex":0,"text":"First","capturedAtMs":1080},
+                    {"x":12,"y":22,"pageNo":1,"storyLineId":50,"tokenIndex":1,"text":"line","capturedAtMs":1160}
+                  ]
+                }}
                 """);
 
         var response = service.getStoryGazeAnalysis(1L, 10L, 30L);
@@ -282,8 +308,16 @@ class StoryAdminServiceTest {
         assertThat(metric.pageNo()).isEqualTo(1);
         assertThat(metric.regressionCount()).isEqualTo(2);
         assertThat(metric.regressions()).hasSize(1);
+        assertThat(response.wordMetrics()).hasSize(2);
+        assertThat(response.wordMetrics().getFirst().text()).isEqualTo("First");
+        assertThat(response.wordMetrics().getFirst().firstSeenMs()).isZero();
         assertThat(response.replay().path("words").size()).isEqualTo(1);
         assertThat(response.replay().path("samples").get(0).path("questionNumber").asInt()).isEqualTo(1);
+        assertThat(response.replay().path("samples").get(0).has("x")).isFalse();
+        assertThat(response.replay().path("samples").get(0).has("y")).isFalse();
+        assertThat(response.replay().path("events").size()).isEqualTo(2);
+        assertThat(response.analysisMeta().calculationVersion()).isEqualTo("story-gaze-word-v1");
+        assertThat(response.analysisMeta().maxSampleGapMs()).isEqualTo(250);
         assertThat(metric.averageFixationTimeMs()).isEqualTo(857);
     }
 
