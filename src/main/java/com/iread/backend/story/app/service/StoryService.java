@@ -601,7 +601,7 @@ public class StoryService {
         StoryEntity story = findOwnedStory(teacherId, studentId, storyId);
         StoryLineEntity line = findLine(story.getId(), request.lineId());
         var speech = aiClient.synthesizeSpeech(new SpeechSynthesisRequest(
-                UUID.randomUUID().toString(), storyLineContentService.textOf(line), null
+                UUID.randomUUID().toString(), storyLineContentService.textOf(line), null, 1.0
         ));
         String fileName = storyAudioStorage.storeGenerated(studentId, speech.audio());
         return new StoryTtsResponse(

@@ -16,10 +16,12 @@ public class MockSpeechProcessor {
     }
 
     public SpeechSynthesisResponse synthesize(SpeechSynthesisRequest request) {
-        long durationMs = Math.max(
+        long baseDurationMs = Math.max(
                 1_000L,
                 request.text().codePointCount(0, request.text().length()) * 250L
         );
+        double tempo = request.tempo() == null ? 1.0 : request.tempo();
+        long durationMs = Math.max(1_000L, Math.round(baseDurationMs / tempo));
         return new SpeechSynthesisResponse(
                 new byte[]{'I', 'D', '3', 4, 0, 0, 0, 0, 0, 0},
                 durationMs
