@@ -2,6 +2,7 @@ package com.iread.backend.contract;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
@@ -16,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AuthContractMappingTest {
 
     @Autowired
+    @Qualifier("requestMappingHandlerMapping")
     RequestMappingHandlerMapping handlerMapping;
 
     @Test
