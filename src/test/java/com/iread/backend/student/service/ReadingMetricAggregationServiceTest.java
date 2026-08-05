@@ -138,6 +138,66 @@ class ReadingMetricAggregationServiceTest {
     }
 
     @Test
+    void summarizesReportMetricsFromTheSameWeightedSourceRecords() {
+        LocalDate from = LocalDate.of(2026, 7, 10);
+        LocalDate to = LocalDate.of(2026, 7, 11);
+        var firstAccuracy = accuracyRow(
+                101L, "첫소리 구분", from.atTime(10, 0), 1L, 1L
+        );
+        var secondAccuracy = accuracyRow(
+                102L, "받침 구분", to.atTime(10, 0), 9L, 99L
+        );
+        var firstSpeed = speedRow(
+                101L, "첫소리 구분", from.atTime(10, 0), 10L, 10_000L, 99L, 1_000L
+        );
+        var secondSpeed = speedRow(
+                102L, "받침 구분", to.atTime(10, 0), 30L, 20_000L, 99L, 1_000L
+        );
+        when(studentRepository.findAccuracyRecords(
+                10L,
+                from.atStartOfDay(),
+                to.plusDays(1).atStartOfDay()
+        )).thenReturn(List.of(
+                firstAccuracy,
+                secondAccuracy
+        ));
+        when(studentRepository.findReadingSpeedTrainings(
+                10L,
+                from.atStartOfDay(),
+                to.plusDays(1).atStartOfDay()
+        )).thenReturn(List.of(
+                firstSpeed,
+                secondSpeed
+        ));
+
+        var result = service.summarize(10L, from, to);
+
+        assertThat(result.calculationVersion()).isEqualTo("reading-metrics-v1");
+        assertThat(result.accuracyUnit()).isEqualTo("PERCENT");
+        assertThat(result.readingSpeedUnit()).isEqualTo("CORRECT_WORDS_PER_MINUTE");
+        assertThat(result.averageAccuracy()).isEqualByComparingTo("10.00");
+        assertThat(result.averageReadingSpeed()).isEqualByComparingTo("80.00");
+        assertThat(result.dailyMetrics())
+                .extracting(
+                        ReadingMetricSummary.DailyMetric::date,
+                        ReadingMetricSummary.DailyMetric::accuracy,
+                        ReadingMetricSummary.DailyMetric::readingSpeed
+                )
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(
+                                from,
+                                new java.math.BigDecimal("100.00"),
+                                new java.math.BigDecimal("60.00")
+                        ),
+                        org.assertj.core.groups.Tuple.tuple(
+                                to,
+                                new java.math.BigDecimal("9.09"),
+                                new java.math.BigDecimal("90.00")
+                        )
+                );
+    }
+
+    @Test
     void rejectsReversedDateRangeForBothRecordTypes() {
         LocalDate from = LocalDate.of(2026, 7, 31);
         LocalDate to = LocalDate.of(2026, 7, 1);

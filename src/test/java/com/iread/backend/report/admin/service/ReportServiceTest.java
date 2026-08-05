@@ -12,6 +12,8 @@ import com.iread.backend.report.domain.ReportEntity;
 import com.iread.backend.report.repository.ReportRepository;
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.student.repository.StudentRepository;
+import com.iread.backend.student.service.ReadingMetricAggregationService;
+import com.iread.backend.student.service.ReadingMetricSummary;
 import com.iread.backend.test.repository.StudentTestRepository;
 import com.iread.backend.training.repository.TrainingRepository;
 import com.iread.backend.training.domain.TrainingEntity;
@@ -26,6 +28,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -48,6 +51,7 @@ class ReportServiceTest {
     @Mock WordAttemptLogRepository wordAttemptLogRepository;
     @Mock GazeAnalysisResultRepository gazeAnalysisResultRepository;
     @Mock GazeSessionRepository gazeSessionRepository;
+    @Mock ReadingMetricAggregationService readingMetricAggregationService;
 
     private ReportService reportService;
 
@@ -55,8 +59,18 @@ class ReportServiceTest {
     void setUp() {
         reportService = new ReportService(reportRepository, studentRepository, trainingRepository,
                 testRepository, wordAttemptLogRepository, gazeAnalysisResultRepository,
-                gazeSessionRepository,
+                gazeSessionRepository, readingMetricAggregationService,
                 JsonMapper.builder().build());
+        org.mockito.Mockito.lenient().when(readingMetricAggregationService.summarize(
+                any(), any(), any()
+        )).thenReturn(new ReadingMetricSummary(
+                "reading-metrics-v1",
+                "PERCENT",
+                "CORRECT_WORDS_PER_MINUTE",
+                null,
+                null,
+                List.of()
+        ));
     }
 
     @Test
@@ -75,6 +89,29 @@ class ReportServiceTest {
                 any(), any(), any(), any())).thenReturn(List.of());
         when(wordAttemptLogRepository.findIncorrectWordStats(any(), any(), any()))
                 .thenReturn(List.of());
+        when(readingMetricAggregationService.summarize(
+                10L,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        )).thenReturn(new ReadingMetricSummary(
+                "reading-metrics-v1",
+                "PERCENT",
+                "CORRECT_WORDS_PER_MINUTE",
+                new BigDecimal("70.00"),
+                new BigDecimal("60.00"),
+                List.of(
+                        new ReadingMetricSummary.DailyMetric(
+                                LocalDate.of(2026, 7, 10),
+                                new BigDecimal("60.00"),
+                                new BigDecimal("50.00")
+                        ),
+                        new ReadingMetricSummary.DailyMetric(
+                                LocalDate.of(2026, 7, 11),
+                                new BigDecimal("80.00"),
+                                new BigDecimal("70.00")
+                        )
+                )
+        ));
         when(reportRepository.saveAndFlush(any())).thenAnswer(invocation -> {
             ReportEntity report = invocation.getArgument(0);
             ReflectionTestUtils.setField(report, "id", 25L);
@@ -94,9 +131,109 @@ class ReportServiceTest {
         ArgumentCaptor<ReportEntity> captor = ArgumentCaptor.forClass(ReportEntity.class);
         verify(reportRepository).saveAndFlush(captor.capture());
         assertThat(captor.getValue().getSnapshotData())
+                .contains("\"snapshotVersion\":\"teacher-report-v2\"")
+                .contains("\"calculationVersion\":\"reading-metrics-v1\"")
                 .contains("\"learningDays\":2")
+                .contains("\"readingSpeedUnit\":\"CORRECT_WORDS_PER_MINUTE\"")
+                .contains("\"growthComparisonStatus\":\"AVAILABLE\"")
+                .contains("\"direction\":\"INCREASED\"")
                 .contains("\"improvedPatterns\":[]");
         assertThat(captor.getValue().getTeacherMemo()).isNull();
+    }
+
+    @Test
+    void 두_시점의_증가_감소_유지를_정확한_차이로_자동_분석한다() throws Exception {
+        StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
+        TrainingEntity firstTraining = org.mockito.Mockito.mock(TrainingEntity.class);
+        TrainingEntity latestTraining = org.mockito.Mockito.mock(TrainingEntity.class);
+        var firstTest = org.mockito.Mockito.mock(
+                com.iread.backend.test.domain.StudentTestEntity.class
+        );
+        var latestTest = org.mockito.Mockito.mock(
+                com.iread.backend.test.domain.StudentTestEntity.class
+        );
+        when(firstTraining.getStartedAt()).thenReturn(LocalDateTime.of(2026, 7, 10, 10, 0));
+        when(firstTraining.getFinishedAt()).thenReturn(LocalDateTime.of(2026, 7, 10, 10, 5));
+        when(latestTraining.getStartedAt()).thenReturn(LocalDateTime.of(2026, 7, 11, 10, 0));
+        when(latestTraining.getFinishedAt()).thenReturn(LocalDateTime.of(2026, 7, 11, 10, 5));
+        when(firstTest.getCreatedAt()).thenReturn(LocalDateTime.of(2026, 7, 10, 12, 0));
+        when(firstTest.getResult()).thenReturn("{\"pronunciationScore\":70}");
+        when(latestTest.getCreatedAt()).thenReturn(LocalDateTime.of(2026, 7, 11, 12, 0));
+        when(latestTest.getResult()).thenReturn("{\"pronunciationScore\":80}");
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(trainingRepository.findAllByDailyCurriculumStudentIdAndStatusAndFinishedAtBetweenOrderByFinishedAtAsc(
+                any(), any(), any(), any()
+        )).thenReturn(List.of(firstTraining, latestTraining));
+        when(testRepository.findAllByTestCurriculumStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
+                any(), any(), any(), any()
+        )).thenReturn(List.of(firstTest, latestTest));
+        when(wordAttemptLogRepository.findIncorrectWordStats(any(), any(), any()))
+                .thenReturn(List.of());
+        when(readingMetricAggregationService.summarize(
+                10L,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        )).thenReturn(new ReadingMetricSummary(
+                "reading-metrics-v1",
+                "PERCENT",
+                "CORRECT_WORDS_PER_MINUTE",
+                new BigDecimal("80.00"),
+                new BigDecimal("55.00"),
+                List.of(
+                        new ReadingMetricSummary.DailyMetric(
+                                LocalDate.of(2026, 7, 10),
+                                new BigDecimal("80.00"),
+                                new BigDecimal("60.00")
+                        ),
+                        new ReadingMetricSummary.DailyMetric(
+                                LocalDate.of(2026, 7, 11),
+                                new BigDecimal("80.00"),
+                                new BigDecimal("50.00")
+                        )
+                )
+        ));
+        when(reportRepository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        reportService.createReport(1L, new CreateReportRequest(
+                10L,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        ));
+
+        ArgumentCaptor<ReportEntity> captor = ArgumentCaptor.forClass(ReportEntity.class);
+        verify(reportRepository).saveAndFlush(captor.capture());
+        ReportSnapshot stored = JsonMapper.builder().build().readValue(
+                captor.getValue().getSnapshotData(),
+                ReportSnapshot.class
+        );
+        assertThat(stored.automaticAnalysis().status())
+                .isEqualTo(ReportSnapshot.AnalysisStatus.AVAILABLE);
+        assertThat(stored.automaticAnalysis().metricChanges())
+                .extracting(
+                        ReportSnapshot.MetricChange::metric,
+                        ReportSnapshot.MetricChange::delta,
+                        ReportSnapshot.MetricChange::direction
+                )
+                .containsExactly(
+                        tuple(
+                                ReportSnapshot.MetricType.ACCURACY,
+                                new BigDecimal("0.00"),
+                                ReportSnapshot.ChangeDirection.UNCHANGED
+                        ),
+                        tuple(
+                                ReportSnapshot.MetricType.READING_SPEED,
+                                new BigDecimal("-10.00"),
+                                ReportSnapshot.ChangeDirection.DECREASED
+                        ),
+                        tuple(
+                                ReportSnapshot.MetricType.PRONUNCIATION_SCORE,
+                                new BigDecimal("10.00"),
+                                ReportSnapshot.ChangeDirection.INCREASED
+                        )
+                );
+        assertThat(stored.automaticAnalysis().descriptions()).hasSize(3);
+        assertThat(stored.improvedPatterns()).isEmpty();
+        assertThat(stored.persistentDifficultyPatterns()).isEmpty();
     }
 
     @Test
@@ -117,14 +254,14 @@ class ReportServiceTest {
                 )
         )).isInstanceOfSatisfying(ReportCreationException.class, exception -> {
             assertThat(exception.code()).isEqualTo("REPORT_INSUFFICIENT_LEARNING_DAYS");
-            assertThat(exception.details()).containsEntry("requiredDays", 2)
+            assertThat(exception.details()).containsEntry("requiredDays", 1)
                     .containsEntry("actualDays", 0L);
         });
         verify(reportRepository, never()).saveAndFlush(any());
     }
 
     @Test
-    void sameDayTrainingsCountAsOneLearningDay() {
+    void sameDayTrainingsCountAsOneLearningDayAndCanCreateReport() {
         StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
         TrainingEntity first = org.mockito.Mockito.mock(TrainingEntity.class);
         TrainingEntity second = org.mockito.Mockito.mock(TrainingEntity.class);
@@ -135,19 +272,42 @@ class ReportServiceTest {
                 any(), any(), any(), any())).thenReturn(List.of(first, second));
         when(testRepository.findAllByTestCurriculumStudentIdAndStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
                 any(), any(), any(), any())).thenReturn(List.of());
+        when(wordAttemptLogRepository.findIncorrectWordStats(any(), any(), any()))
+                .thenReturn(List.of());
+        when(readingMetricAggregationService.summarize(
+                10L,
+                LocalDate.of(2026, 7, 1),
+                LocalDate.of(2026, 7, 31)
+        )).thenReturn(new ReadingMetricSummary(
+                "reading-metrics-v1",
+                "PERCENT",
+                "CORRECT_WORDS_PER_MINUTE",
+                BigDecimal.ZERO.setScale(2),
+                null,
+                List.of(new ReadingMetricSummary.DailyMetric(
+                        LocalDate.of(2026, 7, 10),
+                        BigDecimal.ZERO.setScale(2),
+                        null
+                ))
+        ));
+        when(reportRepository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        assertThatThrownBy(() -> reportService.createReport(
+        reportService.createReport(
                 1L,
                 new CreateReportRequest(
                         10L,
                         LocalDate.of(2026, 7, 1),
                         LocalDate.of(2026, 7, 31)
                 )
-        )).isInstanceOfSatisfying(ReportCreationException.class, exception -> {
-            assertThat(exception.code()).isEqualTo("REPORT_INSUFFICIENT_LEARNING_DAYS");
-            assertThat(exception.details()).containsEntry("actualDays", 1L);
-        });
-        verify(reportRepository, never()).saveAndFlush(any());
+        );
+
+        ArgumentCaptor<ReportEntity> captor = ArgumentCaptor.forClass(ReportEntity.class);
+        verify(reportRepository).saveAndFlush(captor.capture());
+        assertThat(captor.getValue().getSnapshotData())
+                .contains("\"learningDays\":1")
+                .contains("\"averageAccuracy\":0.00")
+                .contains("\"growthComparisonStatus\":\"INSUFFICIENT_DATA\"")
+                .contains("비교할 기록이 부족합니다.");
     }
 
     @Test
