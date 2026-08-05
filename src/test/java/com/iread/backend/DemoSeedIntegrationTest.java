@@ -1,5 +1,6 @@
 package com.iread.backend;
 
+import com.iread.backend.global.config.QaDemoDatasetService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -15,7 +16,8 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.flyway.enabled=false",
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "iread.training-template-seed.enabled=false",
-        "iread.teacher-demo-seed.enabled=false"
+        "iread.teacher-demo-seed.enabled=false",
+        "iread.qa-demo-dataset.enabled=false"
 })
 @ActiveProfiles("demo")
 @Sql({
@@ -26,6 +28,7 @@ class DemoSeedIntegrationTest {
 
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired PasswordEncoder passwordEncoder;
+    @Autowired QaDemoDatasetService qaDemoDatasetService;
 
     @Test
     void appliesNonIdentifyingDemoSeedAndPasswordIsUsable() {
@@ -91,6 +94,42 @@ class DemoSeedIntegrationTest {
                 Integer.class
         )).isEqualTo(1);
         assertThat(count("tests", 5102L)).isEqualTo(1);
+
+        jdbcTemplate.update("""
+                INSERT INTO story_templates (id, title, content, image_url)
+                VALUES (3, '노인과 바다', '데모', NULL),
+                       (4, '신데렐라', '데모', NULL),
+                       (5, '별주부전', '데모', NULL),
+                       (6, '아기돼지 삼형제', '데모', NULL)
+                """);
+
+        qaDemoDatasetService.install();
+
+        String qaPasswordHash = jdbcTemplate.queryForObject(
+                "SELECT password FROM teachers WHERE email = 'test@test.com'",
+                String.class
+        );
+        assertThat(passwordEncoder.matches("qwer1234", qaPasswordHash)).isTrue();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM students WHERE teacher_id = 1001 AND id IN (2001, 2002, 2103)",
+                Integer.class
+        )).isEqualTo(3);
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT name FROM students WHERE teacher_id = 1001 ORDER BY id",
+                String.class
+        )).containsExactly("김OO", "이OO", "박OO");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM stories WHERE student_id IN (2001, 2002, 2103)",
+                Integer.class
+        )).isEqualTo(6);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM story_scenes WHERE image_url LIKE '/uploads/images/%.jpg'",
+                Integer.class
+        )).isEqualTo(12);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM gaze_sessions WHERE id BETWEEN 290101 AND 290103",
+                Integer.class
+        )).isEqualTo(3);
     }
 
     private Integer count(String table, Long id) {

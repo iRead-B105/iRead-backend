@@ -1,0 +1,20 @@
+{
+  "rawData": {
+    "schemaVersion": "story-gaze-raw-v1",
+    "studentId": 2002,
+    "storyId": 280004,
+    "replayWords": [
+      {"questionNo": 1, "storyLineId": 282007, "tokenIndex": 0, "text": "별주부는", "dwellMs": 9800},
+      {"questionNo": 2, "storyLineId": 282008, "tokenIndex": 0, "text": "토끼는", "dwellMs": 6200}
+    ],
+    "samples": [
+      {"pageNo": 1, "storyLineId": 282007, "tokenIndex": 0, "text": "별주부는", "capturedAtMs": 300, "presence": true, "x": 0.28, "y": 0.42},
+      {"pageNo": 1, "storyLineId": 282007, "tokenIndex": 1, "text": "이OO에게", "capturedAtMs": 940, "presence": true, "x": 0.42, "y": 0.43},
+      {"pageNo": 1, "storyLineId": 282007, "tokenIndex": 2, "text": "용궁으로", "capturedAtMs": 1580, "presence": true, "x": 0.57, "y": 0.43},
+      {"pageNo": 1, "storyLineId": 282007, "tokenIndex": 0, "text": "별주부는", "capturedAtMs": 2240, "presence": true, "x": 0.29, "y": 0.42},
+      {"pageNo": 2, "storyLineId": 282008, "tokenIndex": 0, "text": "토끼는", "capturedAtMs": 10800, "presence": true, "x": 0.30, "y": 0.41},
+      {"pageNo": 2, "storyLineId": 282008, "tokenIndex": 1, "text": "지혜로운", "capturedAtMs": 11400, "presence": true, "x": 0.44, "y": 0.42},
+      {"pageNo": 2, "storyLineId": 282008, "tokenIndex": 2, "text": "해결책을", "capturedAtMs": 12100, "presence": true, "x": 0.61, "y": 0.43}
+    ]
+  }
+}
