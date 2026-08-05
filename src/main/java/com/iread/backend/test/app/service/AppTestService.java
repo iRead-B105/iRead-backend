@@ -791,8 +791,14 @@ public class AppTestService {
                     trackTitle + " 실력도전용 훈련 템플릿이 3개 이상 필요합니다."
             );
         }
-        Collections.shuffle(candidates);
-        return List.copyOf(candidates.subList(0, TRACK_QUESTION_COUNT));
+        // 첫 실력검증은 고정 진단지다. 템플릿 목록은 교육과정 단계 순(=난이도 오름차순)으로
+        // 정렬되어 있으므로, 무작위 대신 쉬움·중간·어려움을 고르게 뽑아 모든 아동이
+        // 같은 구성으로 검사받게 한다.
+        return List.of(
+                candidates.getFirst(),
+                candidates.get(candidates.size() / 2),
+                candidates.getLast()
+        );
     }
 
     private TrainingType templateType(TrainingTemplateEntity template) {

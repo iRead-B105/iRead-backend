@@ -151,8 +151,10 @@ public class PersonalizedTrainingGenerationService {
         List<String> excluded = stringValues(prompt.path("excludedFeatures"));
         List<CandidateValidationIssue> allIssues = new ArrayList<>();
 
+        long contentSeed = template.getId();
         ObjectNode question = tryGenerateTestQuestion(
-                type, requiredInputs, profiles, targets, excluded, prompt, requestId, allIssues
+                type, requiredInputs, profiles, targets, excluded, prompt, requestId,
+                contentSeed, allIssues
         );
         if (question == null && !targets.isEmpty()) {
             // 취약 특성을 반영한 문항 생성이 불가능한 조합(예: 겹받침 특성 ×
@@ -160,7 +162,7 @@ public class PersonalizedTrainingGenerationService {
             // 특성 지정 없는 표준 문항으로 폴백한다.
             question = tryGenerateTestQuestion(
                     type, requiredInputs, profiles, List.of(), excluded,
-                    prompt, requestId + "-fallback", allIssues
+                    prompt, requestId + "-fallback", contentSeed, allIssues
             );
         }
         if (question == null) {
@@ -180,6 +182,7 @@ public class PersonalizedTrainingGenerationService {
             List<String> excluded,
             ObjectNode prompt,
             String requestId,
+            long contentSeed,
             List<CandidateValidationIssue> allIssues
     ) {
         List<String> targetCodes = targets.stream()
@@ -207,7 +210,13 @@ public class PersonalizedTrainingGenerationService {
                     .filter(issue -> issue.dataIndex() >= 0)
                     .map(CandidateValidationIssue::dataIndex)
                     .collect(java.util.stream.Collectors.toSet());
-            for (int index = 0; index < response.data().size(); index++) {
+            // 항상 첫 후보만 채택하면 결정적 provider에서 모든 문항이 같은 내용이 된다.
+            // 템플릿 ID를 시드로 시작 위치를 분산해, 아동 간에는 동일한 고정 진단지가
+            // 유지되면서 문항 간에는 서로 다른 내용이 뽑히게 한다.
+            int size = response.data().size();
+            int seedOffset = Math.floorMod(Long.hashCode(contentSeed), Math.max(size, 1));
+            for (int step = 0; step < size; step++) {
+                int index = (seedOffset + step) % size;
                 if (invalidIndices.contains(index)) {
                     continue;
                 }
