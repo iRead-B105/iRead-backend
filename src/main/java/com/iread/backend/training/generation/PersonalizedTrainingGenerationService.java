@@ -148,12 +148,43 @@ public class PersonalizedTrainingGenerationService {
                 .limit(2)
                 .map(this::toTarget)
                 .toList();
-        List<String> targetCodes = targets.stream()
-                .map(TrainingTargetFeature::featureCode)
-                .toList();
         List<String> excluded = stringValues(prompt.path("excludedFeatures"));
         List<CandidateValidationIssue> allIssues = new ArrayList<>();
 
+        ObjectNode question = tryGenerateTestQuestion(
+                type, requiredInputs, profiles, targets, excluded, prompt, requestId, allIssues
+        );
+        if (question == null && !targets.isEmpty()) {
+            // 취약 특성을 반영한 문항 생성이 불가능한 조합(예: 겹받침 특성 ×
+            // 해당 특성을 표현할 수 없는 템플릿)이면 검사 자체가 막히지 않도록
+            // 특성 지정 없는 표준 문항으로 폴백한다.
+            question = tryGenerateTestQuestion(
+                    type, requiredInputs, profiles, List.of(), excluded,
+                    prompt, requestId + "-fallback", allIssues
+            );
+        }
+        if (question == null) {
+            throw new TrainingGenerationException(
+                    "검증을 통과한 실력도전 문항을 생성하지 못했습니다.",
+                    allIssues
+            );
+        }
+        return testEnvelope(template, prompt, profiles, question);
+    }
+
+    private ObjectNode tryGenerateTestQuestion(
+            TrainingType type,
+            Set<TrainingInputType> requiredInputs,
+            List<StudentFeatureProfileEntity> profiles,
+            List<TrainingTargetFeature> targets,
+            List<String> excluded,
+            ObjectNode prompt,
+            String requestId,
+            List<CandidateValidationIssue> allIssues
+    ) {
+        List<String> targetCodes = targets.stream()
+                .map(TrainingTargetFeature::featureCode)
+                .toList();
         for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
             TrainingCandidateRequest request = new TrainingCandidateRequest(
                     requestId + "-attempt-" + attempt,
@@ -198,13 +229,10 @@ public class PersonalizedTrainingGenerationService {
                     allIssues.addAll(featureIssues);
                     continue;
                 }
-                return testEnvelope(template, prompt, profiles, assembled.question());
+                return assembled.question();
             }
         }
-        throw new TrainingGenerationException(
-                "검증을 통과한 실력도전 문항을 생성하지 못했습니다.",
-                allIssues
-        );
+        return null;
     }
 
     private ObjectNode envelope(

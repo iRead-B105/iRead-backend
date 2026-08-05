@@ -1,7 +1,6 @@
 package com.iread.backend.learning.app.service;
 
 import com.iread.backend.ai.client.AiClient;
-import com.iread.backend.ai.dto.res.GenerateImageResponse;
 import com.iread.backend.learning.app.dto.LearningResponseType;
 import com.iread.backend.learning.app.dto.LearningSubmission;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,9 +15,8 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 class AppLearningQuestionSupportTest {
 
@@ -57,13 +55,8 @@ class AppLearningQuestionSupportTest {
     }
 
     @Test
-    void enrichesImageUrlAndVoiceRecordingTargets() throws Exception {
+    void preservesImagePromptWithoutGeneratingImageAndAddsVoiceRecordingTargets() throws Exception {
         AiClient aiClient = mock(AiClient.class);
-        when(aiClient.generateImage(any())).thenReturn(new GenerateImageResponse(
-                "training-image-request",
-                "http://localhost:8000/api/v1/images/mock/example.svg",
-                "MOCK_IMAGE_V1"
-        ));
         support = new AppLearningQuestionSupport(objectMapper, aiClient);
         var question = objectMapper.readTree("""
                 {
@@ -83,8 +76,10 @@ class AppLearningQuestionSupportTest {
 
         var result = support.toStudentQuestion(question);
 
-        assertThat(result.path("content").path("imageUrl").asText())
-                .isEqualTo("http://localhost:8000/api/v1/images/mock/example.svg");
+        assertThat(result.path("content").has("imageUrl")).isFalse();
+        assertThat(result.path("content").path("imagePrompt").asText())
+                .isEqualTo("우산을 쓰는 아이");
+        verifyNoInteractions(aiClient);
         assertThat(result.path("recordingTargets")).hasSize(2);
         assertThat(result.path("recommendedRecordingTargetIndex").asInt()).isZero();
     }

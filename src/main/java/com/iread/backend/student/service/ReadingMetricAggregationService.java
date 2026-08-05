@@ -13,9 +13,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 import java.util.function.Function;
 
 @Service
@@ -147,6 +149,59 @@ public class ReadingMetricAggregationService {
         );
     }
 
+    public ReadingMetricSummary summarize(
+            Long studentId,
+            LocalDate from,
+            LocalDate to
+    ) {
+        AccuracyRecordsResponse accuracySource = getAccuracyRecords(studentId, from, to);
+        ReadingSpeedRecordsResponse speedSource = getReadingSpeedRecords(studentId, from, to);
+
+        Map<LocalDate, DailyAccuracy> dailyAccuracy = new LinkedHashMap<>();
+        AccuracyTotals accuracyTotals = new AccuracyTotals();
+        accuracySource.records().forEach(record -> {
+            if (record.measuredAt() == null) {
+                return;
+            }
+            dailyAccuracy
+                    .computeIfAbsent(record.measuredAt().toLocalDate(), ignored -> new DailyAccuracy())
+                    .add(record);
+            accuracyTotals.add(record);
+        });
+
+        Map<LocalDate, DailyVoiceSpeed> dailySpeed = new LinkedHashMap<>();
+        VoiceSpeedTotals speedTotals = new VoiceSpeedTotals();
+        speedSource.records().forEach(record -> {
+            if (record.measuredAt() == null) {
+                return;
+            }
+            dailySpeed
+                    .computeIfAbsent(record.measuredAt().toLocalDate(), ignored -> new DailyVoiceSpeed())
+                    .add(record);
+            speedTotals.add(record);
+        });
+
+        TreeSet<LocalDate> dates = new TreeSet<>(Comparator.naturalOrder());
+        dates.addAll(dailyAccuracy.keySet());
+        dates.addAll(dailySpeed.keySet());
+        List<ReadingMetricSummary.DailyMetric> dailyMetrics = dates.stream()
+                .map(date -> new ReadingMetricSummary.DailyMetric(
+                        date,
+                        dailyAccuracy.containsKey(date) ? dailyAccuracy.get(date).rate() : null,
+                        dailySpeed.containsKey(date) ? dailySpeed.get(date).rate() : null
+                ))
+                .toList();
+
+        return new ReadingMetricSummary(
+                CALCULATION_VERSION,
+                ACCURACY_UNIT,
+                READING_SPEED_UNIT,
+                accuracyTotals.rate(),
+                speedTotals.rate(),
+                dailyMetrics
+        );
+    }
+
     private List<StudentRepository.ReadingSpeedTrainingProjection> loadReadingSpeedRows(
             Long studentId,
             DateRange range
@@ -234,6 +289,52 @@ public class ReadingMetricAggregationService {
                     attemptCount,
                     percentage(correctAttemptCount, attemptCount)
             );
+        }
+
+        private BigDecimal rate() {
+            return percentage(correctAttemptCount, attemptCount);
+        }
+    }
+
+    private static final class AccuracyTotals {
+        private long correctAttemptCount;
+        private long attemptCount;
+
+        private void add(AccuracyRecordsResponse.Record record) {
+            correctAttemptCount += record.correctAttemptCount();
+            attemptCount += record.attemptCount();
+        }
+
+        private BigDecimal rate() {
+            return percentage(correctAttemptCount, attemptCount);
+        }
+    }
+
+    private static final class DailyVoiceSpeed {
+        private long correctWordCount;
+        private long measuredDurationMs;
+
+        private void add(ReadingSpeedRecordsResponse.Record record) {
+            correctWordCount += record.correctWordCount();
+            measuredDurationMs += record.measuredDurationMs();
+        }
+
+        private BigDecimal rate() {
+            return speed(correctWordCount, measuredDurationMs);
+        }
+    }
+
+    private static final class VoiceSpeedTotals {
+        private long correctWordCount;
+        private long measuredDurationMs;
+
+        private void add(ReadingSpeedRecordsResponse.Record record) {
+            correctWordCount += record.correctWordCount();
+            measuredDurationMs += record.measuredDurationMs();
+        }
+
+        private BigDecimal rate() {
+            return speed(correctWordCount, measuredDurationMs);
         }
     }
 

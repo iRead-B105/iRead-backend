@@ -207,8 +207,21 @@ public class AppTestService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "학생을 찾을 수 없습니다."
                 ));
+        // 실력도전 플랜 선택 규칙:
+        // 1) 미완료 검사가 있으면 이어서 진행 (시드된 최초 검사는 9문항으로 보충)
+        // 2) 없으면 최신 완료 검사가 현행 9문항 형식일 때 완료 플랜 반환
+        //    (당일 재시험 불가, 다음 검사는 새벽 배치가 생성)
+        // 3) 완료된 레거시(9문항 아님) 이력뿐이거나 검사가 없으면 새 9문항 생성.
+        //    완료된 검사는 문항 구성을 바꿀 수 없으므로 보충 대상에서 제외한다.
         TestCurriculumEntity curriculum = testCurriculumRepository
-                .findFirstByStudentIdOrderByCreatedAtDescIdDesc(studentId)
+                .findFirstByStudentIdAndStatusInOrderByCreatedAtDescIdDesc(
+                        studentId,
+                        List.of(
+                                TestStatus.NOT_STARTED.name(),
+                                TestStatus.IN_PROGRESS.name()
+                        )
+                )
+                .or(() -> latestCurrentFormatChallenge(studentId))
                 .orElseGet(() -> createChallenge(student));
         List<StudentTestEntity> tests =
                 testRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(
@@ -218,6 +231,15 @@ public class AppTestService {
             tests = expandLegacyChallenge(student, curriculum, tests);
         }
         return toChallengePlan(curriculum, tests);
+    }
+
+    /** 최신 검사가 현행 9문항 형식일 때만 반환한다. 레거시 이력은 플랜 대상이 아니다. */
+    private java.util.Optional<TestCurriculumEntity> latestCurrentFormatChallenge(Long studentId) {
+        return testCurriculumRepository
+                .findFirstByStudentIdOrderByCreatedAtDescIdDesc(studentId)
+                .filter(curriculum -> testRepository
+                        .findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(curriculum.getId())
+                        .size() == TOTAL_QUESTION_COUNT);
     }
 
     public TestIntroResponse getIntro(Long teacherId, Long studentId, Long testId) {
@@ -626,6 +648,15 @@ public class AppTestService {
     }
 
     private TestCurriculumEntity createChallenge(StudentEntity student) {
+        return createChallenge(student, LocalDateTime.now());
+    }
+
+    /**
+     * 9문항 실력도전 검사(분류별 3문항)와 문항 데이터를 생성한다.
+     * 데모 시드가 과거 시점의 검사 이력을 만들 때 재사용할 수 있도록 생성 시각을 받는다.
+     */
+    @Transactional
+    public TestCurriculumEntity createChallenge(StudentEntity student, LocalDateTime createdAt) {
         List<TrainingTemplateEntity> templates = trainingTemplateRepository
                 .findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc()
                 .stream()
@@ -636,7 +667,6 @@ public class AppTestService {
         selected.addAll(selectTemplates(templates, SHORT_TEXT_TYPES, "글 해독 및 문장 이해"));
         selected.addAll(selectTemplates(templates, FLUENCY_TYPES, "유창성"));
 
-        LocalDateTime createdAt = LocalDateTime.now();
         TestCurriculumEntity curriculum = testCurriculumRepository.saveAndFlush(
                 new TestCurriculumEntity(nextCurriculumId(), student, createdAt)
         );

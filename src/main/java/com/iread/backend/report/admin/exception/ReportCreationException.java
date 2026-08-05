@@ -26,9 +26,9 @@ public class ReportCreationException extends RuntimeException {
         return new ReportCreationException(
                 HttpStatus.BAD_REQUEST,
                 "REPORT_INSUFFICIENT_LEARNING_DAYS",
-                "At least two distinct completed training days are required.",
+                "At least one distinct completed training day is required.",
                 Map.of(
-                        "requiredDays", 2,
+                        "requiredDays", 1,
                         "actualDays", actualDays
                 ),
                 null
