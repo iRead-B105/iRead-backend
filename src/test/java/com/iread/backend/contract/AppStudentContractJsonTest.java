@@ -61,6 +61,8 @@ class AppStudentContractJsonTest {
                         2,
                         25,
                         new BigDecimal("75.50"),
+                        53,
+                        "훈련을 7번 더 하면 자라나요!",
                         LocalDateTime.of(2026, 7, 29, 12, 0)
                 )
         ));
@@ -77,5 +79,7 @@ class AppStudentContractJsonTest {
         assertThat(area.get("stageName").asText()).isEqualTo("꽃봉오리");
         assertThat(area.get("recentAverageAccuracy").decimalValue())
                 .isEqualByComparingTo("75.50");
+        assertThat(area.get("nextStageProgressPercent").asInt()).isEqualTo(53);
+        assertThat(area.get("nextStageHint").asText()).isEqualTo("훈련을 7번 더 하면 자라나요!");
     }
 }

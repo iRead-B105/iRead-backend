@@ -15,6 +15,8 @@ public record GrowthAreaResponse(
         int masteredTemplateCount,
         int masteredCoveragePercent,
         BigDecimal recentAverageAccuracy,
+        int nextStageProgressPercent,
+        String nextStageHint,
         LocalDateTime updatedAt
 ) {
 }

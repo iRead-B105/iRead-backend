@@ -92,14 +92,23 @@ class GrowthServiceTest {
             assertThat(area.distinctTemplateCount()).isEqualTo(2);
             assertThat(area.stage()).isEqualTo(2);
             assertThat(area.stageName()).isEqualTo("새싹");
+            // 꽃봉오리 승급 병목: 필요 커버리지 25%(21개 중 6개) 대비 경험 2개 = 33%
+            assertThat(area.nextStageProgressPercent()).isEqualTo(33);
+            assertThat(area.nextStageHint()).isEqualTo("새로운 활동을 4개 더 해봐요!");
         });
-        assertThat(result.growthAreas().get(1).stage()).isEqualTo(1);
+        assertThat(result.growthAreas().get(1)).satisfies(area -> {
+            assertThat(area.stage()).isEqualTo(1);
+            assertThat(area.nextStageProgressPercent()).isEqualTo(0);
+            assertThat(area.nextStageHint()).isEqualTo("훈련을 3번 더 하면 자라나요!");
+        });
         assertThat(result.growthAreas().get(2)).satisfies(area -> {
             assertThat(area.name()).isEqualTo("유창성");
             assertThat(area.stage()).isEqualTo(5);
             assertThat(area.stageName()).isEqualTo("만개");
             assertThat(area.masteredTemplateCount()).isEqualTo(4);
             assertThat(area.recentAverageAccuracy()).isEqualByComparingTo("0.00");
+            assertThat(area.nextStageProgressPercent()).isEqualTo(100);
+            assertThat(area.nextStageHint()).isNull();
         });
     }
 

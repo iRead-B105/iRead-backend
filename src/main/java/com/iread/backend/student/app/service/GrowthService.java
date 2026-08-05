@@ -236,6 +236,7 @@ public class GrowthService {
         }
 
         private GrowthAreaResponse response() {
+            NextStageProgress nextStage = nextStageProgress();
             return new GrowthAreaResponse(
                     area.id,
                     area.displayName,
@@ -248,8 +249,113 @@ public class GrowthService {
                     masteredTemplates.size(),
                     percentage(masteredTemplates.size()),
                     recentAverageAccuracy(),
+                    nextStage.percent(),
+                    nextStage.hint(),
                     updatedAt
             );
         }
+
+        /**
+         * 다음 단계 승급 조건 대비 진행률.
+         * 병목(가장 덜 채워진) 조건을 기준으로 하므로, 진행 바가 100%가 되는
+         * 순간이 곧 승급 시점과 일치한다. 힌트도 병목 조건을 설명한다.
+         */
+        private NextStageProgress nextStageProgress() {
+            if (highestStage >= STAGE_NAMES.size()) {
+                return new NextStageProgress(100, null);
+            }
+            List<NextStageCondition> conditions = switch (highestStage + 1) {
+                case 2 -> List.of(
+                        completedCondition(properties.sproutCompleted()),
+                        distinctCondition(properties.sproutDistinctTemplates())
+                );
+                case 3 -> List.of(
+                        completedCondition(properties.budCompleted()),
+                        coverageCondition(properties.budCoveragePercent())
+                );
+                case 4 -> List.of(
+                        completedCondition(properties.flowerCompleted()),
+                        coverageCondition(properties.flowerCoveragePercent()),
+                        accuracyCondition(properties.flowerRecentAccuracy())
+                );
+                default -> List.of(
+                        completedCondition(properties.fullBloomCompleted()),
+                        masteryCondition(properties.fullBloomMasteryCoveragePercent()),
+                        accuracyCondition(properties.fullBloomRecentAccuracy())
+                );
+            };
+            NextStageCondition bottleneck = conditions.stream()
+                    .min(Comparator.comparingInt(NextStageCondition::percent))
+                    .orElseThrow();
+            return new NextStageProgress(
+                    bottleneck.percent(),
+                    bottleneck.percent() >= 100 ? null : bottleneck.hint()
+            );
+        }
+
+        private NextStageCondition completedCondition(int required) {
+            long remaining = Math.max(0, required - completedCount);
+            return new NextStageCondition(
+                    ratioPercent(completedCount, required),
+                    "훈련을 " + remaining + "번 더 하면 자라나요!"
+            );
+        }
+
+        private NextStageCondition distinctCondition(int required) {
+            int remaining = Math.max(0, required - experiencedTemplates.size());
+            return new NextStageCondition(
+                    ratioPercent(experiencedTemplates.size(), required),
+                    "새로운 활동을 " + remaining + "개 더 해봐요!"
+            );
+        }
+
+        private NextStageCondition coverageCondition(int requiredPercent) {
+            int requiredCount = requiredTemplateCount(requiredPercent);
+            int remaining = Math.max(0, requiredCount - experiencedTemplates.size());
+            return new NextStageCondition(
+                    ratioPercent(experiencedTemplates.size(), requiredCount),
+                    "새로운 활동을 " + remaining + "개 더 해봐요!"
+            );
+        }
+
+        private NextStageCondition masteryCondition(int requiredPercent) {
+            int requiredCount = requiredTemplateCount(requiredPercent);
+            int remaining = Math.max(0, requiredCount - masteredTemplates.size());
+            return new NextStageCondition(
+                    ratioPercent(masteredTemplates.size(), requiredCount),
+                    "활동 " + remaining + "개를 더 멋지게 해내 봐요!"
+            );
+        }
+
+        private NextStageCondition accuracyCondition(int requiredAccuracy) {
+            BigDecimal recentAverage = recentAverageAccuracy();
+            long achieved = recentAverage == null
+                    ? 0
+                    : recentAverage.setScale(0, RoundingMode.DOWN).longValueExact();
+            return new NextStageCondition(
+                    ratioPercent(achieved, requiredAccuracy),
+                    "요즘 점수를 " + requiredAccuracy + "점까지 올려봐요!"
+            );
+        }
+
+        private int requiredTemplateCount(int requiredPercent) {
+            return Math.toIntExact(BigDecimal
+                    .valueOf((long) area.totalTemplateCount() * requiredPercent)
+                    .divide(BigDecimal.valueOf(100), 0, RoundingMode.CEILING)
+                    .longValueExact());
+        }
+
+        private static int ratioPercent(long achieved, long required) {
+            if (required <= 0) {
+                return 100;
+            }
+            return Math.toIntExact(Math.min(100, achieved * 100 / required));
+        }
+    }
+
+    private record NextStageProgress(int percent, String hint) {
+    }
+
+    private record NextStageCondition(int percent, String hint) {
     }
 }
