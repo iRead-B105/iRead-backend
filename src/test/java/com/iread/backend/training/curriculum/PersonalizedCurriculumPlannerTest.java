@@ -7,9 +7,7 @@ import com.iread.backend.readingfeature.domain.StudentFeatureProfileEntity;
 import com.iread.backend.readingfeature.repository.StudentFeatureProfileRepository;
 import com.iread.backend.training.domain.CurriculumUnitEntity;
 import com.iread.backend.training.domain.TrainingTemplateEntity;
-import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
 import com.iread.backend.training.repository.DailyCurriculumRepository;
-import com.iread.backend.training.repository.TrainingDataRepository;
 import com.iread.backend.training.repository.TrainingTemplateRepository;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.test.repository.TestCurriculumRepository;
@@ -30,7 +28,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -44,17 +41,12 @@ class PersonalizedCurriculumPlannerTest {
                 mock(StudentFeatureProfileRepository.class);
         StudentRepository students = mock(StudentRepository.class);
         TestCurriculumRepository testCurriculums = mock(TestCurriculumRepository.class);
-        TrainingDataRepository trainingData = mock(TrainingDataRepository.class);
-        PersonalizedTrainingGenerationService generation =
-                mock(PersonalizedTrainingGenerationService.class);
         PersonalizedCurriculumPlanner planner = new PersonalizedCurriculumPlanner(
                 curricula,
                 templates,
                 profiles,
                 students,
                 testCurriculums,
-                trainingData,
-                generation,
                 JsonMapper.builder().build()
         );
 
@@ -100,17 +92,12 @@ class PersonalizedCurriculumPlannerTest {
         StudentFeatureProfileRepository profiles = mock(StudentFeatureProfileRepository.class);
         StudentRepository students = mock(StudentRepository.class);
         TestCurriculumRepository testCurriculums = mock(TestCurriculumRepository.class);
-        TrainingDataRepository trainingData = mock(TrainingDataRepository.class);
-        PersonalizedTrainingGenerationService generation =
-                mock(PersonalizedTrainingGenerationService.class);
         PersonalizedCurriculumPlanner planner = new PersonalizedCurriculumPlanner(
                 curricula,
                 templates,
                 profiles,
                 students,
                 testCurriculums,
-                trainingData,
-                generation,
                 JsonMapper.builder().build()
         );
         StudentEntity student = mock(StudentEntity.class);
@@ -123,7 +110,6 @@ class PersonalizedCurriculumPlannerTest {
         when(testCurriculums.findByIdForUpdate(500L)).thenReturn(Optional.of(source));
         when(curricula.findByStudentIdAndStatus(15L, DailyCurriculumStatus.NOT_STARTED))
                 .thenReturn(Optional.empty());
-        when(curricula.existsByStudentId(15L)).thenReturn(true);
         List<TrainingTemplateEntity> catalog = List.of(
                 template(1L, 1, 1, false),
                 template(2L, 2, 1, false),
@@ -144,58 +130,6 @@ class PersonalizedCurriculumPlannerTest {
         assertThat(created.getTrainings()).hasSize(5);
         assertThat(created.getTrainings()).extracting(training -> training.getSequenceNo())
                 .containsExactly(1, 2, 3, 4, 5);
-        verify(generation, never()).generateSeed(any());
-    }
-
-    @Test
-    void seedsFirstCurriculumWithoutAiCalls() {
-        DailyCurriculumRepository curricula = mock(DailyCurriculumRepository.class);
-        TrainingTemplateRepository templates = mock(TrainingTemplateRepository.class);
-        StudentFeatureProfileRepository profiles = mock(StudentFeatureProfileRepository.class);
-        StudentRepository students = mock(StudentRepository.class);
-        TestCurriculumRepository testCurriculums = mock(TestCurriculumRepository.class);
-        TrainingDataRepository trainingData = mock(TrainingDataRepository.class);
-        PersonalizedTrainingGenerationService generation =
-                mock(PersonalizedTrainingGenerationService.class);
-        PersonalizedCurriculumPlanner planner = new PersonalizedCurriculumPlanner(
-                curricula,
-                templates,
-                profiles,
-                students,
-                testCurriculums,
-                trainingData,
-                generation,
-                JsonMapper.builder().build()
-        );
-        StudentEntity student = mock(StudentEntity.class);
-        when(student.getId()).thenReturn(15L);
-        when(students.findByIdForUpdate(15L)).thenReturn(Optional.of(student));
-        when(curricula.findByStudentIdAndStatus(15L, DailyCurriculumStatus.NOT_STARTED))
-                .thenReturn(Optional.empty());
-        when(curricula.existsByStudentId(15L)).thenReturn(false);
-        List<TrainingTemplateEntity> catalog = List.of(
-                template(1L, 1, 1, false),
-                template(2L, 2, 1, false),
-                template(3L, 3, 1, false),
-                template(4L, 4, 1, false),
-                template(5L, 8, 1, false),
-                template(6L, 5, 1, false)
-        );
-        when(templates.findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc())
-                .thenReturn(catalog);
-        when(profiles.findAllByStudentIdOrderByWeaknessScoreDesc(15L)).thenReturn(List.of());
-        when(curricula.saveAndFlush(any(DailyCurriculumEntity.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
-        when(generation.generateSeed(any())).thenAnswer(invocation ->
-                JsonMapper.builder().build().createObjectNode().put("schemaVersion", 2));
-
-        DailyCurriculumEntity created = planner.createNextIfAbsent(student);
-
-        assertThat(created.getTrainings()).hasSize(5);
-        assertThat(created.getTrainings()).allMatch(training ->
-                training.getStatus() == com.iread.backend.training.domain.TrainingStatus.NOT_STARTED);
-        verify(generation, times(5)).generateSeed(any());
-        verify(trainingData, times(5)).save(any());
     }
 
     @Test
@@ -205,17 +139,12 @@ class PersonalizedCurriculumPlannerTest {
         StudentFeatureProfileRepository profiles = mock(StudentFeatureProfileRepository.class);
         StudentRepository students = mock(StudentRepository.class);
         TestCurriculumRepository testCurriculums = mock(TestCurriculumRepository.class);
-        TrainingDataRepository trainingData = mock(TrainingDataRepository.class);
-        PersonalizedTrainingGenerationService generation =
-                mock(PersonalizedTrainingGenerationService.class);
         PersonalizedCurriculumPlanner planner = new PersonalizedCurriculumPlanner(
                 curricula,
                 templates,
                 profiles,
                 students,
                 testCurriculums,
-                trainingData,
-                generation,
                 JsonMapper.builder().build()
         );
         StudentEntity student = mock(StudentEntity.class);
@@ -242,17 +171,12 @@ class PersonalizedCurriculumPlannerTest {
         StudentFeatureProfileRepository profiles = mock(StudentFeatureProfileRepository.class);
         StudentRepository students = mock(StudentRepository.class);
         TestCurriculumRepository testCurriculums = mock(TestCurriculumRepository.class);
-        TrainingDataRepository trainingData = mock(TrainingDataRepository.class);
-        PersonalizedTrainingGenerationService generation =
-                mock(PersonalizedTrainingGenerationService.class);
         PersonalizedCurriculumPlanner planner = new PersonalizedCurriculumPlanner(
                 curricula,
                 templates,
                 profiles,
                 students,
                 testCurriculums,
-                trainingData,
-                generation,
                 JsonMapper.builder().build()
         );
         StudentEntity student = mock(StudentEntity.class);
