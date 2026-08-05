@@ -68,7 +68,8 @@ public class DemoAllTrainingCurriculumInitializer implements ApplicationRunner {
 
         List<TrainingEntity> trainings = curriculum.getTrainings();
         for (TrainingEntity training : trainings) {
-            ObjectNode generated = generationService.generate(training);
+            // 데모 시드는 AI 호출 없이 항상 시드 데이터로 채운다
+            ObjectNode generated = generationService.generateSeed(training);
             trainingDataRepository.save(
                     new TrainingDataEntity(training, writeJson(generated))
             );

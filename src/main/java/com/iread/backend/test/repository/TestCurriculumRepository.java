@@ -25,6 +25,8 @@ public interface TestCurriculumRepository extends JpaRepository<TestCurriculumEn
 
     boolean existsByStudentIdAndStatus(Long studentId, String status);
 
+    boolean existsByStudentId(Long studentId);
+
     List<TestCurriculumEntity> findAllByStudentIdOrderByCreatedAtDescIdDesc(Long studentId);
 
     Optional<TestCurriculumEntity> findByIdAndStudentId(Long id, Long studentId);

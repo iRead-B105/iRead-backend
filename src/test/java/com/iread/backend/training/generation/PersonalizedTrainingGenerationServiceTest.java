@@ -54,7 +54,7 @@ class PersonalizedTrainingGenerationServiceTest {
         JsonNode generated = service.generate(training);
 
         assertThat(generated.path("schemaVersion").asInt()).isEqualTo(2);
-        assertThat(generated.path("generationMetadata").path("provider").asText()).isEqualTo("MOCK");
+        assertThat(generated.path("generationMetadata").path("provider").asText()).isEqualTo("AI");
         assertThat(generated.path("profileSnapshot").path("analysisVersion").asText())
                 .isEqualTo("WEAKNESS_V1");
         assertThat(generated.path("profileSnapshot").path("features")).hasSize(1);

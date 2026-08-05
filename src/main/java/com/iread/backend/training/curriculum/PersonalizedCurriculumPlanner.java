@@ -9,15 +9,20 @@ import com.iread.backend.test.domain.TestStatus;
 import com.iread.backend.test.repository.TestCurriculumRepository;
 import com.iread.backend.training.domain.DailyCurriculumEntity;
 import com.iread.backend.training.domain.DailyCurriculumStatus;
+import com.iread.backend.training.domain.TrainingDataEntity;
+import com.iread.backend.training.domain.TrainingEntity;
 import com.iread.backend.training.domain.TrainingTemplateEntity;
+import com.iread.backend.training.generation.PersonalizedTrainingGenerationService;
 import com.iread.backend.training.generation.TrainingCatalogPolicy;
 import com.iread.backend.training.repository.DailyCurriculumRepository;
+import com.iread.backend.training.repository.TrainingDataRepository;
 import com.iread.backend.training.repository.TrainingTemplateRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -40,18 +45,28 @@ public class PersonalizedCurriculumPlanner {
     private final StudentFeatureProfileRepository profileRepository;
     private final StudentRepository studentRepository;
     private final TestCurriculumRepository testCurriculumRepository;
+    private final TrainingDataRepository trainingDataRepository;
+    private final PersonalizedTrainingGenerationService generationService;
     private final ObjectMapper objectMapper;
 
     @Transactional
     public DailyCurriculumEntity createNextIfAbsent(StudentEntity student) {
         studentRepository.findByIdForUpdate(student.getId())
                 .orElseThrow(() -> new IllegalStateException("학생을 찾을 수 없습니다."));
-        return curriculumRepository.findByStudentIdAndStatus(
-                        student.getId(), DailyCurriculumStatus.NOT_STARTED
-                )
-                .orElseGet(() -> curriculumRepository.saveAndFlush(
-                        new DailyCurriculumEntity(student, selectTemplates(student.getId()))
-                ));
+        Optional<DailyCurriculumEntity> existing = curriculumRepository.findByStudentIdAndStatus(
+                student.getId(), DailyCurriculumStatus.NOT_STARTED
+        );
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        boolean firstCurriculum = !curriculumRepository.existsByStudentId(student.getId());
+        DailyCurriculumEntity curriculum = curriculumRepository.saveAndFlush(
+                new DailyCurriculumEntity(student, selectTemplates(student.getId()))
+        );
+        if (firstCurriculum) {
+            seedFirstCurriculum(curriculum);
+        }
+        return curriculum;
     }
 
     @Transactional
@@ -83,11 +98,43 @@ public class PersonalizedCurriculumPlanner {
                     "다른 출처의 시작 전 커리큘럼이 있어 검사 추천을 생성할 수 없습니다."
             );
         }
-        return curriculumRepository.saveAndFlush(new DailyCurriculumEntity(
-                student,
-                selectTemplates(student.getId()),
-                source
-        ));
+        boolean firstCurriculum = !curriculumRepository.existsByStudentId(student.getId());
+        DailyCurriculumEntity curriculum = curriculumRepository.saveAndFlush(
+                new DailyCurriculumEntity(
+                        student,
+                        selectTemplates(student.getId()),
+                        source
+                )
+        );
+        if (firstCurriculum) {
+            seedFirstCurriculum(curriculum);
+        }
+        return curriculum;
+    }
+
+    /**
+     * 학생의 첫 커리큘럼은 새벽 배치(AI 생성)를 기다리지 않고 즉시 학습할 수 있어야
+     * 하므로, 미리 정의된 시드 데이터로 문항을 채우고 바로 시작 가능 상태로 만든다.
+     */
+    private void seedFirstCurriculum(DailyCurriculumEntity curriculum) {
+        for (TrainingEntity training : curriculum.getTrainings()) {
+            ObjectNode generated = generationService.generateSeed(training);
+            generated.put("revision", 1);
+            trainingDataRepository.save(
+                    new TrainingDataEntity(training, writeJson(generated))
+            );
+            training.markReady();
+        }
+        curriculum.refreshReviewRequirement();
+        trainingDataRepository.flush();
+    }
+
+    private String writeJson(ObjectNode value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception exception) {
+            throw new IllegalStateException("첫 커리큘럼 시드 JSON 저장에 실패했습니다.", exception);
+        }
     }
 
     public List<TrainingTemplateEntity> selectTemplates(Long studentId) {

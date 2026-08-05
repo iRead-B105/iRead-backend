@@ -176,7 +176,8 @@ class AppTestServiceTest {
                 });
         when(testRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(any()))
                 .thenAnswer(ignored -> List.copyOf(savedTests));
-        when(trainingGenerationService.generateTestQuestion(any(), any(), any()))
+        // 첫 검사(초기 테스트)는 AI 호출 없이 시드 경로로 생성돼야 한다
+        when(trainingGenerationService.generateSeedTestQuestion(any(), any(), any()))
                 .thenAnswer(ignored -> {
                     var generated = mapper.createObjectNode();
                     generated.putArray("questions")

@@ -648,15 +648,22 @@ public class AppTestService {
     }
 
     private TestCurriculumEntity createChallenge(StudentEntity student) {
-        return createChallenge(student, LocalDateTime.now());
+        // 학생의 첫 검사(초기 테스트)는 AI 호출 없이 미리 정의된 시드 데이터로 만든다.
+        boolean seeded = !testCurriculumRepository.existsByStudentId(student.getId());
+        return createChallenge(student, LocalDateTime.now(), seeded);
     }
 
     /**
      * 9문항 실력도전 검사(분류별 3문항)와 문항 데이터를 생성한다.
      * 데모 시드가 과거 시점의 검사 이력을 만들 때 재사용할 수 있도록 생성 시각을 받는다.
+     * seeded=true면 AI 호출 없이 시드 데이터로 문항을 채운다(초기 테스트·데모 시드용).
      */
     @Transactional
-    public TestCurriculumEntity createChallenge(StudentEntity student, LocalDateTime createdAt) {
+    public TestCurriculumEntity createChallenge(
+            StudentEntity student,
+            LocalDateTime createdAt,
+            boolean seeded
+    ) {
         List<TrainingTemplateEntity> templates = trainingTemplateRepository
                 .findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc()
                 .stream()
@@ -675,11 +682,12 @@ public class AppTestService {
             StudentTestEntity test = testRepository.saveAndFlush(
                     new StudentTestEntity(curriculum, template, index + 1)
             );
-            ObjectNode generated = trainingGenerationService.generateTestQuestion(
-                    student.getId(),
-                    template,
-                    "skill-challenge-" + curriculum.getId() + "-" + (index + 1)
-            );
+            String requestId = "skill-challenge-" + curriculum.getId() + "-" + (index + 1);
+            ObjectNode generated = seeded
+                    ? trainingGenerationService.generateSeedTestQuestion(
+                            student.getId(), template, requestId)
+                    : trainingGenerationService.generateTestQuestion(
+                            student.getId(), template, requestId);
             testDataRepository.save(
                     new TestDataEntity(
                             nextTestDataId(),

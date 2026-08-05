@@ -32,6 +32,10 @@ public class PersonalizedTrainingGenerationService {
     public static final String WEAKNESS_VERSION = "WEAKNESS_V1";
     private static final int QUESTION_COUNT = 5;
     private static final int MAX_ATTEMPTS = 3;
+    private static final GenerationSource AI_SOURCE =
+            new GenerationSource("AI", "AI_TRAINING_CANDIDATES_V1");
+    private static final GenerationSource SEED_SOURCE =
+            new GenerationSource("SEED", "DETERMINISTIC_TRAINING_SEED_V1");
 
     private final ObjectMapper objectMapper;
     private final TrainingCandidateProvider candidateProvider;
@@ -39,7 +43,36 @@ public class PersonalizedTrainingGenerationService {
     private final TrainingQuestionAssembler questionAssembler;
     private final StudentFeatureProfileRepository profileRepository;
 
+    private record GenerationSource(String provider, String model) {
+    }
+
+    /**
+     * 초기 검사·첫날 커리큘럼처럼 AI 호출 없이 미리 정의된 데이터로 채워야 하는
+     * 흐름에서 쓰는 시드 후보 공급자. ai.mock-generate 값과 무관하게 항상 쓸 수 있다.
+     */
+    private DeterministicTrainingCandidateProvider seedCandidateProvider;
+
+    private TrainingCandidateProvider seedCandidateProvider() {
+        if (seedCandidateProvider == null) {
+            seedCandidateProvider = new DeterministicTrainingCandidateProvider(objectMapper);
+        }
+        return seedCandidateProvider;
+    }
+
     public ObjectNode generate(TrainingEntity training) {
+        return generate(training, candidateProvider, AI_SOURCE);
+    }
+
+    /** AI 호출 없이 시드 데이터로 훈련 문항을 생성한다. */
+    public ObjectNode generateSeed(TrainingEntity training) {
+        return generate(training, seedCandidateProvider(), SEED_SOURCE);
+    }
+
+    private ObjectNode generate(
+            TrainingEntity training,
+            TrainingCandidateProvider provider,
+            GenerationSource source
+    ) {
         ObjectNode prompt = parsePrompt(training.getTrainingTemplate().getPrompt());
         TrainingType type = TrainingType.from(prompt.path("trainingType").asText());
         Set<TrainingInputType> requiredInputs = TrainingInputPolicy.resolve(
@@ -73,7 +106,7 @@ public class PersonalizedTrainingGenerationService {
                     prompt.path("additionalPrompt").asText(),
                     prompt.path("outputTemplate")
             );
-            TrainingCandidateResponse response = candidateProvider.generate(request);
+            TrainingCandidateResponse response = provider.generate(request);
             CandidateValidationResult structure = candidateValidator.validate(request, response);
             allIssues.addAll(structure.issues());
 
@@ -126,13 +159,34 @@ public class PersonalizedTrainingGenerationService {
                     allIssues
             );
         }
-        return envelope(training, prompt, profiles, accepted);
+        return envelope(training, prompt, profiles, accepted, source);
     }
 
     public ObjectNode generateTestQuestion(
             Long studentId,
             TrainingTemplateEntity template,
             String requestId
+    ) {
+        return generateTestQuestion(studentId, template, requestId, candidateProvider, AI_SOURCE);
+    }
+
+    /** AI 호출 없이 시드 데이터로 실력도전 문항을 생성한다. */
+    public ObjectNode generateSeedTestQuestion(
+            Long studentId,
+            TrainingTemplateEntity template,
+            String requestId
+    ) {
+        return generateTestQuestion(
+                studentId, template, requestId, seedCandidateProvider(), SEED_SOURCE
+        );
+    }
+
+    private ObjectNode generateTestQuestion(
+            Long studentId,
+            TrainingTemplateEntity template,
+            String requestId,
+            TrainingCandidateProvider provider,
+            GenerationSource source
     ) {
         ObjectNode prompt = parsePrompt(template.getPrompt());
         TrainingType type = TrainingType.from(prompt.path("trainingType").asText());
@@ -154,7 +208,7 @@ public class PersonalizedTrainingGenerationService {
         long contentSeed = template.getId();
         ObjectNode question = tryGenerateTestQuestion(
                 type, requiredInputs, profiles, targets, excluded, prompt, requestId,
-                contentSeed, allIssues
+                contentSeed, allIssues, provider
         );
         if (question == null && !targets.isEmpty()) {
             // 취약 특성을 반영한 문항 생성이 불가능한 조합(예: 겹받침 특성 ×
@@ -162,7 +216,7 @@ public class PersonalizedTrainingGenerationService {
             // 특성 지정 없는 표준 문항으로 폴백한다.
             question = tryGenerateTestQuestion(
                     type, requiredInputs, profiles, List.of(), excluded,
-                    prompt, requestId + "-fallback", contentSeed, allIssues
+                    prompt, requestId + "-fallback", contentSeed, allIssues, provider
             );
         }
         if (question == null) {
@@ -171,7 +225,7 @@ public class PersonalizedTrainingGenerationService {
                     allIssues
             );
         }
-        return testEnvelope(template, prompt, profiles, question);
+        return testEnvelope(template, prompt, profiles, question, source);
     }
 
     private ObjectNode tryGenerateTestQuestion(
@@ -183,7 +237,8 @@ public class PersonalizedTrainingGenerationService {
             ObjectNode prompt,
             String requestId,
             long contentSeed,
-            List<CandidateValidationIssue> allIssues
+            List<CandidateValidationIssue> allIssues,
+            TrainingCandidateProvider provider
     ) {
         List<String> targetCodes = targets.stream()
                 .map(TrainingTargetFeature::featureCode)
@@ -200,7 +255,7 @@ public class PersonalizedTrainingGenerationService {
                     prompt.path("additionalPrompt").asText(),
                     prompt.path("outputTemplate")
             );
-            TrainingCandidateResponse response = candidateProvider.generate(request);
+            TrainingCandidateResponse response = provider.generate(request);
             CandidateValidationResult structure = candidateValidator.validate(request, response);
             allIssues.addAll(structure.issues());
             if (structure.issues().stream().anyMatch(issue -> issue.dataIndex() < 0)) {
@@ -248,15 +303,16 @@ public class PersonalizedTrainingGenerationService {
             TrainingEntity training,
             ObjectNode prompt,
             List<StudentFeatureProfileEntity> profiles,
-            List<ObjectNode> questions
+            List<ObjectNode> questions,
+            GenerationSource source
     ) {
         ObjectNode root = objectMapper.createObjectNode();
         root.put("schemaVersion", GENERATED_DATA_SCHEMA_VERSION);
 
         ObjectNode metadata = root.putObject("generationMetadata");
-        metadata.put("source", "AI");
-        metadata.put("provider", "MOCK");
-        metadata.put("model", "DETERMINISTIC_TRAINING_MOCK_V1");
+        metadata.put("source", source.provider());
+        metadata.put("provider", source.provider());
+        metadata.put("model", source.model());
         metadata.put("promptVersion", prompt.path("promptVersion").asText("TRAINING_PROMPT_V2"));
         metadata.put("generatedAt", LocalDateTime.now().toString());
         metadata.put("trainingTemplateId", training.getTrainingTemplate().getId());
@@ -282,15 +338,16 @@ public class PersonalizedTrainingGenerationService {
             TrainingTemplateEntity template,
             ObjectNode prompt,
             List<StudentFeatureProfileEntity> profiles,
-            ObjectNode question
+            ObjectNode question,
+            GenerationSource source
     ) {
         ObjectNode root = objectMapper.createObjectNode();
         root.put("schemaVersion", GENERATED_DATA_SCHEMA_VERSION);
 
         ObjectNode metadata = root.putObject("generationMetadata");
-        metadata.put("source", "AI");
-        metadata.put("provider", "MOCK");
-        metadata.put("model", "DETERMINISTIC_TRAINING_MOCK_V1");
+        metadata.put("source", source.provider());
+        metadata.put("provider", source.provider());
+        metadata.put("model", source.model());
         metadata.put("promptVersion", prompt.path("promptVersion").asText("TRAINING_PROMPT_V2"));
         metadata.put("generatedAt", LocalDateTime.now().toString());
         metadata.put("trainingTemplateId", template.getId());

@@ -96,14 +96,14 @@ public class DemoChallengeSeedInitializer implements ApplicationRunner {
         // 재시드하지 않는다. 다음 회차는 새벽 배치가 만든다.
         boolean alreadyTookSeededChallenge = currentFormat.size() >= 2;
         if (!hasPendingChallenge && !alreadyTookSeededChallenge) {
-            appTestService.createChallenge(student, LocalDateTime.now());
+            appTestService.createChallenge(student, LocalDateTime.now(), true);
         }
     }
 
     /** 과거 시점에 완료한 초기 검사 이력을 만든다. */
     private void seedCompletedHistory(StudentEntity student) {
         TestCurriculumEntity curriculum =
-                appTestService.createChallenge(student, HISTORY_CREATED_AT);
+                appTestService.createChallenge(student, HISTORY_CREATED_AT, true);
         List<StudentTestEntity> tests = testRepository
                 .findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(curriculum.getId());
         curriculum.start();

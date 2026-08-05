@@ -61,7 +61,7 @@ class DemoAllTrainingCurriculumInitializerTest {
                 DemoAllTrainingCurriculumInitializer.DEMO_CURRICULUM_ID
         )).thenReturn(Optional.of(curriculum));
         when(templateRepository.findCanonicalCatalog(1L, 34L)).thenReturn(templates);
-        when(generationService.generate(any())).thenAnswer(invocation -> {
+        when(generationService.generateSeed(any())).thenAnswer(invocation -> {
             ObjectNode generated = objectMapper.createObjectNode();
             generated.put("schemaVersion", 2);
             IntStream.rangeClosed(1, 5).forEach(questionNo -> generated.withArray("questions")
