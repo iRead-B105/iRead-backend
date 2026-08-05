@@ -1,11 +1,157 @@
 # iRead Backend
 
-iRead의 Backend 서비스 저장소입니다.
+iRead 서비스의 백엔드 애플리케이션입니다.
 
 ## 기술 스택
 
-- Spring Boot 3
 - Java 21
-- Gradle Kotlin DSL
+- Spring Boot 4.0.7
+- Gradle Groovy DSL
+- Spring Web MVC
+- Spring Data JPA
+- Spring Security
+- Spring Validation
+- MyBatis
+- MySQL 8.4
+- Redis 7.4
+- Lombok
 
-서비스 책임과 구현 범위는 오케스트레이션 저장소의 기획 문서를 기준으로 정합니다.
+## Docker Compose 사용법
+
+Docker Compose는 로컬 개발용 MySQL, Redis, AI Mock과 Mailpit 컨테이너를 실행합니다.
+AI Mock은 인접한 `iRead-ai` 저장소의 FastAPI 서버를 빌드하여 실행합니다.
+
+### 실행
+
+```bash
+docker compose up -d
+```
+
+AI Mock 코드가 변경된 경우 이미지를 다시 빌드합니다.
+
+```bash
+docker compose up -d --build ai-mock
+```
+
+실행되는 컨테이너:
+
+- MySQL: `localhost:3306`
+- Redis: `localhost:6379`
+- AI Mock: `localhost:8081`
+- Mailpit SMTP: `localhost:1025`
+- Mailpit 웹 메일함: `http://localhost:8025`
+
+Spring Boot에서 사용할 데이터베이스 접속 정보는 로컬 환경 설정에서 관리합니다.
+
+JWT 인증을 사용하는 로컬 실행 환경에는 다음 환경변수가 필요합니다.
+
+- `AUTH_JWT_SECRET`: 32바이트 이상의 임의 문자열
+- `AUTH_COOKIE_SECURE`: 로컬 HTTP에서는 `false`, HTTPS에서는 `true`
+- `AUTH_PASSWORD_RESET_FRONTEND_URL`: 이메일 링크가 이동할 Frontend 주소
+- `AUTH_PASSWORD_RESET_FROM`: 비밀번호 재설정 메일 발신 주소
+
+외부 배포에서는 `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`,
+`SMTP_AUTH`, `SMTP_STARTTLS`를 배포 환경변수로 설정합니다. SMTP 자격 증명,
+비밀번호와 재설정 토큰은 채팅, 저장소, 로그에 기록하지 않습니다.
+
+비밀번호 재설정 요청 후 로컬 데모 메일은 `http://localhost:8025`에서 확인합니다.
+링크는 10분 동안 한 번만 사용할 수 있으며 새 링크를 요청하면 이전 링크는
+무효화됩니다.
+
+### 상태 확인
+
+```bash
+docker compose ps
+```
+
+### 로그 확인
+
+```bash
+docker compose logs -f
+```
+
+특정 서비스만 확인하려면:
+
+```bash
+docker compose logs -f mysql
+docker compose logs -f redis
+docker compose logs -f mailpit
+```
+
+### 중지
+
+```bash
+docker compose down
+```
+
+### 데이터까지 삭제
+
+MySQL, Redis 볼륨 데이터까지 삭제하려면 아래 명령을 사용합니다.
+
+```bash
+docker compose down -v
+```
+
+## 애플리케이션 실행
+
+로컬 설정은 `src/main/resources/application-local.properties`에 작성합니다.
+이 파일은 `application.properties`에서 optional로 import됩니다.
+
+예시:
+
+```properties
+spring.datasource.url=jdbc:mysql://localhost:3306/iread?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+spring.datasource.username=<DB_USERNAME>
+spring.datasource.password=<DB_PASSWORD>
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.properties.hibernate.format_sql=true
+
+spring.data.redis.host=localhost
+spring.data.redis.port=6379
+
+# 음성 업로드
+spring.servlet.multipart.max-file-size=20MB
+spring.servlet.multipart.max-request-size=21MB
+app.audio-upload.max-size=20MB
+app.audio-upload.allowed-content-types=audio/webm,audio/wav,audio/mpeg,audio/mp4
+app.audio-upload.temp-dir=${java.io.tmpdir}/iread-audio
+
+# AI 서버
+ai.base-url=http://localhost:8081
+ai.connect-timeout=3s
+ai.read-timeout=30s
+```
+
+음성 파일은 MIME과 확장자가 일치해야 하며 STT 전송용 임시 파일은 성공·실패 후 즉시 삭제됩니다.
+AI의 이야기·훈련 생성, 평가, STT와 TTS 요청은 상태 변경 요청으로 취급해 자동 재시도하지 않습니다.
+
+애플리케이션 실행:
+
+```bash
+./gradlew bootRun
+```
+
+Windows PowerShell:
+
+```powershell
+.\gradlew.bat bootRun
+```
+
+## 테스트
+
+```bash
+./gradlew test
+```
+
+Windows PowerShell:
+
+```powershell
+.\gradlew.bat test
+```
+
+Pull Request와 `develop` push에서는 `Backend Validation` 워크플로가 전체 테스트와
+MySQL 8.4 Flyway·JPA·동시성·데모 seed 검증을 각각 실행합니다. 실패한 전체 테스트와
+MySQL 테스트의 HTML 리포트는 Actions 실행 화면의 `backend-test-reports`,
+`backend-mysql-test-reports` artifact에서 7일 동안 확인할 수 있습니다.

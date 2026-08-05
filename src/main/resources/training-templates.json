@@ -1,0 +1,325 @@
+{
+  "schemaVersion": "TRAINING_TEMPLATE_SEED_V1",
+  "curriculumUnits": [
+    {"id": 1, "name": "글자 따라 보기", "sequenceNo": 1},
+    {"id": 2, "name": "소리 듣고 고르기", "sequenceNo": 2},
+    {"id": 3, "name": "글자 만들기", "sequenceNo": 3},
+    {"id": 4, "name": "글자 자르기", "sequenceNo": 4},
+    {"id": 5, "name": "글자 대치", "sequenceNo": 5},
+    {"id": 6, "name": "글 해독", "sequenceNo": 6},
+    {"id": 7, "name": "문장 완성 및 이해", "sequenceNo": 7},
+    {"id": 8, "name": "유창하게 읽기", "sequenceNo": 8}
+  ],
+  "templates": [
+    {
+      "id": 1, "curriculumUnitId": 1, "sequenceNo": 1, "name": "모음 따라 보기",
+      "prompt": {
+        "trainingType": "VOWEL_TRACE",
+        "requiredInputs": ["VOICE", "GAZE"],
+        "additionalPrompt": "기본 모음 또는 복합 모음의 형태와 획순을 익히는 데이터를 생성한다. vowelType은 BASIC 또는 COMPLEX만 사용하고 target에는 완성된 한글 모음 하나를 넣는다. soundText는 실제 소릿값이며 같은 target을 중복하지 않는다. traceAssetKey는 영문 소문자, 숫자, 밑줄만 사용한다.",
+        "outputTemplate": {"type": "VOWEL_TRACE", "data": [{"vowelType": "<string>", "target": "<string>", "soundText": "<string>", "traceAssetKey": "<string>"}]},
+        "supportedFeatureCategories": ["GRAPHEME"], "supportedScopes": ["CHARACTER"]
+      }
+    },
+    {
+      "id": 2, "curriculumUnitId": 1, "sequenceNo": 2, "name": "자음 따라 보기",
+      "prompt": {
+        "trainingType": "CONSONANT_TRACE",
+        "requiredInputs": ["VOICE", "GAZE"],
+        "additionalPrompt": "기본 자음, 된소리 또는 거센소리의 형태와 획순을 익히는 데이터를 생성한다. consonantType은 BASIC, TENSE, ASPIRATED 중 하나만 사용한다. target은 한글 자음 하나이며 soundText에는 자음 이름이 아닌 실제 소릿값을 넣는다.",
+        "outputTemplate": {"type": "CONSONANT_TRACE", "data": [{"consonantType": "<string>", "target": "<string>", "soundText": "<string>", "traceAssetKey": "<string>"}]},
+        "supportedFeatureCategories": ["GRAPHEME"], "supportedScopes": ["CHARACTER"]
+      }
+    },
+    {
+      "id": 3, "curriculumUnitId": 1, "sequenceNo": 3, "name": "음절 따라 보기",
+      "prompt": {
+        "trainingType": "SYLLABLE_TRACE",
+        "requiredInputs": ["VOICE", "GAZE"],
+        "additionalPrompt": "받침 없는 음절, 받침 있는 음절, 복합 모음 또는 된소리가 포함된 음절을 생성한다. syllableType은 WITHOUT_FINAL, WITH_FINAL, COMPLEX_VOWEL, TENSE_CONSONANT 중 하나이며 target의 실제 구조와 일치해야 한다.",
+        "outputTemplate": {"type": "SYLLABLE_TRACE", "data": [{"syllableType": "<string>", "target": "<string>", "soundText": "<string>", "traceAssetKey": "<string>"}]},
+        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
+      }
+    },
+    {
+      "id": 4, "curriculumUnitId": 2, "sequenceNo": 1, "name": "자음 소리 고르기",
+      "prompt": {
+        "trainingType": "CONSONANT_SOUND_CHOICE",
+        "requiredInputs": [],
+        "additionalPrompt": "자음 소리를 듣고 알맞은 자음 카드를 고른다. choices는 정답 1개와 중복 없는 오답 2개를 포함해 정확히 3개로 생성한다. audioText는 자음 이름이 아닌 실제 소릿값이고 choices에는 한글 자음만 넣는다. answerIndex를 실제 정답 위치와 일치시킨다.",
+        "outputTemplate": {"type": "CONSONANT_SOUND_CHOICE", "data": [{"audioText": "<string>", "choices": ["<string>"], "answerIndex": "<integer>"}]},
+        "supportedFeatureCategories": ["GRAPHEME"], "supportedScopes": ["CHARACTER"]
+      }
+    },
+    {
+      "id": 5, "curriculumUnitId": 2, "sequenceNo": 2, "name": "모음 소리 고르기",
+      "prompt": {
+        "trainingType": "VOWEL_SOUND_CHOICE",
+        "requiredInputs": [],
+        "additionalPrompt": "모음 소리를 듣고 알맞은 모음 카드를 고른다. choices는 정답 1개와 중복 없는 오답 2개를 포함해 정확히 3개로 생성한다. audioText는 목표 모음의 실제 소릿값이고 choices에는 한글 모음만 넣는다. 형태나 소리가 비슷한 오답을 포함한다.",
+        "outputTemplate": {"type": "VOWEL_SOUND_CHOICE", "data": [{"audioText": "<string>", "choices": ["<string>"], "answerIndex": "<integer>"}]},
+        "supportedFeatureCategories": ["GRAPHEME"], "supportedScopes": ["CHARACTER"]
+      }
+    },
+    {
+      "id": 7, "curriculumUnitId": 2, "sequenceNo": 4, "name": "음절의 첫소리 찾기",
+      "prompt": {
+        "trainingType": "SYLLABLE_INITIAL_CHOICE",
+        "requiredInputs": [],
+        "additionalPrompt": "한글 음절 하나를 듣고 실제 초성을 고른다. choices는 정답 1개와 중복 없는 오답 2개를 포함해 정확히 3개로 생성한다. choices에는 초성 자음만 넣고 오답은 정답과 형태나 소리가 비슷한 자음을 우선 사용한다.",
+        "outputTemplate": {"type": "SYLLABLE_INITIAL_CHOICE", "data": [{"audioText": "<string>", "choices": ["<string>"], "answerIndex": "<integer>"}]},
+        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
+      }
+    },
+    {
+      "id": 8, "curriculumUnitId": 2, "sequenceNo": 5, "name": "낱말의 첫소리 찾기",
+      "prompt": {
+        "trainingType": "WORD_INITIAL_CHOICE",
+        "requiredInputs": [],
+        "additionalPrompt": "친숙한 실제 낱말을 듣고 첫 음절의 초성을 고른다. choices는 정답 1개와 중복 없는 오답 2개를 포함해 정확히 3개로 생성한다. choices에는 초성 자음만 넣고 받침이나 의미가 아니라 첫소리만으로 판단할 수 있게 구성한다.",
+        "outputTemplate": {"type": "WORD_INITIAL_CHOICE", "data": [{"audioText": "<string>", "choices": ["<string>"], "answerIndex": "<integer>"}]},
+        "supportedFeatureCategories": ["GRAPHEME", "WORD"], "supportedScopes": ["CHARACTER", "WORD"]
+      }
+    },
+    {
+      "id": 9, "curriculumUnitId": 2, "sequenceNo": 6, "name": "같은 첫소리 낱말 찾기",
+      "prompt": {
+        "trainingType": "SAME_INITIAL_WORD_CHOICE",
+        "requiredInputs": [],
+        "additionalPrompt": "targetType은 SYLLABLE 또는 WORD, choiceType은 WORD 또는 IMAGE_WORD만 사용한다. choices는 정답 1개와 중복 없는 오답 2개를 포함해 정확히 3개로 생성한다. targetAudioText와 정답 낱말의 초성이 같고 오답은 다른 초성으로 시작해야 한다. WORD의 imagePrompt는 빈 문자열이다.",
+        "outputTemplate": {"type": "SAME_INITIAL_WORD_CHOICE", "data": [{"targetType": "<string>", "targetAudioText": "<string>", "choiceType": "<string>", "choices": [{"text": "<string>", "imagePrompt": "<string>"}], "answerIndex": "<integer>"}]},
+        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE", "WORD"], "supportedScopes": ["CHARACTER", "SYLLABLE", "WORD"]
+      }
+    },
+    {
+      "id": 10, "curriculumUnitId": 2, "sequenceNo": 7, "name": "받침 소리 고르기",
+      "prompt": {
+        "trainingType": "FINAL_CONSONANT_CHOICE",
+        "requiredInputs": [],
+        "additionalPrompt": "받침이 있는 한글 음절 하나를 듣고 실제 종성 자음을 고른다. choices는 정답 1개와 중복 없는 오답 2개를 포함해 정확히 3개로 생성한다. choices에는 종성 자음만 넣고 낮은 난이도에서는 표기와 발음이 달라지는 복잡한 음운 규칙을 피한다.",
+        "outputTemplate": {"type": "FINAL_CONSONANT_CHOICE", "data": [{"audioText": "<string>", "choices": ["<string>"], "answerIndex": "<integer>"}]},
+        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
+      }
+    },
+    {
+      "id": 11, "curriculumUnitId": 2, "sequenceNo": 8, "name": "낱말의 끝소리 고르기",
+      "prompt": {
+        "trainingType": "WORD_FINAL_SOUND_CHOICE",
+        "requiredInputs": [],
+        "additionalPrompt": "친숙한 받침 포함 낱말을 듣고 마지막에 들리는 표준 발음의 끝소리를 고른다. choices는 정답 1개와 중복 없는 오답 2개를 포함해 정확히 3개로 생성한다. 낮은 난이도에서는 음운 변동이 없는 낱말을 우선한다.",
+        "outputTemplate": {"type": "WORD_FINAL_SOUND_CHOICE", "data": [{"audioText": "<string>", "choices": ["<string>"], "answerIndex": "<integer>"}]},
+        "supportedFeatureCategories": ["GRAPHEME", "PHONOLOGY", "WORD"], "supportedScopes": ["CHARACTER", "SYLLABLE", "WORD"]
+      }
+    },
+    {
+      "id": 12, "curriculumUnitId": 2, "sequenceNo": 9, "name": "서로 다른 받침 음절 비교하기",
+      "prompt": {
+        "trainingType": "FINAL_CONSONANT_COMPARISON",
+        "requiredInputs": [],
+        "additionalPrompt": "같은 초성과 중성을 가지면서 받침만 다른 음절 중 목표 음절을 고른다. choices는 정답 1개와 중복 없는 오답 2개를 포함해 정확히 3개로 생성한다. choices는 가능한 한 초성과 중성을 공유하고 종성만 다르게 구성하며 정답은 audioText와 정확히 일치한다.",
+        "outputTemplate": {"type": "FINAL_CONSONANT_COMPARISON", "data": [{"audioText": "<string>", "choices": ["<string>"], "answerIndex": "<integer>"}]},
+        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
+      }
+    },
+    {
+      "id": 13, "curriculumUnitId": 2, "sequenceNo": 10, "name": "비슷한 소리 고르기",
+      "prompt": {
+        "trainingType": "SIMILAR_SOUND_CHOICE",
+        "requiredInputs": [],
+        "additionalPrompt": "soundGroup은 PLAIN_ASPIRATED, PLAIN_TENSE, ASPIRATED_TENSE, SIMILAR_PLACE 중 하나다. audioText에는 목표 자음 또는 간단한 음절을 넣고 choices는 해당 유사 소리 그룹으로 구성한다.",
+        "outputTemplate": {"type": "SIMILAR_SOUND_CHOICE", "data": [{"soundGroup": "<string>", "audioText": "<string>", "choices": ["<string>"], "answerIndex": "<integer>"}]},
+        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
+      }
+    },
+    {
+      "id": 15, "curriculumUnitId": 3, "sequenceNo": 2, "name": "음절 합쳐 낱말 만들기",
+      "prompt": {
+        "trainingType": "SYLLABLE_BLEND",
+        "requiredInputs": [],
+        "additionalPrompt": "분리된 음절을 순서대로 합쳐 친숙한 실제 낱말을 만든다. cards에는 정답과 방해 음절을 넣고 answerOrder는 result를 만드는 cards 인덱스 순서다.",
+        "outputTemplate": {"type": "SYLLABLE_BLEND", "data": [{"audioParts": ["<string>"], "cards": ["<string>"], "answerOrder": ["<integer>"], "result": "<string>"}]},
+        "supportedFeatureCategories": ["SYLLABLE", "WORD"], "supportedScopes": ["SYLLABLE", "WORD"]
+      }
+    },
+    {
+      "id": 16, "curriculumUnitId": 3, "sequenceNo": 3, "name": "기본 글자 만들기",
+      "prompt": {
+        "trainingType": "BASIC_SYLLABLE_BUILD",
+        "requiredInputs": [],
+        "additionalPrompt": "받침 없는 동일한 음절을 듣고 초성과 중성을 조합한다. initialChoices와 medialChoices에는 각각 올바른 자모만 넣고 정답 인덱스의 자모 결합은 result와 일치해야 한다.",
+        "outputTemplate": {"type": "BASIC_SYLLABLE_BUILD", "data": [{"targetAudioText": "<string>", "initialChoices": ["<string>"], "medialChoices": ["<string>"], "initialAnswerIndex": "<integer>", "medialAnswerIndex": "<integer>", "result": "<string>"}]},
+        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
+      }
+    },
+    {
+      "id": 17, "curriculumUnitId": 3, "sequenceNo": 4, "name": "받침 글자 만들기",
+      "prompt": {
+        "trainingType": "FINAL_SYLLABLE_BUILD",
+        "requiredInputs": [],
+        "additionalPrompt": "받침 있는 동일한 음절을 듣고 초성, 중성, 홑받침을 조합한다. 각 choices에는 올바른 종류의 자모만 넣고 세 정답 자모의 결합은 result와 일치해야 한다.",
+        "outputTemplate": {"type": "FINAL_SYLLABLE_BUILD", "data": [{"targetAudioText": "<string>", "initialChoices": ["<string>"], "medialChoices": ["<string>"], "finalChoices": ["<string>"], "initialAnswerIndex": "<integer>", "medialAnswerIndex": "<integer>", "finalAnswerIndex": "<integer>", "result": "<string>"}]},
+        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
+      }
+    },
+    {
+      "id": 18, "curriculumUnitId": 3, "sequenceNo": 5, "name": "겹받침 글자 만들기",
+      "prompt": {
+        "trainingType": "DOUBLE_FINAL_BUILD",
+        "requiredInputs": [],
+        "additionalPrompt": "겹받침이 포함된 음절 범위로 일관되게 생성한다. finalChoices에는 정답 겹받침과 혼동 가능한 홑받침 또는 다른 겹받침을 넣고 정답 자모 결합은 result의 목표 음절과 일치해야 한다.",
+        "outputTemplate": {"type": "DOUBLE_FINAL_BUILD", "data": [{"targetAudioText": "<string>", "initialChoices": ["<string>"], "medialChoices": ["<string>"], "finalChoices": ["<string>"], "initialAnswerIndex": "<integer>", "medialAnswerIndex": "<integer>", "finalAnswerIndex": "<integer>", "result": "<string>"}]},
+        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
+      }
+    },
+    {
+      "id": 19, "curriculumUnitId": 4, "sequenceNo": 1, "name": "받침 빼기",
+      "prompt": {
+        "trainingType": "FINAL_CONSONANT_DELETE",
+        "requiredInputs": [],
+        "additionalPrompt": "받침 있는 한글 음절 source에서 종성만 제거한다. removableUnits에는 방해 자음 없이 source를 분해한 초성, 중성, 종성을 순서대로 넣고 answerIndex는 종성 위치를 가리킨다. targetAudioText와 result는 종성을 제거한 음절로 같아야 한다.",
+        "outputTemplate": {"type": "FINAL_CONSONANT_DELETE", "data": [{"source": "<string>", "targetAudioText": "<string>", "removableUnits": ["<string>"], "answerIndex": "<integer>", "result": "<string>"}]},
+        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE"], "supportedScopes": ["CHARACTER", "SYLLABLE"]
+      }
+    },
+    {
+      "id": 20, "curriculumUnitId": 4, "sequenceNo": 2, "name": "음절 빼기",
+      "prompt": {
+        "trainingType": "SYLLABLE_DELETE",
+        "requiredInputs": [],
+        "additionalPrompt": "두 음절 이상의 source를 syllables 순서로 분해하고 deleteIndex의 한 음절을 제거해 result를 만든다. targetAudioText와 result는 같은 내용이어야 한다.",
+        "outputTemplate": {"type": "SYLLABLE_DELETE", "data": [{"source": "<string>", "targetAudioText": "<string>", "syllables": ["<string>"], "deleteIndex": "<integer>", "result": "<string>"}]},
+        "supportedFeatureCategories": ["SYLLABLE", "WORD"], "supportedScopes": ["SYLLABLE", "WORD"]
+      }
+    },
+    {
+      "id": 21, "curriculumUnitId": 5, "sequenceNo": 1, "name": "음절 바꾸기",
+      "prompt": {
+        "trainingType": "SYLLABLE_REPLACE",
+        "requiredInputs": [],
+        "additionalPrompt": "두 음절 이상의 source와 result는 정확히 한 음절만 달라야 한다. replaceIndex와 answerIndex의 선택지를 적용하면 result가 되며 가능한 한 친숙한 실제 낱말을 사용한다.",
+        "outputTemplate": {"type": "SYLLABLE_REPLACE", "data": [{"source": "<string>", "targetAudioText": "<string>", "replaceIndex": "<integer>", "choices": ["<string>"], "answerIndex": "<integer>", "result": "<string>"}]},
+        "supportedFeatureCategories": ["SYLLABLE", "WORD"], "supportedScopes": ["SYLLABLE", "WORD"]
+      }
+    },
+    {
+      "id": 22, "curriculumUnitId": 6, "sequenceNo": 1, "name": "낱말 읽기",
+      "prompt": {
+        "trainingType": "WORD_READING",
+        "requiredInputs": ["VOICE", "GAZE"],
+        "additionalPrompt": "readingOrder는 FREE 또는 SEQUENTIAL이다. words에는 친숙한 실제 낱말을 중복 없이 넣고 난이도에 따라 음절 수, 받침, 복합 모음과 된소리를 조절한다.",
+        "outputTemplate": {"type": "WORD_READING", "data": [{"readingOrder": "<string>", "words": ["<string>"]}]},
+        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE", "PHONOLOGY", "WORD"], "supportedScopes": ["CHARACTER", "SYLLABLE", "WORD", "WORD_BOUNDARY"]
+      }
+    },
+    {
+      "id": 23, "curriculumUnitId": 6, "sequenceNo": 2, "name": "새 낱말 읽기",
+      "prompt": {
+        "trainingType": "NONWORD_READING",
+        "requiredInputs": ["VOICE", "GAZE"],
+        "additionalPrompt": "실제 낱말과 발음 가능한 비단어를 생성한다. isNonword=true는 일반적으로 쓰이는 실제 낱말이 아니고 false는 실제 낱말이어야 하며 두 종류 요청 시 모두 포함한다.",
+        "outputTemplate": {"type": "NONWORD_READING", "data": [{"words": [{"text": "<string>", "isNonword": "<boolean>"}]}]},
+        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE", "PHONOLOGY", "WORD"], "supportedScopes": ["CHARACTER", "SYLLABLE", "WORD", "WORD_BOUNDARY"]
+      }
+    },
+    {
+      "id": 25, "curriculumUnitId": 6, "sequenceNo": 4, "name": "문장 읽기",
+      "prompt": {
+        "trainingType": "SENTENCE_READING",
+        "requiredInputs": ["VOICE", "GAZE"],
+        "additionalPrompt": "처음부터 끝까지 순서대로 읽을 자연스러운 한 문장을 생성한다. tokens에는 강조할 어절을 순서대로 넣고 공백으로 결합해 문장부호를 복원하면 sentence와 일치해야 한다.",
+        "outputTemplate": {"type": "SENTENCE_READING", "data": [{"sentence": "<string>", "tokens": ["<string>"]}]},
+        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE", "PHONOLOGY", "WORD", "SENTENCE"], "supportedScopes": ["CHARACTER", "SYLLABLE", "WORD", "WORD_BOUNDARY", "SENTENCE"]
+      }
+    },
+    {
+      "id": 26, "curriculumUnitId": 6, "sequenceNo": 5, "name": "짧은 글 읽기",
+      "prompt": {
+        "trainingType": "SHORT_PASSAGE_READING",
+        "requiredInputs": ["VOICE", "GAZE"],
+        "additionalPrompt": "정확한 해독을 위한 2~3문장의 짧은 글을 생성한다. 문장 흐름은 자연스럽고 서술 중심이며 복잡한 비유나 배경지식을 피한다.",
+        "outputTemplate": {"type": "SHORT_PASSAGE_READING", "data": [{"sentences": ["<string>"]}]},
+        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE", "PHONOLOGY", "WORD", "SENTENCE"], "supportedScopes": ["CHARACTER", "SYLLABLE", "WORD", "WORD_BOUNDARY", "SENTENCE"]
+      }
+    },
+    {
+      "id": 27, "curriculumUnitId": 7, "sequenceNo": 1, "name": "문장 전체 조립",
+      "prompt": {
+        "trainingType": "SENTENCE_ASSEMBLY",
+        "requiredInputs": ["VOICE", "GAZE"],
+        "additionalPrompt": "섞인 낱말 또는 어절 cards를 answerOrder대로 배열하면 completedSentence가 되어야 한다. 초기 cards 순서는 정답 순서와 다르고 하나의 명확한 정답만 가능해야 한다.",
+        "outputTemplate": {"type": "SENTENCE_ASSEMBLY", "data": [{"cards": ["<string>"], "answerOrder": ["<integer>"], "completedSentence": "<string>"}]},
+        "supportedFeatureCategories": ["WORD", "SENTENCE"], "supportedScopes": ["WORD", "SENTENCE"]
+      }
+    },
+    {
+      "id": 28, "curriculumUnitId": 7, "sequenceNo": 2, "name": "빈칸에 알맞은 단어 넣기",
+      "prompt": {
+        "trainingType": "FILL_IN_THE_BLANK",
+        "requiredInputs": ["VOICE", "GAZE"],
+        "additionalPrompt": "sentence에 {{blank}}를 정확히 한 번 넣는다. inputType은 CHOICE, TEXT, VOICE, HANDWRITING 중 하나다. 직접 입력은 choices 빈 배열과 answerIndex -1이며 정답을 넣으면 completedSentence와 일치한다.",
+        "outputTemplate": {"type": "FILL_IN_THE_BLANK", "data": [{"sentence": "<string>", "inputType": "<string>", "choices": ["<string>"], "answerIndex": "<integer>", "acceptedAnswers": ["<string>"], "completedSentence": "<string>"}]},
+        "supportedFeatureCategories": ["WORD", "SENTENCE"], "supportedScopes": ["WORD", "SENTENCE"]
+      }
+    },
+    {
+      "id": 29, "curriculumUnitId": 7, "sequenceNo": 3, "name": "그림과 문장 연결하기",
+      "prompt": {
+        "trainingType": "IMAGE_SENTENCE_MATCH",
+        "requiredInputs": ["VOICE", "GAZE"],
+        "additionalPrompt": "imagePrompt에는 인물, 행동, 장소와 물체가 명확한 장면을 넣는다. choices에는 그림을 정확히 설명하는 문장 하나와 핵심 요소가 다른 중복 없는 오답을 넣는다.",
+        "outputTemplate": {"type": "IMAGE_SENTENCE_MATCH", "data": [{"imagePrompt": "<string>", "choices": ["<string>"], "answerIndex": "<integer>"}]},
+        "supportedFeatureCategories": ["WORD", "SENTENCE"], "supportedScopes": ["WORD", "SENTENCE"]
+      }
+    },
+    {
+      "id": 30, "curriculumUnitId": 8, "sequenceNo": 1, "name": "문장 따라 읽기",
+      "prompt": {
+        "trainingType": "SENTENCE_REPEAT",
+        "requiredInputs": ["VOICE", "GAZE"],
+        "additionalPrompt": "모범 음성의 발음, 속도, 억양과 끊기를 따라 읽을 문장을 생성한다. emotion은 NEUTRAL, HAPPY, SAD, ANGRY, EXCITED, CALM 중 하나이며 내용과 자연스럽게 일치해야 한다.",
+        "outputTemplate": {"type": "SENTENCE_REPEAT", "data": [{"sentence": "<string>", "emotion": "<string>"}]},
+        "supportedFeatureCategories": ["PHONOLOGY", "WORD", "SENTENCE"], "supportedScopes": ["WORD", "WORD_BOUNDARY", "SENTENCE"]
+      }
+    },
+    {
+      "id": 31, "curriculumUnitId": 8, "sequenceNo": 2, "name": "단어 이어 읽기",
+      "prompt": {
+        "trainingType": "WORD_CHAIN_READING",
+        "requiredInputs": ["VOICE", "GAZE"],
+        "additionalPrompt": "requiredOrder는 SEQUENTIAL만 사용한다. 이미 해독할 수 있는 실제 낱말을 한 문제 안에서 중복하지 않고 난이도에 따라 길이와 받침 구조를 조절한다.",
+        "outputTemplate": {"type": "WORD_CHAIN_READING", "data": [{"words": ["<string>"], "requiredOrder": "<string>"}]},
+        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE", "PHONOLOGY", "WORD"], "supportedScopes": ["SYLLABLE", "WORD", "WORD_BOUNDARY"]
+      }
+    },
+    {
+      "id": 32, "curriculumUnitId": 8, "sequenceNo": 3, "name": "끊어 읽기",
+      "prompt": {
+        "trainingType": "PHRASE_READING",
+        "requiredInputs": ["VOICE", "GAZE"],
+        "additionalPrompt": "자연스러운 문장을 의미 단위 2~4개의 phrases로 나눈다. 조사와 수식어를 잘못 분리하지 않고 phrases를 결합하면 sentence와 일치해야 한다.",
+        "outputTemplate": {"type": "PHRASE_READING", "data": [{"sentence": "<string>", "phrases": ["<string>"]}]},
+        "supportedFeatureCategories": ["PHONOLOGY", "WORD", "SENTENCE"], "supportedScopes": ["WORD", "WORD_BOUNDARY", "SENTENCE"]
+      }
+    },
+    {
+      "id": 33, "curriculumUnitId": 8, "sequenceNo": 4, "name": "같은 문장 다시 읽기",
+      "prompt": {
+        "trainingType": "REPEATED_SENTENCE_READING",
+        "requiredInputs": ["VOICE", "GAZE"],
+        "additionalPrompt": "정확도, 속도와 멈춤을 개선하도록 반복해도 자연스러운 문장을 생성한다. repeatCount는 2 이상의 정수이며 문장은 초등학생이 이해할 수 있어야 한다.",
+        "outputTemplate": {"type": "REPEATED_SENTENCE_READING", "data": [{"sentence": "<string>", "repeatCount": "<integer>"}]},
+        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE", "PHONOLOGY", "WORD", "SENTENCE"], "supportedScopes": ["SYLLABLE", "WORD", "WORD_BOUNDARY", "SENTENCE"]
+      }
+    },
+    {
+      "id": 34, "curriculumUnitId": 8, "sequenceNo": 5, "name": "짧은 이야기 읽기",
+      "prompt": {
+        "trainingType": "SHORT_STORY_READING",
+        "requiredInputs": ["VOICE", "GAZE"],
+        "additionalPrompt": "자연스러운 속도와 감정으로 읽을 안전한 짧은 이야기를 생성한다. speaker는 NARRATOR 또는 CHARACTER이고 emotion은 NEUTRAL, HAPPY, SAD, ANGRY, SURPRISED, EXCITED, CALM 중 하나다.",
+        "outputTemplate": {"type": "SHORT_STORY_READING", "data": [{"title": "<string>", "sentences": [{"speaker": "<string>", "text": "<string>", "emotion": "<string>"}]}]},
+        "supportedFeatureCategories": ["GRAPHEME", "SYLLABLE", "PHONOLOGY", "WORD", "SENTENCE"], "supportedScopes": ["SYLLABLE", "WORD", "WORD_BOUNDARY", "SENTENCE"]
+      }
+    }
+  ]
+}
