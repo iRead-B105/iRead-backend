@@ -504,6 +504,19 @@ public class AppTrainingService {
         JsonNode expected = tokenIndex == null
                 ? question.path("analysisTargets").path(resolvedTargetIndex)
                 : findQuestionWord(question, tokenIndex);
+        if (!expected.isObject() && tokenIndex != null) {
+            JsonNode byText = findUniqueQuestionWordByText(question, expectedText);
+            if (byText.isObject()) {
+                return new RecordingTarget(
+                        resolvedTargetIndex,
+                        expectedText,
+                        List.of(new PronunciationReferenceWord(
+                                byText.path("wordIndex").asInt(),
+                                expectedText
+                        ))
+                );
+            }
+        }
         if (!expected.isObject()) {
             throw new IllegalArgumentException("요청한 분석 대상 위치가 올바르지 않습니다.");
         }
@@ -511,6 +524,19 @@ public class AppTrainingService {
                 ? expected.path("text").asText()
                 : expected.path("surface").asText();
         if (!expectedText.equals(storedText)) {
+            // App의 tokenIndex는 화면 표시 순번이라 문항 words의 wordIndex와 좌표계가
+            // 다를 수 있다. 텍스트가 문항 안에서 유일하게 일치하면 그 wordIndex로 해석한다.
+            JsonNode byText = tokenIndex == null
+                    ? objectMapper.missingNode()
+                    : findUniqueQuestionWordByText(question, expectedText);
+            if (byText.isObject()) {
+                int resolvedWordIndex = byText.path("wordIndex").asInt();
+                return new RecordingTarget(
+                        resolvedTargetIndex,
+                        expectedText,
+                        List.of(new PronunciationReferenceWord(resolvedWordIndex, expectedText))
+                );
+            }
             throw new IllegalArgumentException("요청한 텍스트가 생성된 훈련 문항과 일치하지 않습니다.");
         }
         String pronunciationText = "CONSONANT_TRACE".equals(question.path("type").asText())
@@ -665,6 +691,19 @@ public class AppTrainingService {
             }
         }
         return objectMapper.missingNode();
+    }
+
+    private JsonNode findUniqueQuestionWordByText(JsonNode question, String expectedText) {
+        JsonNode matched = objectMapper.missingNode();
+        for (JsonNode word : question.path("words")) {
+            if (expectedText.equals(word.path("surface").asText())) {
+                if (matched.isObject()) {
+                    return objectMapper.missingNode();
+                }
+                matched = word;
+            }
+        }
+        return matched;
     }
 
     private List<PronunciationReferenceWord> tokenize(String text) {
