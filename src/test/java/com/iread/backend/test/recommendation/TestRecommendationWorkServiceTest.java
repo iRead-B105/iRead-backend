@@ -32,17 +32,25 @@ class TestRecommendationWorkServiceTest {
         when(student.getId()).thenReturn(15L);
         when(testCurriculums.findById(500L)).thenReturn(Optional.of(source));
         when(students.findById(15L)).thenReturn(Optional.of(student));
+        com.iread.backend.training.curriculum.CurriculumGenerationAfterCommitTrigger trigger =
+                mock(com.iread.backend.training.curriculum.CurriculumGenerationAfterCommitTrigger.class);
+        com.iread.backend.training.domain.DailyCurriculumEntity curriculum =
+                mock(com.iread.backend.training.domain.DailyCurriculumEntity.class);
+        when(curriculum.getId()).thenReturn(900L);
+        when(planner.createRecommendedFromTestIfAbsent(student, 500L)).thenReturn(curriculum);
         TestRecommendationWorkService service = new TestRecommendationWorkService(
                 testCurriculums,
                 students,
                 profiles,
-                planner
+                planner,
+                trigger
         );
 
         service.process(500L);
 
         verify(profiles).recalculate(student);
         verify(planner).createRecommendedFromTestIfAbsent(student, 500L);
+        verify(trigger).generateAfterCommit(900L);
     }
 
     @Test
