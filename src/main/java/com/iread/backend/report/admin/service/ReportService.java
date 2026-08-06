@@ -7,6 +7,7 @@ import com.iread.backend.gaze.domain.GazeSessionStatus;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
 import com.iread.backend.exception.ResourceNotFoundException;
+import com.iread.backend.training.app.service.DemoLearningClock;
 import com.iread.backend.report.admin.dto.req.CreateReportRequest;
 import com.iread.backend.report.admin.dto.res.*;
 import com.iread.backend.report.admin.exception.ReportCreationException;
@@ -44,6 +45,12 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ReportService {
+
+    /**
+     * 훈련 하나가 누적 학습 시간에 기여할 수 있는 최대 시간(초).
+     * 훈련 한 개는 5~10분 분량이라 30분을 넘는 값은 켜 둔 채 방치한 흔적으로 본다.
+     */
+    private static final long MAX_TRAINING_SECONDS = 30 * 60;
     private static final String SNAPSHOT_VERSION = "teacher-report-v2";
 
     private final ReportRepository reportRepository;
@@ -54,6 +61,7 @@ public class ReportService {
     private final GazeAnalysisResultRepository gazeAnalysisResultRepository;
     private final GazeSessionRepository gazeSessionRepository;
     private final ReadingMetricAggregationService readingMetricAggregationService;
+    private final DemoLearningClock demoLearningClock;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -63,6 +71,12 @@ public class ReportService {
         }
         StudentEntity student = studentRepository.findByIdAndTeacherId(request.studentId(), teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException("학생을 찾을 수 없습니다."));
+        // 상한은 달력상 오늘이 아니라 아동의 학습 날짜다. 데모 치트로 학습일을 넘기면
+        // 학습 날짜가 오늘보다 앞서고, 그날 기록도 보고서에 담을 수 있어야 한다.
+        LocalDate learningDate = demoLearningClock.currentDate(request.studentId());
+        if (request.endDate().isAfter(learningDate)) {
+            throw new IllegalArgumentException("종료일은 아동의 학습 날짜 이후일 수 없습니다.");
+        }
 
         LocalDateTime start = request.startDate().atStartOfDay();
         LocalDateTime endExclusive = request.endDate().plusDays(1).atStartOfDay();
@@ -208,9 +222,16 @@ public class ReportService {
                 .map(LocalDateTime::toLocalDate)
                 .distinct()
                 .count();
+        // 훈련 하나에 담는 시간은 상한을 둔다. started_at~finished_at 은 벽시계라
+        // 아이가 훈련을 켜 둔 채 나갔다 한참 뒤에 끝내면 그 시간이 모두 학습 시간으로
+        // 잡혀 누적 시간이 비현실적으로 커진다(한 훈련이 열 시간으로 잡힌 사례가 있다).
         long totalMinutes = trainings.stream()
                 .filter(t -> t.getStartedAt() != null && t.getFinishedAt() != null)
-                .mapToLong(t -> Duration.between(t.getStartedAt(), t.getFinishedAt()).getSeconds()).sum() / 60;
+                .mapToLong(t -> Math.min(
+                        MAX_TRAINING_SECONDS,
+                        Math.max(0, Duration.between(t.getStartedAt(), t.getFinishedAt()).getSeconds())
+                ))
+                .sum() / 60;
         ReadingMetricSummary readingMetrics = readingMetricAggregationService.summarize(
                 studentId,
                 start.toLocalDate(),

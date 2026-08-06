@@ -1,0 +1,72 @@
+{
+  "RecognitionStatus": "Success",
+  "Offset": 0,
+  "Duration": 24200000,
+  "NBest": [
+    {
+      "Confidence": 0.6,
+      "Lexical": "친구와 함께 천천히 책을 읽었어요",
+      "Display": "친구와 함께 천천히 책을 읽었어요.",
+      "PronunciationAssessment": {
+        "AccuracyScore": 60,
+        "FluencyScore": 56,
+        "CompletenessScore": 100,
+        "PronScore": 58
+      },
+      "Words": [
+        {
+          "Word": "친구와",
+          "Offset": 0,
+          "Duration": 4900000,
+          "PronunciationAssessment": {
+            "AccuracyScore": 60,
+            "ErrorType": "None"
+          }
+        },
+        {
+          "Word": "함께",
+          "Offset": 4900000,
+          "Duration": 4600000,
+          "PronunciationAssessment": {
+            "AccuracyScore": 60,
+            "ErrorType": "None"
+          }
+        },
+        {
+          "Word": "천천히",
+          "Offset": 9500000,
+          "Duration": 4900000,
+          "PronunciationAssessment": {
+            "AccuracyScore": 60,
+            "ErrorType": "None"
+          }
+        },
+        {
+          "Word": "책을",
+          "Offset": 14400000,
+          "Duration": 4600000,
+          "PronunciationAssessment": {
+            "AccuracyScore": 60,
+            "ErrorType": "None"
+          }
+        },
+        {
+          "Word": "읽었어요",
+          "Offset": 19000000,
+          "Duration": 5200000,
+          "PronunciationAssessment": {
+            "AccuracyScore": 60,
+            "ErrorType": "None"
+          }
+        }
+      ]
+    }
+  ],
+  "_demo": {
+    "schemaVersion": "azure-speech-pronunciation-v1",
+    "studentId": 2002,
+    "testId": 343022,
+    "questionNo": 3,
+    "synthetic": true
+  }
+}

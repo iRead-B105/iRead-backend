@@ -6,6 +6,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ByteArrayInputStream;
@@ -13,6 +16,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Locale;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.UUID;
 
@@ -153,28 +157,31 @@ public class LocalFileStorage implements FileStorage {
                 || (!"png".equals(extension) && !"image/jpeg".equals(contentType))) {
             throw new IllegalArgumentException("이미지 확장자와 형식이 일치하지 않습니다.");
         }
-        if (!hasExpectedSignature(source, extension)) {
+        if (!hasExpectedImageContent(source, extension)) {
             throw new IllegalArgumentException("이미지 파일 내용이 JPG 또는 PNG 형식이 아닙니다.");
         }
         return extension;
     }
 
-    private boolean hasExpectedSignature(InputStreamSource source, String extension) {
-        try (InputStream inputStream = source.open()) {
-            byte[] header = inputStream.readNBytes(8);
-            if ("png".equals(extension)) {
-                byte[] png = new byte[]{
-                        (byte) 0x89, 0x50, 0x4E, 0x47,
-                        0x0D, 0x0A, 0x1A, 0x0A
-                };
-                return java.util.Arrays.equals(header, png);
-            }
-            return header.length >= 3
-                    && header[0] == (byte) 0xFF
-                    && header[1] == (byte) 0xD8
-                    && header[2] == (byte) 0xFF;
-        } catch (IOException exception) {
-            throw new IllegalArgumentException("이미지 파일을 확인할 수 없습니다.", exception);
+    private boolean hasExpectedImageContent(InputStreamSource source, String extension) {
+        ImageReader reader = null;
+        try (InputStream inputStream = source.open();
+             ImageInputStream imageInputStream = ImageIO.createImageInputStream(inputStream)) {
+            if (imageInputStream == null) return false;
+
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(imageInputStream);
+            if (!readers.hasNext()) return false;
+
+            reader = readers.next();
+            String expectedFormat = "png".equals(extension) ? "png" : "JPEG";
+            if (!expectedFormat.equalsIgnoreCase(reader.getFormatName())) return false;
+
+            reader.setInput(imageInputStream, true, true);
+            return reader.read(0) != null;
+        } catch (IOException | RuntimeException exception) {
+            return false;
+        } finally {
+            if (reader != null) reader.dispose();
         }
     }
 

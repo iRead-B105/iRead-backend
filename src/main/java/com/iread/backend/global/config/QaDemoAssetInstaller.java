@@ -1,7 +1,6 @@
 package com.iread.backend.global.config;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
@@ -15,7 +14,6 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 @Component
-@Profile("demo")
 public class QaDemoAssetInstaller {
 
     static final long MAX_IMAGE_BYTES = 1024L * 1024L;

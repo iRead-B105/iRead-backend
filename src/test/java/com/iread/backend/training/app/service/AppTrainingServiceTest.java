@@ -971,4 +971,72 @@ class AppTrainingServiceTest {
                 )
         );
     }
+
+    @Test
+    void 재진입_초기화는_끝낸_문항의_기록을_남기고_풀던_문항만_버린다() {
+        // 문항 3개 중 1·2번을 끝내고 나갔다 다시 들어온 상황.
+        // 배열을 통째로 비우면 1·2번이 미완료로 되돌아가, 3번을 끝내도
+        // "모든 훈련 문항을 완료한 후 훈련을 종료할 수 있습니다."로 막혔다.
+        StudentEntity student = mock(StudentEntity.class);
+        TrainingEntity training = mock(TrainingEntity.class);
+        DailyCurriculumEntity curriculum = mock(DailyCurriculumEntity.class);
+        when(studentRepository.findByIdAndTeacherId(20L, 1L)).thenReturn(Optional.of(student));
+        when(trainingRepository.findByIdAndDailyCurriculumStudentId(30L, 20L))
+                .thenReturn(Optional.of(training));
+        when(training.getDailyCurriculum()).thenReturn(curriculum);
+        when(curriculum.getId()).thenReturn(40L);
+        when(dailyCurriculumRepository.findForUpdate(40L, 20L))
+                .thenReturn(Optional.of(curriculum));
+        when(trainingRepository.findForUpdate(30L, 20L)).thenReturn(Optional.of(training));
+        when(training.getStatus()).thenReturn(TrainingStatus.IN_PROGRESS);
+        when(training.getResult()).thenReturn("""
+                {
+                  "pronunciationAnalyses": [
+                    {"questionNo": 1, "targetIndex": 0, "questionCompleted": true},
+                    {"questionNo": 2, "targetIndex": 0, "questionCompleted": true},
+                    {"questionNo": 3, "targetIndex": 0, "questionCompleted": false}
+                  ],
+                  "wordAttempts": [
+                    {"questionNo": 1, "targetIndex": 0, "wordAttemptLogId": 11},
+                    {"questionNo": 3, "targetIndex": 0, "wordAttemptLogId": 33}
+                  ]
+                }
+                """);
+        ObjectMapper resetMapper = JsonMapper.builder().build();
+        AppTrainingService resetService = new AppTrainingService(
+                studentRepository,
+                dailyCurriculumRepository,
+                trainingRepository,
+                trainingDataRepository,
+                wordRepository,
+                wordAttemptLogRepository,
+                pronunciationAnalysisAdapter,
+                audioUploadPolicy,
+                scoreCalculator(),
+                new PronunciationWordAligner(),
+                trainingInputRequirementService,
+                trainingService,
+                resetMapper,
+                new AppLearningQuestionSupport(resetMapper),
+                mock(RealtimeEventPublisher.class)
+        );
+
+        resetService.resetPronunciationAttempts(1L, 20L, 30L);
+
+        ArgumentCaptor<String> saved = ArgumentCaptor.forClass(String.class);
+        verify(training).recordProgressResult(saved.capture());
+        JsonNode result = resetMapper.readTree(saved.getValue());
+
+        // 끝낸 문항(1·2)의 완료 표시가 남아야 한다.
+        assertThat(result.path("pronunciationAnalyses")).hasSize(2);
+        assertThat(result.path("pronunciationAnalyses").get(0).path("questionNo").asInt())
+                .isEqualTo(1);
+        assertThat(result.path("pronunciationAnalyses").get(1).path("questionNo").asInt())
+                .isEqualTo(2);
+        // 풀던 중이던 3번은 시도 횟수가 처음으로 돌아가도록 버려야 한다.
+        assertThat(result.path("pronunciationAnalyses").toString()).doesNotContain("\"questionNo\":3");
+        // 약점 프로파일 근거인 단어 시도도 끝낸 문항 것만 남는다.
+        assertThat(result.path("wordAttempts")).hasSize(1);
+        assertThat(result.path("wordAttempts").get(0).path("wordAttemptLogId").asInt()).isEqualTo(11);
+    }
 }

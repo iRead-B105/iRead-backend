@@ -1,5 +1,6 @@
 package com.iread.backend.training.admin.dto.req;
 
+import com.iread.backend.validation.SafeText;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -20,7 +21,7 @@ public record UpdateLessonMaterialRequest(
 
     public record Material(
             @Min(1) @Max(5) int questionNo,
-            @NotBlank String questionType,
+            @NotBlank @Size(max = 64) @SafeText String questionType,
             JsonNode presentation,
             @NotNull JsonNode content,
             @NotNull JsonNode answer

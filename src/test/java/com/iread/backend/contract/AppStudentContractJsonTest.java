@@ -46,7 +46,7 @@ class AppStudentContractJsonTest {
 
     @Test
     void exposesTrainingProgressContractFields() {
-        GrowthResponse response = new GrowthResponse(List.of(
+        GrowthResponse response = new GrowthResponse(2L, List.of(
                 new TrainingProgressResponse(30L, "낱말 읽기", 3L)
         ), List.of(
                 new GrowthAreaResponse(
@@ -71,6 +71,8 @@ class AppStudentContractJsonTest {
         var progress = json.get("trainingProgress").get(0);
         var area = json.get("growthAreas").get(0);
 
+        // 학습 일수는 완료 훈련 개수와 별개 필드로 내려간다.
+        assertThat(json.get("studyDayCount").asLong()).isEqualTo(2L);
         assertThat(progress.get("trainingTemplateId").asLong()).isEqualTo(30L);
         assertThat(progress.get("trainingTemplateName").asText()).isEqualTo("낱말 읽기");
         assertThat(progress.get("completedCount").asLong()).isEqualTo(3L);

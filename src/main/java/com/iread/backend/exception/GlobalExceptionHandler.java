@@ -78,6 +78,16 @@ public class GlobalExceptionHandler {
         );
     }
 
+    // 아동 앱이 오류 창 대신 생성 중 화면을 띄울 수 있도록 코드를 분리한다.
+    @ExceptionHandler(StoryBranchGeneratingException.class)
+    public ResponseEntity<ApiErrorResponse> handleStoryBranchGenerating(
+            StoryBranchGeneratingException exception
+    ) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(
+                ApiErrorResponse.of("STORY_BRANCH_GENERATING", exception.getMessage())
+        );
+    }
+
     @ExceptionHandler(AiClientException.class)
     public ResponseEntity<ApiErrorResponse> handleAiClient(AiClientException exception) {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(

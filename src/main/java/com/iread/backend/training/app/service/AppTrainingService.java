@@ -179,6 +179,21 @@ public class AppTrainingService {
         return new TrainingResetResponse(trainingId, training.getStatus(), LocalDateTime.now());
     }
 
+    /**
+     * 재진입 시 발음 시도 횟수를 되돌린다.
+     *
+     * <p>시도 횟수는 pronunciationAnalyses 항목 수로 세므로, 중단된 훈련에 다시 들어오면
+     * 남은 기록 때문에 첫 녹음부터 최대 시도 초과로 거부된다. 그래서 초기화가 필요하다.
+     *
+     * <p>다만 배열을 통째로 비우면 안 된다. 문항의 완료 표시(questionCompleted)가 같은
+     * 배열에 있어서, 나가기 전에 끝낸 문항이 미완료로 되돌아간다. 화면은 완료된 문항을
+     * 건너뛰고 이어서 진행하므로 마지막 문항을 끝내도 서버가 아는 완료 수가 모자라
+     * 훈련을 종료할 수 없게 된다. wordAttempts 도 약점 프로파일 근거와 단어 시도 로그로
+     * 쓰이므로 끝낸 문항의 것은 남겨야 한다.
+     *
+     * <p>그래서 비우는 대신 걸러낸다. 끝낸 문항의 기록은 남기고, 풀던 중이던 문항의
+     * 기록만 버려 그 문항의 시도 횟수를 처음으로 돌린다.
+     */
     @Transactional
     public void resetPronunciationAttempts(Long teacherId, Long studentId, Long trainingId) {
         TrainingEntity training = findOwnedTrainingForUpdate(teacherId, studentId, trainingId);
@@ -186,9 +201,26 @@ public class AppTrainingService {
             return;
         }
         ObjectNode result = readObjectOrNew(training.getResult());
-        result.putArray("pronunciationAnalyses");
-        result.putArray("wordAttempts");
+        Set<Integer> completed = completedQuestionNumbers(result);
+        keepOnlyQuestions(result, "pronunciationAnalyses", completed);
+        keepOnlyQuestions(result, "wordAttempts", completed);
         training.recordProgressResult(writeJson(result));
+    }
+
+    /** 지정한 문항 번호에 속한 항목만 남기고 나머지는 버린다. */
+    private void keepOnlyQuestions(
+            ObjectNode result,
+            String arrayField,
+            Set<Integer> questionNumbers
+    ) {
+        List<JsonNode> kept = new ArrayList<>();
+        result.withArray(arrayField).forEach(entry -> {
+            if (questionNumbers.contains(entry.path("questionNo").asInt())) {
+                kept.add(entry);
+            }
+        });
+        ArrayNode rebuilt = result.putArray(arrayField);
+        kept.forEach(rebuilt::add);
     }
 
     @Transactional
