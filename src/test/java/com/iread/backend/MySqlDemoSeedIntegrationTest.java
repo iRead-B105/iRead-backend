@@ -52,12 +52,12 @@ class MySqlDemoSeedIntegrationTest {
                 String.class
         );
 
-        assertThat(passwordEncoder.matches("qwer1234", passwordHash)).isTrue();
+        assertThat(passwordEncoder.matches("demo1234", passwordHash)).isTrue();
         assertThat(jdbcTemplate.queryForMap(
                 "SELECT email, name, organization FROM teachers WHERE id = 1001"
-        )).containsEntry("email", "test@test.com")
-                .containsEntry("name", "시연교수자")
-                .containsEntry("organization", "ssafy");
+        )).containsEntry("email", "demo@iread.local")
+                .containsEntry("name", "데모교사")
+                .containsEntry("organization", "아이리드 데모교실");
         assertThat(count("students", 2001L)).isEqualTo(1);
         assertThat(count("stories", 6001L)).isZero();
         assertThat(countByColumn("story_scenes", "scene_id", 6101L)).isZero();
