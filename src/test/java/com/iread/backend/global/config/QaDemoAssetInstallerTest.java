@@ -2,9 +2,13 @@ package com.iread.backend.global.config;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.core.io.ClassPathResource;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
 import tools.jackson.databind.json.JsonMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,7 +57,7 @@ class QaDemoAssetInstallerTest {
             );
         }
         try (var files = Files.walk(gaze)) {
-            assertThat(files.filter(Files::isRegularFile)).hasSize(13);
+            assertThat(files.filter(Files::isRegularFile)).hasSize(57);
         }
         try (var files = Files.list(images)) {
             assertThat(files).allMatch(path -> {
@@ -75,5 +79,54 @@ class QaDemoAssetInstallerTest {
                 .contains("\"storyId\": 280003")
                 .contains("\"sourceTextCoverage\": \"FULL\"")
                 .contains("\"schemaVersion\": \"story-gaze-raw-v2\"");
+    }
+
+    @Test
+    void packagedTrainingGazeFixturesCoverEveryQaChildAndSqlReference() throws Exception {
+        var mapper = JsonMapper.builder().build();
+        var manifestResource = new ClassPathResource("assets/qa-demo/manifest.json");
+        var sqlResource = new ClassPathResource("db/demo-data/qa-demo-reset.sql");
+        var manifest = mapper.readTree(manifestResource.getInputStream());
+        var sql = new String(sqlResource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        Map<Integer, Integer> trainingGazeCounts = new HashMap<>();
+        Map<Integer, Integer> testGazeCounts = new HashMap<>();
+
+        assertThat(manifest.path("gaze")).hasSize(57);
+        for (var gazeEntry : manifest.path("gaze")) {
+            var relativePath = gazeEntry.asText();
+            var rawResource = new ClassPathResource("assets/qa-demo/gaze/" + relativePath);
+            assertThat(rawResource.exists()).isTrue();
+            assertThat(sql).contains("'/gaze/" + relativePath + "'");
+
+            var raw = mapper.readTree(rawResource.getInputStream()).path("rawData");
+            var schemaVersion = raw.path("schemaVersion").asText();
+            if ("test-gaze-raw-v1".equals(schemaVersion)) {
+                var studentId = raw.path("studentId").asInt();
+                testGazeCounts.merge(studentId, 1, Integer::sum);
+                assertThat(relativePath).startsWith(studentId + "/");
+                assertThat(raw.path("testId").asLong()).isPositive();
+                assertThat(raw.path("samples")).isNotEmpty();
+                continue;
+            }
+            if (!"training-gaze-raw-v1".equals(schemaVersion)) {
+                continue;
+            }
+            var studentId = raw.path("studentId").asInt();
+            trainingGazeCounts.merge(studentId, 1, Integer::sum);
+            assertThat(relativePath).startsWith(studentId + "/");
+            assertThat(raw.path("synthetic").asBoolean()).isTrue();
+            assertThat(raw.path("gazeSessionId").asLong())
+                    .isEqualTo(400_000L + raw.path("trainingId").asLong());
+            assertThat(raw.path("questions")).hasSize(3);
+            assertThat(raw.path("samples")).isNotEmpty();
+            assertThat(raw.path("regressions")).isNotEmpty();
+        }
+
+        assertThat(trainingGazeCounts).containsExactlyInAnyOrderEntriesOf(
+                Map.of(2001, 11, 2002, 15, 2103, 18)
+        );
+        assertThat(testGazeCounts).containsExactlyInAnyOrderEntriesOf(
+                Map.of(2001, 3, 2002, 3, 2103, 3)
+        );
     }
 }
