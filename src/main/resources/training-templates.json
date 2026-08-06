@@ -222,7 +222,7 @@
       }
     },
     {
-      "id": 25, "curriculumUnitId": 6, "sequenceNo": 4, "name": "문장 읽기",
+      "id": 25, "curriculumUnitId": 6, "sequenceNo": 4, "name": "어절별로 읽기",
       "prompt": {
         "trainingType": "SENTENCE_READING",
         "requiredInputs": ["VOICE", "GAZE"],
@@ -302,7 +302,7 @@
       }
     },
     {
-      "id": 33, "curriculumUnitId": 8, "sequenceNo": 4, "name": "같은 문장 다시 읽기",
+      "id": 33, "curriculumUnitId": 8, "sequenceNo": 4, "name": "한번에 읽기",
       "prompt": {
         "trainingType": "REPEATED_SENTENCE_READING",
         "requiredInputs": ["VOICE", "GAZE"],

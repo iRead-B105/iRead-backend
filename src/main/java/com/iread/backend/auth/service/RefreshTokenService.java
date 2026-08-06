@@ -38,10 +38,25 @@ public class RefreshTokenService {
             StudentEntity student,
             AuthAudience audience
     ) {
+        // 단일 세션 정책(마지막 로그인 승리): 새 세션이 같은 범위의 기존 세션을 밀어낸다.
+        // 교수자 웹(ADMIN)은 교사 단위, 학습(LEARNING)은 아동 단위로 적용해
+        // 한 교사의 여러 아동이 각자 기기에서 동시에 학습하는 교실 시나리오는 유지한다.
+        Instant now = Instant.now();
+        if (student == null) {
+            repository.revokeAllByTeacherIdAndAudience(teacher.getId(), audience, now);
+        } else {
+            repository.revokeAllByTeacherIdAndStudentIdAndAudience(
+                    teacher.getId(),
+                    student.getId(),
+                    audience,
+                    now
+            );
+        }
+
         byte[] tokenBytes = new byte[32];
         SECURE_RANDOM.nextBytes(tokenBytes);
         String rawToken = Base64.getUrlEncoder().withoutPadding().encodeToString(tokenBytes);
-        Instant expiresAt = Instant.now().plus(settings.refreshTokenTtl());
+        Instant expiresAt = now.plus(settings.refreshTokenTtl());
         AuthRefreshSessionEntity session = new AuthRefreshSessionEntity(
                 teacher,
                 student,

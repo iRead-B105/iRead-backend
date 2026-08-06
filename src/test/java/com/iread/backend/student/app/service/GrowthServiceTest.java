@@ -92,9 +92,9 @@ class GrowthServiceTest {
             assertThat(area.distinctTemplateCount()).isEqualTo(2);
             assertThat(area.stage()).isEqualTo(2);
             assertThat(area.stageName()).isEqualTo("새싹");
-            // 꽃봉오리 승급 병목: 필요 커버리지 25%(21개 중 6개) 대비 경험 2개 = 33%
-            assertThat(area.nextStageProgressPercent()).isEqualTo(33);
-            assertThat(area.nextStageHint()).isEqualTo("새로운 활동을 4개 더 해봐요!");
+            // 꽃봉오리 승급 병목: 완료 3/8 = 37% (커버리지는 19개 중 5개 필요, 2개 경험 = 40%)
+            assertThat(area.nextStageProgressPercent()).isEqualTo(37);
+            assertThat(area.nextStageHint()).isEqualTo("훈련을 5번 더 하면 자라나요!");
         });
         assertThat(result.growthAreas().get(1)).satisfies(area -> {
             assertThat(area.stage()).isEqualTo(1);

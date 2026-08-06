@@ -30,7 +30,8 @@ import static org.mockito.Mockito.when;
 
 class DemoAllTrainingCurriculumInitializerTest {
 
-    private static final int CANONICAL_TEMPLATE_COUNT = 31;
+    // 은퇴 템플릿(6·14·24 + 읽기 통합 26·32·34)을 제외한 편성 가능 템플릿 수
+    private static final int CANONICAL_TEMPLATE_COUNT = 28;
 
     @Test
     void createsSelectableCatalogTrainingsAndUnlocksOnlyTheFirst() throws Exception {
@@ -126,8 +127,8 @@ class DemoAllTrainingCurriculumInitializerTest {
 
         StudentEntity student = StudentEntity.builder().name("샛별").build();
         ReflectionTestUtils.setField(student, "id", 2001L);
-        List<TrainingTemplateEntity> templates = canonicalTemplates();
-        // 이미 은퇴 템플릿이 제외된 상태의 커리큘럼은 재생성하지 않아야 한다
+        // 이미 편성 가능 템플릿(은퇴 제외)로만 구성된 커리큘럼은 재생성하지 않아야 한다
+        List<TrainingTemplateEntity> templates = selectableTemplates();
         DailyCurriculumEntity curriculum = new DailyCurriculumEntity(
                 student,
                 templates
@@ -167,8 +168,18 @@ class DemoAllTrainingCurriculumInitializerTest {
     }
 
     private List<TrainingTemplateEntity> canonicalTemplates() {
+        // 저장소가 돌려주는 원본 카탈로그(은퇴 포함 여부는 초기화기가 걸러낸다)
         return IntStream.rangeClosed(1, 34)
                 .filter(id -> id != 6 && id != 14 && id != 24)
+                .mapToObj(this::template)
+                .toList();
+    }
+
+    private List<TrainingTemplateEntity> selectableTemplates() {
+        // 초기화기가 걸러낸 뒤의 편성 가능 카탈로그(읽기 통합 은퇴 26·32·34 제외)
+        return IntStream.rangeClosed(1, 34)
+                .filter(id -> id != 6 && id != 14 && id != 24)
+                .filter(id -> id != 26 && id != 32 && id != 34)
                 .mapToObj(this::template)
                 .toList();
     }
