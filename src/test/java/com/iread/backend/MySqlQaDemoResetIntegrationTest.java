@@ -49,6 +49,10 @@ class MySqlQaDemoResetIntegrationTest {
     private void assertQaDataset() {
         assertThat(datasetService.isPostSeedInstalled()).isTrue();
         assertThat(passwordEncoder.matches("qwer1234", teacherPassword())).isTrue();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT email FROM teachers WHERE id = 1001",
+                String.class
+        )).isEqualTo("test@test.com");
         assertThat(jdbcTemplate.queryForList(
                 "SELECT name FROM students WHERE teacher_id = 1001 ORDER BY id",
                 String.class

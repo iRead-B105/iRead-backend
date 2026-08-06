@@ -1,6 +1,7 @@
 package com.iread.backend;
 
 import com.iread.backend.test.repository.StudentTestRepository;
+import com.iread.backend.global.config.QaDemoDatasetService;
 import com.iread.backend.student.repository.StudentRepository;
 import com.iread.backend.training.repository.TrainingRepository;
 import org.junit.jupiter.api.Test;
@@ -47,9 +48,12 @@ class MySqlFlywayIntegrationTest {
     @Autowired
     private StudentRepository studentRepository;
 
+    @Autowired
+    private QaDemoDatasetService qaDemoDatasetService;
+
     @Test
     void appliesAllMigrationsAndValidatesJpaMappings() {
-        assertThat(applicationTableCount()).isEqualTo(27);
+        assertThat(applicationTableCount()).isEqualTo(28);
         assertThat(constraintCount("FOREIGN KEY")).isEqualTo(39);
         assertThat(constraintCount("UNIQUE")).isEqualTo(17);
         assertThat(constraintCount("CHECK")).isEqualTo(11);
@@ -204,6 +208,39 @@ class MySqlFlywayIntegrationTest {
                         + "FROM training_templates WHERE id = 15",
                 Integer.class
         )).isZero();
+    }
+
+    @Test
+    void seedsOnlyTheReservedQaIdentityIntoAProductionSchema() {
+        jdbcTemplate.update("""
+                INSERT INTO teachers(id, email, password, name, created_at)
+                VALUES (900001, 'regular@example.com', 'password', '일반교수자', CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO students(id, teacher_id, name, created_at)
+                VALUES (900001, 900001, '일반아동', CURRENT_TIMESTAMP)
+                """);
+
+        qaDemoDatasetService.install();
+        qaDemoDatasetService.recordAppliedDeployment("main-qa-bootstrap-test");
+
+        assertThat(qaDemoDatasetService.isAppliedForDeployment("main-qa-bootstrap-test")).isTrue();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM teachers WHERE id = 1001 AND email = 'test@test.com'",
+                Integer.class
+        )).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM students WHERE id IN (2001, 2002, 2103) AND teacher_id = 1001",
+                Integer.class
+        )).isEqualTo(3);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM teachers WHERE id = 900001 AND email = 'regular@example.com'",
+                Integer.class
+        )).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM students WHERE id = 900001 AND teacher_id = 900001",
+                Integer.class
+        )).isEqualTo(1);
     }
 
     @Test
