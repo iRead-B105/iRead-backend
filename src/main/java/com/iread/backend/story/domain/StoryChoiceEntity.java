@@ -35,4 +35,9 @@ public class StoryChoiceEntity {
         this.storyLine = storyLine;
         this.content = content;
     }
+
+    /** 선택은 기록됐지만 이어질 장면이 없어 다시 이어 쓸 때 답변을 갱신한다. */
+    public void updateContent(String content) {
+        this.content = content;
+    }
 }

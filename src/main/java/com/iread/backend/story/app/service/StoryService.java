@@ -351,7 +351,15 @@ public class StoryService {
                                                     StoryBranchSelectionRequest request) {
         BranchContext context = prepareBranch(teacherId, studentId, storyId, storyLineId);
         if (context.existingChoice().isPresent()) {
-            return replayChoice(context.story(), context.line(), context.existingChoice().get());
+            // 이어질 장면이 실제로 있을 때만 저장된 결과를 재생한다. 선택 기록만 있고
+            // 다음 장면이 없는 상태(시드 데이터·생성 실패 잔재)에서 재생을 시도하면
+            // 500으로 끝나 그 분기에서 영영 진행할 수 없다. 이때는 지금 이어 쓴다.
+            Optional<StoryChoiceResponse> replayed = replayChoice(
+                    context.story(), context.line(), context.existingChoice().get()
+            );
+            if (replayed.isPresent()) {
+                return replayed.get();
+            }
         }
         String branchIntent;
         if (request.optionNo() == null) {
@@ -445,9 +453,13 @@ public class StoryService {
                                                        String branchIntent) {
         List<StoryLineEntity> historyLines = storyLineRepository
                 .findAllByStoryIdOrderBySequenceNoAsc(story.getId());
+        // AI 계약은 currentProgress 가 전달한 history 쪽수와 같기를 요구한다.
+        // 저장된 progress 가 어긋난 이야기(시드 데이터 등)에서 저장값을 그대로
+        // 보내면 계약 위반으로 영영 이어 쓸 수 없으므로 실제 쪽수를 보낸다.
+        int currentPageCount = historyLines.size();
         GenerateStoryResponse generated = aiClient.continueStory(new ContinueStoryRequest(
                 UUID.randomUUID().toString(), story.getId(), studentId, STORY_SCHEMA_VERSION,
-                story.getProgress(), toTemplateData(story.getStoryTemplate()), selectedLine.getId(),
+                currentPageCount, toTemplateData(story.getStoryTemplate()), selectedLine.getId(),
                 branchIntent, historyLines.stream().map(this::toHistoryLine).toList()
         ));
 
@@ -456,9 +468,16 @@ public class StoryService {
         if (generated.completed()) {
             createStoryCharacter(story, historyLines, generated);
         }
-        StoryChoiceEntity choice = storyChoiceRepository.saveAndFlush(
-                new StoryChoiceEntity(selectedLine, branchIntent)
-        );
+        // 선택 기록만 남고 장면이 없어 다시 이어 쓰는 경우가 있으므로,
+        // 행을 새로 넣지 않고 기존 기록을 갱신한다(story_line_id 는 유니크).
+        StoryChoiceEntity choice = storyChoiceRepository
+                .findByStoryLineId(selectedLine.getId())
+                .map(existing -> {
+                    existing.updateContent(branchIntent);
+                    return existing;
+                })
+                .orElseGet(() -> new StoryChoiceEntity(selectedLine, branchIntent));
+        choice = storyChoiceRepository.saveAndFlush(choice);
         realtimeEventPublisher.publishAfterCommit(
                 teacherId, studentId, RealtimeResource.STORY, story.getId(),
                 generated.completed() ? "COMPLETED" : "PROGRESS_UPDATED"
@@ -658,8 +677,9 @@ public class StoryService {
         return new GeneratedSegment(scene, storyLineRepository.saveAllAndFlush(lines));
     }
 
-    private StoryChoiceResponse replayChoice(StoryEntity story, StoryLineEntity selectedLine,
-                                             StoryChoiceEntity choice) {
+    /** 저장된 분기 결과. 이어질 장면이 아직 없으면 비어 있다. */
+    private Optional<StoryChoiceResponse> replayChoice(StoryEntity story, StoryLineEntity selectedLine,
+                                                       StoryChoiceEntity choice) {
         List<StoryLineEntity> storyLines = storyLineRepository
                 .findAllByStoryIdOrderBySequenceNoAsc(story.getId());
         StoryLineEntity nextLine = storyLines
@@ -667,11 +687,14 @@ public class StoryService {
                 .dropWhile(line -> !Objects.equals(line.getId(), selectedLine.getId()))
                 .skip(1)
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("저장된 분기 결과의 다음 대사를 찾을 수 없습니다."));
+                .orElse(null);
+        if (nextLine == null) {
+            return Optional.empty();
+        }
         List<StoryLineEntity> nextSceneLines = storyLines.stream()
                 .filter(line -> Objects.equals(line.getScene().getId(), nextLine.getScene().getId()))
                 .toList();
-        return new StoryChoiceResponse(
+        return Optional.of(new StoryChoiceResponse(
                 choice.getId(),
                 choice.getContent(),
                 nextLine.getScene().getId(),
@@ -681,7 +704,7 @@ public class StoryService {
                 story.getProgress(),
                 story.getStatus().name().toLowerCase(Locale.ROOT),
                 true
-        );
+        ));
     }
 
     private String joinContent(List<StoryLineEntity> lines) {
