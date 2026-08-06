@@ -12,6 +12,7 @@ import com.iread.backend.ai.dto.res.StoryBranchInputReviewResponse;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.exception.ConflictException;
+import com.iread.backend.exception.StoryBranchGeneratingException;
 import com.iread.backend.global.storage.FileStorage;
 import com.iread.backend.global.storage.LoadedFile;
 import com.iread.backend.mypage.domain.CharacterEntity;
@@ -43,6 +44,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -83,6 +86,7 @@ public class StoryService {
     private final StudentFeatureProfileService studentFeatureProfileService;
     private final RealtimeEventPublisher realtimeEventPublisher;
     private final StoryBranchReviewTokenService storyBranchReviewTokenService;
+    private final StoryBranchGenerationLock storyBranchGenerationLock;
     private final FileStorage fileStorage;
     private final ObjectMapper objectMapper;
 
@@ -370,9 +374,41 @@ public class StoryService {
         } else {
             branchIntent = resolveBranchOption(context.line(), request.optionNo());
         }
-        return continueStoryDirection(
-                teacherId, studentId, context.story(), context.line(), branchIntent
-        );
+        // 여기까지 왔으면 이어질 장면이 없어 실제로 생성해야 한다. 같은 문장에서
+        // 생성이 이미 돌고 있으면 두 번 만들지 않고 진행 중임을 알린다.
+        if (!storyBranchGenerationLock.tryAcquire(context.line().getId())) {
+            throw new StoryBranchGeneratingException("이야기를 만들고 있습니다. 잠시만 기다려 주세요.");
+        }
+        boolean generated = false;
+        try {
+            StoryChoiceResponse response = continueStoryDirection(
+                    teacherId, studentId, context.story(), context.line(), branchIntent
+            );
+            generated = true;
+            return response;
+        } finally {
+            // 성공은 커밋 뒤에 풀어야 한다. 커밋 전에 풀면 그 틈에 들어온 요청이
+            // 선택 기록을 아직 못 보고 생성을 또 시작한다. 실패는 곧바로 풀어
+            // 아이가 다시 시도할 수 있게 한다.
+            if (generated) {
+                releaseBranchLockAfterCommit(context.line().getId());
+            } else {
+                storyBranchGenerationLock.release(context.line().getId());
+            }
+        }
+    }
+
+    private void releaseBranchLockAfterCommit(Long storyLineId) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+            storyBranchGenerationLock.release(storyLineId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCompletion(int status) {
+                storyBranchGenerationLock.release(storyLineId);
+            }
+        });
     }
 
     @Transactional
@@ -888,6 +924,9 @@ public class StoryService {
                 line.getStory().getId(),
                 line.getImageUrl(),
                 line.isRequiresBranchInput(),
+                // 분기 문장만 확인한다. 일반 문장까지 Redis 를 조회할 이유가 없다.
+                line.isRequiresBranchInput()
+                        && storyBranchGenerationLock.isGenerating(line.getId()),
                 storyLineContentService.textOf(line),
                 toBranchPrompt(line.getBranchPrompt()),
                 storyLineContentService.ensureAnalysis(line),

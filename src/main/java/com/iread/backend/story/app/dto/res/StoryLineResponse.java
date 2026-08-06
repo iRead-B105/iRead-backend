@@ -11,6 +11,8 @@ public record StoryLineResponse(
         Long storyId,
         String imageUrl,
         boolean requiresBranchInput,
+        /** 이 문장의 다음 장면이 지금 생성되고 있는가. 아동 앱이 선택지를 다시 내주지 않는다. */
+        boolean branchGenerating,
         String lineText,
         StoryBranchPromptResponse branchPrompt,
         JsonNode analysis,

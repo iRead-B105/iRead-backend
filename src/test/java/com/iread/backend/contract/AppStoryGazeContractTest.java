@@ -61,7 +61,7 @@ class AppStoryGazeContractTest {
     @Test
     void serializesReviewedStoryAndGazeFieldNames() {
         StoryLineResponse line = new StoryLineResponse(
-                1L, null, 2L, 3L, null, true, "어디로 갈까요?", null, null,
+                1L, null, 2L, 3L, null, true, false, "어디로 갈까요?", null, null,
                 1, 2, LocalDateTime.of(2026, 7, 28, 10, 0), null
         );
         StoryChoiceResponse choice = new StoryChoiceResponse(

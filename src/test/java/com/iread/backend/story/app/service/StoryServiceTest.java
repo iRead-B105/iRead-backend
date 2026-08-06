@@ -13,6 +13,7 @@ import com.iread.backend.ai.dto.res.GeneratedStoryLine;
 import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
 import com.iread.backend.ai.dto.res.StoryBranchInputReviewResponse;
 import com.iread.backend.exception.ConflictException;
+import com.iread.backend.exception.StoryBranchGeneratingException;
 import com.iread.backend.global.storage.FileStorage;
 import com.iread.backend.global.storage.LoadedFile;
 import com.iread.backend.mypage.domain.CharacterEntity;
@@ -82,6 +83,7 @@ class StoryServiceTest {
     @Mock StudentFeatureProfileService studentFeatureProfileService;
     @Mock RealtimeEventPublisher realtimeEventPublisher;
     @Mock StoryBranchReviewTokenService storyBranchReviewTokenService;
+    @Mock StoryBranchGenerationLock storyBranchGenerationLock;
     @Mock FileStorage fileStorage;
     @Spy PronunciationWordAligner pronunciationWordAligner = new PronunciationWordAligner();
     @Spy StoryLineContentService storyLineContentService = new StoryLineContentService(
@@ -96,6 +98,8 @@ class StoryServiceTest {
 
     @BeforeEach
     void setUp() {
+        // 기본은 잠금 획득 성공. 생성 중 충돌만 테스트에서 따로 지정한다.
+        lenient().when(storyBranchGenerationLock.tryAcquire(anyLong())).thenReturn(true);
         student = mock(StudentEntity.class);
         template = mock(StoryTemplateEntity.class);
         lenient().when(student.getId()).thenReturn(20L);
@@ -663,6 +667,33 @@ class StoryServiceTest {
                 .hasMessage("현재 마지막 분기 장면에만 답할 수 있습니다.");
 
         verifyNoInteractions(aiClient, storyAudioStorage);
+    }
+
+    @Test
+    void 같은_분기가_이미_생성중이면_다시_생성하지_않는다() {
+        // 선택지를 누른 뒤 생성이 끝나기 전에 홈으로 나갔다 돌아와 또 누르는 상황.
+        // 선택 기록은 생성이 끝난 뒤 저장되므로 데이터베이스만으로는 막을 수 없다.
+        StoryEntity story = story(100L);
+        StoryLineEntity choiceLine = line(1001L, story, null, true, "어떻게 할까요?", 1,
+                LocalDateTime.of(2026, 7, 22, 10, 10));
+        ownedStory(story);
+        when(storyLineRepository.findByIdAndStoryIdForUpdate(1001L, 100L))
+                .thenReturn(Optional.of(choiceLine));
+        when(storyChoiceRepository.findByStoryLineId(1001L)).thenReturn(Optional.empty());
+        when(storyLineRepository.findFirstByStoryIdOrderBySequenceNoDesc(100L))
+                .thenReturn(Optional.of(choiceLine));
+        when(storyBranchGenerationLock.tryAcquire(1001L)).thenReturn(false);
+
+        assertThatThrownBy(() -> storyService.chooseStoryDirection(
+                1L, 20L, 100L, 1001L,
+                new StoryBranchSelectionRequest(1)
+        ))
+                .isInstanceOf(StoryBranchGeneratingException.class)
+                .hasMessage("이야기를 만들고 있습니다. 잠시만 기다려 주세요.");
+
+        // AI 를 부르지 않고, 남의 잠금을 풀어서도 안 된다.
+        verifyNoInteractions(aiClient, storyAudioStorage);
+        verify(storyBranchGenerationLock, never()).release(anyLong());
     }
 
     @Test
