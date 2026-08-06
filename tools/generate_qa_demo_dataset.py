@@ -496,14 +496,57 @@ def training_question(template_id: int, question_no: int) -> dict[str, Any]:
     }
 
     if training_type in AUDIO_TRAINING_TYPES:
+        # 낱말 읽기 계열은 문장이 아니라 낱말 목록을 읽는다. 아동 앱이 content.words
+        # 로 카드를 만들기 때문에 이 값이 없으면 문항을 그리지 못한다.
+        word_sets = (
+            ["나비", "다리", "머루", "가방"],
+            ["산길", "바람", "구름", "나무"],
+            ["아침", "저녁", "노을", "하늘"],
+        )
+        if training_type in {"WORD_READING", "NONWORD_READING", "WORD_CHAIN_READING"}:
+            words = list(word_sets[question_no - 1])
+            # 단어 이어 읽기는 AI 생성과 같이 4개로 맞춘다. 나머지는 3개를 쓴다.
+            if training_type != "WORD_CHAIN_READING":
+                words = words[:3]
+            target = " ".join(words)
+            content: dict[str, Any] = {
+                "instruction": "낱말을 하나씩 또박또박 읽어 보세요.",
+            }
+            if training_type == "NONWORD_READING":
+                # 비단어 읽기는 낱말마다 실제 낱말 여부를 함께 준다.
+                content["words"] = [{"text": word, "isNonword": False} for word in words]
+            else:
+                content["words"] = words
+            # readingOrder·requiredOrder 는 순서 목록이 아니라 정책 문자열이다.
+            if training_type == "WORD_READING":
+                content["readingOrder"] = "SEQUENTIAL"
+            if training_type == "WORD_CHAIN_READING":
+                content["requiredOrder"] = "SEQUENTIAL"
+            question.update(
+                {
+                    "requiredInputs": ["VOICE", "GAZE"],
+                    "content": content,
+                    "analysisTargets": [{"text": word} for word in words],
+                    "answer": {"expectedText": target},
+                }
+            )
+            return question
+
         target = audio_targets[question_no - 1]
+        content = {
+            "instruction": "처음부터 끝까지 또박또박 읽어 보세요.",
+            "sentence": target,
+        }
+        if training_type == "SENTENCE_READING":
+            content["tokens"] = target.rstrip(".").split()
+        elif training_type == "SENTENCE_REPEAT":
+            content["emotion"] = "NEUTRAL"
+        elif training_type == "REPEATED_SENTENCE_READING":
+            content["repeatCount"] = 2
         question.update(
             {
                 "requiredInputs": ["VOICE", "GAZE"],
-                "content": {
-                    "instruction": "처음부터 끝까지 또박또박 읽어 보세요.",
-                    "sentence": target,
-                },
+                "content": content,
                 "analysisTargets": [{"text": target}],
                 "answer": {"expectedText": target},
             }
@@ -520,69 +563,233 @@ def training_question(template_id: int, question_no: int) -> dict[str, Any]:
         question.update(
             {
                 "requiredInputs": ["VOICE", "GAZE"],
-                "content": {"instruction": f"{target} 모양을 획순대로 따라 써 보세요.", "target": target},
+                "content": {
+                    "instruction": f"{target} 모양을 획순대로 따라 써 보세요.",
+                    "target": target,
+                    # 아동 앱이 이 값을 TTS 로 읽어 준다. 없으면 소리가 나지 않는다.
+                    "soundText": target,
+                },
                 "answer": {"target": target},
             }
         )
         return question
 
-    if training_type in {"SYLLABLE_BLEND", "SENTENCE_ASSEMBLY"}:
-        cards = ["친구와", "함께", "책을", "읽어요"]
+    if training_type == "SENTENCE_ASSEMBLY":
+        # 문항마다 다른 문장을 조립하게 한다.
+        card_sets = (
+            ["친구와", "함께", "책을", "읽어요"],
+            ["동생이", "천천히", "글을", "따라와요"],
+            ["우리는", "나란히", "이야기를", "들어요"],
+        )
+        cards = list(card_sets[question_no - 1])
         question.update(
             {
                 "content": {"instruction": "카드를 알맞은 순서로 놓아 문장을 만드세요.", "cards": cards},
-                "answer": {"answerOrder": [0, 1, 2, 3]},
+                # 아동 앱이 완성 문장을 필수로 읽는다.
+                "answer": {"answerOrder": [0, 1, 2, 3], "completedSentence": " ".join(cards)},
+            }
+        )
+        return question
+
+    if training_type == "SYLLABLE_BLEND":
+        # 음절 소리를 차례로 들려준 뒤 합쳐 낱말을 만들게 한다.
+        blends = (
+            (["나", "비"], "나비"),
+            (["다", "리"], "다리"),
+            (["머", "루"], "머루"),
+        )
+        parts, combined = blends[question_no - 1]
+        question.update(
+            {
+                "content": {
+                    "instruction": "소리를 차례로 듣고 합쳐 낱말을 만드세요.",
+                    "cards": list(parts),
+                    # 아동 앱이 카드별 소리를 이 목록으로 재생한다.
+                    "audioParts": list(parts),
+                },
+                "answer": {
+                    "answerOrder": list(range(len(parts))),
+                    "result": combined,
+                },
             }
         )
         return question
 
     if training_type in {"BASIC_SYLLABLE_BUILD", "FINAL_SYLLABLE_BUILD", "DOUBLE_FINAL_BUILD"}:
+        # 문항마다 다른 글자를 만들게 한다. 정답 인덱스는 0으로 고정하므로
+        # 각 선택지 목록의 첫 항목이 그 글자의 자모가 되도록 순서를 맞춘다.
+        builds = (
+            ("난", ["ㄴ", "ㄷ", "ㅁ"], ["ㅏ", "ㅓ", "ㅗ"], ["ㄴ", "ㄹ", "ㅁ"]),
+            ("덜", ["ㄷ", "ㄴ", "ㅁ"], ["ㅓ", "ㅏ", "ㅗ"], ["ㄹ", "ㄴ", "ㅁ"]),
+            ("몸", ["ㅁ", "ㄴ", "ㄷ"], ["ㅗ", "ㅏ", "ㅓ"], ["ㅁ", "ㄴ", "ㄹ"]),
+        )
+        target, initials, medials, finals = builds[question_no - 1]
         question.update(
             {
                 "content": {
                     "instruction": "초성·중성·종성을 골라 글자를 만드세요.",
-                    "initialChoices": ["ㄴ", "ㄷ", "ㅁ"],
-                    "medialChoices": ["ㅏ", "ㅓ", "ㅗ"],
-                    "finalChoices": ["ㄴ", "ㄹ", "ㅁ"],
+                    # 아동 앱은 만들 글자를 소리로 들려준 뒤 조합하게 한다.
+                    # 이 값과 answer.result 가 없으면 문항 자체를 그리지 못한다.
+                    "targetAudioText": target,
+                    "initialChoices": initials,
+                    "medialChoices": medials,
+                    "finalChoices": finals,
                 },
                 "answer": {
                     "initialAnswerIndex": 0,
                     "medialAnswerIndex": 0,
                     "finalAnswerIndex": 0,
+                    "result": target,
                 },
             }
         )
         return question
 
     if training_type == "FILL_IN_THE_BLANK":
+        # 문항마다 다른 문장과 정답을 쓴다.
+        blanks = (
+            ("친구와 함께 책을 ___.", "읽어요"),
+            ("동생이 천천히 글을 ___.", "따라와요"),
+            ("우리는 나란히 이야기를 ___.", "들어요"),
+        )
+        prompt, accepted = blanks[question_no - 1]
+        # 아동 앱은 빈칸 채우기를 선택형만 지원한다(inputType=CHOICE). 직접 입력으로
+        # 두면 문항을 그리지 못한다.
+        distractors = {"읽어요": ["보아요", "그려요"], "따라와요": ["달려가요", "돌아가요"],
+                       "들어요": ["잊어요", "덮어요"]}[accepted]
+        choices = [accepted, *distractors]
         question.update(
             {
                 "content": {
-                    "inputType": "TEXT",
-                    "prompt": "친구와 함께 책을 ___.",
-                    "instruction": "빈칸에 알맞은 말을 직접 쓰세요.",
+                    "inputType": "CHOICE",
+                    "sentence": prompt,
+                    "choices": choices,
+                    "instruction": "빈칸에 알맞은 말을 고르세요.",
                 },
-                "answer": {"acceptedAnswers": ["읽어요"]},
+                "answer": {
+                    "answerIndex": 0,
+                    "acceptedAnswers": [accepted],
+                    "completedSentence": prompt.replace("___", accepted),
+                },
             }
         )
         return question
 
+    if training_type == "FINAL_CONSONANT_DELETE":
+        # 받침만 떼어 낸다. removableUnits 가 화면에 놓이는 조각이고
+        # answerIndex 가 그중 정답 조각을 가리킨다.
+        removals = (
+            ("꽃", ["ㅊ", "ㄱ", "ㅁ"], "꼬"),
+            ("밤", ["ㅁ", "ㄴ", "ㄹ"], "바"),
+            ("산", ["ㄴ", "ㅁ", "ㅅ"], "사"),
+        )
+        source, units, removed = removals[question_no - 1]
+        question.update(
+            {
+                "content": {
+                    "instruction": "낱말을 듣고 받침을 떼어 보세요.",
+                    "source": source,
+                    "targetAudioText": source,
+                    "removableUnits": units,
+                },
+                "answer": {"answerIndex": 0, "result": removed},
+            }
+        )
+        return question
+
+    if training_type == "SYLLABLE_DELETE":
+        # 음절을 하나 뺀다. 한 음절 낱말로는 성립하지 않으므로 여러 음절 낱말을 쓴다.
+        removals = (
+            ("바나나", ["바", "나", "나"], 0, "나나"),
+            ("고구마", ["고", "구", "마"], 1, "고마"),
+            ("나비야", ["나", "비", "야"], 2, "나비"),
+        )
+        source, syllables, delete_index, removed = removals[question_no - 1]
+        question.update(
+            {
+                "content": {
+                    "instruction": "낱말을 듣고 한 음절을 빼 보세요.",
+                    "source": source,
+                    "targetAudioText": source,
+                    "syllables": syllables,
+                },
+                "answer": {"deleteIndex": delete_index, "result": removed},
+            }
+        )
+        return question
+
+    if training_type == "SYLLABLE_REPLACE":
+        # choices 는 낱말 전체가 아니라 바꿔 넣을 음절이다.
+        # 결과는 source 의 replaceIndex 음절을 choices[answerIndex] 로 바꾼 낱말이다.
+        swaps = (
+            ("가비", 0, ["나", "다", "마"], "나비"),
+            ("고리", 0, ["다", "가", "마"], "다리"),
+            ("머두", 1, ["루", "리", "로"], "머루"),
+        )
+        source, replace_index, syllable_choices, replaced = swaps[question_no - 1]
+        question.update(
+            {
+                "content": {
+                    "instruction": "낱말을 듣고 한 음절을 바꿔 보세요.",
+                    "source": source,
+                    "targetAudioText": source,
+                    "choices": list(syllable_choices),
+                    # 계약은 content, 아동 앱은 answer 에서 읽으므로 둘 다 채운다.
+                    "replaceIndex": replace_index,
+                },
+                "answer": {
+                    "answerIndex": 0,
+                    "replaceIndex": replace_index,
+                    "result": replaced,
+                },
+            }
+        )
+        return question
+
+    # 듣고 고르는 유형은 들려줄 소리(audioText)가 없으면 아동 앱이 무음으로 넘어간다.
+    # 들려주는 소리는 정답 선택지와 같으므로 선택지 첫 항목(answerIndex 0)을 그대로 쓴다.
+    # 문항 1·2·3이 같은 문제로 보이지 않게 문항마다 다른 묶음을 쓴다.
+    listening_choices = {
+        "CONSONANT_SOUND_CHOICE": (["ㄴ", "ㄷ", "ㅁ"], ["ㄷ", "ㅁ", "ㄴ"], ["ㅁ", "ㄴ", "ㄷ"]),
+        "VOWEL_SOUND_CHOICE": (["ㅏ", "ㅓ", "ㅗ"], ["ㅓ", "ㅗ", "ㅏ"], ["ㅗ", "ㅏ", "ㅓ"]),
+        "SYLLABLE_INITIAL_CHOICE": (["나", "다", "마"], ["다", "마", "나"], ["마", "나", "다"]),
+        "WORD_INITIAL_CHOICE": (
+            ["나비", "다리", "머루"], ["다리", "머루", "나비"], ["머루", "나비", "다리"],
+        ),
+        "SAME_INITIAL_WORD_CHOICE": (
+            ["나비", "다리", "머루"], ["다리", "머루", "나비"], ["머루", "나비", "다리"],
+        ),
+        "FINAL_CONSONANT_CHOICE": (["난", "날", "남"], ["날", "남", "난"], ["남", "난", "날"]),
+        "WORD_FINAL_SOUND_CHOICE": (["산", "살", "삼"], ["살", "삼", "산"], ["삼", "산", "살"]),
+        "FINAL_CONSONANT_COMPARISON": (["난", "달", "밤"], ["달", "밤", "난"], ["밤", "난", "달"]),
+        "SIMILAR_SOUND_CHOICE": (["방", "빵", "팡"], ["빵", "팡", "방"], ["팡", "방", "빵"]),
+    }
+
     choices = ["ㄴ", "ㄷ", "ㅁ"]
     instruction = "알맞은 소리를 골라 보세요."
-    if training_type in {"FINAL_CONSONANT_DELETE", "SYLLABLE_DELETE"}:
-        choices = ["꽃", "꼬", "꼭"]
-        instruction = "받침이나 음절을 뺀 알맞은 낱말을 고르세요."
-    elif training_type == "SYLLABLE_REPLACE":
-        choices = ["나비", "다비", "마비"]
-        instruction = "첫 음절을 바꾼 알맞은 낱말을 고르세요."
+    extra: dict[str, Any] = {}
+    answer_extra: dict[str, Any] = {}
+    if training_type in listening_choices:
+        choices = list(listening_choices[training_type][question_no - 1])
+        extra["audioText"] = choices[0]
+        if training_type == "SIMILAR_SOUND_CHOICE":
+            extra["soundGroup"] = "ㅂ·ㅃ·ㅍ"
+            instruction = "비슷한 소리 중에서 들은 소리를 고르세요."
     elif training_type == "IMAGE_SENTENCE_MATCH":
-        choices = ["아이가 책을 읽어요.", "아이가 공을 차요.", "아이가 잠을 자요."]
+        scenes = (
+            ("아이가 책을 읽는 그림", ["아이가 책을 읽어요.", "아이가 공을 차요.", "아이가 잠을 자요."]),
+            ("아이가 공을 차는 그림", ["아이가 공을 차요.", "아이가 잠을 자요.", "아이가 책을 읽어요."]),
+            ("아이가 잠을 자는 그림", ["아이가 잠을 자요.", "아이가 책을 읽어요.", "아이가 공을 차요."]),
+        )
+        prompt, choices = scenes[question_no - 1]
+        choices = list(choices)
         instruction = "그림 설명과 가장 잘 맞는 문장을 고르세요."
+        extra["imagePrompt"] = prompt
     answer_field = "deleteIndex" if training_type == "SYLLABLE_DELETE" else "answerIndex"
     question.update(
         {
-            "content": {"instruction": instruction, "choices": choices},
-            "answer": {answer_field: 0},
+            "content": {"instruction": instruction, "choices": choices, **extra},
+            "answer": {answer_field: 0, **answer_extra},
         }
     )
     return question
@@ -613,6 +820,9 @@ def question_correct_answer(question: dict[str, Any]) -> str:
     content = question["content"]
     if question["type"] in AUDIO_TRAINING_TYPES:
         return answer["expectedText"]
+    # 받침·음절 빼기는 고를 선택지가 없고 결과 낱말이 정답이다.
+    if "choices" not in content and "result" in answer:
+        return answer["result"]
     if "answerIndex" in answer:
         return content["choices"][answer["answerIndex"]]
     if "deleteIndex" in answer:
