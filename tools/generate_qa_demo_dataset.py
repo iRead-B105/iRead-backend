@@ -70,7 +70,7 @@ STUDENTS = (
     Student(
         1,
         2001,
-        "김OO",
+        "김도윤",
         "2018-04-12",
         "Boy",
         "시연초등학교",
@@ -88,7 +88,7 @@ STUDENTS = (
     Student(
         2,
         2002,
-        "이OO",
+        "이서연",
         "2017-02-14",
         "Girl",
         "샛별초등학교",
@@ -106,7 +106,7 @@ STUDENTS = (
     Student(
         3,
         2103,
-        "박OO",
+        "박지호",
         "2016-01-27",
         "Boy",
         "샛별초등학교",
@@ -184,6 +184,86 @@ STORIES = (
     StorySpec(280003, 2103, 6, "pigs", 100, True, "2026-07-08 15:00:00", ("badf86e5-24c2-4401-920e-51e8f2ce00ac.jpg", "5863d881-12c4-44b1-ae36-7cafe2d60108.jpg")),
     StorySpec(280004, 2103, 3, "sea", 20, False, "2026-08-04 16:00:00", ("347242ee-73de-4179-bebc-95f4f41d3bdc.jpg", "8d07dd90-efa6-4885-9d54-92f40bd7fa9f.jpg")),
 )
+
+
+TRAINING_TYPES = {
+    1: "VOWEL_TRACE",
+    2: "CONSONANT_TRACE",
+    3: "SYLLABLE_TRACE",
+    4: "CONSONANT_SOUND_CHOICE",
+    5: "VOWEL_SOUND_CHOICE",
+    7: "SYLLABLE_INITIAL_CHOICE",
+    8: "WORD_INITIAL_CHOICE",
+    9: "SAME_INITIAL_WORD_CHOICE",
+    10: "FINAL_CONSONANT_CHOICE",
+    11: "WORD_FINAL_SOUND_CHOICE",
+    12: "FINAL_CONSONANT_COMPARISON",
+    13: "SIMILAR_SOUND_CHOICE",
+    15: "SYLLABLE_BLEND",
+    16: "BASIC_SYLLABLE_BUILD",
+    17: "FINAL_SYLLABLE_BUILD",
+    18: "DOUBLE_FINAL_BUILD",
+    19: "FINAL_CONSONANT_DELETE",
+    20: "SYLLABLE_DELETE",
+    21: "SYLLABLE_REPLACE",
+    22: "WORD_READING",
+    23: "NONWORD_READING",
+    25: "SENTENCE_READING",
+    27: "SENTENCE_ASSEMBLY",
+    28: "FILL_IN_THE_BLANK",
+    29: "IMAGE_SENTENCE_MATCH",
+    30: "SENTENCE_REPEAT",
+    31: "WORD_CHAIN_READING",
+    33: "REPEATED_SENTENCE_READING",
+}
+
+AUDIO_TRAINING_TYPES = {
+    "WORD_READING",
+    "NONWORD_READING",
+    "SENTENCE_READING",
+    "SENTENCE_REPEAT",
+    "WORD_CHAIN_READING",
+    "REPEATED_SENTENCE_READING",
+}
+
+# 8개 완료 회차와 1개 다음 회차. 최신 develop의 선택 가능 훈련 28개만
+# 사용하며, 매일 속도 지표를 만들 수 있도록 22 또는 25를 하나 이상 둔다.
+# 30과 33은 같은 유사 읽기군이므로 한 회차에 함께 편성하지 않는다.
+CURRICULUM_ROTATIONS = {
+    2001: (
+        (10, 17, 19, 22, 27),
+        (11, 18, 20, 25, 28),
+        (12, 13, 21, 22, 29),
+        (10, 15, 17, 25, 30),
+        (11, 18, 19, 22, 31),
+        (12, 20, 21, 25, 33),
+        (10, 13, 17, 22, 28),
+        (11, 15, 18, 25, 29),
+        (12, 19, 21, 22, 30),
+    ),
+    2002: (
+        (2, 4, 7, 22, 16),
+        (8, 9, 13, 25, 21),
+        (3, 4, 7, 22, 28),
+        (8, 9, 16, 25, 29),
+        (2, 5, 13, 22, 27),
+        (7, 15, 21, 25, 30),
+        (4, 8, 9, 22, 31),
+        (3, 13, 16, 25, 33),
+        (5, 7, 21, 22, 28),
+    ),
+    2103: (
+        (1, 15, 22, 27, 30),
+        (3, 16, 25, 28, 31),
+        (5, 17, 22, 29, 33),
+        (7, 18, 25, 27, 30),
+        (9, 20, 22, 28, 31),
+        (11, 21, 25, 29, 33),
+        (13, 15, 22, 27, 30),
+        (16, 18, 25, 28, 31),
+        (17, 20, 22, 29, 33),
+    ),
+}
 
 
 ADVERBS = ("차분히", "서로", "오늘도", "용기 내어")
@@ -334,29 +414,192 @@ def gaze_file_name(gaze_session_id: int) -> str:
     return f"gaze-{gaze_session_id}-{deterministic_uuid}.json"
 
 
-def generated_data(student: Student, template_id: int, day_no: int, sequence_no: int) -> dict[str, Any]:
-    targets = (
-        "받침 낱말을 소리 내어 읽어 보세요.",
-        "알맞은 소리를 골라 문장을 완성하세요.",
-        "짧은 문장을 처음부터 끝까지 읽어 보세요.",
+def training_question(template_id: int, question_no: int) -> dict[str, Any]:
+    training_type = TRAINING_TYPES[template_id]
+    audio_targets = (
+        "친구와 함께 천천히 읽어요.",
+        "거북이는 코너에서 방향을 잡았어요.",
+        "바람이 나뭇잎을 살며시 흔들어요.",
     )
+    question: dict[str, Any] = {
+        "questionNo": question_no,
+        "type": training_type,
+    }
+
+    if training_type in AUDIO_TRAINING_TYPES:
+        target = audio_targets[question_no - 1]
+        question.update(
+            {
+                "requiredInputs": ["VOICE", "GAZE"],
+                "content": {
+                    "instruction": "처음부터 끝까지 또박또박 읽어 보세요.",
+                    "sentence": target,
+                },
+                "analysisTargets": [{"text": target}],
+                "answer": {"expectedText": target},
+            }
+        )
+        return question
+
+    if training_type in {"VOWEL_TRACE", "CONSONANT_TRACE", "SYLLABLE_TRACE"}:
+        targets = {
+            "VOWEL_TRACE": ("ㅏ", "ㅓ", "ㅗ"),
+            "CONSONANT_TRACE": ("ㄴ", "ㄷ", "ㅁ"),
+            "SYLLABLE_TRACE": ("난", "단", "만"),
+        }[training_type]
+        target = targets[question_no - 1]
+        question.update(
+            {
+                "requiredInputs": ["VOICE", "GAZE"],
+                "content": {"instruction": f"{target} 모양을 획순대로 따라 써 보세요.", "target": target},
+                "answer": {"target": target},
+            }
+        )
+        return question
+
+    if training_type in {"SYLLABLE_BLEND", "SENTENCE_ASSEMBLY"}:
+        cards = ["친구와", "함께", "책을", "읽어요"]
+        question.update(
+            {
+                "content": {"instruction": "카드를 알맞은 순서로 놓아 문장을 만드세요.", "cards": cards},
+                "answer": {"answerOrder": [0, 1, 2, 3]},
+            }
+        )
+        return question
+
+    if training_type in {"BASIC_SYLLABLE_BUILD", "FINAL_SYLLABLE_BUILD", "DOUBLE_FINAL_BUILD"}:
+        question.update(
+            {
+                "content": {
+                    "instruction": "초성·중성·종성을 골라 글자를 만드세요.",
+                    "initialChoices": ["ㄴ", "ㄷ", "ㅁ"],
+                    "medialChoices": ["ㅏ", "ㅓ", "ㅗ"],
+                    "finalChoices": ["ㄴ", "ㄹ", "ㅁ"],
+                },
+                "answer": {
+                    "initialAnswerIndex": 0,
+                    "medialAnswerIndex": 0,
+                    "finalAnswerIndex": 0,
+                },
+            }
+        )
+        return question
+
+    if training_type == "FILL_IN_THE_BLANK":
+        question.update(
+            {
+                "content": {
+                    "inputType": "TEXT",
+                    "prompt": "친구와 함께 책을 ___.",
+                    "instruction": "빈칸에 알맞은 말을 직접 쓰세요.",
+                },
+                "answer": {"acceptedAnswers": ["읽어요"]},
+            }
+        )
+        return question
+
+    choices = ["ㄴ", "ㄷ", "ㅁ"]
+    instruction = "알맞은 소리를 골라 보세요."
+    if training_type in {"FINAL_CONSONANT_DELETE", "SYLLABLE_DELETE"}:
+        choices = ["꽃", "꼬", "꼭"]
+        instruction = "받침이나 음절을 뺀 알맞은 낱말을 고르세요."
+    elif training_type == "SYLLABLE_REPLACE":
+        choices = ["나비", "다비", "마비"]
+        instruction = "첫 음절을 바꾼 알맞은 낱말을 고르세요."
+    elif training_type == "IMAGE_SENTENCE_MATCH":
+        choices = ["아이가 책을 읽어요.", "아이가 공을 차요.", "아이가 잠을 자요."]
+        instruction = "그림 설명과 가장 잘 맞는 문장을 고르세요."
+    answer_field = "deleteIndex" if training_type == "SYLLABLE_DELETE" else "answerIndex"
+    question.update(
+        {
+            "content": {"instruction": instruction, "choices": choices},
+            "answer": {answer_field: 0},
+        }
+    )
+    return question
+
+
+def generated_data(student: Student, template_id: int, day_no: int, sequence_no: int) -> dict[str, Any]:
     return {
         "schemaVersion": 2,
-        "trainingType": f"DEMO_TEMPLATE_{template_id}",
+        "trainingType": TRAINING_TYPES[template_id],
         "persona": student.weakness,
-        "questions": [
-            {
-                "questionNo": index,
-                "type": "SENTENCE_READING" if index != 2 else "SINGLE_CHOICE",
-                "text": text,
-                "analysisTargets": [{"text": "친구와 함께 천천히 읽어요"}] if index != 2 else [],
-                "content": {"choices": ["ㄴ", "ㄷ", "ㅁ"]} if index == 2 else {},
-                "answer": {"answerIndex": 0} if index == 2 else {"text": "친구와 함께 천천히 읽어요"},
-            }
-            for index, text in enumerate(targets, 1)
-        ],
+        "questions": [training_question(template_id, question_no) for question_no in range(1, 4)],
         "demoMeta": {"learningDay": day_no, "sequenceNo": sequence_no},
     }
+
+
+def question_attempt_tokens(question: dict[str, Any]) -> tuple[str, str, str, str]:
+    if question["type"] in AUDIO_TRAINING_TYPES:
+        tokens = question["analysisTargets"][0]["text"].rstrip(".").split()
+    else:
+        tokens = "문항 내용을 차분히 확인해요".split()
+    if len(tokens) < 4:
+        tokens.extend(["확인해요"] * (4 - len(tokens)))
+    return tuple(tokens[:4])
+
+
+def question_correct_answer(question: dict[str, Any]) -> str:
+    answer = question["answer"]
+    content = question["content"]
+    if question["type"] in AUDIO_TRAINING_TYPES:
+        return answer["expectedText"]
+    if "answerIndex" in answer:
+        return content["choices"][answer["answerIndex"]]
+    if "deleteIndex" in answer:
+        return content["choices"][answer["deleteIndex"]]
+    if "answerOrder" in answer:
+        return " ".join(content["cards"][index] for index in answer["answerOrder"])
+    if "acceptedAnswers" in answer:
+        return answer["acceptedAnswers"][0]
+    if "target" in answer:
+        return answer["target"]
+    slots = (
+        ("초성", "initialChoices", "initialAnswerIndex"),
+        ("중성", "medialChoices", "medialAnswerIndex"),
+        ("종성", "finalChoices", "finalAnswerIndex"),
+    )
+    return " · ".join(
+        f"{label}: {content[choices][answer[index]]}"
+        for label, choices, index in slots
+        if index in answer
+    )
+
+
+def question_selected_answer(question: dict[str, Any], correct: bool) -> str:
+    expected = question_correct_answer(question)
+    if correct:
+        return expected
+    content = question["content"]
+    if "choices" in content and len(content["choices"]) > 1:
+        return content["choices"][1]
+    if question["type"] in AUDIO_TRAINING_TYPES:
+        return expected.rstrip(".") + " 중 일부를 놓쳐 읽음"
+    if "cards" in content:
+        return " ".join(reversed(content["cards"]))
+    if question["type"] == "FILL_IN_THE_BLANK":
+        return "보아요"
+    return "획순 또는 글자 조합 일부가 다름"
+
+
+def training_correct_count(student: Student, day_no: int, sequence_no: int) -> int:
+    persona_base = {1: 7, 2: 8, 3: 10}[student.no]
+    improvement = (day_no - 1) // 3
+    variation = (day_no + sequence_no + student.no) % 2
+    return min(12, persona_base + improvement + variation)
+
+
+def training_accuracy(student: Student, day_no: int, sequence_no: int) -> int:
+    return round(training_correct_count(student, day_no, sequence_no) / 12 * 1000)
+
+
+def daily_accuracy(student: Student, day_no: int) -> float:
+    values = [training_accuracy(student, day_no, sequence_no) / 10 for sequence_no in range(1, 6)]
+    return round(sum(values) / len(values), 1)
+
+
+def reading_speed(student: Student, day_no: int) -> int:
+    return student.reading_speed + day_no - 1
 
 
 def azure_fixture(reference: str, score: int, student_id: int, test_id: int, question_no: int) -> dict[str, Any]:
@@ -446,12 +689,13 @@ def report_gaze_series(student: Student) -> dict[str, Any]:
 
 
 def report_snapshot(student: Student, days: int) -> dict[str, Any]:
+    first_day_no = len(student.completed_dates) - days + 1
     growth = [
         {
             "date": date,
-            "accuracy": round((student.base_score + index * 12) / 10, 1),
-            "readingSpeed": student.reading_speed + index,
-            "pronunciationScore": round((student.base_score + index * 10) / 10, 1),
+            "accuracy": daily_accuracy(student, first_day_no + index),
+            "readingSpeed": reading_speed(student, first_day_no + index),
+            "pronunciationScore": round((student.base_score + (first_day_no + index) * 10) / 10, 1),
         }
         for index, date in enumerate(student.completed_dates[-days:])
     ]
@@ -487,8 +731,8 @@ def report_snapshot(student: Student, days: int) -> dict[str, Any]:
         "learningDays": days,
         "totalTrainingTimeMinutes": days * 45,
         "completedTrainingCount": days * 5,
-        "averageAccuracy": round((student.base_score + 80) / 10, 1),
-        "averageReadingSpeed": student.reading_speed,
+        "averageAccuracy": round(sum(point["accuracy"] for point in growth) / len(growth), 1),
+        "averageReadingSpeed": round(sum(point["readingSpeed"] for point in growth) / len(growth), 1),
         "readingSpeedUnit": "CORRECT_WORDS_PER_MINUTE",
         "growthHistory": growth,
         "growthComparisonStatus": "AVAILABLE",
@@ -580,30 +824,109 @@ def build() -> tuple[str, dict[str, Any], dict[str, Any], dict[Path, Any]]:
     curriculum_rows = []
     training_rows = []
     training_data_rows = []
-    templates = (1, 4, 5, 7, 8)
+    training_attempt_rows = []
+    training_attempt_id = 380000
     for student in STUDENTS:
         for day_no, date in enumerate(student.completed_dates, 1):
             curriculum_id = 310000 + student.no * 100 + day_no
-            started = f"{date} 15:00:00"
-            completed = f"{date} 15:45:00"
-            curriculum_rows.append((curriculum_id, student.id, "COMPLETED", started, completed))
+            curriculum_started = datetime.fromisoformat(f"{date} 15:00:00")
+            curriculum_completed = curriculum_started + timedelta(minutes=45)
+            curriculum_rows.append(
+                (
+                    curriculum_id,
+                    student.id,
+                    "COMPLETED",
+                    curriculum_started.strftime("%Y-%m-%d %H:%M:%S"),
+                    curriculum_completed.strftime("%Y-%m-%d %H:%M:%S"),
+                )
+            )
+            templates = CURRICULUM_ROTATIONS[student.id][day_no - 1]
             for sequence_no, template_id in enumerate(templates, 1):
                 training_id = 320000 + student.no * 1000 + day_no * 10 + sequence_no
-                score = min(970, student.base_score + day_no * 12 + sequence_no * 4)
-                question_results = [
-                    {
-                        "questionNumber": q,
-                        "question": f"{student.weakness} 학습 {q}번 문항",
-                        "isCorrect": not (student.no < 3 and q == 2 and (day_no + sequence_no) % 3 == 0),
-                        "selectedAnswer": "정확한 응답" if q != 2 else "ㄴ",
-                        "correctAnswer": "정확한 응답" if q != 2 else "ㄴ",
-                    }
-                    for q in range(1, 4)
+                started = curriculum_started + timedelta(minutes=(sequence_no - 1) * 9)
+                finished = started + timedelta(minutes=8)
+                generated = generated_data(student, template_id, day_no, sequence_no)
+                correct_count = training_correct_count(student, day_no, sequence_no)
+                attempt_correctness = [
+                    (attempt_index * 5 + day_no + sequence_no + student.no) % 12 < correct_count
+                    for attempt_index in range(12)
                 ]
-                training_rows.append((training_id, template_id, curriculum_id, sequence_no, started, started, completed, "COMPLETED", json.dumps({"questions": question_results, "learningAssessment": f"{student.weakness} 수행 기록"}, ensure_ascii=False, separators=(",", ":")), score))
-                training_data_rows.append((330000 + student.no * 1000 + day_no * 10 + sequence_no, training_id, json.dumps(generated_data(student, template_id, day_no, sequence_no), ensure_ascii=False, separators=(",", ":")), started))
+                question_results = []
+                attempt_index = 0
+                is_audio_training = TRAINING_TYPES[template_id] in AUDIO_TRAINING_TYPES
+                voice_duration_ms = round(
+                    correct_count * 60_000 / reading_speed(student, day_no)
+                ) if is_audio_training else 0
+                for question in generated["questions"]:
+                    question_no = question["questionNo"]
+                    question_correctness = attempt_correctness[attempt_index:attempt_index + 4]
+                    correct_attempts = sum(question_correctness)
+                    question_is_correct = correct_attempts >= 3
+                    question_results.append(
+                        {
+                            "questionNo": question_no,
+                            "questionNumber": question_no,
+                            "questionType": question["type"],
+                            "isCorrect": question_is_correct,
+                            "selectedAnswer": question_selected_answer(question, question_is_correct),
+                            "correctAnswer": question_correct_answer(question),
+                            "score": round(correct_attempts / 4 * 100),
+                        }
+                    )
+                    for token_index, token in enumerate(question_attempt_tokens(question)):
+                        is_correct = attempt_correctness[attempt_index]
+                        speech_start = round(attempt_index * voice_duration_ms / 12) if is_audio_training else None
+                        speech_end = round((attempt_index + 1) * voice_duration_ms / 12) if is_audio_training else None
+                        training_attempt_id += 1
+                        training_attempt_rows.append(
+                            (
+                                training_attempt_id,
+                                student,
+                                training_id,
+                                question_no,
+                                token_index,
+                                token,
+                                is_audio_training,
+                                is_correct,
+                                finished.strftime("%Y-%m-%d %H:%M:%S"),
+                                speech_start,
+                                speech_end,
+                            )
+                        )
+                        attempt_index += 1
+                score = training_accuracy(student, day_no, sequence_no)
+                result = {
+                    "schemaVersion": 2,
+                    "questions": question_results,
+                    "learningAssessment": (
+                        f"{student.weakness} 중심 훈련에서 {score / 10:.1f}% 정확도를 기록했습니다."
+                    ),
+                }
+                training_rows.append(
+                    (
+                        training_id,
+                        template_id,
+                        curriculum_id,
+                        sequence_no,
+                        started.strftime("%Y-%m-%d %H:%M:%S"),
+                        started.strftime("%Y-%m-%d %H:%M:%S"),
+                        finished.strftime("%Y-%m-%d %H:%M:%S"),
+                        "COMPLETED",
+                        json.dumps(result, ensure_ascii=False, separators=(",", ":")),
+                        score,
+                    )
+                )
+                training_data_rows.append(
+                    (
+                        330000 + student.no * 1000 + day_no * 10 + sequence_no,
+                        training_id,
+                        json.dumps(generated, ensure_ascii=False, separators=(",", ":")),
+                        started.strftime("%Y-%m-%d %H:%M:%S"),
+                    )
+                )
         curriculum_id = 310000 + student.no * 100 + 90
         curriculum_rows.append((curriculum_id, student.id, "NOT_STARTED", "2026-08-05 09:00:00", None))
+        templates = CURRICULUM_ROTATIONS[student.id][8]
         for sequence_no, template_id in enumerate(templates, 1):
             training_id = 320000 + student.no * 1000 + 900 + sequence_no
             training_rows.append((training_id, template_id, curriculum_id, sequence_no, "2026-08-05 09:00:00", None, None, "NOT_STARTED" if sequence_no == 1 else "NOT_READY", None, None))
@@ -612,6 +935,29 @@ def build() -> tuple[str, dict[str, Any], dict[str, Any], dict[Path, Any]]:
     sql.append("\n" + rows_sql("daily_curriculums", ("id", "student_id", "status", "created_at", "completed_at"), curriculum_rows))
     sql.append(rows_sql("trainings", ("id", "training_template_id", "daily_curriculum_id", "sequence_no", "created_at", "started_at", "finished_at", "status", "result", "accuracy"), training_rows))
     sql.append(rows_sql("training_datas", ("id", "train_id", "generated_data", "created_at"), training_data_rows))
+    for _, _, _, _, _, token, _, _, _, _, _ in training_attempt_rows:
+        sql.append(
+            f"INSERT INTO words (content, length) VALUES ({sql_quote(token)}, {len(token)}) "
+            "ON DUPLICATE KEY UPDATE length=VALUES(length);\n"
+        )
+    for (
+        log_id,
+        student,
+        training_id,
+        question_no,
+        token_index,
+        token,
+        has_audio,
+        is_correct,
+        created_at,
+        speech_start,
+        speech_end,
+    ) in training_attempt_rows:
+        pronunciation_score = 900 if is_correct else 550
+        sql.append(
+            "INSERT INTO word_attempt_logs (id, student_id, word_id, story_line_id, training_id, test_id, use_location, surface_text, has_gaze_data, has_audio_data, fixation_duration_ms, fixation_count, gaze_start_offset_ms, gaze_end_offset_ms, is_skipped, regression_count, pronunciation_accuracy_score, speech_start_offset_ms, speech_end_offset_ms, is_correct, created_at, total_score, question_no, target_index, token_index, is_final) "
+            f"SELECT {log_id}, {student.id}, id, NULL, {training_id}, NULL, 'TRAINING', {sql_quote(token)}, FALSE, {'TRUE' if has_audio else 'FALSE'}, NULL, NULL, NULL, NULL, FALSE, 0, {pronunciation_score if has_audio else 'NULL'}, {speech_start if has_audio else 'NULL'}, {speech_end if has_audio else 'NULL'}, {'TRUE' if is_correct else 'FALSE'}, {sql_quote(created_at)}, {1000 if is_correct else 0}, {question_no}, 0, {token_index}, TRUE FROM words WHERE content={sql_quote(token)};\n"
+        )
 
     raw_assets: dict[Path, Any] = {}
     test_curriculum_rows = []
@@ -723,21 +1069,97 @@ def build() -> tuple[str, dict[str, Any], dict[str, Any], dict[Path, Any]]:
         gaze_name = gaze_file_name(gaze_id)
         samples = []
         replay_words = []
+        source_pages = []
         sentence_metrics = []
+        regressions = []
         captured = 300
-        dwell_per_token = 920 if student.no == 1 else 760 if student.no == 2 else 1120
         for page in pages:
             tokens = page["text"].split()
+            source_pages.append(
+                {
+                    "pageNo": page["pageNo"],
+                    "storyLineId": line_by_page[page["pageNo"]],
+                    "text": page["text"],
+                    "tokens": tokens,
+                }
+            )
             first_offset = captured
-            for token_index, token in enumerate(tokens):
-                samples.append({"pageNo": page["pageNo"], "storyLineId": line_by_page[page["pageNo"]], "tokenIndex": token_index, "text": token, "capturedAtMs": captured, "presence": True, "x": round(0.16 + (token_index % 8) * 0.09, 2), "y": round(0.28 + (page["pageNo"] % 5) * 0.09, 2)})
-                if token_index == 0 and page["pageNo"] % 5 == 0:
-                    replay_words.append({"pageNo": page["pageNo"], "storyLineId": line_by_page[page["pageNo"]], "tokenIndex": token_index, "text": token, "dwellMs": dwell_per_token * 2})
-                captured += dwell_per_token
-            sentence_metrics.append({"storyLineId": line_by_page[page["pageNo"]], "pageNo": page["pageNo"], "surfaceText": page["text"], "dwellDurationMs": len(tokens) * dwell_per_token, "fixationCount": len(tokens), "regressionCount": 0 if student.no == 3 else 1, "firstGazeOffsetMs": first_offset, "lastGazeOffsetMs": captured})
-        raw_assets[Path("gaze") / str(story.student_id) / gaze_name] = {"rawData": {"schemaVersion": "story-gaze-raw-v1", "studentId": story.student_id, "storyId": story.id, "pageCount": story.progress, "tokenCoverage": "FULL", "replayWords": replay_words, "samples": samples}}
+            # 한 페이지마다 2번 단어를 건너뛴 뒤 1번 단어로 되돌아온다.
+            # 1번·3번·되돌아온 1번은 180ms 간격의 연속 샘플 3개로
+            # 기록해 백엔드의 체류 판정(250ms 이하 연속 간격)을 만족한다.
+            visit_indexes = [0, 1, 3, *range(4, len(tokens)), 1] if len(tokens) >= 4 else list(range(len(tokens)))
+            page_sample_start = len(samples)
+            for visit_no, token_index in enumerate(visit_indexes):
+                token = tokens[token_index]
+                dwell_visit = len(tokens) >= 4 and (token_index == 3 or token_index == 1)
+                sample_count = 3 if dwell_visit else 1
+                visit_started = captured
+                for sample_no in range(sample_count):
+                    sample_at = visit_started + sample_no * 180
+                    samples.append(
+                        {
+                            "pageNo": page["pageNo"],
+                            "storyLineId": line_by_page[page["pageNo"]],
+                            "tokenIndex": token_index,
+                            "text": token,
+                            "capturedAtMs": sample_at,
+                            "presence": True,
+                            "x": round(0.16 + (token_index % 8) * 0.09, 2),
+                            "y": round(0.28 + (page["pageNo"] % 5) * 0.09, 2),
+                        }
+                    )
+                dwell_ms = 440 if dwell_visit else 80
+                replay_words.append(
+                    {
+                        "pageNo": page["pageNo"],
+                        "storyLineId": line_by_page[page["pageNo"]],
+                        "tokenIndex": token_index,
+                        "text": token,
+                        "dwellMs": dwell_ms,
+                        "visitCount": 1,
+                        "skipped": False,
+                        "regressionCount": 1 if visit_no == len(visit_indexes) - 1 and token_index == 1 else 0,
+                    }
+                )
+                captured += (520 if dwell_visit else 180) + student.no * 15
+            page_sample_count = len(samples) - page_sample_start
+            if len(tokens) >= 4:
+                regressions.append(
+                    {
+                        "fromTargetIndex": page["pageNo"] - 1,
+                        "toTargetIndex": page["pageNo"] - 1,
+                        "fromTokenIndex": len(tokens) - 1,
+                        "toTokenIndex": 1,
+                        "offsetMs": captured - first_offset,
+                    }
+                )
+            sentence_metrics.append(
+                {
+                    "storyLineId": line_by_page[page["pageNo"]],
+                    "pageNo": page["pageNo"],
+                    "sequenceNo": page["pageNo"],
+                    "surfaceText": page["text"],
+                    "dwellDurationMs": captured - first_offset,
+                    "fixationCount": page_sample_count,
+                    "regressionCount": 1 if len(tokens) >= 4 else 0,
+                    "firstGazeOffsetMs": first_offset,
+                    "lastGazeOffsetMs": captured,
+                }
+            )
+        raw_assets[Path("gaze") / str(story.student_id) / gaze_name] = {
+            "rawData": {
+                "schemaVersion": "story-gaze-raw-v2",
+                "studentId": story.student_id,
+                "storyId": story.id,
+                "pageCount": story.progress,
+                "sourceTextCoverage": "FULL",
+                "pages": source_pages,
+                "replayWords": replay_words,
+                "samples": samples,
+            }
+        }
         story_gaze_rows.append((gaze_id, story.student_id, None, None, story.id, "STORY", story.created_at, (datetime.fromisoformat(story.created_at) + timedelta(milliseconds=captured)).strftime("%Y-%m-%d %H:%M:%S"), f"/gaze/{story.student_id}/{gaze_name}", "COMPLETED", "SUCCESS", story.created_at))
-        story_analysis_rows.append((291100 + story_index, gaze_id, captured - 300, len(samples), len(replay_words), round((captured - 300) / max(1, len(samples))), json.dumps(sentence_metrics, ensure_ascii=False, separators=(",", ":")), json.dumps([], separators=(",", ":")), json.dumps({"source": "qa-demo", "persona": student.weakness, "tokenCoverage": "FULL", "calculationVersion": "story-gaze-word-v1"}, ensure_ascii=False, separators=(",", ":")), (datetime.fromisoformat(story.created_at) + timedelta(milliseconds=captured + 1000)).strftime("%Y-%m-%d %H:%M:%S")))
+        story_analysis_rows.append((291100 + story_index, gaze_id, captured - 300, len(samples), len(regressions), round((captured - 300) / max(1, len(samples))), json.dumps(sentence_metrics, ensure_ascii=False, separators=(",", ":")), json.dumps(regressions, ensure_ascii=False, separators=(",", ":")), json.dumps({"source": "qa-demo", "persona": student.weakness, "sourceTextCoverage": "FULL", "calculationVersion": "story-gaze-word-v2"}, ensure_ascii=False, separators=(",", ":")), (datetime.fromisoformat(story.created_at) + timedelta(milliseconds=captured + 1000)).strftime("%Y-%m-%d %H:%M:%S")))
 
     sql.append("\n" + rows_sql("stories", ("id", "student_id", "story_template_id", "created_at", "status", "progress"), story_rows))
     sql.append(rows_sql("story_scenes", ("scene_id", "story_id", "image_url", "sequence_no", "created_at"), scene_rows))
@@ -815,7 +1237,7 @@ def validate(sql: str, manifest: dict[str, Any], scene_prompts: dict[str, Any], 
     )
     assert len(manifest["pronunciation"]) == 18
     assert len(manifest["gaze"]) == 13
-    assert sql.count("INSERT INTO word_attempt_logs") == 108
+    assert sql.count("INSERT INTO word_attempt_logs") == 1_548
     assert all(
         re.fullmatch(r"\d+/gaze-\d+-[0-9a-f-]{36}\.json", relative_path)
         for relative_path in manifest["gaze"]
@@ -827,6 +1249,15 @@ def validate(sql: str, manifest: dict[str, Any], scene_prompts: dict[str, Any], 
     for student in STUDENTS:
         assert len(student.completed_dates) == 8
         assert student.school.endswith("초등학교")
+        rotations = CURRICULUM_ROTATIONS[student.id]
+        assert len(rotations) == 9
+        assert len({frozenset(rotation) for rotation in rotations}) == 9
+        for rotation in rotations:
+            assert len(rotation) == 5
+            assert len(set(rotation)) == 5
+            assert set(rotation) <= set(TRAINING_TYPES)
+            assert 22 in rotation or 25 in rotation
+            assert not ({30, 33} <= set(rotation))
     for story in STORIES:
         pages = story_pages(story)
         assert len(pages) == story.progress
@@ -843,13 +1274,32 @@ def validate(sql: str, manifest: dict[str, Any], scene_prompts: dict[str, Any], 
                 assert not ("차분히" in sentence and "차분하게" in sentence)
                 assert not ("용기 내어" in sentence and "용기 있게" in sentence)
     for path, payload in raw_assets.items():
-        if path.parts[0] != "gaze" or payload["rawData"]["schemaVersion"] != "story-gaze-raw-v1":
+        if path.parts[0] != "gaze" or payload["rawData"]["schemaVersion"] != "story-gaze-raw-v2":
             continue
         raw = payload["rawData"]
         story = next(item for item in STORIES if item.id == raw["storyId"])
-        expected_tokens = sum(len(page["text"].split()) for page in story_pages(story))
-        assert raw["tokenCoverage"] == "FULL"
-        assert len(raw["samples"]) == expected_tokens
+        pages = story_pages(story)
+        assert raw["sourceTextCoverage"] == "FULL"
+        assert len(raw["pages"]) == len(pages)
+        for expected, source in zip(pages, raw["pages"], strict=True):
+            expected_tokens = expected["text"].split()
+            assert source["pageNo"] == expected["pageNo"]
+            assert source["text"] == expected["text"]
+            assert source["tokens"] == expected_tokens
+            page_samples = [
+                sample for sample in raw["samples"]
+                if sample["pageNo"] == expected["pageNo"]
+            ]
+            assert page_samples
+            assert all(
+                0 <= sample["tokenIndex"] < len(expected_tokens)
+                for sample in page_samples
+            )
+            if len(expected_tokens) >= 4:
+                sampled_indexes = [sample["tokenIndex"] for sample in page_samples]
+                assert 2 not in sampled_indexes
+                assert sampled_indexes.count(1) >= 6
+                assert sampled_indexes.count(3) >= 3
 
 
 def write_outputs(sql: str, manifest: dict[str, Any], scene_prompts: dict[str, Any], raw_assets: dict[Path, Any]) -> None:

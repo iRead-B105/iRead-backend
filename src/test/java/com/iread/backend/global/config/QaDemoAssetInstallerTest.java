@@ -73,6 +73,7 @@ class QaDemoAssetInstallerTest {
         }
         assertThat(Files.readString(completedStoryGaze))
                 .contains("\"storyId\": 280003")
-                .contains("\"tokenCoverage\": \"FULL\"");
+                .contains("\"sourceTextCoverage\": \"FULL\"")
+                .contains("\"schemaVersion\": \"story-gaze-raw-v2\"");
     }
 }

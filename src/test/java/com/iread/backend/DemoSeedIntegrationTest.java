@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.iread.backend.global.config.QaDemoDatasetService;
 import com.iread.backend.report.admin.dto.res.ReportSnapshot;
+import com.iread.backend.training.config.TrainingTemplateDataInitializer;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -35,6 +36,7 @@ class DemoSeedIntegrationTest {
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired QaDemoDatasetService qaDemoDatasetService;
+    @Autowired tools.jackson.databind.ObjectMapper trainingTemplateObjectMapper;
     private final ObjectMapper objectMapper = JsonMapper.builder().findAndAddModules().build();
 
     @Test
@@ -110,6 +112,9 @@ class DemoSeedIntegrationTest {
                        (6, '아기돼지 삼형제', '데모', NULL)
                 """);
 
+        // V2 is intentionally a small legacy fixture. Bring its reference catalog up to
+        // the same 28 selectable templates as develop before applying the QA dataset.
+        new TrainingTemplateDataInitializer(jdbcTemplate, trainingTemplateObjectMapper).run(null);
         qaDemoDatasetService.install();
 
         String qaPasswordHash = jdbcTemplate.queryForObject(
@@ -124,7 +129,7 @@ class DemoSeedIntegrationTest {
         assertThat(jdbcTemplate.queryForList(
                 "SELECT name FROM students WHERE teacher_id = 1001 ORDER BY id",
                 String.class
-        )).containsExactly("김OO", "이OO", "박OO");
+        )).containsExactly("김도윤", "이서연", "박지호");
         assertThat(jdbcTemplate.queryForList(
                 "SELECT school FROM students WHERE teacher_id = 1001 ORDER BY id",
                 String.class
@@ -192,6 +197,39 @@ class DemoSeedIntegrationTest {
             assertThat(trainingCount(studentId)).isEqualTo(45);
             assertThat(trainingDataCount(studentId)).isEqualTo(45);
             assertThat(jdbcTemplate.queryForObject(
+                    """
+                    SELECT COUNT(DISTINCT training.training_template_id)
+                      FROM trainings training
+                      JOIN daily_curriculums curriculum
+                        ON curriculum.id = training.daily_curriculum_id
+                     WHERE curriculum.student_id=?
+                       AND curriculum.status='COMPLETED'
+                    """,
+                    Integer.class,
+                    studentId
+            )).isGreaterThan(10);
+            assertThat(jdbcTemplate.queryForObject(
+                    """
+                    SELECT COUNT(*)
+                      FROM daily_curriculums curriculum
+                     WHERE curriculum.student_id=?
+                       AND curriculum.status='COMPLETED'
+                       AND 5 = (
+                            SELECT COUNT(*)
+                              FROM trainings training
+                             WHERE training.daily_curriculum_id=curriculum.id
+                       )
+                       AND EXISTS (
+                            SELECT 1
+                              FROM trainings training
+                             WHERE training.daily_curriculum_id=curriculum.id
+                               AND training.training_template_id IN (22, 25)
+                       )
+                    """,
+                    Integer.class,
+                    studentId
+            )).isEqualTo(8);
+            assertThat(jdbcTemplate.queryForObject(
                     "SELECT COUNT(*) FROM reports WHERE student_id=?",
                     Integer.class,
                     studentId
@@ -202,6 +240,14 @@ class DemoSeedIntegrationTest {
                     studentId
             )).isEqualTo(3);
         }
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM word_attempt_logs WHERE use_location='TRAINING' AND student_id IN (2001, 2002, 2103)",
+                Integer.class
+        )).isEqualTo(1440);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(DISTINCT DATE(created_at)) FROM word_attempt_logs WHERE use_location='TRAINING' AND student_id=2001",
+                Integer.class
+        )).isEqualTo(8);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM word_attempt_logs WHERE use_location='TEST' AND pronunciation_accuracy_score IS NOT NULL",
                 Integer.class
