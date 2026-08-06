@@ -41,25 +41,23 @@ public class CurriculumGenerationWorker {
         if (trainings.size() != PersonalizedCurriculumPlanner.TRAINING_COUNT) {
             throw new IllegalStateException("맞춤 커리큘럼은 훈련 5개여야 합니다.");
         }
-        if (trainings.stream().allMatch(training ->
-                training.getStatus() == TrainingStatus.NOT_STARTED)) {
+        // 이전 생성이 도중에 실패했거나 일부 훈련만 먼저 교안이 만들어진 커리큘럼도
+        // 이미 준비된 훈련은 건드리지 않고 빠진 훈련만 채워 스스로 복구한다.
+        List<TrainingEntity> pending = trainings.stream()
+                .filter(training -> training.getStatus() == TrainingStatus.NOT_READY)
+                .toList();
+        if (pending.isEmpty()) {
             curriculum.refreshReviewRequirement();
             return;
         }
-        if (trainings.stream().anyMatch(training ->
-                training.getStatus() != TrainingStatus.NOT_READY)) {
-            throw new IllegalStateException(
-                    "일부만 생성된 커리큘럼은 자동 생성할 수 없습니다: " + curriculumId
-            );
-        }
 
         List<ObjectNode> generated = new ArrayList<>();
-        for (TrainingEntity training : trainings) {
+        for (TrainingEntity training : pending) {
             generated.add(generationService.generate(training));
         }
 
-        for (int index = 0; index < trainings.size(); index++) {
-            TrainingEntity training = trainings.get(index);
+        for (int index = 0; index < pending.size(); index++) {
+            TrainingEntity training = pending.get(index);
             TrainingDataEntity data = trainingDataRepository.findByTrainingId(training.getId())
                     .orElseGet(() -> trainingDataRepository.save(
                             new TrainingDataEntity(training, "{}")
@@ -74,7 +72,7 @@ public class CurriculumGenerationWorker {
         trainingDataRepository.flush();
         // 그림 문항 삽화는 커밋 후 백그라운드로 채운다(실패 시 앱은 묘사 텍스트 폴백).
         imageTrigger.populateTrainingsAfterCommit(
-                trainings.stream().map(TrainingEntity::getId).toList()
+                pending.stream().map(TrainingEntity::getId).toList()
         );
     }
 
