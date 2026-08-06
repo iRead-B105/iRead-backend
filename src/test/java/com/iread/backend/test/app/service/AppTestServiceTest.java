@@ -138,6 +138,7 @@ class AppTestServiceTest {
                 new AppLearningQuestionSupport(mapper),
                 realtimeEventPublisher,
                 null,
+                null,
                 null
         );
         StudentEntity student = mock(StudentEntity.class);
@@ -420,7 +421,8 @@ class AppTestServiceTest {
                 new AppLearningQuestionSupport(mapper),
                 realtimeEventPublisher,
                 studentFeatureProfileService,
-                recommendationPublisher
+                recommendationPublisher,
+                null
         );
 
         var result = service.complete(
@@ -515,6 +517,7 @@ class AppTestServiceTest {
                 new AppLearningQuestionSupport(mapper),
                 realtimeEventPublisher,
                 studentFeatureProfileService,
+                null,
                 null
         );
         UUID submissionId = UUID.fromString("00000000-0000-0000-0000-000000000010");

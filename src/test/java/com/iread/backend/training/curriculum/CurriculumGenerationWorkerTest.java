@@ -103,7 +103,11 @@ class CurriculumGenerationWorkerTest {
         PersonalizedTrainingGenerationService generation =
                 mock(PersonalizedTrainingGenerationService.class);
         CurriculumGenerationWorker worker = new CurriculumGenerationWorker(
-                curricula, trainingData, generation, JsonMapper.builder().build()
+                curricula,
+                trainingData,
+                generation,
+                mock(com.iread.backend.learning.app.service.LearningQuestionImageAfterCommitTrigger.class),
+                JsonMapper.builder().build()
         );
 
         StudentEntity student = mock(StudentEntity.class);
