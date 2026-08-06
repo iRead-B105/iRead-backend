@@ -90,7 +90,7 @@ public final class TrainingInputPolicy {
                     BASIC_SYLLABLE_BUILD, FINAL_SYLLABLE_BUILD, DOUBLE_FINAL_BUILD,
                     PHONEME_BLEND, SYLLABLE_BLEND,
                     FINAL_CONSONANT_DELETE, SYLLABLE_DELETE,
-                    SYLLABLE_REPLACE -> false;
+                    SYLLABLE_REPLACE, SENTENCE_ASSEMBLY -> false;
             default -> true;
         };
     }
