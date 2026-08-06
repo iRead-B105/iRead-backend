@@ -179,7 +179,18 @@ class DemoSeedIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM gaze_sessions WHERE student_id IN (2001, 2002, 2103)",
                 Integer.class
-        )).isEqualTo(13);
+        )).isEqualTo(57);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM gaze_analysis_results analysis
+                  JOIN gaze_sessions session ON session.id = analysis.gaze_session_id
+                 WHERE session.student_id IN (2001, 2002, 2103)
+                   AND session.content_type = 'TRAINING'
+                   AND session.status = 'COMPLETED'
+                """,
+                Integer.class
+        )).isEqualTo(44);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM reports WHERE student_id IN (2001, 2002, 2103)",
                 Integer.class
@@ -280,7 +291,9 @@ class DemoSeedIntegrationTest {
         assertThat(monthlySnapshot.automaticAnalysis().status())
                 .isEqualTo(ReportSnapshot.AnalysisStatus.AVAILABLE);
         assertThat(monthlySnapshot.gazeTrend().training().status())
-                .isEqualTo(ReportSnapshot.GazeSeriesStatus.NO_DATA);
+                .isEqualTo(ReportSnapshot.GazeSeriesStatus.AVAILABLE);
+        assertThat(monthlySnapshot.gazeTrend().training().points()).hasSize(2);
+        assertThat(monthlySnapshot.gazeTrend().training().comparisonAvailable()).isTrue();
         assertThat(monthlySnapshot.gazeTrend().test().points()).hasSize(3);
     }
 
