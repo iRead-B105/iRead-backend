@@ -6,7 +6,6 @@ import com.iread.backend.ai.demo.DemoStoryReplayProperties;
 import com.iread.backend.ai.demo.DemoStoryReplayState;
 import com.iread.backend.ai.demo.DemoStoryReplayer;
 import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
-import com.iread.backend.story.repository.StoryChoiceRepository;
 import com.iread.backend.story.repository.StoryLineRepository;
 import com.iread.backend.story.repository.StoryRepository;
 import com.iread.backend.ai.exception.AiClientException;
@@ -127,7 +126,6 @@ class HttpAiClientTimeoutTest {
                         replayProperties,
                         org.mockito.Mockito.mock(StoryRepository.class),
                         org.mockito.Mockito.mock(StoryLineRepository.class),
-                        org.mockito.Mockito.mock(StoryChoiceRepository.class),
                         objectMapper
                 )
         );

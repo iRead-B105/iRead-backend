@@ -10,7 +10,6 @@ import com.iread.backend.ai.dto.res.GeneratedStoryLine;
 import com.iread.backend.story.domain.StoryEntity;
 import com.iread.backend.story.domain.StoryLineEntity;
 import com.iread.backend.story.generation.StorySceneImagePrompt;
-import com.iread.backend.story.repository.StoryChoiceRepository;
 import com.iread.backend.story.repository.StoryLineRepository;
 import com.iread.backend.story.repository.StoryRepository;
 import org.slf4j.Logger;
@@ -20,7 +19,6 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -28,8 +26,9 @@ import java.util.stream.Collectors;
 /**
  * 시연용 스토리 재생기.
  * 토글이 켜져 있으면 qa-demo 데이터셋의 완결본 스토리를 씬 단위 구간으로 잘라
- * AI 생성 응답처럼 돌려준다. 원본에 기록된 선택 경로와 다른 분기 요청이 오면
- * 빈 값을 돌려보내 호출부가 실제 AI 생성으로 폴백하게 한다.
+ * AI 생성 응답처럼 돌려준다. 분기 선택지는 그대로 노출하되 어떤 선택을 하든
+ * 준비된 다음 구간을 이어간다(시연 중 오클릭이 흐름을 끊지 않게).
+ * 구간 경계가 어긋나는 요청만 빈 값을 돌려 실제 AI 생성으로 폴백한다.
  */
 @Component
 public class DemoStoryReplayer {
@@ -43,7 +42,6 @@ public class DemoStoryReplayer {
     private final DemoStoryReplayProperties properties;
     private final StoryRepository storyRepository;
     private final StoryLineRepository storyLineRepository;
-    private final StoryChoiceRepository storyChoiceRepository;
     private final ObjectMapper objectMapper;
 
     public DemoStoryReplayer(
@@ -51,14 +49,12 @@ public class DemoStoryReplayer {
             DemoStoryReplayProperties properties,
             StoryRepository storyRepository,
             StoryLineRepository storyLineRepository,
-            StoryChoiceRepository storyChoiceRepository,
             ObjectMapper objectMapper
     ) {
         this.state = state;
         this.properties = properties;
         this.storyRepository = storyRepository;
         this.storyLineRepository = storyLineRepository;
-        this.storyChoiceRepository = storyChoiceRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -79,17 +75,9 @@ public class DemoStoryReplayer {
         if (source == null) {
             return Optional.empty();
         }
-        int pages = request.history().size();
-        ReplaySegment next = source.segmentStartingAt(pages + 1);
-        ReplayLine boundary = source.lineAt(pages);
-        if (next == null || boundary == null) {
+        ReplaySegment next = source.segmentStartingAt(request.history().size() + 1);
+        if (next == null) {
             return Optional.empty();
-        }
-        if (boundary.requiresBranchInput()) {
-            String agreed = source.agreedChoices().get(boundary.masterLineId());
-            if (agreed == null || !agreed.equals(request.branchIntent().strip())) {
-                return Optional.empty();
-            }
         }
         return Optional.of(respond(request.requestId(), request.schemaVersion(), next));
     }
@@ -165,7 +153,6 @@ public class DemoStoryReplayer {
 
     private ReplaySource buildSource(String title, List<StoryLineEntity> masterLines) {
         List<ReplaySegment> segments = new ArrayList<>();
-        List<ReplayLine> flatLines = new ArrayList<>();
         List<ReplayLine> currentLines = new ArrayList<>();
         Long currentSceneId = null;
         String currentImageUrl = null;
@@ -179,29 +166,14 @@ public class DemoStoryReplayer {
             }
             currentSceneId = sceneId;
             currentImageUrl = masterLine.getScene().getImageUrl();
-            ReplayLine line = new ReplayLine(
-                    masterLine.getId(),
+            currentLines.add(new ReplayLine(
                     textOf(masterLine),
                     masterLine.isRequiresBranchInput(),
                     branchPromptOf(masterLine)
-            );
-            currentLines.add(line);
-            flatLines.add(line);
+            ));
         }
         segments.add(segment(currentLines, currentImageUrl, startPage));
-
-        List<Long> branchLineIds = flatLines.stream()
-                .filter(ReplayLine::requiresBranchInput)
-                .map(ReplayLine::masterLineId)
-                .toList();
-        Map<Long, String> agreedChoices = branchLineIds.isEmpty()
-                ? Map.of()
-                : storyChoiceRepository.findAllByStoryLineIdIn(branchLineIds).stream()
-                        .collect(Collectors.toMap(
-                                choice -> choice.getStoryLine().getId(),
-                                choice -> choice.getContent().strip()
-                        ));
-        return new ReplaySource(title, List.copyOf(segments), List.copyOf(flatLines), agreedChoices);
+        return new ReplaySource(title, List.copyOf(segments));
     }
 
     private ReplaySegment segment(List<ReplayLine> lines, String imageUrl, int startPage) {
@@ -238,7 +210,6 @@ public class DemoStoryReplayer {
     }
 
     private record ReplayLine(
-            Long masterLineId,
             String text,
             boolean requiresBranchInput,
             GeneratedStoryBranchPrompt branchPrompt
@@ -251,21 +222,12 @@ public class DemoStoryReplayer {
         }
     }
 
-    private record ReplaySource(
-            String title,
-            List<ReplaySegment> segments,
-            List<ReplayLine> flatLines,
-            Map<Long, String> agreedChoices
-    ) {
+    private record ReplaySource(String title, List<ReplaySegment> segments) {
         ReplaySegment segmentStartingAt(int page) {
             return segments.stream()
                     .filter(segment -> segment.startPage() == page)
                     .findFirst()
                     .orElse(null);
-        }
-
-        ReplayLine lineAt(int page) {
-            return page >= 1 && page <= flatLines.size() ? flatLines.get(page - 1) : null;
         }
     }
 }

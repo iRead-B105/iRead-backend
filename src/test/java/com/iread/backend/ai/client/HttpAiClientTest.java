@@ -14,7 +14,6 @@ import com.iread.backend.ai.config.AiClientProperties;
 import com.iread.backend.ai.demo.DemoStoryReplayProperties;
 import com.iread.backend.ai.demo.DemoStoryReplayState;
 import com.iread.backend.ai.demo.DemoStoryReplayer;
-import com.iread.backend.story.repository.StoryChoiceRepository;
 import com.iread.backend.story.repository.StoryLineRepository;
 import com.iread.backend.story.repository.StoryRepository;
 import com.iread.backend.global.audio.AudioUploadPolicy;
@@ -106,7 +105,6 @@ class HttpAiClientTest {
                 replayProperties,
                 org.mockito.Mockito.mock(StoryRepository.class),
                 org.mockito.Mockito.mock(StoryLineRepository.class),
-                org.mockito.Mockito.mock(StoryChoiceRepository.class),
                 objectMapper
         );
     }

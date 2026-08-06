@@ -6,13 +6,11 @@ import com.iread.backend.ai.dto.req.GenerateStoryRequest;
 import com.iread.backend.ai.dto.req.StoryHistoryLine;
 import com.iread.backend.ai.dto.req.StoryTemplateData;
 import com.iread.backend.ai.dto.res.GenerateStoryResponse;
-import com.iread.backend.story.domain.StoryChoiceEntity;
 import com.iread.backend.story.domain.StoryEntity;
 import com.iread.backend.story.domain.StoryLineEntity;
 import com.iread.backend.story.domain.StorySceneEntity;
 import com.iread.backend.story.domain.StoryTemplateEntity;
 import com.iread.backend.story.generation.StorySceneImagePrompt;
-import com.iread.backend.story.repository.StoryChoiceRepository;
 import com.iread.backend.story.repository.StoryLineRepository;
 import com.iread.backend.story.repository.StoryRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,7 +23,6 @@ import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -34,11 +31,9 @@ class DemoStoryReplayerTest {
     private static final Long SOURCE_STORY_ID = 280003L;
     private static final Long TEMPLATE_ID = 6L;
     private static final String TITLE = "아기돼지 삼형제";
-    private static final String AGREED_FIRST_CHOICE = "벽돌을 차곡차곡 더 쌓아요";
 
     private final StoryRepository storyRepository = mock(StoryRepository.class);
     private final StoryLineRepository storyLineRepository = mock(StoryLineRepository.class);
-    private final StoryChoiceRepository storyChoiceRepository = mock(StoryChoiceRepository.class);
 
     private DemoStoryReplayer replayer;
 
@@ -51,7 +46,6 @@ class DemoStoryReplayerTest {
                 properties,
                 storyRepository,
                 storyLineRepository,
-                storyChoiceRepository,
                 new JsonMapper()
         );
         stubSourceStory();
@@ -81,13 +75,6 @@ class DemoStoryReplayerTest {
         );
         when(storyLineRepository.findAllByStoryIdOrderBySequenceNoAsc(SOURCE_STORY_ID))
                 .thenReturn(lines);
-
-        StoryChoiceEntity firstChoice = mock(StoryChoiceEntity.class);
-        StoryLineEntity firstBranchLine = lines.get(3);
-        when(firstChoice.getStoryLine()).thenReturn(firstBranchLine);
-        when(firstChoice.getContent()).thenReturn(AGREED_FIRST_CHOICE);
-        when(storyChoiceRepository.findAllByStoryLineIdIn(anyList()))
-                .thenReturn(List.of(firstChoice));
     }
 
     @Test
@@ -103,18 +90,22 @@ class DemoStoryReplayerTest {
     }
 
     @Test
-    void 합의된_선택지로_이어가면_다음_씬을_돌려준다() {
-        Optional<GenerateStoryResponse> response =
-                replayer.replayContinue(continueRequest(AGREED_FIRST_CHOICE));
+    void 어떤_선택지를_고르든_준비된_다음_씬을_돌려준다() {
+        Optional<GenerateStoryResponse> first =
+                replayer.replayContinue(continueRequest("벽돌을 차곡차곡 더 쌓아요", 4));
+        Optional<GenerateStoryResponse> other =
+                replayer.replayContinue(continueRequest("늑대를 찾아 나서요", 4));
 
-        assertThat(response).isPresent();
-        assertThat(response.get().nextProgress()).isEqualTo(9);
-        assertThat(response.get().lines()).hasSize(5);
+        assertThat(first).isPresent();
+        assertThat(first.get().nextProgress()).isEqualTo(9);
+        assertThat(first.get().lines()).hasSize(5);
+        assertThat(other).isPresent();
+        assertThat(other.get().lines()).isEqualTo(first.get().lines());
     }
 
     @Test
-    void 합의되지_않은_선택지는_실제_생성으로_폴백하도록_비워_돌려준다() {
-        assertThat(replayer.replayContinue(continueRequest("늑대를 찾아 나서요"))).isEmpty();
+    void 구간_경계가_아닌_진행_지점은_실제_생성으로_폴백하도록_비워_돌려준다() {
+        assertThat(replayer.replayContinue(continueRequest("벽돌을 차곡차곡 더 쌓아요", 3))).isEmpty();
     }
 
     @Test
@@ -153,7 +144,6 @@ class DemoStoryReplayerTest {
                 properties,
                 storyRepository,
                 storyLineRepository,
-                storyChoiceRepository,
                 new JsonMapper()
         );
 
@@ -167,14 +157,14 @@ class DemoStoryReplayerTest {
         );
     }
 
-    private ContinueStoryRequest continueRequest(String branchIntent) {
-        List<StoryHistoryLine> history = IntStream.rangeClosed(1, 4)
-                .mapToObj(page -> new StoryHistoryLine((long) page, "페이지 " + page, page == 4))
+    private ContinueStoryRequest continueRequest(String branchIntent, int historySize) {
+        List<StoryHistoryLine> history = IntStream.rangeClosed(1, historySize)
+                .mapToObj(page -> new StoryHistoryLine((long) page, "페이지 " + page, page == historySize))
                 .toList();
         return new ContinueStoryRequest(
-                "req-2", 1L, 2103L, 1, 4,
+                "req-2", 1L, 2103L, 1, historySize,
                 new StoryTemplateData(TEMPLATE_ID, TITLE, "context"),
-                4L, branchIntent, history
+                (long) historySize, branchIntent, history
         );
     }
 
