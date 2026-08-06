@@ -112,6 +112,7 @@ public class StoryGazeWordAnalysisService {
         }
 
         boolean[] visited = new boolean[metrics.length];
+        boolean[] readInOrder = new boolean[metrics.length];
         int nextExpectedTokenIndex = 0;
         Integer previousTokenIndex = null;
         List<StoryGazeAnalysisResponse.ReplayEvent> events = new ArrayList<>();
@@ -141,6 +142,7 @@ public class StoryGazeWordAnalysisService {
                     StoryGazeAnalysisResponse.MovementType.READ;
             List<Integer> skippedTokenIndexes = List.of();
             if (tokenIndex == nextExpectedTokenIndex) {
+                readInOrder[tokenIndex] = true;
                 nextExpectedTokenIndex++;
             } else if (dwellQualified && tokenIndex > nextExpectedTokenIndex) {
                 List<Integer> skipped = new ArrayList<>();
@@ -156,9 +158,12 @@ public class StoryGazeWordAnalysisService {
                 skippedTokenIndexes = List.copyOf(skipped);
                 movementType = StoryGazeAnalysisResponse.MovementType.SKIP;
                 nextExpectedTokenIndex = tokenIndex + 1;
-            } else if (dwellQualified && tokenIndex < nextExpectedTokenIndex) {
+            } else if (dwellQualified && tokenIndex < nextExpectedTokenIndex && readInOrder[tokenIndex]) {
                 movementType = StoryGazeAnalysisResponse.MovementType.REGRESSION;
                 metric.regressionCount++;
+            } else if (dwellQualified && tokenIndex < nextExpectedTokenIndex) {
+                // A skipped word is being read for the first time; it is not a regression.
+                readInOrder[tokenIndex] = true;
             }
 
             events.add(new StoryGazeAnalysisResponse.ReplayEvent(

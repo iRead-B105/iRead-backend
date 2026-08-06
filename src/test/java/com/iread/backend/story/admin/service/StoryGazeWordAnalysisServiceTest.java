@@ -22,12 +22,21 @@ class StoryGazeWordAnalysisServiceTest {
                   {"pageNo":1,"storyLineId":50,"tokenIndex":0,"capturedAtMs":100},
                   {"pageNo":1,"storyLineId":50,"tokenIndex":0,"capturedAtMs":200},
                   {"pageNo":1,"storyLineId":50,"tokenIndex":2,"capturedAtMs":300},
-                  {"pageNo":1,"storyLineId":50,"tokenIndex":2,"capturedAtMs":400},
                   {"pageNo":1,"storyLineId":50,"tokenIndex":2,"capturedAtMs":500},
-                  {"pageNo":1,"storyLineId":50,"tokenIndex":2,"capturedAtMs":600},
-                  {"pageNo":1,"storyLineId":50,"tokenIndex":1,"capturedAtMs":700},
-                  {"pageNo":1,"storyLineId":50,"tokenIndex":1,"capturedAtMs":800},
-                  {"pageNo":1,"storyLineId":50,"tokenIndex":1,"capturedAtMs":900}
+                  {"pageNo":1,"storyLineId":50,"tokenIndex":2,"capturedAtMs":700},
+                  {"pageNo":1,"storyLineId":50,"tokenIndex":2,"capturedAtMs":900},
+                  {"pageNo":1,"storyLineId":50,"tokenIndex":2,"capturedAtMs":1100},
+                  {"pageNo":1,"storyLineId":50,"tokenIndex":1,"capturedAtMs":1200},
+                  {"pageNo":1,"storyLineId":50,"tokenIndex":1,"capturedAtMs":1400},
+                  {"pageNo":1,"storyLineId":50,"tokenIndex":1,"capturedAtMs":1600},
+                  {"pageNo":1,"storyLineId":50,"tokenIndex":1,"capturedAtMs":1800},
+                  {"pageNo":1,"storyLineId":50,"tokenIndex":1,"capturedAtMs":2000},
+                  {"pageNo":1,"storyLineId":50,"tokenIndex":1,"capturedAtMs":2400},
+                  {"pageNo":1,"storyLineId":50,"tokenIndex":1,"capturedAtMs":2600},
+                  {"pageNo":1,"storyLineId":50,"tokenIndex":1,"capturedAtMs":2800},
+                  {"pageNo":1,"storyLineId":50,"tokenIndex":1,"capturedAtMs":3000},
+                  {"pageNo":1,"storyLineId":50,"tokenIndex":1,"capturedAtMs":3200},
+                  {"pageNo":1,"storyLineId":50,"tokenIndex":1,"capturedAtMs":3300}
                 ]}
                 """);
 
@@ -40,12 +49,13 @@ class StoryGazeWordAnalysisServiceTest {
                 .containsExactly(
                         StoryGazeAnalysisResponse.MovementType.READ,
                         StoryGazeAnalysisResponse.MovementType.SKIP,
+                        StoryGazeAnalysisResponse.MovementType.READ,
                         StoryGazeAnalysisResponse.MovementType.REGRESSION
                 );
         assertThat(result.events().get(1).skippedTokenIndexes()).containsExactly(1);
         assertThat(result.wordMetrics().get(1).skipped()).isFalse();
         assertThat(result.wordMetrics().get(1).regressionCount()).isEqualTo(1);
-        assertThat(result.wordMetrics().get(1).firstSeenMs()).isEqualTo(700);
+        assertThat(result.wordMetrics().get(1).firstSeenMs()).isEqualTo(1200);
     }
 
     @Test
