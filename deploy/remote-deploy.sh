@@ -62,8 +62,11 @@ if docker inspect iread-mysql >/dev/null 2>&1; then
     DB=$(envval MYSQL_DATABASE)
     ROOT_PW=$(envval MYSQL_ROOT_PASSWORD)
     OUT="backups/${DB}-${STAMP}.sql.gz"
+    # 이 스크립트는 `ssh host "bash -s" < 파일` 로 stdin 을 통해 전달된다.
+    # exec 가 stdin 을 물려받으면 스크립트의 나머지 절반을 삼켜 bash 가 여기서
+    # EOF(exit 0)로 끝나 버린다. 배포가 [3/7]에서 조용히 멈추던 원인.
     $COMPOSE exec -T mysql mysqldump -u root -p"$ROOT_PW" \
-        --single-transaction --routines --triggers --events "$DB" 2>/dev/null | gzip > "$OUT"
+        --single-transaction --routines --triggers --events "$DB" </dev/null 2>/dev/null | gzip > "$OUT"
     echo "    $OUT ($(du -h "$OUT" | cut -f1))"
     # 최근 10개만 남긴다. 디스크는 299GB 남지만 무한정 쌓을 이유는 없다.
     ls -1t backups/*.sql.gz 2>/dev/null | tail -n +11 | xargs -r rm --
