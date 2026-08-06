@@ -37,12 +37,12 @@ services:
       timeout: 5s
       retries: 5
 
-  ai-mock:
+  ai:
     build:
       context: ../iRead-ai
       dockerfile: Dockerfile
-    image: iread-ai-mock:local
-    container_name: iread-ai-mock
+    image: iread-ai:local
+    container_name: iread-ai
     restart: unless-stopped
     ports:
       - "8081:8080"
