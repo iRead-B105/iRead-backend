@@ -48,3 +48,10 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+tasks.register('qaDemoReset', JavaExec) {
+	group = 'application'
+	description = 'Restores the local QA demo dataset and packaged assets.'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'com.iread.backend.global.config.QaDemoResetCommand'
+}

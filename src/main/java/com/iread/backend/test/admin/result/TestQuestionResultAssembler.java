@@ -106,9 +106,39 @@ public class TestQuestionResultAssembler {
                 correct(responseType, submission, latestAnalysis, finalAttempts, legacyResult),
                 score(responseType, submission, finalAttempts, test.getAccuracy()),
                 pronunciationScore(latestAnalysis, finalAttempts),
-                questionIndex == 0 ? nullableLong(result.get("solvingTimeSeconds")) : null,
-                questionIndex == 0 ? nullableInteger(result.get("gazeDepartureCount")) : null
+                nullableLong(perQuestionMetric(
+                        legacyResult,
+                        submission,
+                        result,
+                        "solvingTimeSeconds",
+                        questionIndex
+                )),
+                nullableInteger(perQuestionMetric(
+                        legacyResult,
+                        submission,
+                        result,
+                        "gazeDepartureCount",
+                        questionIndex
+                ))
         );
+    }
+
+    private JsonNode perQuestionMetric(
+            JsonNode legacyResult,
+            JsonNode submission,
+            JsonNode result,
+            String fieldName,
+            int questionIndex
+    ) {
+        JsonNode stored = legacyResult.get(fieldName);
+        if (stored != null && !stored.isNull()) {
+            return stored;
+        }
+        stored = submission.get(fieldName);
+        if (stored != null && !stored.isNull()) {
+            return stored;
+        }
+        return questionIndex == 0 ? result.get(fieldName) : null;
     }
 
     private int resolveQuestionNo(JsonNode question, int questionIndex) {

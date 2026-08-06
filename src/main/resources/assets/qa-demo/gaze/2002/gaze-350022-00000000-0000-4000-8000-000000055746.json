@@ -1,0 +1,105 @@
+{
+  "rawData": {
+    "schemaVersion": "test-gaze-raw-v1",
+    "studentId": 2002,
+    "testId": 341022,
+    "samples": [
+      {
+        "questionNo": 1,
+        "tokenIndex": 0,
+        "capturedAtMs": 1000,
+        "presence": true,
+        "x": 0.2,
+        "y": 0.4
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 1,
+        "capturedAtMs": 1250,
+        "presence": true,
+        "x": 0.28,
+        "y": 0.4
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 2,
+        "capturedAtMs": 1500,
+        "presence": true,
+        "x": 0.36,
+        "y": 0.4
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 3,
+        "capturedAtMs": 1750,
+        "presence": true,
+        "x": 0.44,
+        "y": 0.4
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 0,
+        "capturedAtMs": 2000,
+        "presence": true,
+        "x": 0.2,
+        "y": 0.5
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 1,
+        "capturedAtMs": 2250,
+        "presence": true,
+        "x": 0.28,
+        "y": 0.5
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 2,
+        "capturedAtMs": 2500,
+        "presence": true,
+        "x": 0.36,
+        "y": 0.5
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 0,
+        "capturedAtMs": 3000,
+        "presence": true,
+        "x": 0.2,
+        "y": 0.6
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 1,
+        "capturedAtMs": 3250,
+        "presence": true,
+        "x": 0.28,
+        "y": 0.6
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 2,
+        "capturedAtMs": 3500,
+        "presence": true,
+        "x": 0.36,
+        "y": 0.6
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 3,
+        "capturedAtMs": 3750,
+        "presence": true,
+        "x": 0.44,
+        "y": 0.6
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 4,
+        "capturedAtMs": 4000,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.6
+      }
+    ]
+  }
+}

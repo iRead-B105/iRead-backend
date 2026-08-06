@@ -104,6 +104,8 @@ jobs:
           chmod +x gradlew
           ./gradlew test \
             --tests com.iread.backend.MySqlDemoSeedIntegrationTest
+          ./gradlew test \
+            --tests com.iread.backend.MySqlQaDemoResetIntegrationTest
 
       - name: Upload failed MySQL test reports
         if: failure()

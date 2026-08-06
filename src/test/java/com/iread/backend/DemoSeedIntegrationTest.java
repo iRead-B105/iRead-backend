@@ -1,5 +1,11 @@
 package com.iread.backend;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.iread.backend.global.config.QaDemoDatasetService;
+import com.iread.backend.report.admin.dto.res.ReportSnapshot;
+import com.iread.backend.training.config.TrainingTemplateDataInitializer;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -8,6 +14,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 
+import java.nio.charset.StandardCharsets;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(properties = {
@@ -15,7 +23,8 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.flyway.enabled=false",
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "iread.training-template-seed.enabled=false",
-        "iread.teacher-demo-seed.enabled=false"
+        "iread.teacher-demo-seed.enabled=false",
+        "iread.qa-demo-dataset.enabled=false"
 })
 @ActiveProfiles("demo")
 @Sql({
@@ -26,9 +35,12 @@ class DemoSeedIntegrationTest {
 
     @Autowired JdbcTemplate jdbcTemplate;
     @Autowired PasswordEncoder passwordEncoder;
+    @Autowired QaDemoDatasetService qaDemoDatasetService;
+    @Autowired tools.jackson.databind.ObjectMapper trainingTemplateObjectMapper;
+    private final ObjectMapper objectMapper = JsonMapper.builder().findAndAddModules().build();
 
     @Test
-    void appliesNonIdentifyingDemoSeedAndPasswordIsUsable() {
+    void appliesNonIdentifyingDemoSeedAndPasswordIsUsable() throws Exception {
         String passwordHash = jdbcTemplate.queryForObject(
                 "SELECT password FROM teachers WHERE id = 1001",
                 String.class
@@ -91,6 +103,196 @@ class DemoSeedIntegrationTest {
                 Integer.class
         )).isEqualTo(1);
         assertThat(count("tests", 5102L)).isEqualTo(1);
+
+        jdbcTemplate.update("""
+                INSERT INTO story_templates (id, title, content, image_url)
+                VALUES (3, '노인과 바다', '데모', NULL),
+                       (4, '신데렐라', '데모', NULL),
+                       (5, '별주부전', '데모', NULL),
+                       (6, '아기돼지 삼형제', '데모', NULL)
+                """);
+
+        // V2 is intentionally a small legacy fixture. Bring its reference catalog up to
+        // the same 28 selectable templates as develop before applying the QA dataset.
+        new TrainingTemplateDataInitializer(jdbcTemplate, trainingTemplateObjectMapper).run(null);
+        qaDemoDatasetService.install();
+        assertThat(qaDemoDatasetService.isPostSeedInstalled()).isTrue();
+
+        String qaPasswordHash = jdbcTemplate.queryForObject(
+                "SELECT password FROM teachers WHERE email = 'test@test.com'",
+                String.class
+        );
+        assertThat(passwordEncoder.matches("qwer1234", qaPasswordHash)).isTrue();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM students WHERE teacher_id = 1001 AND id IN (2001, 2002, 2103)",
+                Integer.class
+        )).isEqualTo(3);
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT name FROM students WHERE teacher_id = 1001 ORDER BY id",
+                String.class
+        )).containsExactly("김도윤", "이서연", "박지호");
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT school FROM students WHERE teacher_id = 1001 ORDER BY id",
+                String.class
+        )).containsExactly("시연초등학교", "샛별초등학교", "샛별초등학교");
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM stories WHERE student_id IN (2001, 2002, 2103)",
+                Integer.class
+        )).isEqualTo(4);
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT progress FROM stories WHERE id IN (280001, 280002, 280003, 280004) ORDER BY id",
+                Integer.class
+        )).containsExactly(9, 4, 100, 20);
+        assertThat(jdbcTemplate.queryForList(
+                "SELECT image_url FROM story_scenes WHERE story_id IN (280001, 280002, 280003, 280004)",
+                String.class
+        )).hasSize(39).allMatch(imageUrl -> imageUrl.matches(
+                "/uploads/images/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.jpg"
+        ));
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM story_lines WHERE scene_id IN (SELECT scene_id FROM story_scenes WHERE story_id IN (280001, 280002, 280003, 280004))",
+                Integer.class
+        )).isEqualTo(133);
+        var storyLines = jdbcTemplate.queryForList("""
+                SELECT line.has_choices, line.content, line.branch_prompt
+                  FROM story_lines line
+                  JOIN story_scenes scene ON scene.scene_id = line.scene_id
+                 WHERE scene.story_id IN (280001, 280002, 280003, 280004)
+                """);
+        assertThat(storyLines).hasSize(133);
+        int branchLineCount = 0;
+        for (var storyLine : storyLines) {
+            JsonNode content = readJson(storyLine.get("content"));
+            boolean hasChoices = (Boolean) storyLine.get("has_choices");
+            if (hasChoices) {
+                branchLineCount += 1;
+                assertThat(content.path("sentences").size()).isEqualTo(1);
+                assertThat(content.path("sentences").get(0).asText()).endsWith("?");
+                JsonNode branchPrompt = readJson(storyLine.get("branch_prompt"));
+                assertThat(branchPrompt.path("options").size()).isEqualTo(3);
+            } else {
+                assertThat(content.path("sentences").size()).isEqualTo(3);
+                assertThat(storyLine.get("branch_prompt")).isNull();
+            }
+        }
+        assertThat(branchLineCount).isEqualTo(27);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM gaze_sessions WHERE student_id IN (2001, 2002, 2103)",
+                Integer.class
+        )).isEqualTo(13);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM reports WHERE student_id IN (2001, 2002, 2103)",
+                Integer.class
+        )).isEqualTo(6);
+        for (long studentId : new long[]{2001L, 2002L, 2103L}) {
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM daily_curriculums WHERE student_id=? AND status='COMPLETED'",
+                    Integer.class,
+                    studentId
+            )).isEqualTo(8);
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM daily_curriculums WHERE student_id=? AND status='NOT_STARTED'",
+                    Integer.class,
+                    studentId
+            )).isEqualTo(1);
+            assertThat(trainingCount(studentId)).isEqualTo(45);
+            assertThat(trainingDataCount(studentId)).isEqualTo(45);
+            assertThat(jdbcTemplate.queryForObject(
+                    """
+                    SELECT COUNT(DISTINCT training.training_template_id)
+                      FROM trainings training
+                      JOIN daily_curriculums curriculum
+                        ON curriculum.id = training.daily_curriculum_id
+                     WHERE curriculum.student_id=?
+                       AND curriculum.status='COMPLETED'
+                    """,
+                    Integer.class,
+                    studentId
+            )).isGreaterThan(10);
+            assertThat(jdbcTemplate.queryForObject(
+                    """
+                    SELECT COUNT(*)
+                      FROM daily_curriculums curriculum
+                     WHERE curriculum.student_id=?
+                       AND curriculum.status='COMPLETED'
+                       AND 5 = (
+                            SELECT COUNT(*)
+                              FROM trainings training
+                             WHERE training.daily_curriculum_id=curriculum.id
+                       )
+                       AND EXISTS (
+                            SELECT 1
+                              FROM trainings training
+                             WHERE training.daily_curriculum_id=curriculum.id
+                               AND training.training_template_id IN (22, 25)
+                       )
+                    """,
+                    Integer.class,
+                    studentId
+            )).isEqualTo(8);
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM reports WHERE student_id=?",
+                    Integer.class,
+                    studentId
+            )).isEqualTo(2);
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM tests WHERE test_curriculum_id IN (SELECT id FROM test_curriculums WHERE student_id=?)",
+                    Integer.class,
+                    studentId
+            )).isEqualTo(3);
+        }
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM word_attempt_logs WHERE use_location='TRAINING' AND student_id IN (2001, 2002, 2103)",
+                Integer.class
+        )).isEqualTo(1440);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(DISTINCT DATE(created_at)) FROM word_attempt_logs WHERE use_location='TRAINING' AND student_id=2001",
+                Integer.class
+        )).isEqualTo(8);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM word_attempt_logs WHERE use_location='TEST' AND pronunciation_accuracy_score IS NOT NULL",
+                Integer.class
+        )).isEqualTo(81);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM word_attempt_logs WHERE use_location='TEST' AND has_gaze_data=TRUE",
+                Integer.class
+        )).isEqualTo(108);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM word_attempt_logs WHERE use_location='TEST' AND question_no=2 AND has_gaze_data=TRUE AND has_audio_data=FALSE AND pronunciation_accuracy_score IS NULL",
+                Integer.class
+        )).isEqualTo(27);
+
+        String snapshotJson = jdbcTemplate.queryForObject(
+                "SELECT snapshot_data FROM reports WHERE id=370011",
+                String.class
+        );
+        if (objectMapper.readTree(snapshotJson).isTextual()) {
+            snapshotJson = objectMapper.readTree(snapshotJson).textValue();
+        }
+        ReportSnapshot monthlySnapshot = objectMapper.readValue(
+                snapshotJson,
+                ReportSnapshot.class
+        );
+        assertThat(monthlySnapshot.snapshotVersion()).isEqualTo("teacher-report-v2");
+        assertThat(monthlySnapshot.calculationVersion()).isEqualTo("reading-metrics-v1");
+        assertThat(monthlySnapshot.learningDays()).isEqualTo(8);
+        assertThat(monthlySnapshot.completedTrainingCount()).isEqualTo(40);
+        assertThat(monthlySnapshot.automaticAnalysis().status())
+                .isEqualTo(ReportSnapshot.AnalysisStatus.AVAILABLE);
+        assertThat(monthlySnapshot.gazeTrend().training().status())
+                .isEqualTo(ReportSnapshot.GazeSeriesStatus.NO_DATA);
+        assertThat(monthlySnapshot.gazeTrend().test().points()).hasSize(3);
+    }
+
+    private String jsonText(Object value) {
+        return value instanceof byte[] bytes
+                ? new String(bytes, StandardCharsets.UTF_8)
+                : String.valueOf(value);
+    }
+
+    private JsonNode readJson(Object value) throws Exception {
+        JsonNode node = objectMapper.readTree(jsonText(value));
+        return node.isTextual() ? objectMapper.readTree(node.textValue()) : node;
     }
 
     private Integer count(String table, Long id) {
