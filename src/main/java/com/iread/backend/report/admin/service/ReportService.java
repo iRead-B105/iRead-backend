@@ -44,6 +44,12 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ReportService {
+
+    /**
+     * 훈련 하나가 누적 학습 시간에 기여할 수 있는 최대 시간(초).
+     * 훈련 한 개는 5~10분 분량이라 30분을 넘는 값은 켜 둔 채 방치한 흔적으로 본다.
+     */
+    private static final long MAX_TRAINING_SECONDS = 30 * 60;
     private static final String SNAPSHOT_VERSION = "teacher-report-v2";
 
     private final ReportRepository reportRepository;
@@ -208,9 +214,16 @@ public class ReportService {
                 .map(LocalDateTime::toLocalDate)
                 .distinct()
                 .count();
+        // 훈련 하나에 담는 시간은 상한을 둔다. started_at~finished_at 은 벽시계라
+        // 아이가 훈련을 켜 둔 채 나갔다 한참 뒤에 끝내면 그 시간이 모두 학습 시간으로
+        // 잡혀 누적 시간이 비현실적으로 커진다(한 훈련이 열 시간으로 잡힌 사례가 있다).
         long totalMinutes = trainings.stream()
                 .filter(t -> t.getStartedAt() != null && t.getFinishedAt() != null)
-                .mapToLong(t -> Duration.between(t.getStartedAt(), t.getFinishedAt()).getSeconds()).sum() / 60;
+                .mapToLong(t -> Math.min(
+                        MAX_TRAINING_SECONDS,
+                        Math.max(0, Duration.between(t.getStartedAt(), t.getFinishedAt()).getSeconds())
+                ))
+                .sum() / 60;
         ReadingMetricSummary readingMetrics = readingMetricAggregationService.summarize(
                 studentId,
                 start.toLocalDate(),

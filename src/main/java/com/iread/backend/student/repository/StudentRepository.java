@@ -40,10 +40,18 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
             """, nativeQuery = true)
     long countScheduledToday(@Param("teacherId") Long teacherId);
 
+    /**
+     * 아동별 누적 학습 요약. 훈련 하나가 기여하는 시간은 30분(1800초)으로 제한한다.
+     * started_at~finished_at 은 벽시계라 훈련을 켜 둔 채 나갔다 한참 뒤에 끝내면
+     * 그 시간이 모두 학습 시간으로 잡혀 누적 시간이 비현실적으로 커진다.
+     * ReportService.MAX_TRAINING_SECONDS 와 같은 기준을 쓴다.
+     */
     @Query(value = """
             SELECT s.id AS studentId,
                    MAX(t.finished_at) AS recentFinishedAt,
-                   COALESCE(SUM(TIMESTAMPDIFF(SECOND, t.started_at, t.finished_at)) DIV 60, 0) AS totalLearningMinutes,
+                   COALESCE(SUM(LEAST(GREATEST(
+                       TIMESTAMPDIFF(SECOND, t.started_at, t.finished_at), 0), 1800)) DIV 60, 0)
+                       AS totalLearningMinutes,
                    (SELECT tt2.name
                       FROM daily_curriculums dc2
                       JOIN trainings t2 ON t2.daily_curriculum_id = dc2.id

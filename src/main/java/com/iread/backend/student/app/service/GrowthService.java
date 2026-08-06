@@ -22,6 +22,7 @@ import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 @Service
@@ -66,7 +67,17 @@ public class GrowthService {
                     .ifPresent(area -> accumulators.get(area).accept(training));
         }
 
+        // 훈련을 완료한 서로 다른 날짜 수. 완료 훈련 개수와 달라야 한다.
+        // 하루에 여러 훈련을 끝내도 하루로 센다.
+        long studyDayCount = completedTrainings.stream()
+                .map(TrainingEntity::getFinishedAt)
+                .filter(Objects::nonNull)
+                .map(LocalDateTime::toLocalDate)
+                .distinct()
+                .count();
+
         return new GrowthResponse(
+                studyDayCount,
                 trainingProgress,
                 List.of(GrowthArea.values()).stream()
                         .map(area -> accumulators.get(area).response())
