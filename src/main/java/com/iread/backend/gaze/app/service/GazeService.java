@@ -144,6 +144,12 @@ public class GazeService {
             );
         }
         GazeSessionEntity gazeSession = findOwnedGazeSessionForUpdate(gazeSessionId, request.studentId());
+        // 같은 상태로의 종료 재요청은 멱등 처리한다. 1차 종료가 서버에 반영됐지만
+        // 응답이 유실되면 학습 완료 재시도('다시 시도할래요')가 이 종료를 다시
+        // 보내는데, 충돌로 거절하면 완료가 영영 막힌다.
+        if (gazeSession.getStatus() == request.endStatus()) {
+            return toSessionResponse(gazeSession);
+        }
         requireRunning(gazeSession);
         if (request.endStatus() == GazeSessionStatus.COMPLETED) {
             gazeWordMetricMergeService.merge(gazeSession, request.data());
