@@ -52,6 +52,7 @@ class ReportServiceTest {
     @Mock GazeAnalysisResultRepository gazeAnalysisResultRepository;
     @Mock GazeSessionRepository gazeSessionRepository;
     @Mock ReadingMetricAggregationService readingMetricAggregationService;
+    @Mock com.iread.backend.training.app.service.DemoLearningClock demoLearningClock;
 
     private ReportService reportService;
 
@@ -59,8 +60,12 @@ class ReportServiceTest {
     void setUp() {
         reportService = new ReportService(reportRepository, studentRepository, trainingRepository,
                 testRepository, wordAttemptLogRepository, gazeAnalysisResultRepository,
-                gazeSessionRepository, readingMetricAggregationService,
+                gazeSessionRepository, readingMetricAggregationService, demoLearningClock,
                 JsonMapper.builder().build());
+        // 보고서 종료일 상한은 아동의 학습 날짜다. 테스트는 먼 미래로 두어
+        // 기존 기간 검증만 확인한다.
+        org.mockito.Mockito.lenient().when(demoLearningClock.currentDate(any()))
+                .thenReturn(java.time.LocalDate.of(2999, 12, 31));
         org.mockito.Mockito.lenient().when(readingMetricAggregationService.summarize(
                 any(), any(), any()
         )).thenReturn(new ReadingMetricSummary(
@@ -567,5 +572,21 @@ class ReportServiceTest {
                   "gazeAnalysis": null
                 }
                 """;
+    }
+
+    @Test
+    void 종료일이_아동_학습_날짜보다_뒤면_거부한다() {
+        // 데모 치트로 학습일을 넘기면 학습 날짜가 달력상 오늘보다 앞선다. 상한은
+        // 달력이 아니라 그 학습 날짜여야 하고, 그보다 뒤는 여전히 막아야 한다.
+        StudentEntity student = org.mockito.Mockito.mock(StudentEntity.class);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L)).thenReturn(Optional.of(student));
+        when(demoLearningClock.currentDate(10L)).thenReturn(LocalDate.of(2026, 7, 20));
+
+        assertThatThrownBy(() -> reportService.createReport(
+                1L,
+                new CreateReportRequest(10L, LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 21))
+        ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("종료일은 아동의 학습 날짜 이후일 수 없습니다.");
     }
 }

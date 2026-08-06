@@ -7,6 +7,7 @@ import com.iread.backend.gaze.domain.GazeSessionStatus;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
 import com.iread.backend.exception.ResourceNotFoundException;
+import com.iread.backend.training.app.service.DemoLearningClock;
 import com.iread.backend.report.admin.dto.req.CreateReportRequest;
 import com.iread.backend.report.admin.dto.res.*;
 import com.iread.backend.report.admin.exception.ReportCreationException;
@@ -60,6 +61,7 @@ public class ReportService {
     private final GazeAnalysisResultRepository gazeAnalysisResultRepository;
     private final GazeSessionRepository gazeSessionRepository;
     private final ReadingMetricAggregationService readingMetricAggregationService;
+    private final DemoLearningClock demoLearningClock;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -69,6 +71,12 @@ public class ReportService {
         }
         StudentEntity student = studentRepository.findByIdAndTeacherId(request.studentId(), teacherId)
                 .orElseThrow(() -> new ResourceNotFoundException("학생을 찾을 수 없습니다."));
+        // 상한은 달력상 오늘이 아니라 아동의 학습 날짜다. 데모 치트로 학습일을 넘기면
+        // 학습 날짜가 오늘보다 앞서고, 그날 기록도 보고서에 담을 수 있어야 한다.
+        LocalDate learningDate = demoLearningClock.currentDate(request.studentId());
+        if (request.endDate().isAfter(learningDate)) {
+            throw new IllegalArgumentException("종료일은 아동의 학습 날짜 이후일 수 없습니다.");
+        }
 
         LocalDateTime start = request.startDate().atStartOfDay();
         LocalDateTime endExclusive = request.endDate().plusDays(1).atStartOfDay();
