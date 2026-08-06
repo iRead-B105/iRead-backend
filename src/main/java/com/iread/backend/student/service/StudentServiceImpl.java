@@ -135,9 +135,7 @@ public class StudentServiceImpl implements StudentService {
     @Transactional
     public Long createStudent(Long teacherId, StudentRequest request, MultipartFile imageFile) {
         TeacherEntity teacher = validateTeacher(teacherId);
-        if (request.name() == null || request.name().isBlank()) {
-            throw new IllegalArgumentException("학생 이름은 필수입니다.");
-        }
+        validateCreateRequest(request);
         boolean uploaded = imageFile != null && !imageFile.isEmpty();
         StoredFile storedFile = uploaded ? fileStorage.store(imageFile) : null;
         String imageUrl = resolveCreateImageUrl(request, storedFile);
@@ -592,6 +590,17 @@ public class StudentServiceImpl implements StudentService {
             throw new IllegalArgumentException("주소는 100자 이하여야 합니다.");
         }
         return normalized.isBlank() ? null : normalized;
+    }
+
+    private void validateCreateRequest(StudentRequest request) {
+        if (request.name() == null || request.name().isBlank()
+                || request.birthday() == null
+                || request.gender() == null
+                || request.school() == null || request.school().isBlank()
+                || request.guardian() == null || request.guardian().isBlank()
+                || request.guardianContact() == null || request.guardianContact().isBlank()) {
+            throw new IllegalArgumentException("아동명, 생년월일, 성별, 학교명, 보호자명과 연락처는 필수입니다.");
+        }
     }
 
     private Object contractAddress(String address) {
