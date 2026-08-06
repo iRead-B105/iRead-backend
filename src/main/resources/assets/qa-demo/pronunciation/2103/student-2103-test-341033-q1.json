@@ -1,0 +1,63 @@
+{
+  "RecognitionStatus": "Success",
+  "Offset": 0,
+  "Duration": 20200000,
+  "NBest": [
+    {
+      "Confidence": 0.93,
+      "Lexical": "바람이 나뭇잎을 살며시 흔들어요",
+      "Display": "바람이 나뭇잎을 살며시 흔들어요.",
+      "PronunciationAssessment": {
+        "AccuracyScore": 93,
+        "FluencyScore": 89,
+        "CompletenessScore": 100,
+        "PronScore": 91
+      },
+      "Words": [
+        {
+          "Word": "바람이",
+          "Offset": 0,
+          "Duration": 4900000,
+          "PronunciationAssessment": {
+            "AccuracyScore": 93,
+            "ErrorType": "None"
+          }
+        },
+        {
+          "Word": "나뭇잎을",
+          "Offset": 4900000,
+          "Duration": 5200000,
+          "PronunciationAssessment": {
+            "AccuracyScore": 93,
+            "ErrorType": "None"
+          }
+        },
+        {
+          "Word": "살며시",
+          "Offset": 10100000,
+          "Duration": 4900000,
+          "PronunciationAssessment": {
+            "AccuracyScore": 93,
+            "ErrorType": "None"
+          }
+        },
+        {
+          "Word": "흔들어요",
+          "Offset": 15000000,
+          "Duration": 5200000,
+          "PronunciationAssessment": {
+            "AccuracyScore": 93,
+            "ErrorType": "None"
+          }
+        }
+      ]
+    }
+  ],
+  "_demo": {
+    "schemaVersion": "azure-speech-pronunciation-v1",
+    "studentId": 2103,
+    "testId": 341033,
+    "questionNo": 1,
+    "synthetic": true
+  }
+}

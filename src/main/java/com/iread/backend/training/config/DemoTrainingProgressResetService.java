@@ -13,7 +13,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class DemoTrainingProgressResetService {
 
-    static final Map<Long, Long> RESET_CURRICULUM_BY_STUDENT = Map.of(
+    public static final Map<Long, Long> RESET_CURRICULUM_BY_STUDENT = Map.of(
             2001L, 190001L,
             2002L, 180002L,
             2103L, 180003L

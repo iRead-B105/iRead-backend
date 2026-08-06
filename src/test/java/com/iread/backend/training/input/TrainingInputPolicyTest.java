@@ -56,6 +56,12 @@ class TrainingInputPolicyTest {
     }
 
     @Test
+    void sentenceAssemblyDoesNotRequireVoice() {
+        assertThat(TrainingInputPolicy.expectedFor(TrainingType.SENTENCE_ASSEMBLY))
+                .isEqualTo(Set.of(TrainingInputType.GAZE));
+    }
+
+    @Test
     void restoresLegacyQuestionPolicyFromTrainingType() throws Exception {
         JsonNode question = objectMapper.readTree("""
                 {"questionNo":1,"type":"SENTENCE_READING"}

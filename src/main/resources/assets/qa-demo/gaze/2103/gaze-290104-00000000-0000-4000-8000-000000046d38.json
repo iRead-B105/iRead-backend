@@ -1,0 +1,7445 @@
+{
+  "rawData": {
+    "schemaVersion": "story-gaze-raw-v2",
+    "studentId": 2103,
+    "storyId": 280004,
+    "pageCount": 20,
+    "sourceTextCoverage": "FULL",
+    "pages": [
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "text": "늙은 어부는 잔잔한 아침 바다를 천천히 바라보았어요. 어린 소년은 잔잔한 아침 바다를 천천히 바라보았어요. 늙은 어부는 차분히 천천히 바라보았어요.",
+        "tokens": [
+          "늙은",
+          "어부는",
+          "잔잔한",
+          "아침",
+          "바다를",
+          "천천히",
+          "바라보았어요.",
+          "어린",
+          "소년은",
+          "잔잔한",
+          "아침",
+          "바다를",
+          "천천히",
+          "바라보았어요.",
+          "늙은",
+          "어부는",
+          "차분히",
+          "천천히",
+          "바라보았어요."
+        ]
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "text": "늙은 어부는 서로 천천히 바라보았어요. 늙은 어부는 오늘도 천천히 바라보았어요. 늙은 어부는 용기 내어 천천히 바라보았어요.",
+        "tokens": [
+          "늙은",
+          "어부는",
+          "서로",
+          "천천히",
+          "바라보았어요.",
+          "늙은",
+          "어부는",
+          "오늘도",
+          "천천히",
+          "바라보았어요.",
+          "늙은",
+          "어부는",
+          "용기",
+          "내어",
+          "천천히",
+          "바라보았어요."
+        ]
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "text": "어린 소년은 서로 꼼꼼하게 점검했어요. 어린 소년은 오늘도 꼼꼼하게 점검했어요. 어린 소년은 용기 내어 꼼꼼하게 점검했어요.",
+        "tokens": [
+          "어린",
+          "소년은",
+          "서로",
+          "꼼꼼하게",
+          "점검했어요.",
+          "어린",
+          "소년은",
+          "오늘도",
+          "꼼꼼하게",
+          "점검했어요.",
+          "어린",
+          "소년은",
+          "용기",
+          "내어",
+          "꼼꼼하게",
+          "점검했어요."
+        ]
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282117,
+        "text": "어부는 넓은 바다에서 어느 길을 고를까요?",
+        "tokens": [
+          "어부는",
+          "넓은",
+          "바다에서",
+          "어느",
+          "길을",
+          "고를까요?"
+        ]
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "text": "푸른 청새치는 서로 차분하게 따라갔어요. 어린 소년은 서로 천천히 바라보았어요. 어린 소년은 오늘도 천천히 바라보았어요.",
+        "tokens": [
+          "푸른",
+          "청새치는",
+          "서로",
+          "차분하게",
+          "따라갔어요.",
+          "어린",
+          "소년은",
+          "서로",
+          "천천히",
+          "바라보았어요.",
+          "어린",
+          "소년은",
+          "오늘도",
+          "천천히",
+          "바라보았어요."
+        ]
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "text": "어린 소년은 용기 내어 천천히 바라보았어요. 어린 소년은 차분히 천천히 바라보았어요. 푸른 청새치는 오늘도 꼼꼼하게 점검했어요.",
+        "tokens": [
+          "어린",
+          "소년은",
+          "용기",
+          "내어",
+          "천천히",
+          "바라보았어요.",
+          "어린",
+          "소년은",
+          "차분히",
+          "천천히",
+          "바라보았어요.",
+          "푸른",
+          "청새치는",
+          "오늘도",
+          "꼼꼼하게",
+          "점검했어요."
+        ]
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "text": "푸른 청새치는 용기 내어 꼼꼼하게 점검했어요. 푸른 청새치는 차분히 꼼꼼하게 점검했어요. 푸른 청새치는 서로 꼼꼼하게 점검했어요.",
+        "tokens": [
+          "푸른",
+          "청새치는",
+          "용기",
+          "내어",
+          "꼼꼼하게",
+          "점검했어요.",
+          "푸른",
+          "청새치는",
+          "차분히",
+          "꼼꼼하게",
+          "점검했어요.",
+          "푸른",
+          "청새치는",
+          "서로",
+          "꼼꼼하게",
+          "점검했어요."
+        ]
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "text": "바다 친구들은 용기 내어 차분하게 따라갔어요. 바다 친구들은 서로 차분하게 따라갔어요. 바다 친구들은 오늘도 차분하게 따라갔어요.",
+        "tokens": [
+          "바다",
+          "친구들은",
+          "용기",
+          "내어",
+          "차분하게",
+          "따라갔어요.",
+          "바다",
+          "친구들은",
+          "서로",
+          "차분하게",
+          "따라갔어요.",
+          "바다",
+          "친구들은",
+          "오늘도",
+          "차분하게",
+          "따라갔어요."
+        ]
+      },
+      {
+        "pageNo": 9,
+        "storyLineId": 282122,
+        "text": "청새치와 어부는 다음에 무엇을 할까요?",
+        "tokens": [
+          "청새치와",
+          "어부는",
+          "다음에",
+          "무엇을",
+          "할까요?"
+        ]
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "text": "푸른 청새치는 서로 천천히 바라보았어요. 바다 친구들은 용기 내어 꼼꼼하게 점검했어요. 바다 친구들은 차분히 꼼꼼하게 점검했어요.",
+        "tokens": [
+          "푸른",
+          "청새치는",
+          "서로",
+          "천천히",
+          "바라보았어요.",
+          "바다",
+          "친구들은",
+          "용기",
+          "내어",
+          "꼼꼼하게",
+          "점검했어요.",
+          "바다",
+          "친구들은",
+          "차분히",
+          "꼼꼼하게",
+          "점검했어요."
+        ]
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "text": "푸른 청새치는 오늘도 별빛으로 찾아냈어요. 푸른 청새치는 용기 내어 별빛으로 찾아냈어요. 푸른 청새치는 차분히 별빛으로 찾아냈어요.",
+        "tokens": [
+          "푸른",
+          "청새치는",
+          "오늘도",
+          "별빛으로",
+          "찾아냈어요.",
+          "푸른",
+          "청새치는",
+          "용기",
+          "내어",
+          "별빛으로",
+          "찾아냈어요.",
+          "푸른",
+          "청새치는",
+          "차분히",
+          "별빛으로",
+          "찾아냈어요."
+        ]
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "text": "푸른 청새치는 서로 별빛으로 찾아냈어요. 어린 소년은 서로 조용히 기다려 주었어요. 어린 소년은 오늘도 조용히 기다려 주었어요.",
+        "tokens": [
+          "푸른",
+          "청새치는",
+          "서로",
+          "별빛으로",
+          "찾아냈어요.",
+          "어린",
+          "소년은",
+          "서로",
+          "조용히",
+          "기다려",
+          "주었어요.",
+          "어린",
+          "소년은",
+          "오늘도",
+          "조용히",
+          "기다려",
+          "주었어요."
+        ]
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "text": "어린 소년은 용기 내어 조용히 기다려 주었어요. 어린 소년은 차분히 조용히 기다려 주었어요. 푸른 청새치는 오늘도 용기 있게 견뎌냈어요.",
+        "tokens": [
+          "어린",
+          "소년은",
+          "용기",
+          "내어",
+          "조용히",
+          "기다려",
+          "주었어요.",
+          "어린",
+          "소년은",
+          "차분히",
+          "조용히",
+          "기다려",
+          "주었어요.",
+          "푸른",
+          "청새치는",
+          "오늘도",
+          "용기",
+          "있게",
+          "견뎌냈어요."
+        ]
+      },
+      {
+        "pageNo": 14,
+        "storyLineId": 282127,
+        "text": "어부는 넓은 바다에서 어느 길을 고를까요?",
+        "tokens": [
+          "어부는",
+          "넓은",
+          "바다에서",
+          "어느",
+          "길을",
+          "고를까요?"
+        ]
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "text": "바다 친구들은 차분히 별빛으로 찾아냈어요. 바다 친구들은 서로 별빛으로 찾아냈어요. 바다 친구들은 오늘도 별빛으로 찾아냈어요.",
+        "tokens": [
+          "바다",
+          "친구들은",
+          "차분히",
+          "별빛으로",
+          "찾아냈어요.",
+          "바다",
+          "친구들은",
+          "서로",
+          "별빛으로",
+          "찾아냈어요.",
+          "바다",
+          "친구들은",
+          "오늘도",
+          "별빛으로",
+          "찾아냈어요."
+        ]
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "text": "푸른 청새치는 오늘도 조용히 기다려 주었어요. 푸른 청새치는 용기 내어 조용히 기다려 주었어요. 푸른 청새치는 차분히 조용히 기다려 주었어요.",
+        "tokens": [
+          "푸른",
+          "청새치는",
+          "오늘도",
+          "조용히",
+          "기다려",
+          "주었어요.",
+          "푸른",
+          "청새치는",
+          "용기",
+          "내어",
+          "조용히",
+          "기다려",
+          "주었어요.",
+          "푸른",
+          "청새치는",
+          "차분히",
+          "조용히",
+          "기다려",
+          "주었어요."
+        ]
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "text": "푸른 청새치는 서로 조용히 기다려 주었어요. 바다 친구들은 차분히 용기 있게 견뎌냈어요. 바다 친구들은 서로 용기 있게 견뎌냈어요.",
+        "tokens": [
+          "푸른",
+          "청새치는",
+          "서로",
+          "조용히",
+          "기다려",
+          "주었어요.",
+          "바다",
+          "친구들은",
+          "차분히",
+          "용기",
+          "있게",
+          "견뎌냈어요.",
+          "바다",
+          "친구들은",
+          "서로",
+          "용기",
+          "있게",
+          "견뎌냈어요."
+        ]
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "text": "바다 친구들은 오늘도 용기 있게 견뎌냈어요. 항구 사람들은 차분히 별빛으로 찾아냈어요. 항구 사람들은 서로 별빛으로 찾아냈어요.",
+        "tokens": [
+          "바다",
+          "친구들은",
+          "오늘도",
+          "용기",
+          "있게",
+          "견뎌냈어요.",
+          "항구",
+          "사람들은",
+          "차분히",
+          "별빛으로",
+          "찾아냈어요.",
+          "항구",
+          "사람들은",
+          "서로",
+          "별빛으로",
+          "찾아냈어요."
+        ]
+      },
+      {
+        "pageNo": 19,
+        "storyLineId": 282132,
+        "text": "청새치와 어부는 다음에 무엇을 할까요?",
+        "tokens": [
+          "청새치와",
+          "어부는",
+          "다음에",
+          "무엇을",
+          "할까요?"
+        ]
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "text": "바다 친구들은 차분히 조용히 기다려 주었어요. 바다 친구들은 서로 조용히 기다려 주었어요. 바다 친구들은 오늘도 조용히 기다려 주었어요.",
+        "tokens": [
+          "바다",
+          "친구들은",
+          "차분히",
+          "조용히",
+          "기다려",
+          "주었어요.",
+          "바다",
+          "친구들은",
+          "서로",
+          "조용히",
+          "기다려",
+          "주었어요.",
+          "바다",
+          "친구들은",
+          "오늘도",
+          "조용히",
+          "기다려",
+          "주었어요."
+        ]
+      }
+    ],
+    "replayWords": [
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 0,
+        "text": "늙은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 3,
+        "text": "아침",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 4,
+        "text": "바다를",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 5,
+        "text": "천천히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 6,
+        "text": "바라보았어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 7,
+        "text": "어린",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 8,
+        "text": "소년은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 9,
+        "text": "잔잔한",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 10,
+        "text": "아침",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 11,
+        "text": "바다를",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 12,
+        "text": "천천히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 13,
+        "text": "바라보았어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 14,
+        "text": "늙은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 15,
+        "text": "어부는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 16,
+        "text": "차분히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 17,
+        "text": "천천히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 18,
+        "text": "바라보았어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 0,
+        "text": "늙은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 3,
+        "text": "천천히",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 4,
+        "text": "바라보았어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 5,
+        "text": "늙은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 6,
+        "text": "어부는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 7,
+        "text": "오늘도",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 8,
+        "text": "천천히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 9,
+        "text": "바라보았어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 10,
+        "text": "늙은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 11,
+        "text": "어부는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 12,
+        "text": "용기",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 13,
+        "text": "내어",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 14,
+        "text": "천천히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 15,
+        "text": "바라보았어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 0,
+        "text": "어린",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 3,
+        "text": "꼼꼼하게",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 4,
+        "text": "점검했어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 5,
+        "text": "어린",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 6,
+        "text": "소년은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 7,
+        "text": "오늘도",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 8,
+        "text": "꼼꼼하게",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 9,
+        "text": "점검했어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 10,
+        "text": "어린",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 11,
+        "text": "소년은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 12,
+        "text": "용기",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 13,
+        "text": "내어",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 14,
+        "text": "꼼꼼하게",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 15,
+        "text": "점검했어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282117,
+        "tokenIndex": 0,
+        "text": "어부는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282117,
+        "tokenIndex": 1,
+        "text": "넓은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282117,
+        "tokenIndex": 3,
+        "text": "어느",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282117,
+        "tokenIndex": 4,
+        "text": "길을",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282117,
+        "tokenIndex": 5,
+        "text": "고를까요?",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282117,
+        "tokenIndex": 1,
+        "text": "넓은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 0,
+        "text": "푸른",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 3,
+        "text": "차분하게",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 4,
+        "text": "따라갔어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 5,
+        "text": "어린",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 6,
+        "text": "소년은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 7,
+        "text": "서로",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 8,
+        "text": "천천히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 9,
+        "text": "바라보았어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 10,
+        "text": "어린",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 11,
+        "text": "소년은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 12,
+        "text": "오늘도",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 13,
+        "text": "천천히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 14,
+        "text": "바라보았어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 0,
+        "text": "어린",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 3,
+        "text": "내어",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 4,
+        "text": "천천히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 5,
+        "text": "바라보았어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 6,
+        "text": "어린",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 7,
+        "text": "소년은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 8,
+        "text": "차분히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 9,
+        "text": "천천히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 10,
+        "text": "바라보았어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 11,
+        "text": "푸른",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 12,
+        "text": "청새치는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 13,
+        "text": "오늘도",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 14,
+        "text": "꼼꼼하게",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 15,
+        "text": "점검했어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 0,
+        "text": "푸른",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 3,
+        "text": "내어",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 4,
+        "text": "꼼꼼하게",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 5,
+        "text": "점검했어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 6,
+        "text": "푸른",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 7,
+        "text": "청새치는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 8,
+        "text": "차분히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 9,
+        "text": "꼼꼼하게",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 10,
+        "text": "점검했어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 11,
+        "text": "푸른",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 12,
+        "text": "청새치는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 13,
+        "text": "서로",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 14,
+        "text": "꼼꼼하게",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 15,
+        "text": "점검했어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 0,
+        "text": "바다",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 3,
+        "text": "내어",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 4,
+        "text": "차분하게",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 5,
+        "text": "따라갔어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 6,
+        "text": "바다",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 7,
+        "text": "친구들은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 8,
+        "text": "서로",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 9,
+        "text": "차분하게",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 10,
+        "text": "따라갔어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 11,
+        "text": "바다",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 12,
+        "text": "친구들은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 13,
+        "text": "오늘도",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 14,
+        "text": "차분하게",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 15,
+        "text": "따라갔어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 9,
+        "storyLineId": 282122,
+        "tokenIndex": 0,
+        "text": "청새치와",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 9,
+        "storyLineId": 282122,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 9,
+        "storyLineId": 282122,
+        "tokenIndex": 3,
+        "text": "무엇을",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 9,
+        "storyLineId": 282122,
+        "tokenIndex": 4,
+        "text": "할까요?",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 9,
+        "storyLineId": 282122,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 0,
+        "text": "푸른",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 3,
+        "text": "천천히",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 4,
+        "text": "바라보았어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 5,
+        "text": "바다",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 6,
+        "text": "친구들은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 7,
+        "text": "용기",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 8,
+        "text": "내어",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 9,
+        "text": "꼼꼼하게",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 10,
+        "text": "점검했어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 11,
+        "text": "바다",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 12,
+        "text": "친구들은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 13,
+        "text": "차분히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 14,
+        "text": "꼼꼼하게",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 15,
+        "text": "점검했어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 0,
+        "text": "푸른",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 3,
+        "text": "별빛으로",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 4,
+        "text": "찾아냈어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 5,
+        "text": "푸른",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 6,
+        "text": "청새치는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 7,
+        "text": "용기",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 8,
+        "text": "내어",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 9,
+        "text": "별빛으로",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 10,
+        "text": "찾아냈어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 11,
+        "text": "푸른",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 12,
+        "text": "청새치는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 13,
+        "text": "차분히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 14,
+        "text": "별빛으로",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 15,
+        "text": "찾아냈어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 0,
+        "text": "푸른",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 3,
+        "text": "별빛으로",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 4,
+        "text": "찾아냈어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 5,
+        "text": "어린",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 6,
+        "text": "소년은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 7,
+        "text": "서로",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 8,
+        "text": "조용히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 9,
+        "text": "기다려",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 10,
+        "text": "주었어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 11,
+        "text": "어린",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 12,
+        "text": "소년은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 13,
+        "text": "오늘도",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 14,
+        "text": "조용히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 15,
+        "text": "기다려",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 16,
+        "text": "주었어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 0,
+        "text": "어린",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 3,
+        "text": "내어",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 4,
+        "text": "조용히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 5,
+        "text": "기다려",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 6,
+        "text": "주었어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 7,
+        "text": "어린",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 8,
+        "text": "소년은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 9,
+        "text": "차분히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 10,
+        "text": "조용히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 11,
+        "text": "기다려",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 12,
+        "text": "주었어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 13,
+        "text": "푸른",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 14,
+        "text": "청새치는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 15,
+        "text": "오늘도",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 16,
+        "text": "용기",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 17,
+        "text": "있게",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 18,
+        "text": "견뎌냈어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 14,
+        "storyLineId": 282127,
+        "tokenIndex": 0,
+        "text": "어부는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 14,
+        "storyLineId": 282127,
+        "tokenIndex": 1,
+        "text": "넓은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 14,
+        "storyLineId": 282127,
+        "tokenIndex": 3,
+        "text": "어느",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 14,
+        "storyLineId": 282127,
+        "tokenIndex": 4,
+        "text": "길을",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 14,
+        "storyLineId": 282127,
+        "tokenIndex": 5,
+        "text": "고를까요?",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 14,
+        "storyLineId": 282127,
+        "tokenIndex": 1,
+        "text": "넓은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 0,
+        "text": "바다",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 3,
+        "text": "별빛으로",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 4,
+        "text": "찾아냈어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 5,
+        "text": "바다",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 6,
+        "text": "친구들은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 7,
+        "text": "서로",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 8,
+        "text": "별빛으로",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 9,
+        "text": "찾아냈어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 10,
+        "text": "바다",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 11,
+        "text": "친구들은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 12,
+        "text": "오늘도",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 13,
+        "text": "별빛으로",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 14,
+        "text": "찾아냈어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 0,
+        "text": "푸른",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 3,
+        "text": "조용히",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 4,
+        "text": "기다려",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 5,
+        "text": "주었어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 6,
+        "text": "푸른",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 7,
+        "text": "청새치는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 8,
+        "text": "용기",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 9,
+        "text": "내어",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 10,
+        "text": "조용히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 11,
+        "text": "기다려",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 12,
+        "text": "주었어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 13,
+        "text": "푸른",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 14,
+        "text": "청새치는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 15,
+        "text": "차분히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 16,
+        "text": "조용히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 17,
+        "text": "기다려",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 18,
+        "text": "주었어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 0,
+        "text": "푸른",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 3,
+        "text": "조용히",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 4,
+        "text": "기다려",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 5,
+        "text": "주었어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 6,
+        "text": "바다",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 7,
+        "text": "친구들은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 8,
+        "text": "차분히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 9,
+        "text": "용기",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 10,
+        "text": "있게",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 11,
+        "text": "견뎌냈어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 12,
+        "text": "바다",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 13,
+        "text": "친구들은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 14,
+        "text": "서로",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 15,
+        "text": "용기",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 16,
+        "text": "있게",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 17,
+        "text": "견뎌냈어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 0,
+        "text": "바다",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 3,
+        "text": "용기",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 4,
+        "text": "있게",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 5,
+        "text": "견뎌냈어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 6,
+        "text": "항구",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 7,
+        "text": "사람들은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 8,
+        "text": "차분히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 9,
+        "text": "별빛으로",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 10,
+        "text": "찾아냈어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 11,
+        "text": "항구",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 12,
+        "text": "사람들은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 13,
+        "text": "서로",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 14,
+        "text": "별빛으로",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 15,
+        "text": "찾아냈어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 19,
+        "storyLineId": 282132,
+        "tokenIndex": 0,
+        "text": "청새치와",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 19,
+        "storyLineId": 282132,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 19,
+        "storyLineId": 282132,
+        "tokenIndex": 3,
+        "text": "무엇을",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 19,
+        "storyLineId": 282132,
+        "tokenIndex": 4,
+        "text": "할까요?",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 19,
+        "storyLineId": 282132,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 0,
+        "text": "바다",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 3,
+        "text": "조용히",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 4,
+        "text": "기다려",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 5,
+        "text": "주었어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 6,
+        "text": "바다",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 7,
+        "text": "친구들은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 8,
+        "text": "서로",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 9,
+        "text": "조용히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 10,
+        "text": "기다려",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 11,
+        "text": "주었어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 12,
+        "text": "바다",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 13,
+        "text": "친구들은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 14,
+        "text": "오늘도",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 15,
+        "text": "조용히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 16,
+        "text": "기다려",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 17,
+        "text": "주었어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      }
+    ],
+    "samples": [
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 0,
+        "text": "늙은",
+        "capturedAtMs": 300,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 525,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 705,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 885,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 3,
+        "text": "아침",
+        "capturedAtMs": 1090,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 3,
+        "text": "아침",
+        "capturedAtMs": 1270,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 3,
+        "text": "아침",
+        "capturedAtMs": 1450,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 4,
+        "text": "바다를",
+        "capturedAtMs": 1655,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 5,
+        "text": "천천히",
+        "capturedAtMs": 1880,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 6,
+        "text": "바라보았어요.",
+        "capturedAtMs": 2105,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 7,
+        "text": "어린",
+        "capturedAtMs": 2330,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 8,
+        "text": "소년은",
+        "capturedAtMs": 2555,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 9,
+        "text": "잔잔한",
+        "capturedAtMs": 2780,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 10,
+        "text": "아침",
+        "capturedAtMs": 3005,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 11,
+        "text": "바다를",
+        "capturedAtMs": 3230,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 12,
+        "text": "천천히",
+        "capturedAtMs": 3455,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 13,
+        "text": "바라보았어요.",
+        "capturedAtMs": 3680,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 14,
+        "text": "늙은",
+        "capturedAtMs": 3905,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 15,
+        "text": "어부는",
+        "capturedAtMs": 4130,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 16,
+        "text": "차분히",
+        "capturedAtMs": 4355,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 17,
+        "text": "천천히",
+        "capturedAtMs": 4580,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 18,
+        "text": "바라보았어요.",
+        "capturedAtMs": 4805,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 5030,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 5210,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282114,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 5390,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 0,
+        "text": "늙은",
+        "capturedAtMs": 5595,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 5820,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 6000,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 6180,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 3,
+        "text": "천천히",
+        "capturedAtMs": 6385,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 3,
+        "text": "천천히",
+        "capturedAtMs": 6565,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 3,
+        "text": "천천히",
+        "capturedAtMs": 6745,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 4,
+        "text": "바라보았어요.",
+        "capturedAtMs": 6950,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 5,
+        "text": "늙은",
+        "capturedAtMs": 7175,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 6,
+        "text": "어부는",
+        "capturedAtMs": 7400,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 7,
+        "text": "오늘도",
+        "capturedAtMs": 7625,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 8,
+        "text": "천천히",
+        "capturedAtMs": 7850,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 9,
+        "text": "바라보았어요.",
+        "capturedAtMs": 8075,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 10,
+        "text": "늙은",
+        "capturedAtMs": 8300,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 11,
+        "text": "어부는",
+        "capturedAtMs": 8525,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 12,
+        "text": "용기",
+        "capturedAtMs": 8750,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 13,
+        "text": "내어",
+        "capturedAtMs": 8975,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 14,
+        "text": "천천히",
+        "capturedAtMs": 9200,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 15,
+        "text": "바라보았어요.",
+        "capturedAtMs": 9425,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 9650,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 9830,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282115,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 10010,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 0,
+        "text": "어린",
+        "capturedAtMs": 10215,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "capturedAtMs": 10440,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "capturedAtMs": 10620,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "capturedAtMs": 10800,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 3,
+        "text": "꼼꼼하게",
+        "capturedAtMs": 11005,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 3,
+        "text": "꼼꼼하게",
+        "capturedAtMs": 11185,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 3,
+        "text": "꼼꼼하게",
+        "capturedAtMs": 11365,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 4,
+        "text": "점검했어요.",
+        "capturedAtMs": 11570,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 5,
+        "text": "어린",
+        "capturedAtMs": 11795,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 6,
+        "text": "소년은",
+        "capturedAtMs": 12020,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 7,
+        "text": "오늘도",
+        "capturedAtMs": 12245,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 8,
+        "text": "꼼꼼하게",
+        "capturedAtMs": 12470,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 9,
+        "text": "점검했어요.",
+        "capturedAtMs": 12695,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 10,
+        "text": "어린",
+        "capturedAtMs": 12920,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 11,
+        "text": "소년은",
+        "capturedAtMs": 13145,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 12,
+        "text": "용기",
+        "capturedAtMs": 13370,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 13,
+        "text": "내어",
+        "capturedAtMs": 13595,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 14,
+        "text": "꼼꼼하게",
+        "capturedAtMs": 13820,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 15,
+        "text": "점검했어요.",
+        "capturedAtMs": 14045,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "capturedAtMs": 14270,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "capturedAtMs": 14450,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282116,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "capturedAtMs": 14630,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282117,
+        "tokenIndex": 0,
+        "text": "어부는",
+        "capturedAtMs": 14835,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282117,
+        "tokenIndex": 1,
+        "text": "넓은",
+        "capturedAtMs": 15060,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282117,
+        "tokenIndex": 1,
+        "text": "넓은",
+        "capturedAtMs": 15240,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282117,
+        "tokenIndex": 1,
+        "text": "넓은",
+        "capturedAtMs": 15420,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282117,
+        "tokenIndex": 3,
+        "text": "어느",
+        "capturedAtMs": 15625,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282117,
+        "tokenIndex": 3,
+        "text": "어느",
+        "capturedAtMs": 15805,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282117,
+        "tokenIndex": 3,
+        "text": "어느",
+        "capturedAtMs": 15985,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282117,
+        "tokenIndex": 4,
+        "text": "길을",
+        "capturedAtMs": 16190,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282117,
+        "tokenIndex": 5,
+        "text": "고를까요?",
+        "capturedAtMs": 16415,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282117,
+        "tokenIndex": 1,
+        "text": "넓은",
+        "capturedAtMs": 16640,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282117,
+        "tokenIndex": 1,
+        "text": "넓은",
+        "capturedAtMs": 16820,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282117,
+        "tokenIndex": 1,
+        "text": "넓은",
+        "capturedAtMs": 17000,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 0,
+        "text": "푸른",
+        "capturedAtMs": 17205,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 17430,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 17610,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 17790,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 3,
+        "text": "차분하게",
+        "capturedAtMs": 17995,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 3,
+        "text": "차분하게",
+        "capturedAtMs": 18175,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 3,
+        "text": "차분하게",
+        "capturedAtMs": 18355,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 4,
+        "text": "따라갔어요.",
+        "capturedAtMs": 18560,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 5,
+        "text": "어린",
+        "capturedAtMs": 18785,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 6,
+        "text": "소년은",
+        "capturedAtMs": 19010,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 7,
+        "text": "서로",
+        "capturedAtMs": 19235,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 8,
+        "text": "천천히",
+        "capturedAtMs": 19460,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 9,
+        "text": "바라보았어요.",
+        "capturedAtMs": 19685,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 10,
+        "text": "어린",
+        "capturedAtMs": 19910,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 11,
+        "text": "소년은",
+        "capturedAtMs": 20135,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 12,
+        "text": "오늘도",
+        "capturedAtMs": 20360,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 13,
+        "text": "천천히",
+        "capturedAtMs": 20585,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 14,
+        "text": "바라보았어요.",
+        "capturedAtMs": 20810,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 21035,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 21215,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 5,
+        "storyLineId": 282118,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 21395,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 0,
+        "text": "어린",
+        "capturedAtMs": 21600,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "capturedAtMs": 21825,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "capturedAtMs": 22005,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "capturedAtMs": 22185,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 3,
+        "text": "내어",
+        "capturedAtMs": 22390,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 3,
+        "text": "내어",
+        "capturedAtMs": 22570,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 3,
+        "text": "내어",
+        "capturedAtMs": 22750,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 4,
+        "text": "천천히",
+        "capturedAtMs": 22955,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 5,
+        "text": "바라보았어요.",
+        "capturedAtMs": 23180,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 6,
+        "text": "어린",
+        "capturedAtMs": 23405,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 7,
+        "text": "소년은",
+        "capturedAtMs": 23630,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 8,
+        "text": "차분히",
+        "capturedAtMs": 23855,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 9,
+        "text": "천천히",
+        "capturedAtMs": 24080,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 10,
+        "text": "바라보았어요.",
+        "capturedAtMs": 24305,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 11,
+        "text": "푸른",
+        "capturedAtMs": 24530,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 12,
+        "text": "청새치는",
+        "capturedAtMs": 24755,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 13,
+        "text": "오늘도",
+        "capturedAtMs": 24980,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 14,
+        "text": "꼼꼼하게",
+        "capturedAtMs": 25205,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 15,
+        "text": "점검했어요.",
+        "capturedAtMs": 25430,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "capturedAtMs": 25655,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "capturedAtMs": 25835,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 6,
+        "storyLineId": 282119,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "capturedAtMs": 26015,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 0,
+        "text": "푸른",
+        "capturedAtMs": 26220,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 26445,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 26625,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 26805,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 3,
+        "text": "내어",
+        "capturedAtMs": 27010,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 3,
+        "text": "내어",
+        "capturedAtMs": 27190,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 3,
+        "text": "내어",
+        "capturedAtMs": 27370,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 4,
+        "text": "꼼꼼하게",
+        "capturedAtMs": 27575,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 5,
+        "text": "점검했어요.",
+        "capturedAtMs": 27800,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 6,
+        "text": "푸른",
+        "capturedAtMs": 28025,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 7,
+        "text": "청새치는",
+        "capturedAtMs": 28250,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 8,
+        "text": "차분히",
+        "capturedAtMs": 28475,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 9,
+        "text": "꼼꼼하게",
+        "capturedAtMs": 28700,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 10,
+        "text": "점검했어요.",
+        "capturedAtMs": 28925,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 11,
+        "text": "푸른",
+        "capturedAtMs": 29150,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 12,
+        "text": "청새치는",
+        "capturedAtMs": 29375,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 13,
+        "text": "서로",
+        "capturedAtMs": 29600,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 14,
+        "text": "꼼꼼하게",
+        "capturedAtMs": 29825,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 15,
+        "text": "점검했어요.",
+        "capturedAtMs": 30050,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 30275,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 30455,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 7,
+        "storyLineId": 282120,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 30635,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 0,
+        "text": "바다",
+        "capturedAtMs": 30840,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 31065,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 31245,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 31425,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 3,
+        "text": "내어",
+        "capturedAtMs": 31630,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 3,
+        "text": "내어",
+        "capturedAtMs": 31810,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 3,
+        "text": "내어",
+        "capturedAtMs": 31990,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 4,
+        "text": "차분하게",
+        "capturedAtMs": 32195,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 5,
+        "text": "따라갔어요.",
+        "capturedAtMs": 32420,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 6,
+        "text": "바다",
+        "capturedAtMs": 32645,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 7,
+        "text": "친구들은",
+        "capturedAtMs": 32870,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 8,
+        "text": "서로",
+        "capturedAtMs": 33095,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 9,
+        "text": "차분하게",
+        "capturedAtMs": 33320,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 10,
+        "text": "따라갔어요.",
+        "capturedAtMs": 33545,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 11,
+        "text": "바다",
+        "capturedAtMs": 33770,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 12,
+        "text": "친구들은",
+        "capturedAtMs": 33995,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 13,
+        "text": "오늘도",
+        "capturedAtMs": 34220,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 14,
+        "text": "차분하게",
+        "capturedAtMs": 34445,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 15,
+        "text": "따라갔어요.",
+        "capturedAtMs": 34670,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 34895,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 35075,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 8,
+        "storyLineId": 282121,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 35255,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 9,
+        "storyLineId": 282122,
+        "tokenIndex": 0,
+        "text": "청새치와",
+        "capturedAtMs": 35460,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.64
+      },
+      {
+        "pageNo": 9,
+        "storyLineId": 282122,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 35685,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 9,
+        "storyLineId": 282122,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 35865,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 9,
+        "storyLineId": 282122,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 36045,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 9,
+        "storyLineId": 282122,
+        "tokenIndex": 3,
+        "text": "무엇을",
+        "capturedAtMs": 36250,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.64
+      },
+      {
+        "pageNo": 9,
+        "storyLineId": 282122,
+        "tokenIndex": 3,
+        "text": "무엇을",
+        "capturedAtMs": 36430,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.64
+      },
+      {
+        "pageNo": 9,
+        "storyLineId": 282122,
+        "tokenIndex": 3,
+        "text": "무엇을",
+        "capturedAtMs": 36610,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.64
+      },
+      {
+        "pageNo": 9,
+        "storyLineId": 282122,
+        "tokenIndex": 4,
+        "text": "할까요?",
+        "capturedAtMs": 36815,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.64
+      },
+      {
+        "pageNo": 9,
+        "storyLineId": 282122,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 37040,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 9,
+        "storyLineId": 282122,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 37220,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 9,
+        "storyLineId": 282122,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 37400,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 0,
+        "text": "푸른",
+        "capturedAtMs": 37605,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 37830,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 38010,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 38190,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 3,
+        "text": "천천히",
+        "capturedAtMs": 38395,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 3,
+        "text": "천천히",
+        "capturedAtMs": 38575,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 3,
+        "text": "천천히",
+        "capturedAtMs": 38755,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 4,
+        "text": "바라보았어요.",
+        "capturedAtMs": 38960,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 5,
+        "text": "바다",
+        "capturedAtMs": 39185,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 6,
+        "text": "친구들은",
+        "capturedAtMs": 39410,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 7,
+        "text": "용기",
+        "capturedAtMs": 39635,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 8,
+        "text": "내어",
+        "capturedAtMs": 39860,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 9,
+        "text": "꼼꼼하게",
+        "capturedAtMs": 40085,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 10,
+        "text": "점검했어요.",
+        "capturedAtMs": 40310,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 11,
+        "text": "바다",
+        "capturedAtMs": 40535,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 12,
+        "text": "친구들은",
+        "capturedAtMs": 40760,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 13,
+        "text": "차분히",
+        "capturedAtMs": 40985,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 14,
+        "text": "꼼꼼하게",
+        "capturedAtMs": 41210,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 15,
+        "text": "점검했어요.",
+        "capturedAtMs": 41435,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 41660,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 41840,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 10,
+        "storyLineId": 282123,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 42020,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 0,
+        "text": "푸른",
+        "capturedAtMs": 42225,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 42450,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 42630,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 42810,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 3,
+        "text": "별빛으로",
+        "capturedAtMs": 43015,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 3,
+        "text": "별빛으로",
+        "capturedAtMs": 43195,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 3,
+        "text": "별빛으로",
+        "capturedAtMs": 43375,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 4,
+        "text": "찾아냈어요.",
+        "capturedAtMs": 43580,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 5,
+        "text": "푸른",
+        "capturedAtMs": 43805,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 6,
+        "text": "청새치는",
+        "capturedAtMs": 44030,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 7,
+        "text": "용기",
+        "capturedAtMs": 44255,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 8,
+        "text": "내어",
+        "capturedAtMs": 44480,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 9,
+        "text": "별빛으로",
+        "capturedAtMs": 44705,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 10,
+        "text": "찾아냈어요.",
+        "capturedAtMs": 44930,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 11,
+        "text": "푸른",
+        "capturedAtMs": 45155,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 12,
+        "text": "청새치는",
+        "capturedAtMs": 45380,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 13,
+        "text": "차분히",
+        "capturedAtMs": 45605,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 14,
+        "text": "별빛으로",
+        "capturedAtMs": 45830,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 15,
+        "text": "찾아냈어요.",
+        "capturedAtMs": 46055,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 46280,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 46460,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 11,
+        "storyLineId": 282124,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 46640,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 0,
+        "text": "푸른",
+        "capturedAtMs": 46845,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 47070,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 47250,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 47430,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 3,
+        "text": "별빛으로",
+        "capturedAtMs": 47635,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 3,
+        "text": "별빛으로",
+        "capturedAtMs": 47815,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 3,
+        "text": "별빛으로",
+        "capturedAtMs": 47995,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 4,
+        "text": "찾아냈어요.",
+        "capturedAtMs": 48200,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 5,
+        "text": "어린",
+        "capturedAtMs": 48425,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 6,
+        "text": "소년은",
+        "capturedAtMs": 48650,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 7,
+        "text": "서로",
+        "capturedAtMs": 48875,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 8,
+        "text": "조용히",
+        "capturedAtMs": 49100,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 9,
+        "text": "기다려",
+        "capturedAtMs": 49325,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 10,
+        "text": "주었어요.",
+        "capturedAtMs": 49550,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 11,
+        "text": "어린",
+        "capturedAtMs": 49775,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 12,
+        "text": "소년은",
+        "capturedAtMs": 50000,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 13,
+        "text": "오늘도",
+        "capturedAtMs": 50225,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 14,
+        "text": "조용히",
+        "capturedAtMs": 50450,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 15,
+        "text": "기다려",
+        "capturedAtMs": 50675,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 16,
+        "text": "주었어요.",
+        "capturedAtMs": 50900,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 51125,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 51305,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 12,
+        "storyLineId": 282125,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 51485,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 0,
+        "text": "어린",
+        "capturedAtMs": 51690,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "capturedAtMs": 51915,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "capturedAtMs": 52095,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "capturedAtMs": 52275,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 3,
+        "text": "내어",
+        "capturedAtMs": 52480,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 3,
+        "text": "내어",
+        "capturedAtMs": 52660,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 3,
+        "text": "내어",
+        "capturedAtMs": 52840,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 4,
+        "text": "조용히",
+        "capturedAtMs": 53045,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 5,
+        "text": "기다려",
+        "capturedAtMs": 53270,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 6,
+        "text": "주었어요.",
+        "capturedAtMs": 53495,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 7,
+        "text": "어린",
+        "capturedAtMs": 53720,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 8,
+        "text": "소년은",
+        "capturedAtMs": 53945,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 9,
+        "text": "차분히",
+        "capturedAtMs": 54170,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 10,
+        "text": "조용히",
+        "capturedAtMs": 54395,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 11,
+        "text": "기다려",
+        "capturedAtMs": 54620,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 12,
+        "text": "주었어요.",
+        "capturedAtMs": 54845,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 13,
+        "text": "푸른",
+        "capturedAtMs": 55070,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 14,
+        "text": "청새치는",
+        "capturedAtMs": 55295,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 15,
+        "text": "오늘도",
+        "capturedAtMs": 55520,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 16,
+        "text": "용기",
+        "capturedAtMs": 55745,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 17,
+        "text": "있게",
+        "capturedAtMs": 55970,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 18,
+        "text": "견뎌냈어요.",
+        "capturedAtMs": 56195,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "capturedAtMs": 56420,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "capturedAtMs": 56600,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 13,
+        "storyLineId": 282126,
+        "tokenIndex": 1,
+        "text": "소년은",
+        "capturedAtMs": 56780,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 14,
+        "storyLineId": 282127,
+        "tokenIndex": 0,
+        "text": "어부는",
+        "capturedAtMs": 56985,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.64
+      },
+      {
+        "pageNo": 14,
+        "storyLineId": 282127,
+        "tokenIndex": 1,
+        "text": "넓은",
+        "capturedAtMs": 57210,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 14,
+        "storyLineId": 282127,
+        "tokenIndex": 1,
+        "text": "넓은",
+        "capturedAtMs": 57390,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 14,
+        "storyLineId": 282127,
+        "tokenIndex": 1,
+        "text": "넓은",
+        "capturedAtMs": 57570,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 14,
+        "storyLineId": 282127,
+        "tokenIndex": 3,
+        "text": "어느",
+        "capturedAtMs": 57775,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.64
+      },
+      {
+        "pageNo": 14,
+        "storyLineId": 282127,
+        "tokenIndex": 3,
+        "text": "어느",
+        "capturedAtMs": 57955,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.64
+      },
+      {
+        "pageNo": 14,
+        "storyLineId": 282127,
+        "tokenIndex": 3,
+        "text": "어느",
+        "capturedAtMs": 58135,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.64
+      },
+      {
+        "pageNo": 14,
+        "storyLineId": 282127,
+        "tokenIndex": 4,
+        "text": "길을",
+        "capturedAtMs": 58340,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.64
+      },
+      {
+        "pageNo": 14,
+        "storyLineId": 282127,
+        "tokenIndex": 5,
+        "text": "고를까요?",
+        "capturedAtMs": 58565,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.64
+      },
+      {
+        "pageNo": 14,
+        "storyLineId": 282127,
+        "tokenIndex": 1,
+        "text": "넓은",
+        "capturedAtMs": 58790,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 14,
+        "storyLineId": 282127,
+        "tokenIndex": 1,
+        "text": "넓은",
+        "capturedAtMs": 58970,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 14,
+        "storyLineId": 282127,
+        "tokenIndex": 1,
+        "text": "넓은",
+        "capturedAtMs": 59150,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 0,
+        "text": "바다",
+        "capturedAtMs": 59355,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 59580,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 59760,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 59940,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 3,
+        "text": "별빛으로",
+        "capturedAtMs": 60145,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 3,
+        "text": "별빛으로",
+        "capturedAtMs": 60325,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 3,
+        "text": "별빛으로",
+        "capturedAtMs": 60505,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 4,
+        "text": "찾아냈어요.",
+        "capturedAtMs": 60710,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 5,
+        "text": "바다",
+        "capturedAtMs": 60935,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 6,
+        "text": "친구들은",
+        "capturedAtMs": 61160,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 7,
+        "text": "서로",
+        "capturedAtMs": 61385,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 8,
+        "text": "별빛으로",
+        "capturedAtMs": 61610,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 9,
+        "text": "찾아냈어요.",
+        "capturedAtMs": 61835,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 10,
+        "text": "바다",
+        "capturedAtMs": 62060,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 11,
+        "text": "친구들은",
+        "capturedAtMs": 62285,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 12,
+        "text": "오늘도",
+        "capturedAtMs": 62510,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 13,
+        "text": "별빛으로",
+        "capturedAtMs": 62735,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 14,
+        "text": "찾아냈어요.",
+        "capturedAtMs": 62960,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 63185,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 63365,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 15,
+        "storyLineId": 282128,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 63545,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 0,
+        "text": "푸른",
+        "capturedAtMs": 63750,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 63975,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 64155,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 64335,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 3,
+        "text": "조용히",
+        "capturedAtMs": 64540,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 3,
+        "text": "조용히",
+        "capturedAtMs": 64720,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 3,
+        "text": "조용히",
+        "capturedAtMs": 64900,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 4,
+        "text": "기다려",
+        "capturedAtMs": 65105,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 5,
+        "text": "주었어요.",
+        "capturedAtMs": 65330,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 6,
+        "text": "푸른",
+        "capturedAtMs": 65555,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 7,
+        "text": "청새치는",
+        "capturedAtMs": 65780,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 8,
+        "text": "용기",
+        "capturedAtMs": 66005,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 9,
+        "text": "내어",
+        "capturedAtMs": 66230,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 10,
+        "text": "조용히",
+        "capturedAtMs": 66455,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 11,
+        "text": "기다려",
+        "capturedAtMs": 66680,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 12,
+        "text": "주었어요.",
+        "capturedAtMs": 66905,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 13,
+        "text": "푸른",
+        "capturedAtMs": 67130,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 14,
+        "text": "청새치는",
+        "capturedAtMs": 67355,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 15,
+        "text": "차분히",
+        "capturedAtMs": 67580,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 16,
+        "text": "조용히",
+        "capturedAtMs": 67805,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 17,
+        "text": "기다려",
+        "capturedAtMs": 68030,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 18,
+        "text": "주었어요.",
+        "capturedAtMs": 68255,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 68480,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 68660,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 16,
+        "storyLineId": 282129,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 68840,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 0,
+        "text": "푸른",
+        "capturedAtMs": 69045,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 69270,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 69450,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 69630,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 3,
+        "text": "조용히",
+        "capturedAtMs": 69835,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 3,
+        "text": "조용히",
+        "capturedAtMs": 70015,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 3,
+        "text": "조용히",
+        "capturedAtMs": 70195,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 4,
+        "text": "기다려",
+        "capturedAtMs": 70400,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 5,
+        "text": "주었어요.",
+        "capturedAtMs": 70625,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 6,
+        "text": "바다",
+        "capturedAtMs": 70850,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 7,
+        "text": "친구들은",
+        "capturedAtMs": 71075,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 8,
+        "text": "차분히",
+        "capturedAtMs": 71300,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 9,
+        "text": "용기",
+        "capturedAtMs": 71525,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 10,
+        "text": "있게",
+        "capturedAtMs": 71750,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 11,
+        "text": "견뎌냈어요.",
+        "capturedAtMs": 71975,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 12,
+        "text": "바다",
+        "capturedAtMs": 72200,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 13,
+        "text": "친구들은",
+        "capturedAtMs": 72425,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 14,
+        "text": "서로",
+        "capturedAtMs": 72650,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 15,
+        "text": "용기",
+        "capturedAtMs": 72875,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 16,
+        "text": "있게",
+        "capturedAtMs": 73100,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 17,
+        "text": "견뎌냈어요.",
+        "capturedAtMs": 73325,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 73550,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 73730,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 17,
+        "storyLineId": 282130,
+        "tokenIndex": 1,
+        "text": "청새치는",
+        "capturedAtMs": 73910,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 0,
+        "text": "바다",
+        "capturedAtMs": 74115,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 74340,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 74520,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 74700,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 3,
+        "text": "용기",
+        "capturedAtMs": 74905,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 3,
+        "text": "용기",
+        "capturedAtMs": 75085,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 3,
+        "text": "용기",
+        "capturedAtMs": 75265,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 4,
+        "text": "있게",
+        "capturedAtMs": 75470,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 5,
+        "text": "견뎌냈어요.",
+        "capturedAtMs": 75695,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 6,
+        "text": "항구",
+        "capturedAtMs": 75920,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 7,
+        "text": "사람들은",
+        "capturedAtMs": 76145,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 8,
+        "text": "차분히",
+        "capturedAtMs": 76370,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 9,
+        "text": "별빛으로",
+        "capturedAtMs": 76595,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 10,
+        "text": "찾아냈어요.",
+        "capturedAtMs": 76820,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 11,
+        "text": "항구",
+        "capturedAtMs": 77045,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 12,
+        "text": "사람들은",
+        "capturedAtMs": 77270,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 13,
+        "text": "서로",
+        "capturedAtMs": 77495,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 14,
+        "text": "별빛으로",
+        "capturedAtMs": 77720,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 15,
+        "text": "찾아냈어요.",
+        "capturedAtMs": 77945,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 78170,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 78350,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 18,
+        "storyLineId": 282131,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 78530,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 19,
+        "storyLineId": 282132,
+        "tokenIndex": 0,
+        "text": "청새치와",
+        "capturedAtMs": 78735,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.64
+      },
+      {
+        "pageNo": 19,
+        "storyLineId": 282132,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 78960,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 19,
+        "storyLineId": 282132,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 79140,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 19,
+        "storyLineId": 282132,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 79320,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 19,
+        "storyLineId": 282132,
+        "tokenIndex": 3,
+        "text": "무엇을",
+        "capturedAtMs": 79525,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.64
+      },
+      {
+        "pageNo": 19,
+        "storyLineId": 282132,
+        "tokenIndex": 3,
+        "text": "무엇을",
+        "capturedAtMs": 79705,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.64
+      },
+      {
+        "pageNo": 19,
+        "storyLineId": 282132,
+        "tokenIndex": 3,
+        "text": "무엇을",
+        "capturedAtMs": 79885,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.64
+      },
+      {
+        "pageNo": 19,
+        "storyLineId": 282132,
+        "tokenIndex": 4,
+        "text": "할까요?",
+        "capturedAtMs": 80090,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.64
+      },
+      {
+        "pageNo": 19,
+        "storyLineId": 282132,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 80315,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 19,
+        "storyLineId": 282132,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 80495,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 19,
+        "storyLineId": 282132,
+        "tokenIndex": 1,
+        "text": "어부는",
+        "capturedAtMs": 80675,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 0,
+        "text": "바다",
+        "capturedAtMs": 80880,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 81105,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 81285,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 81465,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 3,
+        "text": "조용히",
+        "capturedAtMs": 81670,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 3,
+        "text": "조용히",
+        "capturedAtMs": 81850,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 3,
+        "text": "조용히",
+        "capturedAtMs": 82030,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 4,
+        "text": "기다려",
+        "capturedAtMs": 82235,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 5,
+        "text": "주었어요.",
+        "capturedAtMs": 82460,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 6,
+        "text": "바다",
+        "capturedAtMs": 82685,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 7,
+        "text": "친구들은",
+        "capturedAtMs": 82910,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 8,
+        "text": "서로",
+        "capturedAtMs": 83135,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 9,
+        "text": "조용히",
+        "capturedAtMs": 83360,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 10,
+        "text": "기다려",
+        "capturedAtMs": 83585,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 11,
+        "text": "주었어요.",
+        "capturedAtMs": 83810,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 12,
+        "text": "바다",
+        "capturedAtMs": 84035,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 13,
+        "text": "친구들은",
+        "capturedAtMs": 84260,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 14,
+        "text": "오늘도",
+        "capturedAtMs": 84485,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 15,
+        "text": "조용히",
+        "capturedAtMs": 84710,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 16,
+        "text": "기다려",
+        "capturedAtMs": 84935,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 17,
+        "text": "주었어요.",
+        "capturedAtMs": 85160,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 85385,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 85565,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      },
+      {
+        "pageNo": 20,
+        "storyLineId": 282133,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 85745,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.28
+      }
+    ]
+  }
+}

@@ -85,14 +85,22 @@ public class DailyCurriculumEntity {
     }
 
     public void replaceTrainings(List<TrainingTemplateEntity> templates) {
-        trainings.clear();
-        for (int index = 0; index < templates.size(); index++) {
-            trainings.add(new TrainingEntity(this, templates.get(index), index + 1));
-        }
+        replaceTrainingContents(templates);
         status = DailyCurriculumStatus.NOT_STARTED;
         completedAt = null;
         if (sourceTestCurriculum != null) {
             markRegenerationRequired();
+        }
+    }
+
+    public void replaceTrainingsPreservingProgress(List<TrainingTemplateEntity> templates) {
+        replaceTrainingContents(templates);
+    }
+
+    private void replaceTrainingContents(List<TrainingTemplateEntity> templates) {
+        trainings.clear();
+        for (int index = 0; index < templates.size(); index++) {
+            trainings.add(new TrainingEntity(this, templates.get(index), index + 1));
         }
     }
 

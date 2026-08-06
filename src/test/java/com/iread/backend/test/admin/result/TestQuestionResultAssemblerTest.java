@@ -188,6 +188,33 @@ class TestQuestionResultAssemblerTest {
     }
 
     @Test
+    void exposesMetricsStoredForEveryQuestion() {
+        StudentTestEntity test = test(17L, 1, BigDecimal.valueOf(80), """
+                {
+                  "questions":[
+                    {"questionNumber":1,"solvingTimeSeconds":11,"gazeDepartureCount":0},
+                    {"questionNumber":2,"solvingTimeSeconds":14,"gazeDepartureCount":1},
+                    {"questionNumber":3,"solvingTimeSeconds":18,"gazeDepartureCount":2}
+                  ]
+                }
+                """);
+        generated(test, """
+                {"questions":[
+                  {"questionNo":1,"type":"SENTENCE_READING","analysisTargets":[{"text":"첫 문장"}]},
+                  {"questionNo":2,"type":"SENTENCE_READING","analysisTargets":[{"text":"둘째 문장"}]},
+                  {"questionNo":3,"type":"SENTENCE_READING","analysisTargets":[{"text":"셋째 문장"}]}
+                ]}
+                """);
+
+        var results = assembler.assembleAll(test);
+
+        assertThat(results).extracting(result -> result.solvingTimeSeconds())
+                .containsExactly(11L, 14L, 18L);
+        assertThat(results).extracting(result -> result.gazeDepartureCount())
+                .containsExactly(0, 1, 2);
+    }
+
+    @Test
     void assignsQuestionNoFromOneBasedIndexForLegacyGeneratedQuestions() {
         StudentTestEntity test = test(14L, 1, BigDecimal.valueOf(50), "{}");
         generated(test, """

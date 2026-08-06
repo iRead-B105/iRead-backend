@@ -1,0 +1,1501 @@
+{
+  "rawData": {
+    "schemaVersion": "story-gaze-raw-v2",
+    "studentId": 2002,
+    "storyId": 280002,
+    "pageCount": 4,
+    "sourceTextCoverage": "FULL",
+    "pages": [
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "text": "별주부는 반짝이는 바닷길을 천천히 안내했어요. 토끼는 용왕의 아픈 사연을 차분하게 들려주었어요. 토끼는 반짝이는 바닷길을 천천히 안내했어요.",
+        "tokens": [
+          "별주부는",
+          "반짝이는",
+          "바닷길을",
+          "천천히",
+          "안내했어요.",
+          "토끼는",
+          "용왕의",
+          "아픈",
+          "사연을",
+          "차분하게",
+          "들려주었어요.",
+          "토끼는",
+          "반짝이는",
+          "바닷길을",
+          "천천히",
+          "안내했어요."
+        ]
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "text": "용궁 친구들은 반짝이는 바닷길을 천천히 안내했어요. 바다 거북은 반짝이는 바닷길을 천천히 안내했어요. 별주부는 서로의 걱정과 생각을 솔직하게 나누었어요.",
+        "tokens": [
+          "용궁",
+          "친구들은",
+          "반짝이는",
+          "바닷길을",
+          "천천히",
+          "안내했어요.",
+          "바다",
+          "거북은",
+          "반짝이는",
+          "바닷길을",
+          "천천히",
+          "안내했어요.",
+          "별주부는",
+          "서로의",
+          "걱정과",
+          "생각을",
+          "솔직하게",
+          "나누었어요."
+        ]
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "text": "별주부는 용왕의 아픈 사연을 차분하게 들려주었어요. 토끼는 서로의 걱정과 생각을 솔직하게 나누었어요. 토끼는 서로 반짝이는 바닷길을 천천히 안내했어요.",
+        "tokens": [
+          "별주부는",
+          "용왕의",
+          "아픈",
+          "사연을",
+          "차분하게",
+          "들려주었어요.",
+          "토끼는",
+          "서로의",
+          "걱정과",
+          "생각을",
+          "솔직하게",
+          "나누었어요.",
+          "토끼는",
+          "서로",
+          "반짝이는",
+          "바닷길을",
+          "천천히",
+          "안내했어요."
+        ]
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282013,
+        "text": "토끼는 용궁에서 어떤 지혜를 먼저 낼까요?",
+        "tokens": [
+          "토끼는",
+          "용궁에서",
+          "어떤",
+          "지혜를",
+          "먼저",
+          "낼까요?"
+        ]
+      }
+    ],
+    "replayWords": [
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 0,
+        "text": "별주부는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 1,
+        "text": "반짝이는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 3,
+        "text": "천천히",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 4,
+        "text": "안내했어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 5,
+        "text": "토끼는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 6,
+        "text": "용왕의",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 7,
+        "text": "아픈",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 8,
+        "text": "사연을",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 9,
+        "text": "차분하게",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 10,
+        "text": "들려주었어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 11,
+        "text": "토끼는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 12,
+        "text": "반짝이는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 13,
+        "text": "바닷길을",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 14,
+        "text": "천천히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 15,
+        "text": "안내했어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 1,
+        "text": "반짝이는",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 0,
+        "text": "용궁",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 3,
+        "text": "바닷길을",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 4,
+        "text": "천천히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 5,
+        "text": "안내했어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 6,
+        "text": "바다",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 7,
+        "text": "거북은",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 8,
+        "text": "반짝이는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 9,
+        "text": "바닷길을",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 10,
+        "text": "천천히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 11,
+        "text": "안내했어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 12,
+        "text": "별주부는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 13,
+        "text": "서로의",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 14,
+        "text": "걱정과",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 15,
+        "text": "생각을",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 16,
+        "text": "솔직하게",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 17,
+        "text": "나누었어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 0,
+        "text": "별주부는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 1,
+        "text": "용왕의",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 3,
+        "text": "사연을",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 4,
+        "text": "차분하게",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 5,
+        "text": "들려주었어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 6,
+        "text": "토끼는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 7,
+        "text": "서로의",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 8,
+        "text": "걱정과",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 9,
+        "text": "생각을",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 10,
+        "text": "솔직하게",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 11,
+        "text": "나누었어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 12,
+        "text": "토끼는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 13,
+        "text": "서로",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 14,
+        "text": "반짝이는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 15,
+        "text": "바닷길을",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 16,
+        "text": "천천히",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 17,
+        "text": "안내했어요.",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 1,
+        "text": "용왕의",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282013,
+        "tokenIndex": 0,
+        "text": "토끼는",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282013,
+        "tokenIndex": 1,
+        "text": "용궁에서",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282013,
+        "tokenIndex": 3,
+        "text": "지혜를",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282013,
+        "tokenIndex": 4,
+        "text": "먼저",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282013,
+        "tokenIndex": 5,
+        "text": "낼까요?",
+        "dwellMs": 80,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 0
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282013,
+        "tokenIndex": 1,
+        "text": "용궁에서",
+        "dwellMs": 440,
+        "visitCount": 1,
+        "skipped": false,
+        "regressionCount": 1
+      }
+    ],
+    "samples": [
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 0,
+        "text": "별주부는",
+        "capturedAtMs": 300,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 1,
+        "text": "반짝이는",
+        "capturedAtMs": 510,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 1,
+        "text": "반짝이는",
+        "capturedAtMs": 690,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 1,
+        "text": "반짝이는",
+        "capturedAtMs": 870,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 3,
+        "text": "천천히",
+        "capturedAtMs": 1060,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 3,
+        "text": "천천히",
+        "capturedAtMs": 1240,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 3,
+        "text": "천천히",
+        "capturedAtMs": 1420,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 4,
+        "text": "안내했어요.",
+        "capturedAtMs": 1610,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 5,
+        "text": "토끼는",
+        "capturedAtMs": 1820,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 6,
+        "text": "용왕의",
+        "capturedAtMs": 2030,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 7,
+        "text": "아픈",
+        "capturedAtMs": 2240,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 8,
+        "text": "사연을",
+        "capturedAtMs": 2450,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 9,
+        "text": "차분하게",
+        "capturedAtMs": 2660,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 10,
+        "text": "들려주었어요.",
+        "capturedAtMs": 2870,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 11,
+        "text": "토끼는",
+        "capturedAtMs": 3080,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 12,
+        "text": "반짝이는",
+        "capturedAtMs": 3290,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 13,
+        "text": "바닷길을",
+        "capturedAtMs": 3500,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 14,
+        "text": "천천히",
+        "capturedAtMs": 3710,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 15,
+        "text": "안내했어요.",
+        "capturedAtMs": 3920,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 1,
+        "text": "반짝이는",
+        "capturedAtMs": 4130,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 1,
+        "text": "반짝이는",
+        "capturedAtMs": 4310,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 1,
+        "storyLineId": 282010,
+        "tokenIndex": 1,
+        "text": "반짝이는",
+        "capturedAtMs": 4490,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.37
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 0,
+        "text": "용궁",
+        "capturedAtMs": 4680,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 4890,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 5070,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 5250,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 3,
+        "text": "바닷길을",
+        "capturedAtMs": 5440,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 3,
+        "text": "바닷길을",
+        "capturedAtMs": 5620,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 3,
+        "text": "바닷길을",
+        "capturedAtMs": 5800,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 4,
+        "text": "천천히",
+        "capturedAtMs": 5990,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 5,
+        "text": "안내했어요.",
+        "capturedAtMs": 6200,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 6,
+        "text": "바다",
+        "capturedAtMs": 6410,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 7,
+        "text": "거북은",
+        "capturedAtMs": 6620,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 8,
+        "text": "반짝이는",
+        "capturedAtMs": 6830,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 9,
+        "text": "바닷길을",
+        "capturedAtMs": 7040,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 10,
+        "text": "천천히",
+        "capturedAtMs": 7250,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 11,
+        "text": "안내했어요.",
+        "capturedAtMs": 7460,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 12,
+        "text": "별주부는",
+        "capturedAtMs": 7670,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 13,
+        "text": "서로의",
+        "capturedAtMs": 7880,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 14,
+        "text": "걱정과",
+        "capturedAtMs": 8090,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 15,
+        "text": "생각을",
+        "capturedAtMs": 8300,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 16,
+        "text": "솔직하게",
+        "capturedAtMs": 8510,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 17,
+        "text": "나누었어요.",
+        "capturedAtMs": 8720,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 8930,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 9110,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 2,
+        "storyLineId": 282011,
+        "tokenIndex": 1,
+        "text": "친구들은",
+        "capturedAtMs": 9290,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.46
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 0,
+        "text": "별주부는",
+        "capturedAtMs": 9480,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 1,
+        "text": "용왕의",
+        "capturedAtMs": 9690,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 1,
+        "text": "용왕의",
+        "capturedAtMs": 9870,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 1,
+        "text": "용왕의",
+        "capturedAtMs": 10050,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 3,
+        "text": "사연을",
+        "capturedAtMs": 10240,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 3,
+        "text": "사연을",
+        "capturedAtMs": 10420,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 3,
+        "text": "사연을",
+        "capturedAtMs": 10600,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 4,
+        "text": "차분하게",
+        "capturedAtMs": 10790,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 5,
+        "text": "들려주었어요.",
+        "capturedAtMs": 11000,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 6,
+        "text": "토끼는",
+        "capturedAtMs": 11210,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 7,
+        "text": "서로의",
+        "capturedAtMs": 11420,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 8,
+        "text": "걱정과",
+        "capturedAtMs": 11630,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 9,
+        "text": "생각을",
+        "capturedAtMs": 11840,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 10,
+        "text": "솔직하게",
+        "capturedAtMs": 12050,
+        "presence": true,
+        "x": 0.34,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 11,
+        "text": "나누었어요.",
+        "capturedAtMs": 12260,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 12,
+        "text": "토끼는",
+        "capturedAtMs": 12470,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 13,
+        "text": "서로",
+        "capturedAtMs": 12680,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 14,
+        "text": "반짝이는",
+        "capturedAtMs": 12890,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 15,
+        "text": "바닷길을",
+        "capturedAtMs": 13100,
+        "presence": true,
+        "x": 0.79,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 16,
+        "text": "천천히",
+        "capturedAtMs": 13310,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 17,
+        "text": "안내했어요.",
+        "capturedAtMs": 13520,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 1,
+        "text": "용왕의",
+        "capturedAtMs": 13730,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 1,
+        "text": "용왕의",
+        "capturedAtMs": 13910,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 3,
+        "storyLineId": 282012,
+        "tokenIndex": 1,
+        "text": "용왕의",
+        "capturedAtMs": 14090,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.55
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282013,
+        "tokenIndex": 0,
+        "text": "토끼는",
+        "capturedAtMs": 14280,
+        "presence": true,
+        "x": 0.16,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282013,
+        "tokenIndex": 1,
+        "text": "용궁에서",
+        "capturedAtMs": 14490,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282013,
+        "tokenIndex": 1,
+        "text": "용궁에서",
+        "capturedAtMs": 14670,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282013,
+        "tokenIndex": 1,
+        "text": "용궁에서",
+        "capturedAtMs": 14850,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282013,
+        "tokenIndex": 3,
+        "text": "지혜를",
+        "capturedAtMs": 15040,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282013,
+        "tokenIndex": 3,
+        "text": "지혜를",
+        "capturedAtMs": 15220,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282013,
+        "tokenIndex": 3,
+        "text": "지혜를",
+        "capturedAtMs": 15400,
+        "presence": true,
+        "x": 0.43,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282013,
+        "tokenIndex": 4,
+        "text": "먼저",
+        "capturedAtMs": 15590,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282013,
+        "tokenIndex": 5,
+        "text": "낼까요?",
+        "capturedAtMs": 15800,
+        "presence": true,
+        "x": 0.61,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282013,
+        "tokenIndex": 1,
+        "text": "용궁에서",
+        "capturedAtMs": 16010,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282013,
+        "tokenIndex": 1,
+        "text": "용궁에서",
+        "capturedAtMs": 16190,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      },
+      {
+        "pageNo": 4,
+        "storyLineId": 282013,
+        "tokenIndex": 1,
+        "text": "용궁에서",
+        "capturedAtMs": 16370,
+        "presence": true,
+        "x": 0.25,
+        "y": 0.64
+      }
+    ]
+  }
+}

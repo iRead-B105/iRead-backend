@@ -18,14 +18,19 @@ import org.springframework.transaction.annotation.Transactional;
 @ConditionalOnProperty(name = "iread.teacher-demo-seed.enabled", havingValue = "true")
 public class TeacherDemoDataInitializer implements ApplicationRunner {
 
+    // 마커는 qa-demo-reset.sql이 지우지 않는 행이어야 한다. 예전 마커(trainings 43001)는
+    // 학생 2103 소속이라 리셋 때 삭제되어, 재부팅 시 showcase가 재적용되다 words 중복으로
+    // 기동이 실패했다. words 10001은 다른 학생의 시도 로그가 참조해 리셋 후에도 남는다.
     private static final String SHOWCASE_MARKER_QUERY =
-            "SELECT COUNT(*) FROM trainings WHERE id = ?";
-    private static final long SHOWCASE_MARKER_ID = 43001L;
+            "SELECT COUNT(*) FROM words WHERE id = ?";
+    private static final long SHOWCASE_MARKER_ID = 10001L;
     private static final String SHOWCASE_SEED_RESOURCE = "db/demo-data/teacher-showcase.sql";
 
+    // 예전 마커(230101)는 학생 2001 소속이라 qa-demo-reset 때 삭제되었다.
+    // 230201은 리셋 대상이 아닌 학생 2101(페르소나 2)의 훈련이라 리셋 후에도 남는다.
     private static final String PERSONA_MARKER_QUERY =
             "SELECT COUNT(*) FROM trainings WHERE id = ? AND accuracy > 100";
-    private static final long PERSONA_MARKER_ID = 230101L;
+    private static final long PERSONA_MARKER_ID = 230201L;
     private static final String PERSONA_SEED_RESOURCE = "db/demo-data/teacher-personas.sql";
     private static final String PERSONA_CORRECTION_RESOURCE =
             "db/demo-data/teacher-persona-current-curriculum-v2.sql";

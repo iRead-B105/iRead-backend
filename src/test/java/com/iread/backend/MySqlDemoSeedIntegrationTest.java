@@ -43,20 +43,50 @@ class MySqlDemoSeedIntegrationTest {
                  ORDER BY installed_rank
                 """,
                 String.class
-        )).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11");
+        )).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12");
 
         String passwordHash = jdbcTemplate.queryForObject(
                 "SELECT password FROM teachers WHERE id = 1001",
                 String.class
         );
 
-        assertThat(passwordEncoder.matches("demo1234", passwordHash)).isTrue();
+        assertThat(passwordEncoder.matches("qwer1234", passwordHash)).isTrue();
+        assertThat(jdbcTemplate.queryForMap(
+                "SELECT email, name, organization FROM teachers WHERE id = 1001"
+        )).containsEntry("email", "test@test.com")
+                .containsEntry("name", "시연교수자")
+                .containsEntry("organization", "ssafy");
         assertThat(count("students", 2001L)).isEqualTo(1);
         assertThat(count("stories", 6001L)).isZero();
         assertThat(countByColumn("story_scenes", "scene_id", 6101L)).isZero();
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT JSON_LENGTH(JSON_EXTRACT(branch_prompt, '$.options')) "
-                        + "FROM story_lines WHERE id = 6603",
+                        + "FROM story_lines WHERE id = 282004",
+                Integer.class
+        )).isEqualTo(3);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM stories WHERE student_id IN (2001, 2002, 2103)",
+                Integer.class
+        )).isEqualTo(6);
+        assertThat(jdbcTemplate.queryForList(
+                """
+                SELECT CONCAT(student_id, ':', story_template_id, ':', status, ':', progress)
+                  FROM stories
+                 WHERE student_id IN (2001, 2002, 2103)
+                 ORDER BY id
+                """,
+                String.class
+        )).containsExactly(
+                "2001:2:COMPLETED:100", "2001:1:IN_PROGRESS:60",
+                "2002:4:COMPLETED:100", "2002:5:IN_PROGRESS:50",
+                "2103:6:COMPLETED:100", "2103:3:IN_PROGRESS:60"
+        );
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM story_scenes WHERE image_url LIKE '/uploads/images/%.jpg'",
+                Integer.class
+        )).isEqualTo(12);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM gaze_sessions WHERE id BETWEEN 290101 AND 290103",
                 Integer.class
         )).isEqualTo(3);
 
@@ -152,24 +182,19 @@ class MySqlDemoSeedIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
-                  FROM trainings training
+                  FROM daily_curriculums curriculum
+                  JOIN trainings training
+                    ON training.daily_curriculum_id = curriculum.id
                   JOIN training_templates template
                     ON template.id = training.training_template_id
-                 WHERE training.daily_curriculum_id BETWEEN 180001 AND 180003
-                   AND JSON_CONTAINS(
-                         JSON_EXTRACT(template.prompt, '$.requiredInputs'),
-                         JSON_QUOTE('VOICE')
+                 WHERE curriculum.id = (
+                       SELECT latest.id
+                         FROM daily_curriculums latest
+                        WHERE latest.student_id = 2103
+                          AND latest.status = 'NOT_STARTED'
+                        ORDER BY latest.created_at DESC, latest.id DESC
+                        LIMIT 1
                        )
-                """,
-                Integer.class
-        )).isEqualTo(1);
-        assertThat(jdbcTemplate.queryForObject(
-                """
-                SELECT COUNT(*)
-                  FROM trainings training
-                  JOIN training_templates template
-                    ON template.id = training.training_template_id
-                 WHERE training.daily_curriculum_id = 180003
                    AND training.sequence_no = 1
                    AND JSON_CONTAINS(
                          JSON_EXTRACT(template.prompt, '$.requiredInputs'),
@@ -627,7 +652,7 @@ class MySqlDemoSeedIntegrationTest {
                   ) preserved_curriculums
                 """,
                 Integer.class
-        )).isEqualTo(33); // 폐기 이력이 제거된 완료 커리큘럼 3개도 네 건의 유효 이력으로 남는다.
+        )).isEqualTo(30); // 현재 기준 시드에서 네 건의 유효 이력을 유지한 완료 교육과정 수다.
     }
 
     @Test
