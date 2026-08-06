@@ -162,6 +162,45 @@ class TrainingCompletionTransactionIntegrationTest {
     }
 
     @Test
+    void aiEvaluationFailureKeepsTrainingRetryableAndRetrySucceeds() {
+        // 1차 완료 시도: AI 평가가 죽어 있으면 훈련은 완료되지 않고
+        // 같은 완료 요청을 다시 보낼 수 있는 상태로 남아야 한다. (자체 QA B-3)
+        when(aiClient.evaluateTraining(any()))
+                .thenThrow(new com.iread.backend.ai.exception.AiClientException(
+                        "AI 서버와 훈련 평가 통신 중 실패했습니다."
+                ))
+                .thenReturn(new EvaluateTrainingResponse(
+                        "training-evaluation-" + TRAINING_ID,
+                        1,
+                        new BigDecimal("77.50")
+                ));
+
+        assertThatThrownBy(() -> trainingService.completeTraining(
+                TEACHER_ID,
+                STUDENT_ID,
+                TRAINING_ID,
+                objectMapper.createObjectNode(),
+                LocalDateTime.of(2026, 7, 31, 11, 0)
+        )).isInstanceOf(com.iread.backend.ai.exception.AiClientException.class);
+
+        assertThat(trainingValue("status", String.class)).isNotEqualTo("COMPLETED");
+        assertThat(trainingValue("finished_at", LocalDateTime.class)).isNull();
+
+        // 2차: AI 복구 후 재시도(아이 화면 '다시 시도할래요' 버튼과 같은 호출) → 성공
+        BigDecimal accuracy = trainingService.completeTraining(
+                TEACHER_ID,
+                STUDENT_ID,
+                TRAINING_ID,
+                objectMapper.createObjectNode(),
+                LocalDateTime.of(2026, 7, 31, 11, 5)
+        );
+
+        assertThat(accuracy).isEqualByComparingTo("77.50");
+        assertThat(trainingValue("status", String.class)).isEqualTo("COMPLETED");
+        assertThat(trainingValue("finished_at", LocalDateTime.class)).isNotNull();
+    }
+
+    @Test
     void followUpFailureDoesNotRollbackCompletedTraining() {
         when(aiClient.evaluateTraining(any())).thenAnswer(invocation -> {
             assertThat(TransactionSynchronizationManager.isActualTransactionActive())

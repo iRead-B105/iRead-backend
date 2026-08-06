@@ -45,4 +45,8 @@ public class TestDataEntity {
         this.generatedData = generatedData;
         this.createdAt = createdAt;
     }
+
+    public void updateGeneratedData(String generatedData) {
+        this.generatedData = generatedData;
+    }
 }

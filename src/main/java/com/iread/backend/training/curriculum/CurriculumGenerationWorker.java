@@ -1,5 +1,6 @@
 package com.iread.backend.training.curriculum;
 
+import com.iread.backend.learning.app.service.LearningQuestionImageAfterCommitTrigger;
 import com.iread.backend.training.domain.DailyCurriculumEntity;
 import com.iread.backend.training.domain.DailyCurriculumStatus;
 import com.iread.backend.training.domain.TrainingDataEntity;
@@ -24,6 +25,7 @@ public class CurriculumGenerationWorker {
     private final DailyCurriculumRepository curriculumRepository;
     private final TrainingDataRepository trainingDataRepository;
     private final PersonalizedTrainingGenerationService generationService;
+    private final LearningQuestionImageAfterCommitTrigger imageTrigger;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -70,6 +72,10 @@ public class CurriculumGenerationWorker {
         }
         curriculum.refreshReviewRequirement();
         trainingDataRepository.flush();
+        // 그림 문항 삽화는 커밋 후 백그라운드로 채운다(실패 시 앱은 묘사 텍스트 폴백).
+        imageTrigger.populateTrainingsAfterCommit(
+                trainings.stream().map(TrainingEntity::getId).toList()
+        );
     }
 
     private ObjectNode readObject(String value) {

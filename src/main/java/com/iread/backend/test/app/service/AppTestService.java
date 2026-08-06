@@ -82,6 +82,7 @@ public class AppTestService {
     private final WordAttemptScoreCalculator wordAttemptScoreCalculator;
     private final ObjectMapper objectMapper;
     private final AppLearningQuestionSupport learningQuestionSupport;
+    private final com.iread.backend.learning.app.service.LearningQuestionImageAfterCommitTrigger imageTrigger;
     private final RealtimeEventPublisher realtimeEventPublisher;
     private final StudentFeatureProfileService studentFeatureProfileService;
     private final TestRecommendationAfterCommitPublisher recommendationPublisher;
@@ -104,7 +105,8 @@ public class AppTestService {
             AppLearningQuestionSupport learningQuestionSupport,
             RealtimeEventPublisher realtimeEventPublisher,
             StudentFeatureProfileService studentFeatureProfileService,
-            TestRecommendationAfterCommitPublisher recommendationPublisher
+            TestRecommendationAfterCommitPublisher recommendationPublisher,
+            com.iread.backend.learning.app.service.LearningQuestionImageAfterCommitTrigger imageTrigger
     ) {
         this.studentRepository = studentRepository;
         this.testRepository = testRepository;
@@ -123,6 +125,7 @@ public class AppTestService {
         this.realtimeEventPublisher = realtimeEventPublisher;
         this.studentFeatureProfileService = studentFeatureProfileService;
         this.recommendationPublisher = recommendationPublisher;
+        this.imageTrigger = imageTrigger;
     }
 
     AppTestService(
@@ -178,7 +181,8 @@ public class AppTestService {
                 audioUploadPolicy, wordAttemptScoreCalculator, objectMapper,
                 learningQuestionSupport, realtimeEventPublisher,
                 null,
-                recommendationPublisher
+                recommendationPublisher,
+                null
         );
     }
 
@@ -677,6 +681,7 @@ public class AppTestService {
         TestCurriculumEntity curriculum = testCurriculumRepository.saveAndFlush(
                 new TestCurriculumEntity(nextCurriculumId(), student, createdAt)
         );
+        List<Long> createdTestIds = new ArrayList<>();
         for (int index = 0; index < selected.size(); index++) {
             TrainingTemplateEntity template = selected.get(index);
             StudentTestEntity test = testRepository.saveAndFlush(
@@ -696,6 +701,11 @@ public class AppTestService {
                             createdAt
                     )
             );
+            createdTestIds.add(test.getId());
+        }
+        // 그림 문항 삽화는 커밋 후 백그라운드로 채운다(검사 시작을 막지 않음).
+        if (imageTrigger != null) {
+            imageTrigger.populateTestsAfterCommit(createdTestIds);
         }
         return curriculum;
     }
@@ -717,6 +727,7 @@ public class AppTestService {
                 .toList();
         LocalDateTime createdAt = LocalDateTime.now();
         List<StudentTestEntity> result = new ArrayList<>(existing);
+        List<Long> expandedTestIds = new ArrayList<>();
         for (int trackIndex = 0; trackIndex < 3; trackIndex++) {
             int startSequence = trackIndex * TRACK_QUESTION_COUNT + 1;
             int endSequence = startSequence + TRACK_QUESTION_COUNT - 1;
@@ -779,7 +790,11 @@ public class AppTestService {
                                 createdAt
                         )
                 );
+                expandedTestIds.add(test.getId());
             }
+        }
+        if (imageTrigger != null) {
+            imageTrigger.populateTestsAfterCommit(expandedTestIds);
         }
         return result.stream()
                 .sorted(java.util.Comparator.comparing(StudentTestEntity::getSequenceNo))
