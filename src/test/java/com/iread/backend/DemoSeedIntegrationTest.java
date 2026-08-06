@@ -115,8 +115,25 @@ class DemoSeedIntegrationTest {
         // V2 is intentionally a small legacy fixture. Bring its reference catalog up to
         // the same 28 selectable templates as develop before applying the QA dataset.
         new TrainingTemplateDataInitializer(jdbcTemplate, trainingTemplateObjectMapper).run(null);
+        jdbcTemplate.update("""
+                INSERT INTO teachers(id, email, password, name, created_at)
+                VALUES (9001, 'regular@example.com', 'password', '일반교수자', CURRENT_TIMESTAMP)
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO students(id, teacher_id, name, created_at)
+                VALUES (9001, 9001, '일반아동', CURRENT_TIMESTAMP)
+                """);
         qaDemoDatasetService.install();
         assertThat(qaDemoDatasetService.isPostSeedInstalled()).isTrue();
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM teachers WHERE id = 9001 AND email = 'regular@example.com'",
+                Integer.class
+        )).isEqualTo(1);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM students WHERE id = 9001 AND teacher_id = 9001",
+                Integer.class
+        )).isEqualTo(1);
 
         String qaPasswordHash = jdbcTemplate.queryForObject(
                 "SELECT password FROM teachers WHERE email = 'test@test.com'",

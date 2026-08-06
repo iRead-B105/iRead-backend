@@ -1,6 +1,8 @@
 package com.iread.backend.training.curriculum;
 
 import com.iread.backend.learning.app.service.LearningQuestionImageAfterCommitTrigger;
+import com.iread.backend.realtime.RealtimeEventPublisher;
+import com.iread.backend.realtime.RealtimeResource;
 import com.iread.backend.training.domain.DailyCurriculumEntity;
 import com.iread.backend.training.domain.DailyCurriculumStatus;
 import com.iread.backend.training.domain.TrainingDataEntity;
@@ -27,6 +29,7 @@ public class CurriculumGenerationWorker {
     private final PersonalizedTrainingGenerationService generationService;
     private final LearningQuestionImageAfterCommitTrigger imageTrigger;
     private final ObjectMapper objectMapper;
+    private final RealtimeEventPublisher realtimeEventPublisher;
 
     @Transactional
     public void generate(Long curriculumId) {
@@ -73,6 +76,14 @@ public class CurriculumGenerationWorker {
         // 그림 문항 삽화는 커밋 후 백그라운드로 채운다(실패 시 앱은 묘사 텍스트 폴백).
         imageTrigger.populateTrainingsAfterCommit(
                 pending.stream().map(TrainingEntity::getId).toList()
+        );
+        // 교사 웹이 "교안 생성 중" 버튼을 즉시 활성화할 수 있게 완료를 알린다.
+        realtimeEventPublisher.publishAfterCommit(
+                curriculum.getStudent().getTeacher().getId(),
+                curriculum.getStudent().getId(),
+                RealtimeResource.CURRICULUM,
+                curriculumId,
+                "MATERIALS_GENERATED"
         );
     }
 

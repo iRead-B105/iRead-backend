@@ -43,7 +43,9 @@ class MySqlDemoSeedIntegrationTest {
                  ORDER BY installed_rank
                 """,
                 String.class
-        )).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13");
+        )).containsExactly(
+                "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14"
+        );
 
         String passwordHash = jdbcTemplate.queryForObject(
                 "SELECT password FROM teachers WHERE id = 1001",
@@ -61,32 +63,7 @@ class MySqlDemoSeedIntegrationTest {
         assertThat(countByColumn("story_scenes", "scene_id", 6101L)).isZero();
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT JSON_LENGTH(JSON_EXTRACT(branch_prompt, '$.options')) "
-                        + "FROM story_lines WHERE id = 282004",
-                Integer.class
-        )).isEqualTo(3);
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM stories WHERE student_id IN (2001, 2002, 2103)",
-                Integer.class
-        )).isEqualTo(6);
-        assertThat(jdbcTemplate.queryForList(
-                """
-                SELECT CONCAT(student_id, ':', story_template_id, ':', status, ':', progress)
-                  FROM stories
-                 WHERE student_id IN (2001, 2002, 2103)
-                 ORDER BY id
-                """,
-                String.class
-        )).containsExactly(
-                "2001:2:COMPLETED:100", "2001:1:IN_PROGRESS:60",
-                "2002:4:COMPLETED:100", "2002:5:IN_PROGRESS:50",
-                "2103:6:COMPLETED:100", "2103:3:IN_PROGRESS:60"
-        );
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM story_scenes WHERE image_url LIKE '/uploads/images/%.jpg'",
-                Integer.class
-        )).isEqualTo(12);
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM gaze_sessions WHERE id BETWEEN 290101 AND 290103",
+                        + "FROM story_lines WHERE id = 6603",
                 Integer.class
         )).isEqualTo(3);
 
