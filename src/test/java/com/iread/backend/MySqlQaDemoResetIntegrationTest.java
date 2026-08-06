@@ -49,6 +49,10 @@ class MySqlQaDemoResetIntegrationTest {
     private void assertQaDataset() {
         assertThat(datasetService.isPostSeedInstalled()).isTrue();
         assertThat(passwordEncoder.matches("qwer1234", teacherPassword())).isTrue();
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT email FROM teachers WHERE id = 1001",
+                String.class
+        )).isEqualTo("test@test.com");
         assertThat(jdbcTemplate.queryForList(
                 "SELECT name FROM students WHERE teacher_id = 1001 ORDER BY id",
                 String.class
@@ -81,9 +85,34 @@ class MySqlQaDemoResetIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM gaze_sessions WHERE student_id IN (2001, 2002, 2103)",
                 Integer.class
-        )).isEqualTo(13);
+        )).isEqualTo(57);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM gaze_analysis_results analysis
+                  JOIN gaze_sessions session ON session.id = analysis.gaze_session_id
+                 WHERE session.student_id IN (2001, 2002, 2103)
+                   AND session.content_type = 'TRAINING'
+                   AND session.status = 'COMPLETED'
+                """,
+                Integer.class
+        )).isEqualTo(44);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM reports WHERE student_id IN (2001, 2002, 2103)",
+                Integer.class
+        )).isEqualTo(6);
+        assertThat(jdbcTemplate.queryForObject(
+                """
+                SELECT COUNT(*)
+                  FROM reports
+                 WHERE id IN (370011, 370012, 370021, 370022, 370031, 370032)
+                   AND JSON_UNQUOTE(
+                         JSON_EXTRACT(snapshot_data, '$.gazeTrend.training.status')
+                       ) = 'AVAILABLE'
+                   AND JSON_LENGTH(
+                         JSON_EXTRACT(snapshot_data, '$.gazeTrend.training.points')
+                       ) = 2
+                """,
                 Integer.class
         )).isEqualTo(6);
         assertThat(jdbcTemplate.queryForObject(

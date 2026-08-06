@@ -1,6 +1,5 @@
 package com.iread.backend;
 
-import com.iread.backend.global.config.QaDemoDatasetService;
 import com.iread.backend.mypage.repository.CharacterRepository;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.admin.service.TrainingService;
@@ -34,9 +33,6 @@ class MySqlDemoSeedIntegrationTest {
     @Autowired
     private CharacterRepository characterRepository;
 
-    @Autowired
-    private QaDemoDatasetService qaDemoDatasetService;
-
     @Test
     void appliesDemoSeedToMySqlAndKeepsDemoLoginUsable() {
         assertThat(jdbcTemplate.queryForList(
@@ -49,19 +45,17 @@ class MySqlDemoSeedIntegrationTest {
                 String.class
         )).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13");
 
-        qaDemoDatasetService.install();
-
         String passwordHash = jdbcTemplate.queryForObject(
                 "SELECT password FROM teachers WHERE id = 1001",
                 String.class
         );
 
-        assertThat(passwordEncoder.matches("qwer1234", passwordHash)).isTrue();
+        assertThat(passwordEncoder.matches("demo1234", passwordHash)).isTrue();
         assertThat(jdbcTemplate.queryForMap(
                 "SELECT email, name, organization FROM teachers WHERE id = 1001"
-        )).containsEntry("email", "test@test.com")
-                .containsEntry("name", "시연교수자")
-                .containsEntry("organization", "ssafy");
+        )).containsEntry("email", "demo@iread.local")
+                .containsEntry("name", "데모교사")
+                .containsEntry("organization", "아이리드 데모교실");
         assertThat(count("students", 2001L)).isEqualTo(1);
         assertThat(count("stories", 6001L)).isZero();
         assertThat(countByColumn("story_scenes", "scene_id", 6101L)).isZero();
@@ -443,31 +437,6 @@ class MySqlDemoSeedIntegrationTest {
                 """,
                 Integer.class
         )).isEqualTo(13);
-        assertThat(jdbcTemplate.queryForObject(
-                """
-                SELECT COUNT(*)
-                  FROM gaze_analysis_results analysis
-                  JOIN gaze_sessions session ON session.id = analysis.gaze_session_id
-                 WHERE session.student_id IN (2001, 2002, 2103)
-                   AND session.content_type = 'TRAINING'
-                   AND session.status = 'COMPLETED'
-                """,
-                Integer.class
-        )).isEqualTo(44);
-        assertThat(jdbcTemplate.queryForObject(
-                """
-                SELECT COUNT(*)
-                  FROM reports
-                 WHERE id IN (370011, 370012, 370021, 370022, 370031, 370032)
-                   AND JSON_UNQUOTE(
-                         JSON_EXTRACT(snapshot_data, '$.gazeTrend.training.status')
-                       ) = 'AVAILABLE'
-                   AND JSON_LENGTH(
-                         JSON_EXTRACT(snapshot_data, '$.gazeTrend.training.points')
-                       ) = 2
-                """,
-                Integer.class
-        )).isEqualTo(6);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT MAX(training.accuracy)
