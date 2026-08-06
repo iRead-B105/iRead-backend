@@ -1,5 +1,6 @@
 package com.iread.backend;
 
+import com.iread.backend.global.config.QaDemoDatasetService;
 import com.iread.backend.mypage.repository.CharacterRepository;
 import com.iread.backend.training.admin.dto.req.UpdateCurriculumRequest;
 import com.iread.backend.training.admin.service.TrainingService;
@@ -33,6 +34,9 @@ class MySqlDemoSeedIntegrationTest {
     @Autowired
     private CharacterRepository characterRepository;
 
+    @Autowired
+    private QaDemoDatasetService qaDemoDatasetService;
+
     @Test
     void appliesDemoSeedToMySqlAndKeepsDemoLoginUsable() {
         assertThat(jdbcTemplate.queryForList(
@@ -45,12 +49,14 @@ class MySqlDemoSeedIntegrationTest {
                 String.class
         )).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13");
 
+        qaDemoDatasetService.install();
+
         String passwordHash = jdbcTemplate.queryForObject(
                 "SELECT password FROM teachers WHERE id = 1001",
                 String.class
         );
 
-        assertThat(passwordEncoder.matches("demo1234", passwordHash)).isTrue();
+        assertThat(passwordEncoder.matches("qwer1234", passwordHash)).isTrue();
         assertThat(jdbcTemplate.queryForMap(
                 "SELECT email, name, organization FROM teachers WHERE id = 1001"
         )).containsEntry("email", "test@test.com")
