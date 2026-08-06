@@ -2,7 +2,6 @@ package com.iread.backend.training.app.service;
 
 import com.iread.backend.training.repository.TrainingRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
@@ -11,8 +10,12 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneId;
 
+/**
+ * 아동의 학습 날짜를 계산한다. 치트가 꺼져 있으면 finishedAt 이 오늘을 앞설 수 없어
+ * 달력상 오늘로 동작하므로, 치트 게이트와 무관하게 항상 빈으로 등록한다.
+ * 치트 API 자체의 노출은 {@code iread.demo-cheat.enabled} 조건이 컨트롤러에서 막는다.
+ */
 @Component
-@ConditionalOnProperty(name = "iread.demo-cheat.enabled", havingValue = "true")
 public class DemoLearningClock {
 
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");

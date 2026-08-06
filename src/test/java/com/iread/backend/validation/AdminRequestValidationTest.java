@@ -109,12 +109,13 @@ class AdminRequestValidationTest {
                 .extracting(violation -> violation.getPropertyPath().toString())
                 .contains("password", "name", "organization");
 
+        // 미래 날짜 상한은 애노테이션이 아니라 ReportService 가 아동의 학습 날짜 기준으로 검사한다.
         CreateReportRequest report = new CreateReportRequest(
                 -1L, LocalDate.now().plusDays(1), LocalDate.now().minusDays(1)
         );
         assertThat(validator.validate(report))
                 .extracting(violation -> violation.getPropertyPath().toString())
-                .contains("studentId", "startDate", "periodOrdered");
+                .contains("studentId", "periodOrdered");
 
         assertThat(validator.validate(new UpdateReportMemoRequest("의견\u0000")))
                 .extracting(violation -> violation.getPropertyPath().toString())
