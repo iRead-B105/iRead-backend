@@ -43,6 +43,7 @@ import java.util.List;
 @Transactional(readOnly = true)
 @Slf4j
 public class GazeService {
+    private static final String GAZE_ANALYSIS_NOT_FOUND = "GAZE_ANALYSIS_NOT_FOUND";
     private final StudentRepository studentRepository;
     private final StudentTestRepository testRepository;
     private final TrainingRepository trainingRepository;
@@ -266,7 +267,8 @@ public class GazeService {
                         testId
                 )
                 .orElseThrow(() -> new ResourceNotFoundException(
-                        "Gaze analysis result not found."
+                        GAZE_ANALYSIS_NOT_FOUND,
+                        "시선 분석 결과를 찾을 수 없습니다."
                 ));
         List<WordAttemptLogEntity> attempts = wordAttemptLogRepository
                 .findAllByTestIdAndQuestionNoAndFinalAttemptTrue(testId, questionNo)
@@ -275,7 +277,8 @@ public class GazeService {
                 .toList();
         if (attempts.isEmpty()) {
             throw new ResourceNotFoundException(
-                    "Question-level gaze analysis result not found."
+                    GAZE_ANALYSIS_NOT_FOUND,
+                    "문항별 시선 분석 결과를 찾을 수 없습니다."
             );
         }
 

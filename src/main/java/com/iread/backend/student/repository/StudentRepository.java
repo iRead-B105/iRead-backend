@@ -241,7 +241,7 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
 
     @Query(value = """
             SELECT s.id AS eventId,
-                   s.created_at AS occurredAt,
+                    COALESCE(MAX(sl.read_at), s.created_at) AS occurredAt,
                    AVG(wal.total_score) / 10 AS accuracy,
                    0 AS retryCount,
                    GROUP_CONCAT(
@@ -308,7 +308,7 @@ public interface StudentRepository extends JpaRepository<StudentEntity, Long> {
                     UNION ALL
                     SELECT s.id AS eventId,
                            'story' AS eventType,
-                           s.created_at AS occurredAt,
+                           COALESCE(MAX(sl.read_at), s.created_at) AS occurredAt,
                            AVG(wal.total_score) / 10 AS accuracy
                       FROM stories s
                       LEFT JOIN story_scenes ss ON ss.story_id = s.id

@@ -12,6 +12,7 @@ import com.iread.backend.gaze.app.dto.req.StartGazeSessionRequest;
 import com.iread.backend.gaze.analysis.GazeWordMetricMergeService;
 import com.iread.backend.gaze.repository.GazeAnalysisResultRepository;
 import com.iread.backend.gaze.repository.GazeSessionRepository;
+import com.iread.backend.exception.ResourceNotFoundException;
 import com.iread.backend.realtime.RealtimeEventPublisher;
 import com.iread.backend.story.repository.StoryRepository;
 import com.iread.backend.student.domain.StudentEntity;
@@ -166,8 +167,33 @@ class GazeServiceTest {
 
         assertThatThrownBy(() -> gazeService.getTestQuestionGazeAnalysis(
                 1L, 10L, 20L, 3
-        )).isInstanceOf(com.iread.backend.exception.ResourceNotFoundException.class)
-                .hasMessageContaining("Question-level");
+        )).isInstanceOfSatisfying(ResourceNotFoundException.class, exception -> {
+            assertThat(exception.code()).isEqualTo("GAZE_ANALYSIS_NOT_FOUND");
+            assertThat(exception).hasMessageContaining("문항별 시선 분석");
+        });
+    }
+
+    @Test
+    void returnsNoDataCodeWhenTestGazeAnalysisIsMissing() {
+        StudentEntity student = mock(StudentEntity.class);
+        StudentTestEntity test = mock(StudentTestEntity.class);
+        when(student.getId()).thenReturn(10L);
+        when(test.getStudent()).thenReturn(student);
+        when(studentRepository.findByIdAndTeacherId(10L, 1L))
+                .thenReturn(Optional.of(student));
+        when(testRepository.findById(20L)).thenReturn(Optional.of(test));
+        when(gazeAnalysisResultRepository
+                .findFirstByGazeSessionStudentIdAndGazeSessionTestIdOrderByCreatedAtDesc(
+                        10L, 20L
+                ))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> gazeService.getTestQuestionGazeAnalysis(
+                1L, 10L, 20L, 3
+        )).isInstanceOfSatisfying(ResourceNotFoundException.class, exception -> {
+            assertThat(exception.code()).isEqualTo("GAZE_ANALYSIS_NOT_FOUND");
+            assertThat(exception).hasMessageContaining("시선 분석 결과");
+        });
     }
 
     @Test
