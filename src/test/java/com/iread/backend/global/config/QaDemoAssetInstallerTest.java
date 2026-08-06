@@ -57,7 +57,7 @@ class QaDemoAssetInstallerTest {
             );
         }
         try (var files = Files.walk(gaze)) {
-            assertThat(files.filter(Files::isRegularFile)).hasSize(57);
+            assertThat(files.filter(Files::isRegularFile)).hasSize(66);
         }
         try (var files = Files.list(images)) {
             assertThat(files).allMatch(path -> {
@@ -91,7 +91,7 @@ class QaDemoAssetInstallerTest {
         Map<Integer, Integer> trainingGazeCounts = new HashMap<>();
         Map<Integer, Integer> testGazeCounts = new HashMap<>();
 
-        assertThat(manifest.path("gaze")).hasSize(57);
+        assertThat(manifest.path("gaze")).hasSize(66);
         for (var gazeEntry : manifest.path("gaze")) {
             var relativePath = gazeEntry.asText();
             var rawResource = new ClassPathResource("assets/qa-demo/gaze/" + relativePath);
@@ -126,7 +126,7 @@ class QaDemoAssetInstallerTest {
                 Map.of(2001, 11, 2002, 15, 2103, 18)
         );
         assertThat(testGazeCounts).containsExactlyInAnyOrderEntriesOf(
-                Map.of(2001, 3, 2002, 3, 2103, 3)
+                Map.of(2001, 6, 2002, 6, 2103, 6)
         );
     }
 }
