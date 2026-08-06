@@ -496,48 +496,28 @@ def training_question(template_id: int, question_no: int) -> dict[str, Any]:
     }
 
     if training_type in AUDIO_TRAINING_TYPES:
-        # 낱말 읽기 계열은 문장이 아니라 낱말 목록을 읽는다. 아동 앱이 content.words
-        # 로 카드를 만들기 때문에 이 값이 없으면 문항을 그리지 못한다.
-        word_sets = (
-            ["나비", "다리", "머루", "가방"],
-            ["산길", "바람", "구름", "나무"],
-            ["아침", "저녁", "노을", "하늘"],
-        )
+        target = audio_targets[question_no - 1]
+        content: dict[str, Any] = {
+            "instruction": "처음부터 끝까지 또박또박 읽어 보세요.",
+            "sentence": target,
+        }
+        analysis_targets = [{"text": target}]
         if training_type in {"WORD_READING", "NONWORD_READING", "WORD_CHAIN_READING"}:
-            words = list(word_sets[question_no - 1])
-            # 단어 이어 읽기는 AI 생성과 같이 4개로 맞춘다. 나머지는 3개를 쓴다.
-            if training_type != "WORD_CHAIN_READING":
-                words = words[:3]
-            target = " ".join(words)
-            content: dict[str, Any] = {
-                "instruction": "낱말을 하나씩 또박또박 읽어 보세요.",
-            }
+            # 아동 앱은 이 유형을 낱말 카드로 그리므로 content.words 가 필요하다.
+            # 문장을 어절로 나눠 쓰고, 낱말마다 녹음 대상을 둔다. 녹음 대상은
+            # 텍스트로 매칭되므로 문장 하나만 두면 어절별 녹음이 어긋난다.
+            words = target.rstrip(".").split()
+            analysis_targets = [{"text": word} for word in words]
             if training_type == "NONWORD_READING":
-                # 비단어 읽기는 낱말마다 실제 낱말 여부를 함께 준다.
                 content["words"] = [{"text": word, "isNonword": False} for word in words]
             else:
                 content["words"] = words
             # readingOrder·requiredOrder 는 순서 목록이 아니라 정책 문자열이다.
             if training_type == "WORD_READING":
                 content["readingOrder"] = "SEQUENTIAL"
-            if training_type == "WORD_CHAIN_READING":
+            else:
                 content["requiredOrder"] = "SEQUENTIAL"
-            question.update(
-                {
-                    "requiredInputs": ["VOICE", "GAZE"],
-                    "content": content,
-                    "analysisTargets": [{"text": word} for word in words],
-                    "answer": {"expectedText": target},
-                }
-            )
-            return question
-
-        target = audio_targets[question_no - 1]
-        content = {
-            "instruction": "처음부터 끝까지 또박또박 읽어 보세요.",
-            "sentence": target,
-        }
-        if training_type == "SENTENCE_READING":
+        elif training_type == "SENTENCE_READING":
             content["tokens"] = target.rstrip(".").split()
         elif training_type == "SENTENCE_REPEAT":
             content["emotion"] = "NEUTRAL"
@@ -547,7 +527,7 @@ def training_question(template_id: int, question_no: int) -> dict[str, Any]:
             {
                 "requiredInputs": ["VOICE", "GAZE"],
                 "content": content,
-                "analysisTargets": [{"text": target}],
+                "analysisTargets": analysis_targets,
                 "answer": {"expectedText": target},
             }
         )
@@ -807,7 +787,14 @@ def generated_data(student: Student, template_id: int, day_no: int, sequence_no:
 
 def question_attempt_tokens(question: dict[str, Any]) -> tuple[str, str, str, str]:
     if question["type"] in AUDIO_TRAINING_TYPES:
-        tokens = question["analysisTargets"][0]["text"].rstrip(".").split()
+        targets = question["analysisTargets"]
+        # 낱말 읽기 계열은 낱말마다 분석 대상이 하나씩이라 그 낱말들이 곧 토큰이다.
+        # 첫 대상만 쪼개면 낱말 하나뿐이어서 나머지가 채움말로 채워진다.
+        tokens = (
+            [str(target["text"]).rstrip(".") for target in targets]
+            if len(targets) > 1
+            else str(targets[0]["text"]).rstrip(".").split()
+        )
     else:
         tokens = "문항 내용을 차분히 확인해요".split()
     if len(tokens) < 4:

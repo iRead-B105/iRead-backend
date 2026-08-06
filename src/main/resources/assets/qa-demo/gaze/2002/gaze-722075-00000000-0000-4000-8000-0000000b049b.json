@@ -14,30 +14,30 @@
         "questionNo": 1,
         "type": "WORD_CHAIN_READING",
         "tokens": [
-          "나비",
-          "확인해요",
-          "확인해요",
-          "확인해요"
+          "친구와",
+          "함께",
+          "천천히",
+          "읽어요"
         ]
       },
       {
         "questionNo": 2,
         "type": "WORD_CHAIN_READING",
         "tokens": [
-          "산길",
-          "확인해요",
-          "확인해요",
-          "확인해요"
+          "거북이는",
+          "코너에서",
+          "방향을",
+          "잡았어요"
         ]
       },
       {
         "questionNo": 3,
         "type": "WORD_CHAIN_READING",
         "tokens": [
-          "아침",
-          "확인해요",
-          "확인해요",
-          "확인해요"
+          "바람이",
+          "나뭇잎을",
+          "살며시",
+          "흔들어요"
         ]
       }
     ],
@@ -65,7 +65,7 @@
       {
         "questionNo": 1,
         "tokenIndex": 0,
-        "text": "나비",
+        "text": "친구와",
         "capturedAtMs": 0,
         "presence": true,
         "x": 0.18,
@@ -74,7 +74,7 @@
       {
         "questionNo": 1,
         "tokenIndex": 0,
-        "text": "나비",
+        "text": "친구와",
         "capturedAtMs": 210,
         "presence": true,
         "x": 0.185,
@@ -83,7 +83,7 @@
       {
         "questionNo": 1,
         "tokenIndex": 0,
-        "text": "나비",
+        "text": "친구와",
         "capturedAtMs": 420,
         "presence": true,
         "x": 0.19,
@@ -92,7 +92,7 @@
       {
         "questionNo": 1,
         "tokenIndex": 1,
-        "text": "확인해요",
+        "text": "함께",
         "capturedAtMs": 675,
         "presence": true,
         "x": 0.35,
@@ -101,7 +101,7 @@
       {
         "questionNo": 1,
         "tokenIndex": 1,
-        "text": "확인해요",
+        "text": "함께",
         "capturedAtMs": 885,
         "presence": true,
         "x": 0.355,
@@ -110,7 +110,7 @@
       {
         "questionNo": 1,
         "tokenIndex": 1,
-        "text": "확인해요",
+        "text": "함께",
         "capturedAtMs": 1095,
         "presence": true,
         "x": 0.36,
@@ -119,7 +119,7 @@
       {
         "questionNo": 1,
         "tokenIndex": 2,
-        "text": "확인해요",
+        "text": "천천히",
         "capturedAtMs": 1350,
         "presence": true,
         "x": 0.52,
@@ -128,7 +128,7 @@
       {
         "questionNo": 1,
         "tokenIndex": 2,
-        "text": "확인해요",
+        "text": "천천히",
         "capturedAtMs": 1560,
         "presence": true,
         "x": 0.525,
@@ -137,7 +137,7 @@
       {
         "questionNo": 1,
         "tokenIndex": 2,
-        "text": "확인해요",
+        "text": "천천히",
         "capturedAtMs": 1770,
         "presence": true,
         "x": 0.53,
@@ -146,7 +146,7 @@
       {
         "questionNo": 1,
         "tokenIndex": 3,
-        "text": "확인해요",
+        "text": "읽어요",
         "capturedAtMs": 2025,
         "presence": true,
         "x": 0.69,
@@ -155,7 +155,7 @@
       {
         "questionNo": 1,
         "tokenIndex": 3,
-        "text": "확인해요",
+        "text": "읽어요",
         "capturedAtMs": 2235,
         "presence": true,
         "x": 0.695,
@@ -164,7 +164,7 @@
       {
         "questionNo": 1,
         "tokenIndex": 3,
-        "text": "확인해요",
+        "text": "읽어요",
         "capturedAtMs": 2445,
         "presence": true,
         "x": 0.7,
@@ -173,7 +173,7 @@
       {
         "questionNo": 1,
         "tokenIndex": 3,
-        "text": "확인해요",
+        "text": "읽어요",
         "capturedAtMs": 2700,
         "presence": true,
         "x": 0.69,
@@ -182,7 +182,7 @@
       {
         "questionNo": 1,
         "tokenIndex": 3,
-        "text": "확인해요",
+        "text": "읽어요",
         "capturedAtMs": 2910,
         "presence": true,
         "x": 0.695,
@@ -191,7 +191,7 @@
       {
         "questionNo": 1,
         "tokenIndex": 3,
-        "text": "확인해요",
+        "text": "읽어요",
         "capturedAtMs": 3120,
         "presence": true,
         "x": 0.7,
@@ -200,7 +200,7 @@
       {
         "questionNo": 1,
         "tokenIndex": 1,
-        "text": "확인해요",
+        "text": "함께",
         "capturedAtMs": 3375,
         "presence": true,
         "x": 0.35,
@@ -209,7 +209,7 @@
       {
         "questionNo": 1,
         "tokenIndex": 1,
-        "text": "확인해요",
+        "text": "함께",
         "capturedAtMs": 3585,
         "presence": true,
         "x": 0.355,
@@ -218,7 +218,7 @@
       {
         "questionNo": 1,
         "tokenIndex": 1,
-        "text": "확인해요",
+        "text": "함께",
         "capturedAtMs": 3795,
         "presence": true,
         "x": 0.36,
@@ -227,7 +227,7 @@
       {
         "questionNo": 2,
         "tokenIndex": 0,
-        "text": "산길",
+        "text": "거북이는",
         "capturedAtMs": 4050,
         "presence": true,
         "x": 0.18,
@@ -236,7 +236,7 @@
       {
         "questionNo": 2,
         "tokenIndex": 0,
-        "text": "산길",
+        "text": "거북이는",
         "capturedAtMs": 4260,
         "presence": true,
         "x": 0.185,
@@ -245,7 +245,7 @@
       {
         "questionNo": 2,
         "tokenIndex": 0,
-        "text": "산길",
+        "text": "거북이는",
         "capturedAtMs": 4470,
         "presence": true,
         "x": 0.19,
@@ -254,7 +254,7 @@
       {
         "questionNo": 2,
         "tokenIndex": 1,
-        "text": "확인해요",
+        "text": "코너에서",
         "capturedAtMs": 4725,
         "presence": true,
         "x": 0.35,
@@ -263,7 +263,7 @@
       {
         "questionNo": 2,
         "tokenIndex": 1,
-        "text": "확인해요",
+        "text": "코너에서",
         "capturedAtMs": 4935,
         "presence": true,
         "x": 0.355,
@@ -272,7 +272,7 @@
       {
         "questionNo": 2,
         "tokenIndex": 1,
-        "text": "확인해요",
+        "text": "코너에서",
         "capturedAtMs": 5145,
         "presence": true,
         "x": 0.36,
@@ -281,7 +281,7 @@
       {
         "questionNo": 2,
         "tokenIndex": 2,
-        "text": "확인해요",
+        "text": "방향을",
         "capturedAtMs": 5400,
         "presence": true,
         "x": 0.52,
@@ -290,7 +290,7 @@
       {
         "questionNo": 2,
         "tokenIndex": 2,
-        "text": "확인해요",
+        "text": "방향을",
         "capturedAtMs": 5610,
         "presence": true,
         "x": 0.525,
@@ -299,7 +299,7 @@
       {
         "questionNo": 2,
         "tokenIndex": 2,
-        "text": "확인해요",
+        "text": "방향을",
         "capturedAtMs": 5820,
         "presence": true,
         "x": 0.53,
@@ -308,7 +308,7 @@
       {
         "questionNo": 2,
         "tokenIndex": 3,
-        "text": "확인해요",
+        "text": "잡았어요",
         "capturedAtMs": 6075,
         "presence": true,
         "x": 0.69,
@@ -317,7 +317,7 @@
       {
         "questionNo": 2,
         "tokenIndex": 3,
-        "text": "확인해요",
+        "text": "잡았어요",
         "capturedAtMs": 6285,
         "presence": true,
         "x": 0.695,
@@ -326,7 +326,7 @@
       {
         "questionNo": 2,
         "tokenIndex": 3,
-        "text": "확인해요",
+        "text": "잡았어요",
         "capturedAtMs": 6495,
         "presence": true,
         "x": 0.7,
@@ -335,7 +335,7 @@
       {
         "questionNo": 2,
         "tokenIndex": 3,
-        "text": "확인해요",
+        "text": "잡았어요",
         "capturedAtMs": 6750,
         "presence": true,
         "x": 0.69,
@@ -344,7 +344,7 @@
       {
         "questionNo": 2,
         "tokenIndex": 3,
-        "text": "확인해요",
+        "text": "잡았어요",
         "capturedAtMs": 6960,
         "presence": true,
         "x": 0.695,
@@ -353,7 +353,7 @@
       {
         "questionNo": 2,
         "tokenIndex": 3,
-        "text": "확인해요",
+        "text": "잡았어요",
         "capturedAtMs": 7170,
         "presence": true,
         "x": 0.7,
@@ -362,7 +362,7 @@
       {
         "questionNo": 2,
         "tokenIndex": 1,
-        "text": "확인해요",
+        "text": "코너에서",
         "capturedAtMs": 7425,
         "presence": true,
         "x": 0.35,
@@ -371,7 +371,7 @@
       {
         "questionNo": 2,
         "tokenIndex": 1,
-        "text": "확인해요",
+        "text": "코너에서",
         "capturedAtMs": 7635,
         "presence": true,
         "x": 0.355,
@@ -380,7 +380,7 @@
       {
         "questionNo": 2,
         "tokenIndex": 1,
-        "text": "확인해요",
+        "text": "코너에서",
         "capturedAtMs": 7845,
         "presence": true,
         "x": 0.36,
@@ -389,7 +389,7 @@
       {
         "questionNo": 3,
         "tokenIndex": 0,
-        "text": "아침",
+        "text": "바람이",
         "capturedAtMs": 8100,
         "presence": true,
         "x": 0.18,
@@ -398,7 +398,7 @@
       {
         "questionNo": 3,
         "tokenIndex": 0,
-        "text": "아침",
+        "text": "바람이",
         "capturedAtMs": 8310,
         "presence": true,
         "x": 0.185,
@@ -407,7 +407,7 @@
       {
         "questionNo": 3,
         "tokenIndex": 0,
-        "text": "아침",
+        "text": "바람이",
         "capturedAtMs": 8520,
         "presence": true,
         "x": 0.19,
@@ -416,7 +416,7 @@
       {
         "questionNo": 3,
         "tokenIndex": 1,
-        "text": "확인해요",
+        "text": "나뭇잎을",
         "capturedAtMs": 8775,
         "presence": true,
         "x": 0.35,
@@ -425,7 +425,7 @@
       {
         "questionNo": 3,
         "tokenIndex": 1,
-        "text": "확인해요",
+        "text": "나뭇잎을",
         "capturedAtMs": 8985,
         "presence": true,
         "x": 0.355,
@@ -434,7 +434,7 @@
       {
         "questionNo": 3,
         "tokenIndex": 1,
-        "text": "확인해요",
+        "text": "나뭇잎을",
         "capturedAtMs": 9195,
         "presence": true,
         "x": 0.36,
@@ -443,7 +443,7 @@
       {
         "questionNo": 3,
         "tokenIndex": 2,
-        "text": "확인해요",
+        "text": "살며시",
         "capturedAtMs": 9450,
         "presence": true,
         "x": 0.52,
@@ -452,7 +452,7 @@
       {
         "questionNo": 3,
         "tokenIndex": 2,
-        "text": "확인해요",
+        "text": "살며시",
         "capturedAtMs": 9660,
         "presence": true,
         "x": 0.525,
@@ -461,7 +461,7 @@
       {
         "questionNo": 3,
         "tokenIndex": 2,
-        "text": "확인해요",
+        "text": "살며시",
         "capturedAtMs": 9870,
         "presence": true,
         "x": 0.53,
@@ -470,7 +470,7 @@
       {
         "questionNo": 3,
         "tokenIndex": 3,
-        "text": "확인해요",
+        "text": "흔들어요",
         "capturedAtMs": 10125,
         "presence": true,
         "x": 0.69,
@@ -479,7 +479,7 @@
       {
         "questionNo": 3,
         "tokenIndex": 3,
-        "text": "확인해요",
+        "text": "흔들어요",
         "capturedAtMs": 10335,
         "presence": true,
         "x": 0.695,
@@ -488,7 +488,7 @@
       {
         "questionNo": 3,
         "tokenIndex": 3,
-        "text": "확인해요",
+        "text": "흔들어요",
         "capturedAtMs": 10545,
         "presence": true,
         "x": 0.7,
@@ -497,7 +497,7 @@
       {
         "questionNo": 3,
         "tokenIndex": 3,
-        "text": "확인해요",
+        "text": "흔들어요",
         "capturedAtMs": 10800,
         "presence": true,
         "x": 0.69,
@@ -506,7 +506,7 @@
       {
         "questionNo": 3,
         "tokenIndex": 3,
-        "text": "확인해요",
+        "text": "흔들어요",
         "capturedAtMs": 11010,
         "presence": true,
         "x": 0.695,
@@ -515,7 +515,7 @@
       {
         "questionNo": 3,
         "tokenIndex": 3,
-        "text": "확인해요",
+        "text": "흔들어요",
         "capturedAtMs": 11220,
         "presence": true,
         "x": 0.7,
@@ -524,7 +524,7 @@
       {
         "questionNo": 3,
         "tokenIndex": 1,
-        "text": "확인해요",
+        "text": "나뭇잎을",
         "capturedAtMs": 11475,
         "presence": true,
         "x": 0.35,
@@ -533,7 +533,7 @@
       {
         "questionNo": 3,
         "tokenIndex": 1,
-        "text": "확인해요",
+        "text": "나뭇잎을",
         "capturedAtMs": 11685,
         "presence": true,
         "x": 0.355,
@@ -542,7 +542,7 @@
       {
         "questionNo": 3,
         "tokenIndex": 1,
-        "text": "확인해요",
+        "text": "나뭇잎을",
         "capturedAtMs": 11895,
         "presence": true,
         "x": 0.36,
