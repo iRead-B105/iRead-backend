@@ -6,6 +6,7 @@ import com.iread.backend.test.app.service.AppTestService;
 import com.iread.backend.test.domain.StudentTestEntity;
 import com.iread.backend.test.domain.TestCurriculumEntity;
 import com.iread.backend.test.domain.TestStatus;
+import com.iread.backend.test.repository.TestDataRepository;
 import com.iread.backend.test.repository.StudentTestRepository;
 import com.iread.backend.test.repository.TestCurriculumRepository;
 import com.iread.backend.training.generation.TrainingGenerationException;
@@ -52,6 +53,7 @@ public class DemoChallengeSeedInitializer implements ApplicationRunner {
     private final StudentRepository studentRepository;
     private final TestCurriculumRepository testCurriculumRepository;
     private final StudentTestRepository testRepository;
+    private final TestDataRepository testDataRepository;
     private final AppTestService appTestService;
     private final ObjectMapper objectMapper;
     private final TransactionTemplate transactionTemplate;
@@ -76,15 +78,20 @@ public class DemoChallengeSeedInitializer implements ApplicationRunner {
     }
 
     private void seedStudent(StudentEntity student) {
-        List<TestCurriculumEntity> currentFormat = testCurriculumRepository
-                .findAllByStudentIdOrderByCreatedAtDescIdDesc(student.getId())
+        List<TestCurriculumEntity> curriculums = testCurriculumRepository
+                .findAllByStudentIdOrderByCreatedAtDescIdDesc(student.getId());
+        List<TestCurriculumEntity> currentFormat = curriculums
                 .stream()
                 .filter(curriculum -> testCount(curriculum) == CHALLENGE_QUESTION_COUNT)
                 .toList();
 
-        boolean hasCompletedHistory = currentFormat.stream().anyMatch(
-                curriculum -> TestStatus.COMPLETED.name().equals(curriculum.getStatus())
-        );
+        boolean hasCompletedHistory = curriculums.stream()
+                .filter(curriculum ->
+                        TestStatus.COMPLETED.name().equals(curriculum.getStatus())
+                )
+                .anyMatch(curriculum ->
+                        questionCount(curriculum) == CHALLENGE_QUESTION_COUNT
+                );
         if (!hasCompletedHistory) {
             seedCompletedHistory(student);
         }
@@ -149,6 +156,25 @@ public class DemoChallengeSeedInitializer implements ApplicationRunner {
         return testRepository
                 .findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(curriculum.getId())
                 .size();
+    }
+
+    private int questionCount(TestCurriculumEntity curriculum) {
+        return testRepository
+                .findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(curriculum.getId())
+                .stream()
+                .mapToInt(test -> testDataRepository
+                        .findFirstByTestIdOrderByCreatedAtDescIdDesc(test.getId())
+                        .map(data -> questionCount(data.getGeneratedData()))
+                        .orElse(0))
+                .sum();
+    }
+
+    private int questionCount(String generatedData) {
+        try {
+            return objectMapper.readTree(generatedData).path("questions").size();
+        } catch (Exception exception) {
+            return 0;
+        }
     }
 
     private String writeJson(ObjectNode value) {

@@ -196,7 +196,7 @@ class DemoSeedIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM gaze_sessions WHERE student_id IN (2001, 2002, 2103)",
                 Integer.class
-        )).isEqualTo(57);
+        )).isEqualTo(66);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -267,7 +267,12 @@ class DemoSeedIntegrationTest {
                     "SELECT COUNT(*) FROM tests WHERE test_curriculum_id IN (SELECT id FROM test_curriculums WHERE student_id=?)",
                     Integer.class,
                     studentId
-            )).isEqualTo(3);
+            )).isEqualTo(6);
+            assertThat(jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM test_curriculums WHERE student_id=? AND status='COMPLETED'",
+                    Integer.class,
+                    studentId
+            )).isEqualTo(2);
         }
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM word_attempt_logs WHERE use_location='TRAINING' AND student_id IN (2001, 2002, 2103)",
@@ -280,15 +285,41 @@ class DemoSeedIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM word_attempt_logs WHERE use_location='TEST' AND pronunciation_accuracy_score IS NOT NULL",
                 Integer.class
-        )).isEqualTo(81);
+        )).isEqualTo(162);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM word_attempt_logs WHERE use_location='TEST' AND has_gaze_data=TRUE",
                 Integer.class
-        )).isEqualTo(108);
+        )).isEqualTo(216);
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM word_attempt_logs WHERE use_location='TEST' AND question_no=2 AND has_gaze_data=TRUE AND has_audio_data=FALSE AND pronunciation_accuracy_score IS NULL",
                 Integer.class
-        )).isEqualTo(27);
+        )).isEqualTo(54);
+
+        var historicalResults = jdbcTemplate.queryForList(
+                "SELECT result FROM tests WHERE test_curriculum_id=339001 ORDER BY sequence_no"
+        );
+        assertThat(historicalResults).hasSize(3);
+        for (var stored : historicalResults) {
+            JsonNode result = readJson(stored.get("result"));
+            assertThat(result.path("questions")).hasSize(3).allSatisfy(question -> {
+                assertThat(question.path("question").asText()).isNotBlank();
+                assertThat(question.path("selectedAnswer").isMissingNode()).isFalse();
+                assertThat(question.path("correctAnswer").isMissingNode()).isFalse();
+                assertThat(question.path("isCorrect").asBoolean()).isTrue();
+                assertThat(question.path("score").isNumber()).isTrue();
+                assertThat(question.path("solvingTimeSeconds").asLong()).isPositive();
+                assertThat(question.path("gazeDepartureCount").isNumber()).isTrue();
+            });
+            assertThat(result.path("pronunciationAnalyses")).hasSize(2);
+        }
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM gaze_sessions WHERE test_id IN (343011,343012,343013)",
+                Integer.class
+        )).isEqualTo(3);
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM word_attempt_logs WHERE test_id IN (343011,343012,343013) AND has_gaze_data=TRUE",
+                Integer.class
+        )).isPositive();
 
         String snapshotJson = jdbcTemplate.queryForObject(
                 "SELECT snapshot_data FROM reports WHERE id=370011",

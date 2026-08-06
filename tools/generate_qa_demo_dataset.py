@@ -66,6 +66,25 @@ class StorySpec:
     existing_images: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class TestHistoryRound:
+    no: int
+    date_index: int
+    curriculum_base: int
+    test_base: int
+    data_base: int
+    gaze_base: int
+    analysis_base: int
+    score_adjustment: int
+    solving_time_adjustment: int
+    gaze_departure_adjustment: int
+    pronunciation_adjustment: int
+    dwell_time_adjustment: int
+    visit_count_adjustment: int
+    regression_adjustment: int
+    fixation_time_adjustment: int
+
+
 STUDENTS = (
     Student(
         1,
@@ -120,6 +139,44 @@ STUDENTS = (
         48,
         "읽기 속도",
         "읽기 정확도와 이해",
+    ),
+)
+
+
+TEST_HISTORY_ROUNDS = (
+    TestHistoryRound(
+        no=1,
+        date_index=3,
+        curriculum_base=339_000,
+        test_base=343_000,
+        data_base=344_000,
+        gaze_base=352_000,
+        analysis_base=353_000,
+        score_adjustment=-6,
+        solving_time_adjustment=5,
+        gaze_departure_adjustment=1,
+        pronunciation_adjustment=-5,
+        dwell_time_adjustment=1_800,
+        visit_count_adjustment=3,
+        regression_adjustment=2,
+        fixation_time_adjustment=35,
+    ),
+    TestHistoryRound(
+        no=2,
+        date_index=-2,
+        curriculum_base=340_000,
+        test_base=341_000,
+        data_base=342_000,
+        gaze_base=350_000,
+        analysis_base=351_000,
+        score_adjustment=0,
+        solving_time_adjustment=0,
+        gaze_departure_adjustment=0,
+        pronunciation_adjustment=0,
+        dwell_time_adjustment=0,
+        visit_count_adjustment=0,
+        regression_adjustment=0,
+        fixation_time_adjustment=0,
     ),
 )
 
@@ -1210,49 +1267,67 @@ def build() -> tuple[str, dict[str, Any], dict[str, Any], dict[Path, Any]]:
     test_analysis_rows = []
     attempt_id = 360000
     for student in STUDENTS:
-        tc_id = 340000 + student.no
-        test_date = student.completed_dates[-2]
-        test_curriculum_rows.append((tc_id, student.id, "COMPLETED", f"{test_date} 14:00:00", f"{test_date} 14:40:00"))
-        for sequence_no, template_id in enumerate((11, 15, 20), 1):
-            test_id = 341000 + student.no * 10 + sequence_no
-            improvement_step = sequence_no - 1
-            test_start_minute = improvement_step * 10
-            gaze_start_minute = test_start_minute + 5
-            test_end_minute = test_start_minute + 7
-            questions = [
-                {"questionNo": 1, "type": "SENTENCE_READING", "text": "바람이 나뭇잎을 살며시 흔들어요.", "analysisTargets": [{"text": "바람이 나뭇잎을 살며시 흔들어요."}]},
-                {"questionNo": 2, "type": "CONSONANT_SOUND_CHOICE", "content": {"instruction": "알맞은 소리를 고르세요.", "choices": ["ㄴ", "ㄷ", "ㅁ"]}, "answer": {"answerIndex": 0}},
-                {"questionNo": 3, "type": "SENTENCE_READING", "text": "친구와 함께 천천히 책을 읽었어요.", "analysisTargets": [{"text": "친구와 함께 천천히 책을 읽었어요."}]},
-            ]
-            score = min(96, round((student.base_score + sequence_no * 15) / 10))
-            result_questions = []
-            analyses = []
-            links = []
-            for question in questions:
-                qno = question["questionNo"]
-                audio = qno in (1, 3)
-                question_score = score - (2 if qno == 2 and student.no < 3 else 0)
-                result_questions.append({"questionNumber": qno, "question": question.get("text", "알맞은 소리를 고르세요."), "selectedAnswer": question.get("text", "ㄴ"), "correctAnswer": question.get("text", "ㄴ"), "isCorrect": True, "score": question_score, "solvingTimeSeconds": 10 + student.no * 2 + sequence_no + qno, "gazeDepartureCount": 0 if student.no == 3 else (qno + sequence_no) % 2})
-                reference = question.get("text", question.get("content", {}).get("instruction", ""))
-                pronunciation_score = None
-                if audio:
-                    pronunciation_score = max(45, min(98, score + qno - (8 if student.no == 1 else 3 if student.no == 2 else 0)))
-                    raw_name = f"student-{student.id}-test-{test_id}-q{qno}.json"
-                    raw_assets[Path("pronunciation") / str(student.id) / raw_name] = azure_fixture(reference, pronunciation_score, student.id, test_id, qno)
-                    analyses.append({"questionNo": qno, "targetIndex": 0, "tokenIndex": None, "referenceText": reference, "pronunciationAccuracyScore": pronunciation_score, "fluencyScore": pronunciation_score - 4, "completenessScore": 100, "pronScore": pronunciation_score - 2, "confidence": round(pronunciation_score / 100, 2), "analysisVersion": "azure-speech-v1", "insertionCount": 0, "attemptNo": 1, "passed": pronunciation_score >= 70, "questionCompleted": True, "rawAssetPath": f"assets/qa-demo/pronunciation/{student.id}/{raw_name}"})
-                for token_index, token in enumerate(reference.rstrip(".").split()):
-                    attempt_id += 1
+        for history_round in TEST_HISTORY_ROUNDS:
+            tc_id = history_round.curriculum_base + student.no
+            test_date = student.completed_dates[history_round.date_index]
+            test_curriculum_rows.append((tc_id, student.id, "COMPLETED", f"{test_date} 14:00:00", f"{test_date} 14:40:00"))
+            for sequence_no, template_id in enumerate((11, 15, 20), 1):
+                test_id = history_round.test_base + student.no * 10 + sequence_no
+                improvement_step = sequence_no - 1
+                test_start_minute = improvement_step * 10
+                gaze_start_minute = test_start_minute + 5
+                test_end_minute = test_start_minute + 7
+                questions = [
+                    {"questionNo": 1, "type": "SENTENCE_READING", "text": "바람이 나뭇잎을 살며시 흔들어요.", "analysisTargets": [{"text": "바람이 나뭇잎을 살며시 흔들어요."}]},
+                    {"questionNo": 2, "type": "CONSONANT_SOUND_CHOICE", "content": {"instruction": "알맞은 소리를 고르세요.", "choices": ["ㄴ", "ㄷ", "ㅁ"]}, "answer": {"answerIndex": 0}},
+                    {"questionNo": 3, "type": "SENTENCE_READING", "text": "친구와 함께 천천히 책을 읽었어요.", "analysisTargets": [{"text": "친구와 함께 천천히 책을 읽었어요."}]},
+                ]
+                score = min(
+                    96,
+                    round((student.base_score + sequence_no * 15) / 10)
+                    + history_round.score_adjustment,
+                )
+                result_questions = []
+                analyses = []
+                links = []
+                for question in questions:
+                    qno = question["questionNo"]
+                    audio = qno in (1, 3)
+                    question_score = score - (2 if qno == 2 and student.no < 3 else 0)
+                    gaze_departure_count = 0 if student.no == 3 else (
+                        (qno + sequence_no) % 2
+                        + history_round.gaze_departure_adjustment
+                    )
+                    result_questions.append({"questionNumber": qno, "question": question.get("text", "알맞은 소리를 고르세요."), "selectedAnswer": question.get("text", "ㄴ"), "correctAnswer": question.get("text", "ㄴ"), "isCorrect": True, "score": question_score, "solvingTimeSeconds": 10 + student.no * 2 + sequence_no + qno + history_round.solving_time_adjustment, "gazeDepartureCount": gaze_departure_count})
+                    reference = question.get("text", question.get("content", {}).get("instruction", ""))
+                    pronunciation_score = None
                     if audio:
-                        links.append({"wordAttemptLogId": attempt_id, "questionNo": qno, "targetIndex": 0, "tokenIndex": token_index, "isFinal": True, "referenceText": token, "pronunciationAccuracyScore": pronunciation_score, "pronunciationErrorType": "None", "pronunciationAnalysisVersion": "azure-speech-v1", "wordReadTimeMs": 520 + token_index * 30})
-                    word_attempt_selects.append((attempt_id, student, test_id, qno, token_index, token, pronunciation_score, question_score, test_date, audio))
-            result = {"schemaVersion": 2, "overallScore": score, "areaScores": [{"area": student.strength, "score": min(98, score + 5)}, {"area": student.weakness, "score": max(40, score - 8)}, {"area": "읽기 유창성", "score": max(40, student.reading_speed)}], "questions": result_questions, "pronunciationAnalyses": analyses, "wordAttempts": links}
-            test_rows.append((test_id, tc_id, template_id, "COMPLETED", json.dumps(result, ensure_ascii=False, separators=(",", ":")), score, f"{test_date} 14:{test_start_minute:02d}:00", f"{test_date} 14:{test_start_minute:02d}:00", f"{test_date} 14:{test_end_minute:02d}:00", sequence_no))
-            test_data_rows.append((342000 + student.no * 10 + sequence_no, test_id, json.dumps({"schemaVersion": 2, "questions": questions}, ensure_ascii=False, separators=(",", ":")), f"{test_date} 14:00:00"))
-            gaze_id = 350000 + student.no * 10 + sequence_no
-            gaze_name = gaze_file_name(gaze_id)
-            raw_assets[Path("gaze") / str(student.id) / gaze_name] = {"rawData": {"schemaVersion": "test-gaze-raw-v1", "studentId": student.id, "testId": test_id, "samples": [{"questionNo": question["questionNo"], "tokenIndex": token, "capturedAtMs": question["questionNo"] * 1000 + token * 250, "presence": True, "x": round(0.2 + token * 0.08, 2), "y": round(0.3 + question["questionNo"] * 0.1, 2)} for question in questions for token in range(len(question.get("text", question.get("content", {}).get("instruction", "")).rstrip(".").split()))]}}
-            test_gaze_rows.append((gaze_id, student.id, test_id, None, None, "TEST", f"{test_date} 14:{gaze_start_minute:02d}:00", f"{test_date} 14:{test_end_minute:02d}:00", f"/gaze/{student.id}/{gaze_name}", "COMPLETED", "SUCCESS", f"{test_date} 14:{gaze_start_minute:02d}:00"))
-            test_analysis_rows.append((351000 + student.no * 10 + sequence_no, gaze_id, 24000 + student.no * 1800 - improvement_step * 600, 36 + student.no * 2 - improvement_step, max(0, 5 - student.no - improvement_step), 620 + student.no * 55 - improvement_step * 10, json.dumps([{"questionNo": q, "dwellDurationMs": 7600 + q * 300 - improvement_step * 180, "fixationCount": 10 + q, "regressionCount": max(0, (0 if student.no == 3 else 1) - improvement_step)} for q in range(1, 4)], ensure_ascii=False, separators=(",", ":")), json.dumps([], separators=(",", ":")), json.dumps({"source": "qa-demo", "persona": student.weakness, "calculationVersion": "test-gaze-v1"}, ensure_ascii=False, separators=(",", ":")), f"{test_date} 14:{test_end_minute:02d}:10"))
+                        pronunciation_score = max(
+                            45,
+                            min(
+                                98,
+                                score
+                                + qno
+                                - (8 if student.no == 1 else 3 if student.no == 2 else 0)
+                                + history_round.pronunciation_adjustment,
+                            ),
+                        )
+                        raw_name = f"student-{student.id}-test-{test_id}-q{qno}.json"
+                        raw_assets[Path("pronunciation") / str(student.id) / raw_name] = azure_fixture(reference, pronunciation_score, student.id, test_id, qno)
+                        analyses.append({"questionNo": qno, "targetIndex": 0, "tokenIndex": None, "referenceText": reference, "pronunciationAccuracyScore": pronunciation_score, "fluencyScore": pronunciation_score - 4, "completenessScore": 100, "pronScore": pronunciation_score - 2, "confidence": round(pronunciation_score / 100, 2), "analysisVersion": "azure-speech-v1", "insertionCount": 0, "attemptNo": 1, "passed": pronunciation_score >= 70, "questionCompleted": True, "rawAssetPath": f"assets/qa-demo/pronunciation/{student.id}/{raw_name}"})
+                    for token_index, token in enumerate(reference.rstrip(".").split()):
+                        attempt_id += 1
+                        if audio:
+                            links.append({"wordAttemptLogId": attempt_id, "questionNo": qno, "targetIndex": 0, "tokenIndex": token_index, "isFinal": True, "referenceText": token, "pronunciationAccuracyScore": pronunciation_score, "pronunciationErrorType": "None", "pronunciationAnalysisVersion": "azure-speech-v1", "wordReadTimeMs": 520 + token_index * 30})
+                        word_attempt_selects.append((attempt_id, student, test_id, qno, token_index, token, pronunciation_score, question_score, test_date, audio))
+                result = {"schemaVersion": 2, "overallScore": score, "areaScores": [{"area": student.strength, "score": min(98, score + 5)}, {"area": student.weakness, "score": max(40, score - 8)}, {"area": "읽기 유창성", "score": max(40, student.reading_speed + history_round.score_adjustment)}], "questions": result_questions, "pronunciationAnalyses": analyses, "wordAttempts": links}
+                test_rows.append((test_id, tc_id, template_id, "COMPLETED", json.dumps(result, ensure_ascii=False, separators=(",", ":")), score, f"{test_date} 14:{test_start_minute:02d}:00", f"{test_date} 14:{test_start_minute:02d}:00", f"{test_date} 14:{test_end_minute:02d}:00", sequence_no))
+                test_data_rows.append((history_round.data_base + student.no * 10 + sequence_no, test_id, json.dumps({"schemaVersion": 2, "questions": questions}, ensure_ascii=False, separators=(",", ":")), f"{test_date} 14:00:00"))
+                gaze_id = history_round.gaze_base + student.no * 10 + sequence_no
+                gaze_name = gaze_file_name(gaze_id)
+                raw_assets[Path("gaze") / str(student.id) / gaze_name] = {"rawData": {"schemaVersion": "test-gaze-raw-v1", "studentId": student.id, "testId": test_id, "samples": [{"questionNo": question["questionNo"], "tokenIndex": token, "capturedAtMs": question["questionNo"] * 1000 + token * 250, "presence": True, "x": round(0.2 + token * 0.08, 2), "y": round(0.3 + question["questionNo"] * 0.1, 2)} for question in questions for token in range(len(question.get("text", question.get("content", {}).get("instruction", "")).rstrip(".").split()))]}}
+                test_gaze_rows.append((gaze_id, student.id, test_id, None, None, "TEST", f"{test_date} 14:{gaze_start_minute:02d}:00", f"{test_date} 14:{test_end_minute:02d}:00", f"/gaze/{student.id}/{gaze_name}", "COMPLETED", "SUCCESS", f"{test_date} 14:{gaze_start_minute:02d}:00"))
+                test_analysis_rows.append((history_round.analysis_base + student.no * 10 + sequence_no, gaze_id, 24000 + student.no * 1800 - improvement_step * 600 + history_round.dwell_time_adjustment, 36 + student.no * 2 - improvement_step + history_round.visit_count_adjustment, max(0, 5 - student.no - improvement_step + history_round.regression_adjustment), 620 + student.no * 55 - improvement_step * 10 + history_round.fixation_time_adjustment, json.dumps([{"questionNo": q, "dwellDurationMs": 7600 + q * 300 - improvement_step * 180 + history_round.dwell_time_adjustment // 3, "fixationCount": 10 + q + history_round.visit_count_adjustment, "regressionCount": max(0, (0 if student.no == 3 else 1) - improvement_step + history_round.regression_adjustment)} for q in range(1, 4)], ensure_ascii=False, separators=(",", ":")), json.dumps([], separators=(",", ":")), json.dumps({"source": "qa-demo", "persona": student.weakness, "historyRound": history_round.no, "calculationVersion": "test-gaze-v1"}, ensure_ascii=False, separators=(",", ":")), f"{test_date} 14:{test_end_minute:02d}:10"))
 
     sql.append("\n" + rows_sql("test_curriculums", ("id", "student_id", "status", "created_at", "completed_at"), test_curriculum_rows))
     sql.append(rows_sql("tests", ("id", "test_curriculum_id", "training_template_id", "status", "result", "accuracy", "created_at", "started_at", "finished_at", "sequence_no"), test_rows))
@@ -1477,9 +1552,9 @@ def validate(sql: str, manifest: dict[str, Any], scene_prompts: dict[str, Any], 
         )
         for file_name in manifest["images"]
     )
-    assert len(manifest["pronunciation"]) == 18
-    assert len(manifest["gaze"]) == 57
-    assert sql.count("INSERT INTO word_attempt_logs") == 1_548
+    assert len(manifest["pronunciation"]) == 36
+    assert len(manifest["gaze"]) == 66
+    assert sql.count("INSERT INTO word_attempt_logs") == 1_656
     assert all(
         re.fullmatch(r"\d+/gaze-\d+-[0-9a-f-]{36}\.json", relative_path)
         for relative_path in manifest["gaze"]
@@ -1534,7 +1609,7 @@ def validate(sql: str, manifest: dict[str, Any], scene_prompts: dict[str, Any], 
         relative_path = str(path.relative_to("gaze")).replace("\\", "/")
         assert f"/gaze/{relative_path}" in sql
     assert training_gaze_counts == {2001: 11, 2002: 15, 2103: 18}
-    assert test_gaze_counts == {2001: 3, 2002: 3, 2103: 3}
+    assert test_gaze_counts == {2001: 6, 2002: 6, 2103: 6}
     generated_training_ids = {
         payload["rawData"]["trainingId"]
         for payload in raw_assets.values()
@@ -1620,7 +1695,7 @@ def main() -> None:
     if not args.check:
         write_outputs(*outputs)
         print(f"generated {SQL_PATH}")
-        print("generated 39 scene mappings, 44 training gaze JSON, full story/test gaze JSON, and 18 Azure fixtures")
+        print("generated 39 scene mappings, 44 training gaze JSON, full story/test gaze JSON, and 36 Azure fixtures")
     else:
         print("QA demo dataset contract validation passed")
 
