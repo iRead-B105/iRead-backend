@@ -2,7 +2,12 @@ package com.iread.backend.ai.client;
 
 import com.iread.backend.ai.config.AiClientConfig;
 import com.iread.backend.ai.config.AiClientProperties;
+import com.iread.backend.ai.demo.DemoStoryReplayProperties;
+import com.iread.backend.ai.demo.DemoStoryReplayState;
+import com.iread.backend.ai.demo.DemoStoryReplayer;
 import com.iread.backend.ai.dto.req.GenerateTrainingRequest;
+import com.iread.backend.story.repository.StoryLineRepository;
+import com.iread.backend.story.repository.StoryRepository;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.global.audio.AudioUploadPolicy;
 import com.iread.backend.global.audio.TemporaryAudioStorage;
@@ -105,6 +110,8 @@ class HttpAiClientTimeoutTest {
                 DataSize.ofMegabytes(20),
                 "audio/webm,audio/wav,audio/mpeg,audio/mp4"
         );
+        DemoStoryReplayProperties replayProperties =
+                new DemoStoryReplayProperties(false, 280003L, Duration.ZERO);
         return new HttpAiClient(
                 restClient,
                 properties,
@@ -113,7 +120,14 @@ class HttpAiClientTimeoutTest {
                 new MockStoryGenerator(),
                 new MockSpeechProcessor(),
                 new TemporaryAudioStorage(tempDir.resolve("audio").toString(), uploadPolicy),
-                org.mockito.Mockito.mock(FileStorage.class)
+                org.mockito.Mockito.mock(FileStorage.class),
+                new DemoStoryReplayer(
+                        new DemoStoryReplayState(replayProperties),
+                        replayProperties,
+                        org.mockito.Mockito.mock(StoryRepository.class),
+                        org.mockito.Mockito.mock(StoryLineRepository.class),
+                        objectMapper
+                )
         );
     }
 

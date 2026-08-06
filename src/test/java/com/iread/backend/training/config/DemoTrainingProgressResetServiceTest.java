@@ -7,7 +7,7 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class DemoTrainingProgressResetInitializerTest {
+class DemoTrainingProgressResetServiceTest {
 
     private JdbcTemplate jdbcTemplate;
 
@@ -40,28 +40,13 @@ class DemoTrainingProgressResetInitializerTest {
                     accuracy INT NULL
                 )
                 """);
-        jdbcTemplate.execute("""
-                CREATE TABLE word_attempt_logs (
-                    id BIGINT PRIMARY KEY,
-                    training_id BIGINT NULL
-                )
-                """);
-        jdbcTemplate.execute("""
-                CREATE TABLE gaze_sessions (
-                    id BIGINT PRIMARY KEY,
-                    training_id BIGINT NULL
-                )
-                """);
-        jdbcTemplate.execute("""
-                CREATE TABLE gaze_analysis_results (
-                    id BIGINT PRIMARY KEY,
-                    gaze_session_id BIGINT NOT NULL
-                )
-                """);
+        jdbcTemplate.execute("CREATE TABLE word_attempt_logs (id BIGINT PRIMARY KEY, training_id BIGINT NULL)");
+        jdbcTemplate.execute("CREATE TABLE gaze_sessions (id BIGINT PRIMARY KEY, training_id BIGINT NULL)");
+        jdbcTemplate.execute("CREATE TABLE gaze_analysis_results (id BIGINT PRIMARY KEY, gaze_session_id BIGINT NOT NULL)");
     }
 
     @Test
-    void restoresSeededCurriculumAndDeletesTrainingProgress() throws Exception {
+    void restoresSeededCurriculumOnlyWhenExplicitlyCalled() {
         jdbcTemplate.update("""
                 INSERT INTO daily_curriculums (id, student_id, status, completed_at)
                 VALUES (190001, 2001, 'COMPLETED', CURRENT_TIMESTAMP),
@@ -77,19 +62,19 @@ class DemoTrainingProgressResetInitializerTest {
                     (2, 190001, 2, 'IN_PROGRESS', CURRENT_TIMESTAMP,
                      NULL, '{"question":1}', NULL)
                 """);
-        jdbcTemplate.update(
-                "INSERT INTO word_attempt_logs (id, training_id) VALUES (1, 1)"
-        );
-        jdbcTemplate.update(
-                "INSERT INTO gaze_sessions (id, training_id) VALUES (1, 1)"
-        );
-        jdbcTemplate.update(
-                "INSERT INTO gaze_analysis_results (id, gaze_session_id) VALUES (1, 1)"
-        );
+        jdbcTemplate.update("INSERT INTO word_attempt_logs (id, training_id) VALUES (1, 1)");
+        jdbcTemplate.update("INSERT INTO gaze_sessions (id, training_id) VALUES (1, 1)");
+        jdbcTemplate.update("INSERT INTO gaze_analysis_results (id, gaze_session_id) VALUES (1, 1)");
 
         DemoTrainingProgressResetService resetService =
                 new DemoTrainingProgressResetService(jdbcTemplate);
-        new DemoTrainingProgressResetInitializer(resetService).run(null);
+
+        assertThat(jdbcTemplate.queryForObject(
+                "SELECT status FROM daily_curriculums WHERE id = 190001",
+                String.class
+        )).isEqualTo("COMPLETED");
+
+        resetService.reset(2001L);
 
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT status FROM daily_curriculums WHERE id = 190001",
@@ -117,17 +102,8 @@ class DemoTrainingProgressResetInitializerTest {
                 """,
                 Integer.class
         )).isZero();
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM word_attempt_logs",
-                Integer.class
-        )).isZero();
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM gaze_sessions",
-                Integer.class
-        )).isZero();
-        assertThat(jdbcTemplate.queryForObject(
-                "SELECT COUNT(*) FROM gaze_analysis_results",
-                Integer.class
-        )).isZero();
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM word_attempt_logs", Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM gaze_sessions", Integer.class)).isZero();
+        assertThat(jdbcTemplate.queryForObject("SELECT COUNT(*) FROM gaze_analysis_results", Integer.class)).isZero();
     }
 }

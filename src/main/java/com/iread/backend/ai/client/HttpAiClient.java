@@ -15,6 +15,7 @@ import com.iread.backend.ai.dto.res.SpeechSynthesisResponse;
 import com.iread.backend.ai.dto.res.SpeechTranscriptionResponse;
 import com.iread.backend.ai.dto.res.StoryBranchInputReviewResponse;
 import com.iread.backend.ai.config.AiClientProperties;
+import com.iread.backend.ai.demo.DemoStoryReplayer;
 import com.iread.backend.ai.exception.AiClientException;
 import com.iread.backend.global.audio.TemporaryAudioStorage;
 import com.iread.backend.global.storage.FileStorage;
@@ -66,6 +67,7 @@ public class HttpAiClient implements AiClient {
     private final MockSpeechProcessor mockSpeechProcessor;
     private final TemporaryAudioStorage temporaryAudioStorage;
     private final FileStorage fileStorage;
+    private final DemoStoryReplayer demoStoryReplayer;
     private final DeterministicPronunciationAnalysisAdapter mockPronunciationAnalyzer =
             new DeterministicPronunciationAnalysisAdapter();
 
@@ -77,7 +79,8 @@ public class HttpAiClient implements AiClient {
             MockStoryGenerator mockStoryGenerator,
             MockSpeechProcessor mockSpeechProcessor,
             TemporaryAudioStorage temporaryAudioStorage,
-            FileStorage fileStorage
+            FileStorage fileStorage,
+            DemoStoryReplayer demoStoryReplayer
     ) {
         this.restClient = restClient;
         this.properties = properties;
@@ -87,6 +90,7 @@ public class HttpAiClient implements AiClient {
         this.mockSpeechProcessor = mockSpeechProcessor;
         this.temporaryAudioStorage = temporaryAudioStorage;
         this.fileStorage = fileStorage;
+        this.demoStoryReplayer = demoStoryReplayer;
     }
 
     @Override
@@ -151,6 +155,11 @@ public class HttpAiClient implements AiClient {
 
     @Override
     public GenerateStoryResponse generateStory(GenerateStoryRequest request) {
+        // 시연 토글이 켜져 있으면 mock/실연동 여부와 무관하게 사전 제작 스토리를 우선한다
+        var replayed = demoStoryReplayer.replayGenerate(request);
+        if (replayed.isPresent()) {
+            return replayed.get();
+        }
         if (properties.storyMocked()) {
             return mockStoryGenerator.generate(request);
         }
@@ -165,6 +174,11 @@ public class HttpAiClient implements AiClient {
 
     @Override
     public GenerateStoryResponse continueStory(ContinueStoryRequest request) {
+        // 합의된 선택 경로를 벗어나면 replayContinue가 비어 실제 생성으로 폴백된다
+        var replayed = demoStoryReplayer.replayContinue(request);
+        if (replayed.isPresent()) {
+            return replayed.get();
+        }
         if (properties.storyMocked()) {
             return mockStoryGenerator.continueStory(request);
         }
@@ -233,6 +247,11 @@ public class HttpAiClient implements AiClient {
 
     @Override
     public GenerateImageResponse generateImage(GenerateImageRequest request) {
+        // 사전 제작 삽화는 이미 uploads에 설치되어 있어 재저장 없이 URL만 돌려준다
+        var replayedImage = demoStoryReplayer.replayImage(request);
+        if (replayedImage.isPresent()) {
+            return replayedImage.get();
+        }
         if (properties.imageMocked()) {
             return mockImage(request);
         }

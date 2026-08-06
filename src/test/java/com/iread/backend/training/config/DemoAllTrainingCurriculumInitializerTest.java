@@ -2,6 +2,7 @@ package com.iread.backend.training.config;
 
 import com.iread.backend.student.domain.StudentEntity;
 import com.iread.backend.training.domain.DailyCurriculumEntity;
+import com.iread.backend.training.domain.DailyCurriculumStatus;
 import com.iread.backend.training.domain.TrainingDataEntity;
 import com.iread.backend.training.domain.TrainingStatus;
 import com.iread.backend.training.domain.TrainingTemplateEntity;
@@ -54,6 +55,11 @@ class DemoAllTrainingCurriculumInitializerTest {
                 "id",
                 DemoAllTrainingCurriculumInitializer.DEMO_CURRICULUM_ID
         );
+        ReflectionTestUtils.setField(
+                curriculum,
+                "status",
+                DailyCurriculumStatus.IN_PROGRESS
+        );
         ReflectionTestUtils.setField(curriculum.getTrainings().get(0), "id", 91L);
         ReflectionTestUtils.setField(curriculum.getTrainings().get(1), "id", 92L);
         List<TrainingTemplateEntity> templates = canonicalTemplates();
@@ -92,6 +98,7 @@ class DemoAllTrainingCurriculumInitializerTest {
                 1,
                 CANONICAL_TEMPLATE_COUNT
         )).allMatch(training -> training.getStatus() == TrainingStatus.NOT_READY);
+        assertThat(curriculum.getStatus()).isEqualTo(DailyCurriculumStatus.IN_PROGRESS);
 
         ArgumentCaptor<TrainingDataEntity> captor =
                 ArgumentCaptor.forClass(TrainingDataEntity.class);

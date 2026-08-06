@@ -15,7 +15,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MockTrainingGenerator {
 
-    private static final int DEFAULT_QUESTION_COUNT = 5;
+    // 개인화 생성 경로(PersonalizedTrainingGenerationService.QUESTION_COUNT)와 같은 값을 유지한다.
+    // questionCount를 지정하지 않는 옛 생성 경로가 mock 모드에서 5문제를 만들지 않게 한다.
+    private static final int DEFAULT_QUESTION_COUNT = 3;
     private static final List<String> DEFAULT_WORDS = List.of("사과", "나무", "하늘", "바다", "토끼");
 
     private final ObjectMapper objectMapper;

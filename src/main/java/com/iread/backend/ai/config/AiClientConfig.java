@@ -1,5 +1,6 @@
 package com.iread.backend.ai.config;
 
+import com.iread.backend.ai.demo.DemoStoryReplayProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -8,7 +9,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
 @Configuration
-@EnableConfigurationProperties(AiClientProperties.class)
+@EnableConfigurationProperties({AiClientProperties.class, DemoStoryReplayProperties.class})
 public class AiClientConfig {
 
     @Bean("aiRestClient")

@@ -322,6 +322,16 @@ public class StoryAdminService {
         StoryGazeWordAnalysisService.Analysis wordAnalysis =
                 storyGazeWordAnalysisService.analyze(analysisPages, storedReplayPayloads);
 
+        // 전체 요약도 페이지·단어 상세와 같은 authoritative wordMetrics를 사용한다.
+        // DB의 legacy 집계 컬럼은 replay 원본과 어긋날 수 있어, 두 화면의 숫자가 달라질 수 있다.
+        int totalVisitedDuration = wordAnalysis.wordMetrics().stream()
+                .mapToInt(StoryGazeAnalysisResponse.WordMetric::dwellDurationMs)
+                .sum();
+        int totalVisitedCount = wordAnalysis.fixationCount();
+        int reverseReadCount = wordAnalysis.wordMetrics().stream()
+                .mapToInt(StoryGazeAnalysisResponse.WordMetric::regressionCount)
+                .sum();
+
         Map<Long, StoryGazeAnalysisResponse.PageMetric> metrics = new LinkedHashMap<>();
         for (GazeAnalysisResultEntity pageResult : results) {
             JsonNode regressionNodes = readArray(pageResult.getRegressions());
@@ -358,10 +368,10 @@ public class StoryAdminService {
                 session.getCalibrationStatus(),
                 offset(session.getStartedAt()),
                 offset(session.getEndedAt()),
-                results.stream().mapToInt(item -> item.getTotalVisitedDuration()).sum(),
-                results.stream().mapToInt(item -> item.getTotalVisitedCount()).sum(),
-                results.stream().mapToInt(item -> item.getReverseReadCount()).sum(),
-                totalAverageFixationTime(results),
+                totalVisitedDuration,
+                totalVisitedCount,
+                reverseReadCount,
+                totalVisitedCount == 0 ? null : totalVisitedDuration / totalVisitedCount,
                 List.copyOf(metrics.values()),
                 wordAnalysis.wordMetrics(),
                 storyReplay(storedReplayPayloads, wordAnalysis.events()),
@@ -659,14 +669,6 @@ public class StoryAdminService {
     private JsonNode readArray(String value) {
         JsonNode node = readNullable(value);
         return node != null && node.isArray() ? node : objectMapper.createArrayNode();
-    }
-
-    private Integer totalAverageFixationTime(List<GazeAnalysisResultEntity> results) {
-        int count = results.stream().mapToInt(item -> item.getTotalVisitedCount()).sum();
-        if (count == 0) {
-            return null;
-        }
-        return results.stream().mapToInt(item -> item.getTotalVisitedDuration()).sum() / count;
     }
 
     private List<JsonNode> loadStoryReplayPayloads(List<GazeSessionEntity> sessions) {

@@ -58,6 +58,7 @@ public class StoryGazeWordAnalysisService {
 
         List<StoryGazeAnalysisResponse.WordMetric> wordMetrics = new ArrayList<>();
         List<StoryGazeAnalysisResponse.ReplayEvent> events = new ArrayList<>();
+        int fixationCount = 0;
         for (PageContext page : pagesByNo.values()) {
             List<Sample> pageSamples = samplesByPage.getOrDefault(page.page().pageNo(), List.of())
                     .stream()
@@ -67,6 +68,9 @@ public class StoryGazeWordAnalysisService {
             PageAnalysis analysis = analyzePage(page, pageSamples);
             wordMetrics.addAll(analysis.wordMetrics());
             for (StoryGazeAnalysisResponse.ReplayEvent event : analysis.events()) {
+                if (event.dwellQualified()) {
+                    fixationCount++;
+                }
                 events.add(new StoryGazeAnalysisResponse.ReplayEvent(
                         event.pageNo(),
                         events.size(),
@@ -80,7 +84,7 @@ public class StoryGazeWordAnalysisService {
                 ));
             }
         }
-        return new Analysis(wordMetrics, events);
+        return new Analysis(wordMetrics, events, fixationCount);
     }
 
     private PageAnalysis analyzePage(PageContext page, List<Sample> samples) {
@@ -302,15 +306,19 @@ public class StoryGazeWordAnalysisService {
 
     public record Analysis(
             List<StoryGazeAnalysisResponse.WordMetric> wordMetrics,
-            List<StoryGazeAnalysisResponse.ReplayEvent> events
+            List<StoryGazeAnalysisResponse.ReplayEvent> events,
+            int fixationCount
     ) {
         public Analysis {
             wordMetrics = List.copyOf(wordMetrics);
             events = List.copyOf(events);
+            if (fixationCount < 0) {
+                throw new IllegalArgumentException("fixationCount must not be negative");
+            }
         }
 
         private static Analysis empty() {
-            return new Analysis(List.of(), List.of());
+            return new Analysis(List.of(), List.of(), 0);
         }
     }
 

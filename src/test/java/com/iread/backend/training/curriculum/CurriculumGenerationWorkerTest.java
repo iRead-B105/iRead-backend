@@ -75,6 +75,30 @@ class CurriculumGenerationWorkerTest {
     }
 
     @Test
+    void 일부만_생성된_커리큘럼은_빠진_훈련만_채운다() {
+        Fixture fixture = fixture();
+        // 첫 훈련은 이미 교안이 준비된 상태를 재현한다
+        fixture.curriculum().getTrainings().getFirst().markReady();
+        when(fixture.generationService().generate(any())).thenAnswer(invocation -> {
+            TrainingEntity training = invocation.getArgument(0);
+            ObjectNode value = JsonMapper.builder().build().createObjectNode();
+            value.put("trainingId", training.getId());
+            return value;
+        });
+        when(fixture.trainingDataRepository().findByTrainingId(any()))
+                .thenReturn(Optional.empty());
+        when(fixture.trainingDataRepository().save(any(TrainingDataEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        fixture.worker().generate(100L);
+
+        assertThat(fixture.curriculum().getTrainings())
+                .allMatch(training -> training.getStatus() == TrainingStatus.NOT_STARTED);
+        verify(fixture.generationService(), org.mockito.Mockito.times(4))
+                .generate(any(TrainingEntity.class));
+    }
+
+    @Test
     void generatedRecommendedCurriculumWaitsForTeacherReview() {
         Fixture fixture = fixture(true);
         ObjectNode generated = JsonMapper.builder().build().createObjectNode();
@@ -107,10 +131,16 @@ class CurriculumGenerationWorkerTest {
                 trainingData,
                 generation,
                 mock(com.iread.backend.learning.app.service.LearningQuestionImageAfterCommitTrigger.class),
-                JsonMapper.builder().build()
+                JsonMapper.builder().build(),
+                mock(com.iread.backend.realtime.RealtimeEventPublisher.class)
         );
 
         StudentEntity student = mock(StudentEntity.class);
+        com.iread.backend.teacher.domain.TeacherEntity teacher =
+                mock(com.iread.backend.teacher.domain.TeacherEntity.class);
+        when(teacher.getId()).thenReturn(1001L);
+        when(student.getId()).thenReturn(2001L);
+        when(student.getTeacher()).thenReturn(teacher);
         List<TrainingTemplateEntity> templates = java.util.stream.LongStream.rangeClosed(1, 5)
                 .mapToObj(id -> {
                     TrainingTemplateEntity template = mock(TrainingTemplateEntity.class);
