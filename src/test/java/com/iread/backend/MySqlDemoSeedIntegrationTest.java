@@ -50,7 +50,7 @@ class MySqlDemoSeedIntegrationTest {
                 String.class
         );
 
-        assertThat(passwordEncoder.matches("qwer1234", passwordHash)).isTrue();
+        assertThat(passwordEncoder.matches("demo1234", passwordHash)).isTrue();
         assertThat(jdbcTemplate.queryForMap(
                 "SELECT email, name, organization FROM teachers WHERE id = 1001"
         )).containsEntry("email", "test@test.com")
