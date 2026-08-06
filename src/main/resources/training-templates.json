@@ -245,7 +245,7 @@
       "id": 27, "curriculumUnitId": 7, "sequenceNo": 1, "name": "문장 전체 조립",
       "prompt": {
         "trainingType": "SENTENCE_ASSEMBLY",
-        "requiredInputs": ["VOICE", "GAZE"],
+        "requiredInputs": ["GAZE"],
         "additionalPrompt": "섞인 낱말 또는 어절 cards를 answerOrder대로 배열하면 completedSentence가 되어야 한다. 초기 cards 순서는 정답 순서와 다르고 하나의 명확한 정답만 가능해야 한다.",
         "outputTemplate": {"type": "SENTENCE_ASSEMBLY", "data": [{"cards": ["<string>"], "answerOrder": ["<integer>"], "completedSentence": "<string>"}]},
         "supportedFeatureCategories": ["WORD", "SENTENCE"], "supportedScopes": ["WORD", "SENTENCE"]
