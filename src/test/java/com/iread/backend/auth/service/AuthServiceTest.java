@@ -94,7 +94,7 @@ class AuthServiceTest {
         LoginRequest request = new LoginRequest("teacher@example.com", "password123");
         when(teacherRepository.findByEmail("teacher@example.com")).thenReturn(Optional.of(teacher));
         when(passwordEncoder.matches("password123", "encoded-password")).thenReturn(true);
-        when(jwtTokenService.issueAdminAccessToken(10L))
+        when(jwtTokenService.issueAdminAccessToken(10L, null))
                 .thenReturn(new JwtTokenService.IssuedToken("access-token", 900));
         AuthRefreshSessionEntity session = new AuthRefreshSessionEntity(
                 teacher,

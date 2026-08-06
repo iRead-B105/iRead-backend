@@ -279,6 +279,24 @@ public class StoryService {
         if (inProgressCount >= MAX_IN_PROGRESS_STORIES) {
             throw new ConflictException("읽고 있는 이야기는 최대 15권까지 보관할 수 있습니다.");
         }
+        // 같은 템플릿의 진행 중 이야기가 있으면 새로 만들지 않고 그 세션을 돌려준다.
+        // (두 기기 동시 시작·더블 클릭이 중복 스토리와 이중 생성 비용을 만들던 문제)
+        StoryEntity inProgress = storyRepository
+                .findFirstByStudentIdAndStoryTemplateIdAndStatusOrderByCreatedAtDesc(
+                        studentId,
+                        storyTemplateId,
+                        StoryStatus.IN_PROGRESS
+                )
+                .orElse(null);
+        if (inProgress != null) {
+            return new StorySessionResponse(
+                    inProgress.getId(),
+                    teacherId,
+                    storyTemplateId,
+                    inProgress.getCreatedAt(),
+                    inProgress.getStatus()
+            );
+        }
         StoryTemplateEntity template = findTemplate(storyTemplateId);
         StoryEntity story = storyRepository.saveAndFlush(new StoryEntity(student, template));
 

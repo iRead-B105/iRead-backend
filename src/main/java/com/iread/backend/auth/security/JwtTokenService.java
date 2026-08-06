@@ -47,16 +47,16 @@ public class JwtTokenService {
         this.settings = settings;
     }
 
-    public IssuedToken issueAdminAccessToken(Long teacherId) {
-        return issue(teacherId, null, AuthRole.TEACHER, ADMIN_AUDIENCE, settings.accessTokenTtl());
+    public IssuedToken issueAdminAccessToken(Long teacherId, Long sessionId) {
+        return issue(teacherId, null, AuthRole.TEACHER, ADMIN_AUDIENCE, settings.accessTokenTtl(), sessionId);
     }
 
     public IssuedToken issueBootstrapToken(Long teacherId) {
-        return issue(teacherId, null, AuthRole.TEACHER, BOOTSTRAP_AUDIENCE, settings.bootstrapTokenTtl());
+        return issue(teacherId, null, AuthRole.TEACHER, BOOTSTRAP_AUDIENCE, settings.bootstrapTokenTtl(), null);
     }
 
-    public IssuedToken issueLearningAccessToken(Long teacherId, Long studentId) {
-        return issue(teacherId, studentId, AuthRole.STUDENT, LEARNING_AUDIENCE, settings.accessTokenTtl());
+    public IssuedToken issueLearningAccessToken(Long teacherId, Long studentId, Long sessionId) {
+        return issue(teacherId, studentId, AuthRole.STUDENT, LEARNING_AUDIENCE, settings.accessTokenTtl(), sessionId);
     }
 
     public AuthPrincipal parseAndValidate(String token) {
@@ -96,13 +96,18 @@ public class JwtTokenService {
             if (tokenId.isBlank()) {
                 throw invalidToken();
             }
+            JsonNode sessionIdNode = claims.get("sid");
+            Long sessionId = sessionIdNode == null || !sessionIdNode.canConvertToLong()
+                    ? null
+                    : sessionIdNode.asLong();
             return new AuthPrincipal(
                     teacherId,
                     studentId,
                     role,
                     audience,
                     tokenId,
-                    Instant.ofEpochSecond(expiresAt)
+                    Instant.ofEpochSecond(expiresAt),
+                    sessionId
             );
         } catch (AuthException exception) {
             throw exception;
@@ -116,7 +121,8 @@ public class JwtTokenService {
             Long studentId,
             AuthRole role,
             String audience,
-            Duration ttl
+            Duration ttl,
+            Long sessionId
     ) {
         Instant now = Instant.now();
         Instant expiresAt = now.plus(ttl);
@@ -131,6 +137,10 @@ public class JwtTokenService {
         claims.put("iat", now.getEpochSecond());
         claims.put("exp", expiresAt.getEpochSecond());
         claims.put("jti", UUID.randomUUID().toString());
+        if (sessionId != null) {
+            // 접근 토큰을 로그인 세션에 묶어, 밀려난 세션의 토큰을 즉시 무효화한다.
+            claims.put("sid", sessionId);
+        }
 
         try {
             String payload = BASE64_URL_ENCODER.encodeToString(objectMapper.writeValueAsBytes(claims));
