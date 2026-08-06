@@ -131,10 +131,16 @@ class CurriculumGenerationWorkerTest {
                 trainingData,
                 generation,
                 mock(com.iread.backend.learning.app.service.LearningQuestionImageAfterCommitTrigger.class),
-                JsonMapper.builder().build()
+                JsonMapper.builder().build(),
+                mock(com.iread.backend.realtime.RealtimeEventPublisher.class)
         );
 
         StudentEntity student = mock(StudentEntity.class);
+        com.iread.backend.teacher.domain.TeacherEntity teacher =
+                mock(com.iread.backend.teacher.domain.TeacherEntity.class);
+        when(teacher.getId()).thenReturn(1001L);
+        when(student.getId()).thenReturn(2001L);
+        when(student.getTeacher()).thenReturn(teacher);
         List<TrainingTemplateEntity> templates = java.util.stream.LongStream.rangeClosed(1, 5)
                 .mapToObj(id -> {
                     TrainingTemplateEntity template = mock(TrainingTemplateEntity.class);
