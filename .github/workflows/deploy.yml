@@ -239,6 +239,11 @@ jobs:
           printf '%s\n' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
           ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
 
+      - name: Sync production Compose configuration
+        run: |
+          scp -i ~/.ssh/deploy_key backend/docker-compose.prod.yml \
+            ubuntu@${{ secrets.EC2_HOST }}:/opt/iread/docker-compose.prod.yml
+
       - name: 서버 배포 (백업 → AI → 백엔드 → 헬스체크)
         run: |
           ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.EC2_HOST }} \
