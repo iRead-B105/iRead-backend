@@ -17,6 +17,7 @@ import com.iread.backend.story.admin.repository.StoryPageEditAuditRepository;
 import com.iread.backend.story.admin.dto.req.StoryPageUpdateRequest;
 import com.iread.backend.story.admin.dto.res.StoryHistoryDetailResponse;
 import com.iread.backend.story.admin.dto.res.StoryHistoryResponse;
+import com.iread.backend.story.admin.dto.res.StoryGazeAnalysisResponse;
 import com.iread.backend.story.analysis.StoryLineContentService;
 import com.iread.backend.story.domain.StoryChoiceEntity;
 import com.iread.backend.story.domain.StoryEntity;
@@ -343,6 +344,17 @@ class StoryAdminServiceTest {
         assertThat(response.wordMetrics()).hasSize(2);
         assertThat(response.wordMetrics().getFirst().text()).isEqualTo("First");
         assertThat(response.wordMetrics().getFirst().firstSeenMs()).isZero();
+        assertThat(response.totalDwellTime()).isEqualTo(
+                response.wordMetrics().stream()
+                        .mapToInt(StoryGazeAnalysisResponse.WordMetric::dwellDurationMs)
+                        .sum()
+        );
+        assertThat(response.dwellCount()).isEqualTo(1);
+        assertThat(response.regressionCount()).isEqualTo(
+                response.wordMetrics().stream()
+                        .mapToInt(StoryGazeAnalysisResponse.WordMetric::regressionCount)
+                        .sum()
+        );
         assertThat(response.replay().path("words").size()).isEqualTo(1);
         assertThat(response.replay().path("samples").get(0).path("questionNumber").asInt()).isEqualTo(1);
         assertThat(response.replay().path("samples").get(0).has("x")).isFalse();
