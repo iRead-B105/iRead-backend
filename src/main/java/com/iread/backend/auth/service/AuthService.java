@@ -87,9 +87,13 @@ public class AuthService {
     @Transactional
     public LoginResult<AdminLoginResponse> adminLogin(LoginRequest request) {
         TeacherEntity teacher = authenticate(request);
-        JwtTokenService.IssuedToken accessToken = jwtTokenService.issueAdminAccessToken(teacher.getId());
+        // 세션을 먼저 발급(같은 범위 기존 세션 밀어내기 포함)하고 접근 토큰을 세션에 묶는다.
         RefreshTokenService.IssuedRefreshToken refreshToken =
                 refreshTokenService.issue(teacher, null, AuthAudience.ADMIN);
+        JwtTokenService.IssuedToken accessToken = jwtTokenService.issueAdminAccessToken(
+                teacher.getId(),
+                refreshToken.session().getId()
+        );
         return new LoginResult<>(
                 AdminLoginResponse.completed(teacher, accessToken.value(), accessToken.expiresIn()),
                 refreshToken.rawToken()
@@ -100,8 +104,10 @@ public class AuthService {
     public TokenResult refreshAdmin(String rawRefreshToken) {
         RefreshTokenService.IssuedRefreshToken rotated =
                 refreshTokenService.rotate(rawRefreshToken, AuthAudience.ADMIN);
-        JwtTokenService.IssuedToken accessToken =
-                jwtTokenService.issueAdminAccessToken(rotated.session().getTeacher().getId());
+        JwtTokenService.IssuedToken accessToken = jwtTokenService.issueAdminAccessToken(
+                rotated.session().getTeacher().getId(),
+                rotated.session().getId()
+        );
         return new TokenResult(
                 TokenRefreshResponse.bearer(accessToken.value(), accessToken.expiresIn()),
                 rotated.rawToken()
@@ -144,10 +150,13 @@ public class AuthService {
                         "STUDENT_NOT_FOUND",
                         "연결된 아동을 찾을 수 없습니다."
                 ));
-        JwtTokenService.IssuedToken accessToken =
-                jwtTokenService.issueLearningAccessToken(principal.id(), student.getId());
         RefreshTokenService.IssuedRefreshToken refreshToken =
                 refreshTokenService.issue(student.getTeacher(), student, AuthAudience.LEARNING);
+        JwtTokenService.IssuedToken accessToken = jwtTokenService.issueLearningAccessToken(
+                principal.id(),
+                student.getId(),
+                refreshToken.session().getId()
+        );
         return new LoginResult<>(
                 StudentLoginResponse.completed(
                         student.getId().toString(),
@@ -168,7 +177,8 @@ public class AuthService {
         }
         JwtTokenService.IssuedToken accessToken = jwtTokenService.issueLearningAccessToken(
                 rotated.session().getTeacher().getId(),
-                student.getId()
+                student.getId(),
+                rotated.session().getId()
         );
         return new TokenResult(
                 TokenRefreshResponse.bearer(accessToken.value(), accessToken.expiresIn()),

@@ -58,8 +58,8 @@ class PersonalizedTrainingGenerationServiceTest {
         assertThat(generated.path("profileSnapshot").path("analysisVersion").asText())
                 .isEqualTo("WEAKNESS_V1");
         assertThat(generated.path("profileSnapshot").path("features")).hasSize(1);
-        assertThat(generated.path("questions")).hasSize(5);
-        for (int index = 0; index < 5; index++) {
+        assertThat(generated.path("questions")).hasSize(3);
+        for (int index = 0; index < 3; index++) {
             JsonNode question = generated.path("questions").get(index);
             assertThat(question.path("questionNo").asInt()).isEqualTo(index + 1);
             assertThat(question.path("type").asText()).isEqualTo("SENTENCE_READING");
@@ -87,7 +87,7 @@ class PersonalizedTrainingGenerationServiceTest {
     }
 
     @Test
-    void retriesThreeTimesAndReturnsNoPartialEnvelopeWhenTargetFeatureIsMissing() throws Exception {
+    void fallsBackToStandardQuestionsWhenTargetFeatureIsImpossible() throws Exception {
         TrainingEntity training = training(sentencePrompt());
         StudentFeatureProfileRepository profiles = mock(StudentFeatureProfileRepository.class);
         when(profiles.findAllByStudentIdOrderByWeaknessScoreDesc(15L))
@@ -104,10 +104,13 @@ class PersonalizedTrainingGenerationServiceTest {
                 delegate.generate(invocation.getArgument(0)));
         PersonalizedTrainingGenerationService service = service(provider, profiles);
 
-        assertThatThrownBy(() -> service.generate(training))
-                .isInstanceOf(TrainingGenerationException.class)
-                .hasMessageContaining("문항 5개");
-        verify(provider, times(3)).generate(any());
+        // 취약 특성을 담은 후보를 만들 수 없는 조합이면 훈련 준비가 막히지 않도록
+        // 특성 지정 없는 표준 문항으로 폴백한다(실력도전 경로와 동일한 정책).
+        JsonNode generated = service.generate(training);
+
+        assertThat(generated.path("questions")).hasSize(3);
+        // 타깃 지정 3회 시도 후 폴백에서 성공: 총 4회 호출
+        verify(provider, times(4)).generate(any());
     }
 
     private PersonalizedTrainingGenerationService service(

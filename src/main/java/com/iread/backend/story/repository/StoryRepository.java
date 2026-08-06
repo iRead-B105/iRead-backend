@@ -17,4 +17,10 @@ public interface StoryRepository extends JpaRepository<StoryEntity, Long> {
 
     @EntityGraph(attributePaths = {"student", "storyTemplate"})
     Optional<StoryEntity> findByIdAndStudentId(Long id, Long studentId);
+
+    Optional<StoryEntity> findFirstByStudentIdAndStoryTemplateIdAndStatusOrderByCreatedAtDesc(
+            Long studentId,
+            Long storyTemplateId,
+            StoryStatus status
+    );
 }

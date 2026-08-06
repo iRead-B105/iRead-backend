@@ -2,7 +2,7 @@ package com.iread.backend.training.app.service;
 
 import com.iread.backend.training.repository.TrainingRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Profile;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
@@ -12,7 +12,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 
 @Component
-@Profile("demo")
+@ConditionalOnProperty(name = "iread.demo-cheat.enabled", havingValue = "true")
 public class DemoLearningClock {
 
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");

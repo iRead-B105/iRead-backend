@@ -460,7 +460,7 @@ public class AppTrainingService {
         var curriculum = training.getDailyCurriculum();
         if (curriculum.isRecommendedFromTest() && !curriculum.isAvailableToStudent()) {
             throw new ConflictException(
-                    "The recommended curriculum is awaiting the teacher's final review."
+                    "선생님이 학습 내용을 확인하고 있어요. 조금만 기다렸다가 다시 해봐요!"
             );
         }
     }

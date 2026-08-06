@@ -9,6 +9,7 @@ import com.iread.backend.story.app.dto.res.StoryChoiceResponse;
 import com.iread.backend.story.app.dto.res.StoryLineResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.servlet.mvc.method.RequestMappingInfo;
@@ -24,7 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 class AppStoryGazeContractTest {
 
-    @Autowired RequestMappingHandlerMapping handlerMapping;
+    @Autowired @Qualifier("requestMappingHandlerMapping") RequestMappingHandlerMapping handlerMapping;
     @Autowired ObjectMapper objectMapper;
 
     @Test

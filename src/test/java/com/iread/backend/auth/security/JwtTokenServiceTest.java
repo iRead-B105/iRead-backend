@@ -18,7 +18,7 @@ class JwtTokenServiceTest {
     void issuesAndValidatesAdminAccessToken() {
         JwtTokenService service = service(Duration.ofMinutes(15));
 
-        JwtTokenService.IssuedToken token = service.issueAdminAccessToken(10L);
+        JwtTokenService.IssuedToken token = service.issueAdminAccessToken(10L, null);
         AuthPrincipal principal = service.parseAndValidate(token.value());
 
         assertThat(token.expiresIn()).isEqualTo(900);
@@ -34,7 +34,7 @@ class JwtTokenServiceTest {
         JwtTokenService service = service(Duration.ofMinutes(15));
 
         AuthPrincipal principal = service.parseAndValidate(
-                service.issueLearningAccessToken(10L, 20L).value()
+                service.issueLearningAccessToken(10L, 20L, null).value()
         );
 
         assertThat(principal.id()).isEqualTo(10L);
@@ -46,7 +46,7 @@ class JwtTokenServiceTest {
     @Test
     void rejectsTamperedToken() {
         JwtTokenService service = service(Duration.ofMinutes(15));
-        String token = service.issueAdminAccessToken(10L).value();
+        String token = service.issueAdminAccessToken(10L, null).value();
         int payloadStart = token.indexOf('.') + 1;
         char original = token.charAt(payloadStart);
         String tampered = token.substring(0, payloadStart)
@@ -62,7 +62,7 @@ class JwtTokenServiceTest {
     @Test
     void rejectsExpiredToken() {
         JwtTokenService service = service(Duration.ofSeconds(-1));
-        String token = service.issueAdminAccessToken(10L).value();
+        String token = service.issueAdminAccessToken(10L, null).value();
 
         assertThatThrownBy(() -> service.parseAndValidate(token))
                 .isInstanceOf(AuthException.class)

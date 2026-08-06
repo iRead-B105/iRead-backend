@@ -25,8 +25,8 @@ public record TrainingCandidateRequest(
         if (trainingType == null) {
             throw new IllegalArgumentException("trainingType은 필수입니다.");
         }
-        if (count != 5) {
-            throw new IllegalArgumentException("MVP의 count는 5여야 합니다.");
+        if (count < 1 || count > 9) {
+            throw new IllegalArgumentException("count는 1~9여야 합니다.");
         }
         if (difficulty < 1 || difficulty > 5) {
             throw new IllegalArgumentException("difficulty는 1~5여야 합니다.");

@@ -1,0 +1,381 @@
+# EC2 한 대에 배포하는 수동 워크플로. 버튼 한 번으로 세 저장소의 main 을 함께 올린다.
+#
+# 사용법
+#   1) iRead-backend / iRead-ai / iRead-frontend 각 저장소에서 develop -> main 머지
+#   2) Actions > Deploy > Run workflow 클릭
+#
+# 아동용 .exe
+#   아동 UI 를 바꾼 배포에서만 build_installer 를 켠다. Windows 러너에서 10~15분이 더 걸린다.
+#   Tobii 런타임은 라이선스 때문에 git 에 없어 EC2 의 /opt/iread/build-assets/tobii 에서 받아온다.
+#
+# 롤백
+#   backend_tag / ai_tag 에 이전 태그(main-abc1234)를 넣고 다시 실행한다.
+#   재빌드 없이 이미지만 교체하므로 30초쯤 걸린다.
+#
+# 필요한 Secrets
+#   EC2_SSH_KEY  I15B105T.pem 내용 전체
+#   EC2_HOST     i15b105.p.ssafy.io
+#
+# REPO_PAT 는 선택이다. 체크아웃하는 네 저장소가 모두 공개라서 기본 GITHUB_TOKEN 으로 충분하다.
+# 저장소를 비공개로 바꾸면 그때 REPO_PAT(Contents 읽기)만 추가하면 된다.
+#
+# EC2 는 ghcr 자격증명을 저장하지 않는다. 실행마다 GITHUB_TOKEN 을 넘겨 로그인한다.
+
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend_tag:
+        description: '백엔드 이미지 태그 (비우면 main HEAD, 롤백 시 main-abc1234 형식)'
+        required: false
+        default: ''
+      ai_tag:
+        description: 'AI 이미지 태그 (비우면 main HEAD)'
+        required: false
+        default: ''
+      skip_frontend:
+        description: '교사 웹 UI 배포 건너뛰기'
+        type: boolean
+        default: false
+      build_installer:
+        description: '아동용 .exe 도 다시 만들어 올리기 (Windows 러너, 10~15분 추가)'
+        type: boolean
+        default: false
+      strict_merge_check:
+        description: 'main 에 머지 안 된 develop 커밋이 있으면 중단'
+        type: boolean
+        default: false
+
+# EC2 가 한 대이므로 동시 배포는 그대로 사고다.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: iread-b105
+  PUBLIC_DOMAIN: i15b105.p.ssafy.io
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: 백엔드 체크아웃 (main)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          path: backend
+
+      - name: AI 체크아웃 (main)
+        uses: actions/checkout@v4
+        with:
+          repository: iRead-B105/iRead-ai
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.REPO_PAT || github.token }}
+          path: ai
+
+      - name: 교사 웹 UI 체크아웃 (main)
+        uses: actions/checkout@v4
+        with:
+          repository: iRead-B105/iRead-frontend-web
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.REPO_PAT || github.token }}
+          path: web
+
+      # 아동용 UI. .exe 안에도 번들되지만 브라우저 시연용으로 웹에도 올린다.
+      - name: 아동 웹 UI 체크아웃 (main)
+        uses: actions/checkout@v4
+        with:
+          repository: iRead-B105/iRead-frontend-app
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.REPO_PAT || github.token }}
+          path: app
+
+      # 한쪽만 머지하고 버튼을 누르는 실수를 사람 기억에 맡기지 않는다.
+      - name: main / develop 격차 점검
+        id: gap
+        run: |
+          total=0
+          {
+            echo "### 배포 대상"
+            echo ""
+            echo "| 저장소 | main | develop 미머지 커밋 |"
+            echo "|---|---|---|"
+          } >> "$GITHUB_STEP_SUMMARY"
+          for d in backend ai web app; do
+            cd "$GITHUB_WORKSPACE/$d"
+            git fetch -q origin develop:refs/remotes/origin/develop 2>/dev/null || true
+            sha=$(git rev-parse --short HEAD)
+            ahead=$(git rev-list --count HEAD..refs/remotes/origin/develop 2>/dev/null || echo 0)
+            total=$((total + ahead))
+            mark=""
+            [ "$ahead" -gt 0 ] && mark=" :warning:"
+            echo "| $d | \`$sha\` | ${ahead}${mark} |" >> "$GITHUB_STEP_SUMMARY"
+            echo "$d: main=$sha, develop 미머지=$ahead"
+            echo "${d}_sha=$sha" >> "$GITHUB_OUTPUT"
+          done
+          echo "total_ahead=$total" >> "$GITHUB_OUTPUT"
+          if [ "$total" -gt 0 ]; then
+            echo ""
+            echo "경고: main 에 반영되지 않은 develop 커밋이 총 ${total}개 있습니다."
+            if [ "${{ inputs.strict_merge_check }}" = "true" ]; then
+              echo "strict_merge_check 가 켜져 있어 중단합니다."
+              exit 1
+            fi
+          fi
+
+      - name: 태그 결정
+        id: tags
+        run: |
+          bt="${{ inputs.backend_tag }}"
+          at="${{ inputs.ai_tag }}"
+          [ -z "$bt" ] && bt="main-${{ steps.gap.outputs.backend_sha }}"
+          [ -z "$at" ] && at="main-${{ steps.gap.outputs.ai_sha }}"
+          echo "backend=$bt" >> "$GITHUB_OUTPUT"
+          echo "ai=$at" >> "$GITHUB_OUTPUT"
+          echo "backend=$bt / ai=$at"
+
+      - name: JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: 백엔드 테스트 + jar 빌드
+        working-directory: backend
+        run: |
+          chmod +x ./gradlew
+          ./gradlew test bootJar --no-daemon --console=plain
+          ls -lh build/libs/
+
+      - name: ghcr 로그인
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: 백엔드 이미지 빌드·푸시
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/iread-backend:${{ steps.tags.outputs.backend }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/iread-backend:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/iread-backend:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/iread-backend:buildcache,mode=max
+
+      # ffmpeg·gstreamer apt 레이어가 캐시되어 두 번째 빌드부터 크게 짧아진다.
+      - name: AI 이미지 빌드·푸시
+        uses: docker/build-push-action@v6
+        with:
+          context: ai
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/iread-ai:${{ steps.tags.outputs.ai }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/iread-ai:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/iread-ai:buildcache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/iread-ai:buildcache,mode=max
+
+      # 교사 UI 는 pnpm 을 쓴다 (package.json 의 packageManager: pnpm@11.9.0).
+      - name: pnpm 준비
+        if: ${{ !inputs.skip_frontend }}
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      # engines 가 node ^22.18.0 || >=24.12.0 을 요구한다.
+      - name: Node 24
+        if: ${{ !inputs.skip_frontend }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      # 교사 UI 는 API 를 상대 경로(/api/...)로 부르므로 백엔드 URL 주입이 필요 없다.
+      # VITE_* 는 빌드 시점에 코드에 박히므로 여기서 운영 값을 준다.
+      - name: 교사 웹 UI 빌드
+        if: ${{ !inputs.skip_frontend }}
+        working-directory: web
+        env:
+          VITE_CHILD_APP_DOWNLOAD_URL: https://${{ env.PUBLIC_DOMAIN }}/download/iRead-Setup.exe
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+          echo "산출물:"; du -sh dist; ls dist
+
+      # 아동 앱은 npm 을 쓴다 (package-lock.json, packageManager 미지정).
+      # .env.local 은 gitignore 되어 CI 에 없으므로 VITE_API_BASE_URL 이 비고,
+      # 그 결과 API 를 상대경로로 부른다. 같은 도메인이라 CORS 도 없다.
+      # 커서 시선 폴백은 env 가 아니라 아이트래커 연결 여부로 자동 판정된다.
+      - name: 아동 웹 UI 빌드
+        if: ${{ !inputs.skip_frontend }}
+        working-directory: app
+        run: |
+          npm ci
+          npm run build
+          echo "산출물:"; du -sh dist; ls dist
+
+      - name: SSH 키 준비
+        run: |
+          mkdir -p ~/.ssh
+          install -m 600 /dev/null ~/.ssh/deploy_key
+          printf '%s\n' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: 서버 배포 (백업 → AI → 백엔드 → 헬스체크)
+        run: |
+          ssh -i ~/.ssh/deploy_key ubuntu@${{ secrets.EC2_HOST }} \
+            "BACKEND_TAG='${{ steps.tags.outputs.backend }}' \
+             AI_TAG='${{ steps.tags.outputs.ai }}' \
+             GHCR_USER='${{ github.actor }}' \
+             GHCR_TOKEN='${{ secrets.GITHUB_TOKEN }}' \
+             bash -s" < backend/deploy/remote-deploy.sh
+
+      # 백엔드가 건강해진 뒤에 프론트를 바꾼다. 순서가 반대면 새 UI 가 구 API 를 부른다.
+      - name: 교사 웹 UI 배포
+        if: ${{ !inputs.skip_frontend }}
+        run: |
+          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key" \
+            web/dist/ ubuntu@${{ secrets.EC2_HOST }}:/opt/iread/web/teacher/
+          echo "rsync 완료"
+
+      # nginx 가 /assets, /images 를 교사 -> 아동 순으로 찾으므로 두 디렉터리가 모두 있어야 한다.
+      - name: 아동 웹 UI 배포
+        if: ${{ !inputs.skip_frontend }}
+        run: |
+          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key" \
+            app/dist/ ubuntu@${{ secrets.EC2_HOST }}:/opt/iread/web/learner/
+          echo "rsync 완료"
+
+      - name: 최종 확인
+        run: |
+          fail=0
+          # 기대 코드와 다르면 배포는 끝났지만 워크플로를 실패로 표시해 눈에 띄게 한다.
+          check() {
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 $3 "https://${{ env.PUBLIC_DOMAIN }}$1")
+            if [ "$code" = "$2" ]; then
+              echo "  OK   $1 -> $code"
+            else
+              echo "  FAIL $1 -> $code (기대 $2)"
+              fail=1
+            fi
+          }
+          check "/" 200                    # 교사 웹
+          check "/login" 200               # 교사 로그인 (SPA 폴백)
+          check "/learner/login" 200       # 아동 웹
+          # 140MB 를 러너로 내려받지 않도록 HEAD 로만 확인한다.
+          check "/download/iRead-Setup.exe" 200 --head
+          exit $fail
+          {
+            echo ""
+            echo "배포 완료: backend=\`${{ steps.tags.outputs.backend }}\` ai=\`${{ steps.tags.outputs.ai }}\`"
+            echo ""
+            echo "롤백하려면 이 태그를 backend_tag / ai_tag 에 넣고 다시 실행하세요."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # 아동용 설치 파일은 Windows 러너가 필요하고(--win nsis) 10~15분이 더 걸린다.
+  # 아동 UI 가 바뀐 배포에서만 build_installer 를 켜면 된다.
+  # Tobii 런타임은 라이선스 때문에 git 에 없어서 EC2 의 build-assets 에서 받아온다.
+  installer:
+    if: ${{ inputs.build_installer }}
+    needs: deploy
+    runs-on: windows-latest
+    timeout-minutes: 40
+
+    steps:
+      # electron-builder.yml 이 ../iRead-frontend-app/dist 를 참조하므로 형제 경로로 둔다.
+      - name: Electron 체크아웃 (main)
+        uses: actions/checkout@v4
+        with:
+          repository: iRead-B105/iRead-electron
+          ref: main
+          token: ${{ secrets.REPO_PAT || github.token }}
+          path: iRead-electron
+
+      - name: 아동 웹 UI 체크아웃 (main)
+        uses: actions/checkout@v4
+        with:
+          repository: iRead-B105/iRead-frontend-app
+          ref: main
+          token: ${{ secrets.REPO_PAT || github.token }}
+          path: iRead-frontend-app
+
+      - name: Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      # 설치본에 번들되는 아동 UI. .env.local 이 없으니 API 는 상대경로가 되고
+      # Electron main 프로세스가 IREAD_BACKEND_URL 로 중계한다.
+      - name: 아동 UI 빌드
+        working-directory: iRead-frontend-app
+        run: |
+          npm ci
+          npm run build
+
+      - name: SSH 키 준비
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.ssh" | Out-Null
+          $key = "$env:USERPROFILE\.ssh\deploy_key"
+          Set-Content -Path $key -Value $env:EC2_SSH_KEY -NoNewline
+          # Windows 의 ssh 는 키 파일 권한이 느슨하면 거부한다.
+          icacls $key /inheritance:r /grant:r "$($env:USERNAME):(R)" | Out-Null
+          ssh-keyscan -H $env:EC2_HOST 2>$null | Out-File -Append -Encoding ascii "$env:USERPROFILE\.ssh\known_hosts"
+        env:
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+
+      # 라이선스 때문에 git 에 올리지 않은 브릿지 exe + DLL 을 서버에서 받아온다.
+      - name: Tobii 런타임 받기
+        shell: pwsh
+        run: |
+          $dir = "iRead-electron\tobii_gameintegration_x64"
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          scp -i "$env:USERPROFILE\.ssh\deploy_key" -o BatchMode=yes `
+            "ubuntu@${{ secrets.EC2_HOST }}:/opt/iread/build-assets/tobii/*" $dir
+          Get-ChildItem $dir | ForEach-Object { Write-Output ("  {0}  {1:N0} bytes" -f $_.Name, $_.Length) }
+          if (-not (Test-Path "$dir\tobii_native_bridge.exe")) { throw "브릿지 exe 를 받지 못했습니다" }
+          if (-not (Test-Path "$dir\tobii_gameintegration_x64.dll")) { throw "DLL 을 받지 못했습니다" }
+
+      - name: 설치 파일 빌드
+        working-directory: iRead-electron
+        run: |
+          npm ci
+          npm run dist
+
+      # 교사 웹의 다운로드 링크가 이 고정 이름을 가리키므로 버전이 올라가도 링크는 그대로다.
+      - name: EC2 로 업로드
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem "iRead-electron\release\*.exe" |
+                 Where-Object { $_.Name -notlike "*uninstall*" } |
+                 Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $exe) { throw "release 에서 .exe 를 찾지 못했습니다" }
+          Write-Output ("업로드: {0}  {1:N1} MB" -f $exe.Name, ($exe.Length/1MB))
+          scp -i "$env:USERPROFILE\.ssh\deploy_key" -o BatchMode=yes `
+            $exe.FullName "ubuntu@${{ secrets.EC2_HOST }}:/opt/iread/download/iRead-Setup.exe"
+
+      - name: 다운로드 확인
+        shell: pwsh
+        run: |
+          $r = Invoke-WebRequest -Method Head -Uri "https://${{ env.PUBLIC_DOMAIN }}/download/iRead-Setup.exe" -UseBasicParsing
+          Write-Output ("HTTP {0} / {1:N1} MB" -f $r.StatusCode, ($r.Headers['Content-Length'][0]/1MB))
+          if ($r.StatusCode -ne 200) { throw "다운로드 확인 실패" }

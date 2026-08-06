@@ -26,11 +26,13 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class PersonalizedTrainingGenerationService {
 
     public static final int GENERATED_DATA_SCHEMA_VERSION = 2;
     public static final String WEAKNESS_VERSION = "WEAKNESS_V1";
-    private static final int QUESTION_COUNT = 5;
+    // 훈련 하나당 문항 수. QA 피드백으로 아동 집중 시간에 맞춰 5→3으로 축소.
+    private static final int QUESTION_COUNT = 3;
     private static final int MAX_ATTEMPTS = 3;
     private static final GenerationSource AI_SOURCE =
             new GenerationSource("AI", "AI_TRAINING_CANDIDATES_V1");
@@ -87,16 +89,60 @@ public class PersonalizedTrainingGenerationService {
                 .limit(2)
                 .map(this::toTarget)
                 .toList();
-        List<String> targetCodes = targets.stream().map(TrainingTargetFeature::featureCode).toList();
         List<String> excluded = stringValues(prompt.path("excludedFeatures"));
         int difficulty = difficulty(profiles);
 
+        List<CandidateValidationIssue> allIssues = new ArrayList<>();
+        List<ObjectNode> accepted = acceptQuestions(
+                training, provider, type, requiredInputs, targets, excluded,
+                difficulty, prompt, "", allIssues
+        );
+        if (accepted.size() != QUESTION_COUNT && !targets.isEmpty()) {
+            // 취약 특성을 반영한 문항 생성이 불가능한 조합(예: 연음 특성 ×
+            // 해당 특성을 담은 후보가 부족한 템플릿)이면 훈련 준비가 막히지 않도록
+            // 특성 지정 없는 표준 문항으로 폴백한다. (실력도전 경로와 동일한 정책)
+            accepted = acceptQuestions(
+                    training, provider, type, requiredInputs, List.of(), excluded,
+                    difficulty, prompt, "-fallback", allIssues
+            );
+        }
+
+        if (accepted.size() != QUESTION_COUNT) {
+            // 실패 원인(어떤 템플릿·어떤 검증 이슈인지)이 로그 없이는 추적 불가능하다.
+            log.warn(
+                    "훈련 문항 생성 실패 trainingId={} template={} accepted={}/{} issues={}",
+                    training.getId(),
+                    training.getTrainingTemplate().getId(),
+                    accepted.size(),
+                    QUESTION_COUNT,
+                    allIssues
+            );
+            throw new TrainingGenerationException(
+                    "검증을 통과한 훈련 문항 " + QUESTION_COUNT + "개를 생성하지 못했습니다.",
+                    allIssues
+            );
+        }
+        return envelope(training, prompt, profiles, accepted, source);
+    }
+
+    private List<ObjectNode> acceptQuestions(
+            TrainingEntity training,
+            TrainingCandidateProvider provider,
+            TrainingType type,
+            Set<TrainingInputType> requiredInputs,
+            List<TrainingTargetFeature> targets,
+            List<String> excluded,
+            int difficulty,
+            ObjectNode prompt,
+            String requestSuffix,
+            List<CandidateValidationIssue> allIssues
+    ) {
+        List<String> targetCodes = targets.stream().map(TrainingTargetFeature::featureCode).toList();
         List<ObjectNode> accepted = new ArrayList<>();
         Set<String> acceptedCanonical = new HashSet<>();
-        List<CandidateValidationIssue> allIssues = new ArrayList<>();
         for (int attempt = 1; attempt <= MAX_ATTEMPTS && accepted.size() < QUESTION_COUNT; attempt++) {
             TrainingCandidateRequest request = new TrainingCandidateRequest(
-                    "training-" + training.getId() + "-attempt-" + attempt,
+                    "training-" + training.getId() + requestSuffix + "-attempt-" + attempt,
                     GENERATED_DATA_SCHEMA_VERSION,
                     type,
                     QUESTION_COUNT,
@@ -152,14 +198,7 @@ public class PersonalizedTrainingGenerationService {
                 accepted.add(assembled.question());
             }
         }
-
-        if (accepted.size() != QUESTION_COUNT) {
-            throw new TrainingGenerationException(
-                    "검증을 통과한 훈련 문항 5개를 생성하지 못했습니다.",
-                    allIssues
-            );
-        }
-        return envelope(training, prompt, profiles, accepted, source);
+        return accepted;
     }
 
     public ObjectNode generateTestQuestion(

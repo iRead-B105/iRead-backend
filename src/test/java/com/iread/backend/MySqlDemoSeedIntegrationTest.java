@@ -210,7 +210,7 @@ class MySqlDemoSeedIntegrationTest {
                  WHERE daily_curriculum_id = 190001
                 """,
                 Integer.class
-        )).isEqualTo(31);
+        )).isEqualTo(28);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -236,7 +236,7 @@ class MySqlDemoSeedIntegrationTest {
                  WHERE daily_curriculum_id = 190001
                 """,
                 Integer.class
-        )).isEqualTo(31);
+        )).isEqualTo(28);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -245,10 +245,10 @@ class MySqlDemoSeedIntegrationTest {
                  WHERE training.daily_curriculum_id = 190001
                    AND JSON_LENGTH(
                          JSON_EXTRACT(data.generated_data, '$.questions')
-                       ) = 5
+                       ) = 3
                 """,
                 Integer.class
-        )).isEqualTo(31);
+        )).isEqualTo(28);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -260,7 +260,7 @@ class MySqlDemoSeedIntegrationTest {
                        )
                 """,
                 Integer.class
-        )).isEqualTo(31);
+        )).isEqualTo(28);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
@@ -637,7 +637,7 @@ class MySqlDemoSeedIntegrationTest {
                        )
                 """,
                 Integer.class
-        )).isEqualTo(31);
+        )).isEqualTo(28);
         assertThat(jdbcTemplate.queryForObject(
                 """
                 SELECT COUNT(*)
