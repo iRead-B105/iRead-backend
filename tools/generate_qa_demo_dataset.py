@@ -226,6 +226,18 @@ AUDIO_TRAINING_TYPES = {
     "REPEATED_SENTENCE_READING",
 }
 
+GAZE_TRAINING_TYPES = AUDIO_TRAINING_TYPES | {
+    "VOWEL_TRACE",
+    "CONSONANT_TRACE",
+    "SYLLABLE_TRACE",
+}
+
+REPORT_TRAINING_GAZE_IDS = {
+    2001: (321074, 321084),
+    2002: (322074, 322084),
+    2103: (323073, 323083),
+}
+
 # 8개 완료 회차와 1개 다음 회차. 최신 develop의 선택 가능 훈련 28개만
 # 사용하며, 매일 속도 지표를 만들 수 있도록 22 또는 25를 하나 이상 둔다.
 # 30과 33은 같은 유사 읽기군이므로 한 회차에 함께 편성하지 않는다.
@@ -602,6 +614,114 @@ def reading_speed(student: Student, day_no: int) -> int:
     return student.reading_speed + day_no - 1
 
 
+def training_gaze_metrics(student: Student, training_id: int) -> dict[str, int]:
+    variation = training_id % 100 % 4
+    if student.no == 1:
+        return {
+            "totalVisitedDurationMs": 33_000 - variation * 70,
+            "totalVisitedCount": 70 - variation,
+            "reverseReadCount": 8 - variation,
+            "avgVisitedDurationMs": 650 - variation * 5,
+        }
+    if student.no == 2:
+        return {
+            "totalVisitedDurationMs": 32_000 - variation * 60,
+            "totalVisitedCount": 68 - variation,
+            "reverseReadCount": 6 - variation,
+            "avgVisitedDurationMs": 630 - variation * 5,
+        }
+    return {
+        "totalVisitedDurationMs": 39_000 - variation * 80,
+        "totalVisitedCount": 76 - variation,
+        "reverseReadCount": 4 - variation,
+        "avgVisitedDurationMs": 760 - variation * 5,
+    }
+
+
+def distribute(total: int, count: int) -> list[int]:
+    quotient, remainder = divmod(total, count)
+    return [quotient + (1 if index < remainder else 0) for index in range(count)]
+
+
+def training_gaze_fixture(
+    student: Student,
+    training_id: int,
+    gaze_session_id: int,
+    generated: dict[str, Any],
+    started: datetime,
+    finished: datetime,
+) -> dict[str, Any]:
+    metrics = training_gaze_metrics(student, training_id)
+    interval_ms = {1: 190, 2: 210, 3: 270}[student.no]
+    samples_per_visit = {1: 3, 2: 3, 3: 4}[student.no]
+    regression_distribution = distribute(metrics["reverseReadCount"], 3)
+    captured_at_ms = 0
+    samples = []
+    regressions = []
+    questions = []
+
+    for question, regression_count in zip(
+        generated["questions"], regression_distribution, strict=True
+    ):
+        question_no = question["questionNo"]
+        tokens = list(question_attempt_tokens(question))
+        questions.append(
+            {
+                "questionNo": question_no,
+                "type": question["type"],
+                "tokens": tokens,
+            }
+        )
+        visits: list[tuple[int, int | None]] = [
+            (token_index, None) for token_index in range(len(tokens))
+        ]
+        for regression_no in range(regression_count):
+            from_index = 3 if regression_no % 2 == 0 else 2
+            to_index = 1 if regression_no % 2 == 0 else 0
+            visits.extend(((from_index, None), (to_index, from_index)))
+        for visit_no, (token_index, regression_from) in enumerate(visits):
+            if regression_from is not None:
+                regressions.append(
+                    {
+                        "questionNo": question_no,
+                        "fromTokenIndex": regression_from,
+                        "toTokenIndex": token_index,
+                        "capturedAtMs": captured_at_ms,
+                    }
+                )
+            for sample_no in range(samples_per_visit):
+                samples.append(
+                    {
+                        "questionNo": question_no,
+                        "tokenIndex": token_index,
+                        "text": tokens[token_index],
+                        "capturedAtMs": captured_at_ms,
+                        "presence": True,
+                        "x": round(0.18 + token_index * 0.17 + sample_no * 0.005, 3),
+                        "y": round(0.24 + question_no * 0.16 + (visit_no % 2) * 0.01, 3),
+                    }
+                )
+                captured_at_ms += interval_ms
+            captured_at_ms += 45
+
+    return {
+        "rawData": {
+            "schemaVersion": "training-gaze-raw-v1",
+            "synthetic": True,
+            "studentId": student.id,
+            "trainingId": training_id,
+            "gazeSessionId": gaze_session_id,
+            "trainingType": generated["trainingType"],
+            "persona": student.weakness,
+            "recordingStartedAt": started.isoformat(),
+            "recordingEndedAt": finished.isoformat(),
+            "questions": questions,
+            "regressions": regressions,
+            "samples": samples,
+        }
+    }
+
+
 def azure_fixture(reference: str, score: int, student_id: int, test_id: int, question_no: int) -> dict[str, Any]:
     words = []
     offset = 0
@@ -646,6 +766,47 @@ def azure_fixture(reference: str, score: int, student_id: int, test_id: int, que
 
 def gaze_metric_change(first: int, latest: int) -> dict[str, int]:
     return {"first": first, "latest": latest, "delta": latest - first}
+
+
+def training_report_gaze_series(student: Student) -> dict[str, Any]:
+    points = []
+    for training_id in REPORT_TRAINING_GAZE_IDS[student.id]:
+        day_no = (training_id % 100) // 10
+        sequence_no = training_id % 10
+        finished_minute = (sequence_no - 1) * 9 + 8
+        metrics = training_gaze_metrics(student, training_id)
+        points.append(
+            {
+                "gazeAnalysisResultId": 500_000 + training_id,
+                "gazeSessionId": 400_000 + training_id,
+                "sourceType": "TRAINING",
+                "sourceId": training_id,
+                "analyzedAt": (
+                    f"{student.completed_dates[day_no - 1]}T15:{finished_minute:02d}:10"
+                ),
+                **metrics,
+            }
+        )
+    first, latest = points[0], points[-1]
+    changes = {
+        key: gaze_metric_change(first[key], latest[key])
+        for key in (
+            "totalVisitedDurationMs",
+            "totalVisitedCount",
+            "reverseReadCount",
+            "avgVisitedDurationMs",
+        )
+    }
+    return {
+        "status": "AVAILABLE",
+        "comparisonAvailable": True,
+        "points": points,
+        "changes": changes,
+        "descriptions": [
+            f"{student.weakness} 페르소나에 맞춘 훈련 시선 변화입니다."
+        ],
+        "failedSessionCount": 0,
+    }
 
 
 def report_gaze_series(student: Student) -> dict[str, Any]:
@@ -723,6 +884,7 @@ def report_snapshot(student: Student, days: int) -> dict[str, Any]:
         direction_label = "증가" if delta > 0 else "감소" if delta < 0 else "유지"
         descriptions.append(f"{label}가 {first:.2f}에서 {latest:.2f}로 {direction_label}했습니다.")
 
+    training_series = training_report_gaze_series(student)
     test_series = report_gaze_series(student)
     latest_point = test_series["points"][-1]
     return {
@@ -772,14 +934,7 @@ def report_snapshot(student: Student, days: int) -> dict[str, Any]:
         },
         "gazeTrend": {
             "generatedAt": "2026-08-05T09:00:00",
-            "training": {
-                "status": "NO_DATA",
-                "comparisonAvailable": False,
-                "points": [],
-                "changes": None,
-                "descriptions": ["훈련 시선 원천 데이터는 이번 시연 범위에 포함되지 않았습니다."],
-                "failedSessionCount": 0,
-            },
+            "training": training_series,
             "test": test_series,
         },
     }
@@ -821,10 +976,13 @@ def build() -> tuple[str, dict[str, Any], dict[str, Any], dict[Path, Any]]:
             f"teacher_memo={sql_quote(student.memo)} WHERE id={student.id};\n"
         )
 
+    raw_assets: dict[Path, Any] = {}
     curriculum_rows = []
     training_rows = []
     training_data_rows = []
     training_attempt_rows = []
+    training_gaze_rows = []
+    training_analysis_rows = []
     training_attempt_id = 380000
     for student in STUDENTS:
         for day_no, date in enumerate(student.completed_dates, 1):
@@ -854,6 +1012,7 @@ def build() -> tuple[str, dict[str, Any], dict[str, Any], dict[Path, Any]]:
                 question_results = []
                 attempt_index = 0
                 is_audio_training = TRAINING_TYPES[template_id] in AUDIO_TRAINING_TYPES
+                has_gaze_training = TRAINING_TYPES[template_id] in GAZE_TRAINING_TYPES
                 voice_duration_ms = round(
                     correct_count * 60_000 / reading_speed(student, day_no)
                 ) if is_audio_training else 0
@@ -886,6 +1045,7 @@ def build() -> tuple[str, dict[str, Any], dict[str, Any], dict[Path, Any]]:
                                 question_no,
                                 token_index,
                                 token,
+                                has_gaze_training,
                                 is_audio_training,
                                 is_correct,
                                 finished.strftime("%Y-%m-%d %H:%M:%S"),
@@ -924,6 +1084,73 @@ def build() -> tuple[str, dict[str, Any], dict[str, Any], dict[Path, Any]]:
                         started.strftime("%Y-%m-%d %H:%M:%S"),
                     )
                 )
+                if has_gaze_training:
+                    gaze_session_id = 400_000 + training_id
+                    gaze_name = gaze_file_name(gaze_session_id)
+                    metrics = training_gaze_metrics(student, training_id)
+                    raw_assets[Path("gaze") / str(student.id) / gaze_name] = training_gaze_fixture(
+                        student,
+                        training_id,
+                        gaze_session_id,
+                        generated,
+                        started,
+                        finished,
+                    )
+                    training_gaze_rows.append(
+                        (
+                            gaze_session_id,
+                            student.id,
+                            None,
+                            training_id,
+                            None,
+                            "TRAINING",
+                            started.strftime("%Y-%m-%d %H:%M:%S"),
+                            finished.strftime("%Y-%m-%d %H:%M:%S"),
+                            f"/gaze/{student.id}/{gaze_name}",
+                            "COMPLETED",
+                            "SUCCESS",
+                            started.strftime("%Y-%m-%d %H:%M:%S"),
+                        )
+                    )
+                    duration_parts = distribute(metrics["totalVisitedDurationMs"], 3)
+                    count_parts = distribute(metrics["totalVisitedCount"], 3)
+                    regression_parts = distribute(metrics["reverseReadCount"], 3)
+                    sentence_metrics = [
+                        {
+                            "questionNo": question_no,
+                            "dwellDurationMs": duration_parts[question_no - 1],
+                            "fixationCount": count_parts[question_no - 1],
+                            "regressionCount": regression_parts[question_no - 1],
+                        }
+                        for question_no in range(1, 4)
+                    ]
+                    training_analysis_rows.append(
+                        (
+                            500_000 + training_id,
+                            gaze_session_id,
+                            metrics["totalVisitedDurationMs"],
+                            metrics["totalVisitedCount"],
+                            metrics["reverseReadCount"],
+                            metrics["avgVisitedDurationMs"],
+                            json.dumps(sentence_metrics, ensure_ascii=False, separators=(",", ":")),
+                            json.dumps(
+                                raw_assets[Path("gaze") / str(student.id) / gaze_name]["rawData"]["regressions"],
+                                ensure_ascii=False,
+                                separators=(",", ":"),
+                            ),
+                            json.dumps(
+                                {
+                                    "source": "qa-demo",
+                                    "persona": student.weakness,
+                                    "calculationVersion": "training-gaze-v1",
+                                    "rawSchemaVersion": "training-gaze-raw-v1",
+                                },
+                                ensure_ascii=False,
+                                separators=(",", ":"),
+                            ),
+                            finished.strftime("%Y-%m-%d %H:%M:%S"),
+                        )
+                    )
         curriculum_id = 310000 + student.no * 100 + 90
         curriculum_rows.append((curriculum_id, student.id, "NOT_STARTED", "2026-08-05 09:00:00", None))
         templates = CURRICULUM_ROTATIONS[student.id][8]
@@ -935,7 +1162,8 @@ def build() -> tuple[str, dict[str, Any], dict[str, Any], dict[Path, Any]]:
     sql.append("\n" + rows_sql("daily_curriculums", ("id", "student_id", "status", "created_at", "completed_at"), curriculum_rows))
     sql.append(rows_sql("trainings", ("id", "training_template_id", "daily_curriculum_id", "sequence_no", "created_at", "started_at", "finished_at", "status", "result", "accuracy"), training_rows))
     sql.append(rows_sql("training_datas", ("id", "train_id", "generated_data", "created_at"), training_data_rows))
-    for _, _, _, _, _, token, _, _, _, _, _ in training_attempt_rows:
+    for attempt in training_attempt_rows:
+        token = attempt[5]
         sql.append(
             f"INSERT INTO words (content, length) VALUES ({sql_quote(token)}, {len(token)}) "
             "ON DUPLICATE KEY UPDATE length=VALUES(length);\n"
@@ -947,6 +1175,7 @@ def build() -> tuple[str, dict[str, Any], dict[str, Any], dict[Path, Any]]:
         question_no,
         token_index,
         token,
+        has_gaze,
         has_audio,
         is_correct,
         created_at,
@@ -956,10 +1185,11 @@ def build() -> tuple[str, dict[str, Any], dict[str, Any], dict[Path, Any]]:
         pronunciation_score = 900 if is_correct else 550
         sql.append(
             "INSERT INTO word_attempt_logs (id, student_id, word_id, story_line_id, training_id, test_id, use_location, surface_text, has_gaze_data, has_audio_data, fixation_duration_ms, fixation_count, gaze_start_offset_ms, gaze_end_offset_ms, is_skipped, regression_count, pronunciation_accuracy_score, speech_start_offset_ms, speech_end_offset_ms, is_correct, created_at, total_score, question_no, target_index, token_index, is_final) "
-            f"SELECT {log_id}, {student.id}, id, NULL, {training_id}, NULL, 'TRAINING', {sql_quote(token)}, FALSE, {'TRUE' if has_audio else 'FALSE'}, NULL, NULL, NULL, NULL, FALSE, 0, {pronunciation_score if has_audio else 'NULL'}, {speech_start if has_audio else 'NULL'}, {speech_end if has_audio else 'NULL'}, {'TRUE' if is_correct else 'FALSE'}, {sql_quote(created_at)}, {1000 if is_correct else 0}, {question_no}, 0, {token_index}, TRUE FROM words WHERE content={sql_quote(token)};\n"
+            f"SELECT {log_id}, {student.id}, id, NULL, {training_id}, NULL, 'TRAINING', {sql_quote(token)}, {'TRUE' if has_gaze else 'FALSE'}, {'TRUE' if has_audio else 'FALSE'}, NULL, NULL, NULL, NULL, FALSE, 0, {pronunciation_score if has_audio else 'NULL'}, {speech_start if has_audio else 'NULL'}, {speech_end if has_audio else 'NULL'}, {'TRUE' if is_correct else 'FALSE'}, {sql_quote(created_at)}, {1000 if is_correct else 0}, {question_no}, 0, {token_index}, TRUE FROM words WHERE content={sql_quote(token)};\n"
         )
+    sql.append(rows_sql("gaze_sessions", ("id", "student_id", "test_id", "training_id", "story_id", "content_type", "started_at", "ended_at", "data_url", "status", "calibration_status", "created_at"), training_gaze_rows))
+    sql.append(rows_sql("gaze_analysis_results", ("id", "gaze_session_id", "total_visited_duration", "total_visited_count", "reverse_read_count", "avg_visited_duration", "sentence_metrics", "regressions", "analysis_meta", "created_at"), training_analysis_rows))
 
-    raw_assets: dict[Path, Any] = {}
     test_curriculum_rows = []
     test_rows = []
     test_data_rows = []
@@ -1236,7 +1466,7 @@ def validate(sql: str, manifest: dict[str, Any], scene_prompts: dict[str, Any], 
         for file_name in manifest["images"]
     )
     assert len(manifest["pronunciation"]) == 18
-    assert len(manifest["gaze"]) == 13
+    assert len(manifest["gaze"]) == 57
     assert sql.count("INSERT INTO word_attempt_logs") == 1_548
     assert all(
         re.fullmatch(r"\d+/gaze-\d+-[0-9a-f-]{36}\.json", relative_path)
@@ -1258,6 +1488,52 @@ def validate(sql: str, manifest: dict[str, Any], scene_prompts: dict[str, Any], 
             assert set(rotation) <= set(TRAINING_TYPES)
             assert 22 in rotation or 25 in rotation
             assert not ({30, 33} <= set(rotation))
+    training_gaze_counts = {student.id: 0 for student in STUDENTS}
+    test_gaze_counts = {student.id: 0 for student in STUDENTS}
+    for path, payload in raw_assets.items():
+        raw = payload.get("rawData", {})
+        if raw.get("schemaVersion") == "test-gaze-raw-v1":
+            test_gaze_counts[raw["studentId"]] += 1
+            assert raw["samples"]
+            continue
+        if raw.get("schemaVersion") != "training-gaze-raw-v1":
+            continue
+        student_id = raw["studentId"]
+        training_gaze_counts[student_id] += 1
+        assert raw["gazeSessionId"] == 400_000 + raw["trainingId"]
+        assert raw["synthetic"] is True
+        assert len(raw["questions"]) == 3
+        assert raw["samples"]
+        assert len(raw["regressions"]) == training_gaze_metrics(
+            next(student for student in STUDENTS if student.id == student_id),
+            raw["trainingId"],
+        )["reverseReadCount"]
+        assert [sample["capturedAtMs"] for sample in raw["samples"]] == sorted(
+            sample["capturedAtMs"] for sample in raw["samples"]
+        )
+        question_token_counts = {
+            question["questionNo"]: len(question["tokens"])
+            for question in raw["questions"]
+        }
+        assert all(
+            0 <= sample["tokenIndex"] < question_token_counts[sample["questionNo"]]
+            for sample in raw["samples"]
+        )
+        relative_path = str(path.relative_to("gaze")).replace("\\", "/")
+        assert f"/gaze/{relative_path}" in sql
+    assert training_gaze_counts == {2001: 11, 2002: 15, 2103: 18}
+    assert test_gaze_counts == {2001: 3, 2002: 3, 2103: 3}
+    generated_training_ids = {
+        payload["rawData"]["trainingId"]
+        for payload in raw_assets.values()
+        if payload.get("rawData", {}).get("schemaVersion") == "training-gaze-raw-v1"
+    }
+    assert all(
+        set(report_training_ids) <= generated_training_ids
+        for report_training_ids in REPORT_TRAINING_GAZE_IDS.values()
+    )
+    assert sql.count('"rawSchemaVersion":"training-gaze-raw-v1"') == 44
+    assert sql.count('"training":{"status":"AVAILABLE"') == 6
     for story in STORIES:
         pages = story_pages(story)
         assert len(pages) == story.progress
@@ -1332,7 +1608,7 @@ def main() -> None:
     if not args.check:
         write_outputs(*outputs)
         print(f"generated {SQL_PATH}")
-        print("generated 39 scene mappings, full story/test gaze JSON, and 18 Azure fixtures")
+        print("generated 39 scene mappings, 44 training gaze JSON, full story/test gaze JSON, and 18 Azure fixtures")
     else:
         print("QA demo dataset contract validation passed")
 

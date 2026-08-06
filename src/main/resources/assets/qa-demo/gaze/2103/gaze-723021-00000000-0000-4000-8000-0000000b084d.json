@@ -1,0 +1,715 @@
+{
+  "rawData": {
+    "schemaVersion": "training-gaze-raw-v1",
+    "synthetic": true,
+    "studentId": 2103,
+    "trainingId": 323021,
+    "gazeSessionId": 723021,
+    "trainingType": "SYLLABLE_TRACE",
+    "persona": "읽기 속도",
+    "recordingStartedAt": "2026-07-13T15:00:00",
+    "recordingEndedAt": "2026-07-13T15:08:00",
+    "questions": [
+      {
+        "questionNo": 1,
+        "type": "SYLLABLE_TRACE",
+        "tokens": [
+          "문항",
+          "내용을",
+          "차분히",
+          "확인해요"
+        ]
+      },
+      {
+        "questionNo": 2,
+        "type": "SYLLABLE_TRACE",
+        "tokens": [
+          "문항",
+          "내용을",
+          "차분히",
+          "확인해요"
+        ]
+      },
+      {
+        "questionNo": 3,
+        "type": "SYLLABLE_TRACE",
+        "tokens": [
+          "문항",
+          "내용을",
+          "차분히",
+          "확인해요"
+        ]
+      }
+    ],
+    "regressions": [
+      {
+        "questionNo": 1,
+        "fromTokenIndex": 3,
+        "toTokenIndex": 1,
+        "capturedAtMs": 5625
+      },
+      {
+        "questionNo": 2,
+        "fromTokenIndex": 3,
+        "toTokenIndex": 1,
+        "capturedAtMs": 12375
+      },
+      {
+        "questionNo": 3,
+        "fromTokenIndex": 3,
+        "toTokenIndex": 1,
+        "capturedAtMs": 19125
+      }
+    ],
+    "samples": [
+      {
+        "questionNo": 1,
+        "tokenIndex": 0,
+        "text": "문항",
+        "capturedAtMs": 0,
+        "presence": true,
+        "x": 0.18,
+        "y": 0.4
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 0,
+        "text": "문항",
+        "capturedAtMs": 270,
+        "presence": true,
+        "x": 0.185,
+        "y": 0.4
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 0,
+        "text": "문항",
+        "capturedAtMs": 540,
+        "presence": true,
+        "x": 0.19,
+        "y": 0.4
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 0,
+        "text": "문항",
+        "capturedAtMs": 810,
+        "presence": true,
+        "x": 0.195,
+        "y": 0.4
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 1125,
+        "presence": true,
+        "x": 0.35,
+        "y": 0.41
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 1395,
+        "presence": true,
+        "x": 0.355,
+        "y": 0.41
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 1665,
+        "presence": true,
+        "x": 0.36,
+        "y": 0.41
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 1935,
+        "presence": true,
+        "x": 0.365,
+        "y": 0.41
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 2,
+        "text": "차분히",
+        "capturedAtMs": 2250,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.4
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 2,
+        "text": "차분히",
+        "capturedAtMs": 2520,
+        "presence": true,
+        "x": 0.525,
+        "y": 0.4
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 2,
+        "text": "차분히",
+        "capturedAtMs": 2790,
+        "presence": true,
+        "x": 0.53,
+        "y": 0.4
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 2,
+        "text": "차분히",
+        "capturedAtMs": 3060,
+        "presence": true,
+        "x": 0.535,
+        "y": 0.4
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 3375,
+        "presence": true,
+        "x": 0.69,
+        "y": 0.41
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 3645,
+        "presence": true,
+        "x": 0.695,
+        "y": 0.41
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 3915,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.41
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 4185,
+        "presence": true,
+        "x": 0.705,
+        "y": 0.41
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 4500,
+        "presence": true,
+        "x": 0.69,
+        "y": 0.4
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 4770,
+        "presence": true,
+        "x": 0.695,
+        "y": 0.4
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 5040,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.4
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 5310,
+        "presence": true,
+        "x": 0.705,
+        "y": 0.4
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 5625,
+        "presence": true,
+        "x": 0.35,
+        "y": 0.41
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 5895,
+        "presence": true,
+        "x": 0.355,
+        "y": 0.41
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 6165,
+        "presence": true,
+        "x": 0.36,
+        "y": 0.41
+      },
+      {
+        "questionNo": 1,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 6435,
+        "presence": true,
+        "x": 0.365,
+        "y": 0.41
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 0,
+        "text": "문항",
+        "capturedAtMs": 6750,
+        "presence": true,
+        "x": 0.18,
+        "y": 0.56
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 0,
+        "text": "문항",
+        "capturedAtMs": 7020,
+        "presence": true,
+        "x": 0.185,
+        "y": 0.56
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 0,
+        "text": "문항",
+        "capturedAtMs": 7290,
+        "presence": true,
+        "x": 0.19,
+        "y": 0.56
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 0,
+        "text": "문항",
+        "capturedAtMs": 7560,
+        "presence": true,
+        "x": 0.195,
+        "y": 0.56
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 7875,
+        "presence": true,
+        "x": 0.35,
+        "y": 0.57
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 8145,
+        "presence": true,
+        "x": 0.355,
+        "y": 0.57
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 8415,
+        "presence": true,
+        "x": 0.36,
+        "y": 0.57
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 8685,
+        "presence": true,
+        "x": 0.365,
+        "y": 0.57
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 2,
+        "text": "차분히",
+        "capturedAtMs": 9000,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.56
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 2,
+        "text": "차분히",
+        "capturedAtMs": 9270,
+        "presence": true,
+        "x": 0.525,
+        "y": 0.56
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 2,
+        "text": "차분히",
+        "capturedAtMs": 9540,
+        "presence": true,
+        "x": 0.53,
+        "y": 0.56
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 2,
+        "text": "차분히",
+        "capturedAtMs": 9810,
+        "presence": true,
+        "x": 0.535,
+        "y": 0.56
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 10125,
+        "presence": true,
+        "x": 0.69,
+        "y": 0.57
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 10395,
+        "presence": true,
+        "x": 0.695,
+        "y": 0.57
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 10665,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.57
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 10935,
+        "presence": true,
+        "x": 0.705,
+        "y": 0.57
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 11250,
+        "presence": true,
+        "x": 0.69,
+        "y": 0.56
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 11520,
+        "presence": true,
+        "x": 0.695,
+        "y": 0.56
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 11790,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.56
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 12060,
+        "presence": true,
+        "x": 0.705,
+        "y": 0.56
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 12375,
+        "presence": true,
+        "x": 0.35,
+        "y": 0.57
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 12645,
+        "presence": true,
+        "x": 0.355,
+        "y": 0.57
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 12915,
+        "presence": true,
+        "x": 0.36,
+        "y": 0.57
+      },
+      {
+        "questionNo": 2,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 13185,
+        "presence": true,
+        "x": 0.365,
+        "y": 0.57
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 0,
+        "text": "문항",
+        "capturedAtMs": 13500,
+        "presence": true,
+        "x": 0.18,
+        "y": 0.72
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 0,
+        "text": "문항",
+        "capturedAtMs": 13770,
+        "presence": true,
+        "x": 0.185,
+        "y": 0.72
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 0,
+        "text": "문항",
+        "capturedAtMs": 14040,
+        "presence": true,
+        "x": 0.19,
+        "y": 0.72
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 0,
+        "text": "문항",
+        "capturedAtMs": 14310,
+        "presence": true,
+        "x": 0.195,
+        "y": 0.72
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 14625,
+        "presence": true,
+        "x": 0.35,
+        "y": 0.73
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 14895,
+        "presence": true,
+        "x": 0.355,
+        "y": 0.73
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 15165,
+        "presence": true,
+        "x": 0.36,
+        "y": 0.73
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 15435,
+        "presence": true,
+        "x": 0.365,
+        "y": 0.73
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 2,
+        "text": "차분히",
+        "capturedAtMs": 15750,
+        "presence": true,
+        "x": 0.52,
+        "y": 0.72
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 2,
+        "text": "차분히",
+        "capturedAtMs": 16020,
+        "presence": true,
+        "x": 0.525,
+        "y": 0.72
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 2,
+        "text": "차분히",
+        "capturedAtMs": 16290,
+        "presence": true,
+        "x": 0.53,
+        "y": 0.72
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 2,
+        "text": "차분히",
+        "capturedAtMs": 16560,
+        "presence": true,
+        "x": 0.535,
+        "y": 0.72
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 16875,
+        "presence": true,
+        "x": 0.69,
+        "y": 0.73
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 17145,
+        "presence": true,
+        "x": 0.695,
+        "y": 0.73
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 17415,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.73
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 17685,
+        "presence": true,
+        "x": 0.705,
+        "y": 0.73
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 18000,
+        "presence": true,
+        "x": 0.69,
+        "y": 0.72
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 18270,
+        "presence": true,
+        "x": 0.695,
+        "y": 0.72
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 18540,
+        "presence": true,
+        "x": 0.7,
+        "y": 0.72
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 3,
+        "text": "확인해요",
+        "capturedAtMs": 18810,
+        "presence": true,
+        "x": 0.705,
+        "y": 0.72
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 19125,
+        "presence": true,
+        "x": 0.35,
+        "y": 0.73
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 19395,
+        "presence": true,
+        "x": 0.355,
+        "y": 0.73
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 19665,
+        "presence": true,
+        "x": 0.36,
+        "y": 0.73
+      },
+      {
+        "questionNo": 3,
+        "tokenIndex": 1,
+        "text": "내용을",
+        "capturedAtMs": 19935,
+        "presence": true,
+        "x": 0.365,
+        "y": 0.73
+      }
+    ]
+  }
+}
