@@ -45,6 +45,10 @@ import java.util.Set;
 public class LessonMaterialService {
 
     private static final int SCHEMA_VERSION = 2;
+    private static final int MAX_JSON_DEPTH = 8;
+    private static final int MAX_JSON_ITEMS = 50;
+    private static final int MAX_JSON_TEXT_LENGTH = 2_000;
+    private static final int MAX_JSON_SERIALIZED_LENGTH = 20_000;
     private static final ZoneId SERVICE_ZONE = ZoneId.of("Asia/Seoul");
 
     private final StudentRepository studentRepository;
@@ -214,6 +218,9 @@ public class LessonMaterialService {
         for (int index = 0; index < materials.size(); index++) {
             UpdateLessonMaterialRequest.Material material = materials.get(index);
             int itemIndex = index;
+            validateJsonPayload(material.questionNo(), "materials[" + index + "].presentation", material.presentation(), true, errors);
+            validateJsonPayload(material.questionNo(), "materials[" + index + "].content", material.content(), false, errors);
+            validateJsonPayload(material.questionNo(), "materials[" + index + "].answer", material.answer(), false, errors);
             if (material.questionNo() != index + 1) {
                 errors.add(new ValidationError(
                         material.questionNo(),
@@ -256,6 +263,9 @@ public class LessonMaterialService {
                         "TYPE_MISMATCH",
                         "presentation must be a JSON object."
                 ));
+            }
+            if (material.presentation() != null && material.presentation().isObject()) {
+                validatePresentation(material.questionNo(), index, material.presentation(), errors);
             }
 
             ObjectNode candidate = objectMapper.createObjectNode();
@@ -323,6 +333,112 @@ public class LessonMaterialService {
                     issue.message()
             ));
         }
+    }
+
+    private void validatePresentation(
+            int questionNo,
+            int index,
+            JsonNode presentation,
+            List<ValidationError> errors
+    ) {
+        if (presentation.has("activityName")) {
+            validateRequiredText(questionNo, "materials[" + index + "].presentation.activityName",
+                    presentation.get("activityName"), 100, errors);
+        }
+        if (presentation.has("instruction")) {
+            validateRequiredText(questionNo, "materials[" + index + "].presentation.instruction",
+                    presentation.get("instruction"), 500, errors);
+        }
+    }
+
+    private void validateRequiredText(
+            int questionNo,
+            String path,
+            JsonNode value,
+            int maxLength,
+            List<ValidationError> errors
+    ) {
+        if (value == null || !value.isTextual() || value.asText().isBlank()) {
+            errors.add(new ValidationError(questionNo, path, "REQUIRED", "A non-blank text value is required."));
+        } else if (value.asText().length() > maxLength || !isSafeText(value.asText())) {
+            errors.add(new ValidationError(questionNo, path, "INVALID_TEXT", "The text value is too long or contains invalid characters."));
+        }
+    }
+
+    private void validateJsonPayload(
+            int questionNo,
+            String path,
+            JsonNode value,
+            boolean nullable,
+            List<ValidationError> errors
+    ) {
+        if (value == null || value.isNull()) {
+            if (!nullable) errors.add(new ValidationError(questionNo, path, "REQUIRED", "A JSON object is required."));
+            return;
+        }
+        if (value.toString().length() > MAX_JSON_SERIALIZED_LENGTH) {
+            errors.add(new ValidationError(questionNo, path, "PAYLOAD_TOO_LARGE", "The JSON value is too large."));
+            return;
+        }
+        validateJsonNode(questionNo, path, value, 0, errors);
+    }
+
+    private void validateJsonNode(
+            int questionNo,
+            String path,
+            JsonNode value,
+            int depth,
+            List<ValidationError> errors
+    ) {
+        if (depth > MAX_JSON_DEPTH) {
+            errors.add(new ValidationError(questionNo, path, "JSON_TOO_DEEP", "The JSON value is nested too deeply."));
+            return;
+        }
+        if (value.isTextual()) {
+            if (value.asText().length() > MAX_JSON_TEXT_LENGTH || !isSafeText(value.asText())) {
+                errors.add(new ValidationError(questionNo, path, "INVALID_TEXT", "The text value is too long or contains invalid characters."));
+            }
+            return;
+        }
+        if (value.isArray()) {
+            if (value.size() > MAX_JSON_ITEMS) {
+                errors.add(new ValidationError(questionNo, path, "TOO_MANY_ITEMS", "The JSON array has too many items."));
+                return;
+            }
+            for (int index = 0; index < value.size(); index++) {
+                validateJsonNode(questionNo, path + "[" + index + "]", value.get(index), depth + 1, errors);
+            }
+            return;
+        }
+        if (value.isObject()) {
+            if (value.size() > MAX_JSON_ITEMS) {
+                errors.add(new ValidationError(questionNo, path, "TOO_MANY_FIELDS", "The JSON object has too many fields."));
+                return;
+            }
+            for (Map.Entry<String, JsonNode> field : value.properties()) {
+                if (field.getKey().length() > 100 || !isSafeText(field.getKey())) {
+                    errors.add(new ValidationError(
+                            questionNo,
+                            path,
+                            "INVALID_FIELD_NAME",
+                            "The JSON object contains an invalid field name."
+                    ));
+                    continue;
+                }
+                validateJsonNode(
+                        questionNo,
+                        path + "." + field.getKey(),
+                        field.getValue(),
+                        depth + 1,
+                        errors
+                );
+            }
+        }
+    }
+
+    private boolean isSafeText(String value) {
+        return value.codePoints().noneMatch(codePoint ->
+                Character.isISOControl(codePoint) && codePoint != '\n' && codePoint != '\r' && codePoint != '\t');
     }
 
     private void validateFeaturePolicy(
