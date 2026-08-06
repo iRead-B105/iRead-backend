@@ -48,7 +48,7 @@ class TestCurriculumAdminServiceTest {
     }
 
     @Test
-    void returnsOneListRowPerCurriculum() {
+    void returnsOneListRowPerCompletedCurriculum() {
         StudentEntity student = mock(StudentEntity.class);
         TestCurriculumEntity curriculum = mock(TestCurriculumEntity.class);
         StudentTestEntity test = mock(StudentTestEntity.class);
@@ -57,7 +57,10 @@ class TestCurriculumAdminServiceTest {
         );
         when(studentRepository.findByIdAndTeacherId(20L, 10L))
                 .thenReturn(Optional.of(student));
-        when(testCurriculumRepository.findAllByStudentIdOrderByCreatedAtDescIdDesc(20L))
+        when(testCurriculumRepository.findAllByStudentIdAndStatusOrderByCreatedAtDescIdDesc(
+                20L,
+                "COMPLETED"
+        ))
                 .thenReturn(List.of(curriculum));
         when(curriculum.getId()).thenReturn(30L);
         when(studentTestRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(30L))
@@ -76,7 +79,7 @@ class TestCurriculumAdminServiceTest {
         var detail = mock(TestCurriculumDetailResponse.class);
         when(studentRepository.findByIdAndTeacherId(20L, 10L))
                 .thenReturn(Optional.of(student));
-        when(testCurriculumRepository.findByIdAndStudentId(30L, 20L))
+        when(testCurriculumRepository.findByIdAndStudentIdAndStatus(30L, 20L, "COMPLETED"))
                 .thenReturn(Optional.of(curriculum));
         when(studentTestRepository.findAllByTestCurriculumIdOrderBySequenceNoAscIdAsc(30L))
                 .thenReturn(List.of());
@@ -84,6 +87,19 @@ class TestCurriculumAdminServiceTest {
         when(resultAggregator.aggregate(curriculum, List.of(), null)).thenReturn(detail);
 
         assertThat(service.getCurriculum(10L, 20L, 30L)).isSameAs(detail);
+    }
+
+    @Test
+    void rejectsIncompleteCurriculumDetailFromTestHistory() {
+        StudentEntity student = mock(StudentEntity.class);
+        when(studentRepository.findByIdAndTeacherId(20L, 10L))
+                .thenReturn(Optional.of(student));
+        when(testCurriculumRepository.findByIdAndStudentIdAndStatus(30L, 20L, "COMPLETED"))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getCurriculum(10L, 20L, 30L))
+                .isInstanceOf(ResourceNotFoundException.class);
+        verifyNoInteractions(studentTestRepository, resultAggregator);
     }
 
     @Test

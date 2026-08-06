@@ -29,7 +29,18 @@ public interface TestCurriculumRepository extends JpaRepository<TestCurriculumEn
 
     List<TestCurriculumEntity> findAllByStudentIdOrderByCreatedAtDescIdDesc(Long studentId);
 
+    List<TestCurriculumEntity> findAllByStudentIdAndStatusOrderByCreatedAtDescIdDesc(
+            Long studentId,
+            String status
+    );
+
     Optional<TestCurriculumEntity> findByIdAndStudentId(Long id, Long studentId);
+
+    Optional<TestCurriculumEntity> findByIdAndStudentIdAndStatus(
+            Long id,
+            Long studentId,
+            String status
+    );
 
     Optional<TestCurriculumEntity> findFirstByStudentIdAndStatusOrderByCreatedAtDescIdDesc(
             Long studentId,
