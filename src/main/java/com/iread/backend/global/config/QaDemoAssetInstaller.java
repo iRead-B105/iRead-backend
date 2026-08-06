@@ -11,43 +11,28 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.List;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 @Component
 @Profile("demo")
 public class QaDemoAssetInstaller {
 
-    static final long MAX_IMAGE_BYTES = 500L * 1024L;
-
-    private static final List<String> IMAGE_FILES = List.of(
-            "098f386f-8b72-4940-b9b3-d4d197e42dbc.jpg",
-            "1b6e8aba-1076-43fb-a9f7-40b4ba68cac6.jpg",
-            "2f4abe13-8f84-4d87-b711-06cfe13674c5.jpg",
-            "347242ee-73de-4179-bebc-95f4f41d3bdc.jpg",
-            "37e5becf-afeb-4472-9b4b-f4ad31804ad7.jpg",
-            "5863d881-12c4-44b1-ae36-7cafe2d60108.jpg",
-            "5cce6a09-9535-4e1f-8507-52652f2deca9.jpg",
-            "77b0b1b1-2794-40d4-903f-54b00f2b03fd.jpg",
-            "8d07dd90-efa6-4885-9d54-92f40bd7fa9f.jpg",
-            "badf86e5-24c2-4401-920e-51e8f2ce00ac.jpg",
-            "dcfbbd01-bc15-4691-bddb-dd9314826709.jpg",
-            "fac73006-704f-40b1-abf5-ce4b298d6e33.jpg"
-    );
-
-    private static final List<String> GAZE_FILES = List.of(
-            "2001/gaze-290101-a0010000-0000-4000-8000-000000000001.json",
-            "2002/gaze-290102-a0020000-0000-4000-8000-000000000002.json",
-            "2103/gaze-290103-a0030000-0000-4000-8000-000000000003.json"
-    );
+    static final long MAX_IMAGE_BYTES = 1024L * 1024L;
+    private static final String MANIFEST_PATH = "assets/qa-demo/manifest.json";
 
     private final Path imageDirectory;
     private final Path gazeDirectory;
+    private final ObjectMapper objectMapper;
 
     public QaDemoAssetInstaller(
             @Value("${app.file-storage.local.upload-dir:uploads/images}") String imageDirectory,
-            @Value("${app.gaze-storage.local.upload-dir:gaze}") String gazeDirectory
+            @Value("${app.gaze-storage.local.upload-dir:gaze}") String gazeDirectory,
+            ObjectMapper objectMapper
     ) {
         this.imageDirectory = Path.of(imageDirectory).toAbsolutePath().normalize();
         this.gazeDirectory = Path.of(gazeDirectory).toAbsolutePath().normalize();
+        this.objectMapper = objectMapper;
     }
 
     public void installMissing() {
@@ -59,18 +44,79 @@ public class QaDemoAssetInstaller {
     }
 
     private void install(boolean overwrite) {
-        IMAGE_FILES.forEach(fileName -> copy(
+        JsonNode manifest = readManifest();
+        if (overwrite) {
+            entries(manifest, "staleImages").forEach(fileName -> deleteManaged(
+                    imageDirectory,
+                    fileName
+            ));
+            entries(manifest, "staleGaze").forEach(relativePath -> deleteManaged(
+                    gazeDirectory,
+                    relativePath
+            ));
+        }
+        entries(manifest, "images").forEach(fileName -> copy(
                 "assets/qa-demo/images/" + fileName,
-                imageDirectory.resolve(fileName),
+                managedPath(imageDirectory, fileName),
                 overwrite,
                 MAX_IMAGE_BYTES
         ));
-        GAZE_FILES.forEach(relativePath -> copy(
+        entries(manifest, "gaze").forEach(relativePath -> copy(
                 "assets/qa-demo/gaze/" + relativePath,
-                gazeDirectory.resolve(relativePath),
+                managedPath(gazeDirectory, relativePath),
                 overwrite,
                 Long.MAX_VALUE
         ));
+        entries(manifest, "pronunciation").forEach(relativePath -> validateResource(
+                "assets/qa-demo/pronunciation/" + relativePath
+        ));
+    }
+
+    private JsonNode readManifest() {
+        ClassPathResource resource = new ClassPathResource(MANIFEST_PATH);
+        try (InputStream input = resource.getInputStream()) {
+            JsonNode manifest = objectMapper.readTree(input);
+            if (manifest == null || !manifest.isObject()) {
+                throw new IllegalStateException("QA demo asset manifest must be a JSON object.");
+            }
+            return manifest;
+        } catch (IOException exception) {
+            throw new IllegalStateException("Failed to read QA demo asset manifest.", exception);
+        }
+    }
+
+    private List<String> entries(JsonNode manifest, String fieldName) {
+        JsonNode entries = manifest.path(fieldName);
+        if (!entries.isArray()) {
+            throw new IllegalStateException("QA demo manifest field must be an array: " + fieldName);
+        }
+        return java.util.stream.StreamSupport.stream(entries.spliterator(), false)
+                .map(JsonNode::asText)
+                .filter(value -> !value.isBlank())
+                .toList();
+    }
+
+    private void validateResource(String resourcePath) {
+        ClassPathResource resource = new ClassPathResource(resourcePath);
+        if (!resource.exists()) {
+            throw new IllegalStateException("Missing QA demo asset: " + resourcePath);
+        }
+    }
+
+    private Path managedPath(Path root, String relativePath) {
+        Path target = root.resolve(relativePath).toAbsolutePath().normalize();
+        if (!target.startsWith(root)) {
+            throw new IllegalStateException("QA demo asset path escapes its storage root: " + relativePath);
+        }
+        return target;
+    }
+
+    private void deleteManaged(Path root, String relativePath) {
+        try {
+            Files.deleteIfExists(managedPath(root, relativePath));
+        } catch (IOException exception) {
+            throw new IllegalStateException("Failed to remove stale QA demo asset: " + relativePath, exception);
+        }
     }
 
     private void copy(String resourcePath, Path target, boolean overwrite, long maxBytes) {
