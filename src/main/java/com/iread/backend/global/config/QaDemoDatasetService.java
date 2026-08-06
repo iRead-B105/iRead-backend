@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class QaDemoDatasetService {
 
     static final String DATASET_RESOURCE = "db/demo-data/qa-demo-reset.sql";
-    private static final long POST_SEED_MARKER_ID = 299001L;
+    private static final long POST_SEED_MARKER_ID = 299011L;
 
     private final JdbcTemplate jdbcTemplate;
 

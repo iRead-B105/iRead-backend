@@ -116,6 +116,7 @@ class DemoSeedIntegrationTest {
         // the same 28 selectable templates as develop before applying the QA dataset.
         new TrainingTemplateDataInitializer(jdbcTemplate, trainingTemplateObjectMapper).run(null);
         qaDemoDatasetService.install();
+        assertThat(qaDemoDatasetService.isPostSeedInstalled()).isTrue();
 
         String qaPasswordHash = jdbcTemplate.queryForObject(
                 "SELECT password FROM teachers WHERE email = 'test@test.com'",
