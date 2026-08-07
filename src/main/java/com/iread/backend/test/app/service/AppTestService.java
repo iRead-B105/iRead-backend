@@ -191,19 +191,6 @@ public class AppTestService {
     private static final int MAX_PRONUNCIATION_ATTEMPTS = 1;
     private static final Pattern WORD_PATTERN =
             Pattern.compile("[가-힣ㄱ-ㅎㅏ-ㅣA-Za-z0-9]+");
-    private static final Set<TrainingType> PHONOLOGICAL_TYPES = EnumSet.range(
-            TrainingType.VOWEL_TRACE,
-            TrainingType.SYLLABLE_REPLACE
-    );
-    private static final Set<TrainingType> SHORT_TEXT_TYPES = EnumSet.range(
-            TrainingType.WORD_READING,
-            TrainingType.IMAGE_SENTENCE_MATCH
-    );
-    private static final Set<TrainingType> FLUENCY_TYPES = EnumSet.range(
-            TrainingType.SENTENCE_REPEAT,
-            TrainingType.SHORT_STORY_READING
-    );
-
     @Transactional
     public SkillChallengePlanResponse getChallengePlan(Long teacherId, Long studentId) {
         StudentEntity student = studentRepository
@@ -673,10 +660,7 @@ public class AppTestService {
                 .stream()
                 .filter(TrainingCatalogPolicy::isSelectable)
                 .toList();
-        List<TrainingTemplateEntity> selected = new ArrayList<>(TOTAL_QUESTION_COUNT);
-        selected.addAll(selectTemplates(templates, PHONOLOGICAL_TYPES, "음운 인식 및 파닉스"));
-        selected.addAll(selectTemplates(templates, SHORT_TEXT_TYPES, "글 해독 및 문장 이해"));
-        selected.addAll(selectTemplates(templates, FLUENCY_TYPES, "유창성"));
+        List<TrainingTemplateEntity> selected = selectDiagnosticTemplates(templates);
 
         TestCurriculumEntity curriculum = testCurriculumRepository.saveAndFlush(
                 new TestCurriculumEntity(nextCurriculumId(), student, createdAt)
@@ -728,70 +712,38 @@ public class AppTestService {
         LocalDateTime createdAt = LocalDateTime.now();
         List<StudentTestEntity> result = new ArrayList<>(existing);
         List<Long> expandedTestIds = new ArrayList<>();
-        for (int trackIndex = 0; trackIndex < 3; trackIndex++) {
-            int startSequence = trackIndex * TRACK_QUESTION_COUNT + 1;
-            int endSequence = startSequence + TRACK_QUESTION_COUNT - 1;
-            Set<TrainingType> types = switch (trackIndex) {
-                case 0 -> PHONOLOGICAL_TYPES;
-                case 1 -> SHORT_TEXT_TYPES;
-                default -> FLUENCY_TYPES;
-            };
-            List<StudentTestEntity> trackTests = result.stream()
-                    .filter(test -> test.getSequenceNo() >= startSequence
-                            && test.getSequenceNo() <= endSequence)
-                    .toList();
-            if (trackTests.stream().anyMatch(
-                    test -> !types.contains(templateType(test.getTrainingTemplate()))
-            )) {
-                throw new ConflictException(
-                        "기존 검사 템플릿 분류가 실력도전 순서와 일치하지 않습니다."
-                );
-            }
-            Set<Long> usedTemplateIds = trackTests.stream()
-                    .map(test -> test.getTrainingTemplate().getId())
-                    .collect(java.util.stream.Collectors.toSet());
-            List<TrainingTemplateEntity> candidates = allTemplates.stream()
-                    .filter(template -> types.contains(templateType(template)))
-                    .filter(template -> !usedTemplateIds.contains(template.getId()))
-                    .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
-            Collections.shuffle(candidates);
-            int candidateIndex = 0;
-            for (int sequence = startSequence; sequence <= endSequence; sequence++) {
-                final int currentSequence = sequence;
-                StudentTestEntity test = trackTests.stream()
-                        .filter(item -> item.getSequenceNo() == currentSequence)
-                        .findFirst()
-                        .orElse(null);
-                if (test == null) {
-                    if (candidateIndex >= candidates.size()) {
-                        throw new ConflictException(
-                                "실력도전 분류별 템플릿이 3개 이상 필요합니다."
-                        );
-                    }
-                    test = testRepository.saveAndFlush(
-                            new StudentTestEntity(
-                                    curriculum,
-                                    candidates.get(candidateIndex++),
-                                    sequence
-                            )
-                    );
-                    result.add(test);
-                }
-                ObjectNode generated = trainingGenerationService.generateTestQuestion(
-                        student.getId(),
-                        test.getTrainingTemplate(),
-                        "skill-challenge-" + curriculum.getId() + "-" + sequence
-                );
-                testDataRepository.save(
-                        new TestDataEntity(
-                                nextTestDataId(),
-                                test,
-                                writeJson(generated),
-                                createdAt
+        List<TrainingTemplateEntity> diagnostic = selectDiagnosticTemplates(allTemplates);
+        for (int sequence = 1; sequence <= TOTAL_QUESTION_COUNT; sequence++) {
+            final int currentSequence = sequence;
+            StudentTestEntity test = result.stream()
+                    .filter(item -> item.getSequenceNo() == currentSequence)
+                    .findFirst()
+                    .orElse(null);
+            if (test == null) {
+                // 빠진 자리는 고정 진단지의 같은 번호 문항으로 채운다.
+                test = testRepository.saveAndFlush(
+                        new StudentTestEntity(
+                                curriculum,
+                                diagnostic.get(sequence - 1),
+                                sequence
                         )
                 );
-                expandedTestIds.add(test.getId());
+                result.add(test);
             }
+            ObjectNode generated = trainingGenerationService.generateTestQuestion(
+                    student.getId(),
+                    test.getTrainingTemplate(),
+                    "skill-challenge-" + curriculum.getId() + "-" + sequence
+            );
+            testDataRepository.save(
+                    new TestDataEntity(
+                            nextTestDataId(),
+                            test,
+                            writeJson(generated),
+                            createdAt
+                    )
+            );
+            expandedTestIds.add(test.getId());
         }
         if (imageTrigger != null) {
             imageTrigger.populateTestsAfterCommit(expandedTestIds);
@@ -801,27 +753,42 @@ public class AppTestService {
                 .toList();
     }
 
-    private List<TrainingTemplateEntity> selectTemplates(
-            Collection<TrainingTemplateEntity> templates,
-            Set<TrainingType> acceptedTypes,
-            String trackTitle
+    /**
+     * 첫 실력검증은 모든 아동이 같은 문항을 받는 고정 진단지다.
+     * 순서(1~3 음운 인식 · 4~6 글 해독 · 7~9 유창성)는 화면 트랙과 같고,
+     * 트랙 안의 구성은 읽기가 과도하게 몰리지 않도록 직접 고른다.
+     */
+    private static final List<Long> DIAGNOSTIC_TEMPLATE_IDS = List.of(
+            1L,   // 모음 따라 보기
+            11L,  // 낱말의 끝소리 고르기
+            21L,  // 음절 바꾸기
+            28L,  // 빈칸에 알맞은 단어 넣기
+            27L,  // 문장 전체 조립
+            29L,  // 그림과 문장 연결하기
+            20L,  // 음절 빼기 (바나나 → 바나)
+            31L,  // 단어 이어 읽기
+            33L   // 한번에 읽기
+    );
+
+    private List<TrainingTemplateEntity> selectDiagnosticTemplates(
+            List<TrainingTemplateEntity> templates
     ) {
-        List<TrainingTemplateEntity> candidates = templates.stream()
-                .filter(template -> acceptedTypes.contains(templateType(template)))
-                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
-        if (candidates.size() < TRACK_QUESTION_COUNT) {
-            throw new ConflictException(
-                    trackTitle + " 실력도전용 훈련 템플릿이 3개 이상 필요합니다."
-            );
+        Map<Long, TrainingTemplateEntity> byId = templates.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        TrainingTemplateEntity::getId,
+                        template -> template
+                ));
+        List<TrainingTemplateEntity> selected = new ArrayList<>(TOTAL_QUESTION_COUNT);
+        for (Long templateId : DIAGNOSTIC_TEMPLATE_IDS) {
+            TrainingTemplateEntity template = byId.get(templateId);
+            if (template == null) {
+                throw new ConflictException(
+                        "고정 진단지 훈련 템플릿을 찾을 수 없습니다: " + templateId
+                );
+            }
+            selected.add(template);
         }
-        // 첫 실력검증은 고정 진단지다. 템플릿 목록은 교육과정 단계 순(=난이도 오름차순)으로
-        // 정렬되어 있으므로, 무작위 대신 쉬움·중간·어려움을 고르게 뽑아 모든 아동이
-        // 같은 구성으로 검사받게 한다.
-        return List.of(
-                candidates.getFirst(),
-                candidates.get(candidates.size() / 2),
-                candidates.getLast()
-        );
+        return selected;
     }
 
     private TrainingType templateType(TrainingTemplateEntity template) {

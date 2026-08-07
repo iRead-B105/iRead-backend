@@ -150,16 +150,17 @@ class AppTestServiceTest {
                 .thenReturn(Optional.empty());
         when(testCurriculumRepository.saveAndFlush(any(TestCurriculumEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
+        // 고정 진단지가 지정한 템플릿 ID 9개
         List<TrainingTemplateEntity> templates = List.of(
-                mockTemplate(TrainingType.VOWEL_TRACE),
-                mockTemplate(TrainingType.CONSONANT_TRACE),
-                mockTemplate(TrainingType.SYLLABLE_TRACE),
-                mockTemplate(TrainingType.WORD_READING),
-                mockTemplate(TrainingType.NONWORD_READING),
-                mockTemplate(TrainingType.SENTENCE_READING),
-                mockTemplate(TrainingType.SENTENCE_REPEAT),
-                mockTemplate(TrainingType.WORD_CHAIN_READING),
-                mockTemplate(TrainingType.PHRASE_READING)
+                mockTemplate(1L, TrainingType.VOWEL_TRACE),
+                mockTemplate(11L, TrainingType.WORD_FINAL_SOUND_CHOICE),
+                mockTemplate(21L, TrainingType.SYLLABLE_REPLACE),
+                mockTemplate(28L, TrainingType.FILL_IN_THE_BLANK),
+                mockTemplate(27L, TrainingType.SENTENCE_ASSEMBLY),
+                mockTemplate(29L, TrainingType.IMAGE_SENTENCE_MATCH),
+                mockTemplate(20L, TrainingType.SYLLABLE_DELETE),
+                mockTemplate(31L, TrainingType.WORD_CHAIN_READING),
+                mockTemplate(33L, TrainingType.REPEATED_SENTENCE_READING)
         );
         when(trainingTemplateRepository
                 .findAllByOrderByCurriculumUnitSequenceNoAscSequenceNoAsc())
@@ -841,6 +842,16 @@ class AppTestServiceTest {
     private TrainingTemplateEntity mockTemplate(TrainingType type) {
         TrainingTemplateEntity template = mock(TrainingTemplateEntity.class);
         when(template.getPrompt()).thenReturn(
+                "{\"trainingType\":\"" + type.name() + "\"}"
+        );
+        return template;
+    }
+
+    /** 고정 진단지는 ID로 고르므로 prompt/type 은 쓰이지 않을 수 있다. */
+    private TrainingTemplateEntity mockTemplate(long id, TrainingType type) {
+        TrainingTemplateEntity template = mock(TrainingTemplateEntity.class);
+        org.mockito.Mockito.lenient().when(template.getId()).thenReturn(id);
+        org.mockito.Mockito.lenient().when(template.getPrompt()).thenReturn(
                 "{\"trainingType\":\"" + type.name() + "\"}"
         );
         return template;
