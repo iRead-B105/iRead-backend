@@ -155,7 +155,7 @@ class AppTestServiceTest {
                 mockTemplate(1L, TrainingType.VOWEL_TRACE),
                 mockTemplate(11L, TrainingType.WORD_FINAL_SOUND_CHOICE),
                 mockTemplate(21L, TrainingType.SYLLABLE_REPLACE),
-                mockTemplate(18L, TrainingType.DOUBLE_FINAL_BUILD),
+                mockTemplate(28L, TrainingType.FILL_IN_THE_BLANK),
                 mockTemplate(27L, TrainingType.SENTENCE_ASSEMBLY),
                 mockTemplate(29L, TrainingType.IMAGE_SENTENCE_MATCH),
                 mockTemplate(20L, TrainingType.SYLLABLE_DELETE),
