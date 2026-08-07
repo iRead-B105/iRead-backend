@@ -170,9 +170,11 @@ public class DeterministicTrainingCandidateProvider implements TrainingCandidate
     }
 
     private ObjectNode wordFinalChoice(int index) {
-        String word = List.of("산", "달", "밤", "집", "공").get(index);
+        // 끝소리는 울림소리(ㄴ·ㄹ·ㅁ·ㅇ)만 쓴다. ㅂ·ㄱ·ㄷ 받침(밥·집 등)은 끝에서
+        // 터지지 않아 아이가 소리만 듣고 구분하기 어렵다. 낱말도 익숙한 것으로 고른다.
+        String word = List.of("산", "달", "곰", "공", "별").get(index);
         String correct = finalOf(word.substring(word.length() - 1));
-        List<String> choices = choiceValues(correct, List.of("ㄱ", "ㄴ", "ㄹ", "ㅁ", "ㅂ", "ㅇ"), index);
+        List<String> choices = choiceValues(correct, List.of("ㄴ", "ㄹ", "ㅁ", "ㅇ"), index);
         ObjectNode node = objectMapper.createObjectNode();
         node.put("audioText", word);
         choices.forEach(node.putArray("choices")::add);
@@ -396,15 +398,28 @@ public class DeterministicTrainingCandidateProvider implements TrainingCandidate
         return node;
     }
 
+    /** 빈칸 문항은 정답 하나만 말이 되어야 한다. 문장·정답·오답을 짝지어 고정한다. */
+    private static final List<List<String>> FILL_BLANK_ITEMS = List.of(
+            // {빈칸 앞, 빈칸 뒤, 정답, 오답1, 오답2}
+            List.of("하늘에 ", "이 떠 있다.", "구름", "신발", "의자"),
+            List.of("바다에서 ", "가 헤엄친다.", "물고기", "책상", "모자"),
+            List.of("나는 ", "로 글씨를 쓴다.", "연필", "바다", "구름"),
+            List.of("겨울에는 ", "이 내린다.", "눈", "가방", "우유"),
+            List.of("밤하늘에 ", "이 반짝인다.", "별", "신발", "의자")
+    );
+
     private ObjectNode fillBlank(int index) {
-        String answer = WORDS.get(index);
+        List<String> item = FILL_BLANK_ITEMS.get(index);
+        String prefix = item.get(0);
+        String suffix = item.get(1);
+        String answer = item.get(2);
         ObjectNode node = objectMapper.createObjectNode();
-        node.put("sentence", "책상 위에 {{blank}} 그림이 있다.");
+        node.put("sentence", prefix + "{{blank}}" + suffix);
         node.put("inputType", "CHOICE");
-        node.putArray("choices").add(answer).add("기차").add("연필");
+        node.putArray("choices").add(answer).add(item.get(3)).add(item.get(4));
         node.put("answerIndex", 0);
         node.putArray("acceptedAnswers").add(answer);
-        node.put("completedSentence", "책상 위에 " + answer + " 그림이 있다.");
+        node.put("completedSentence", prefix + answer + suffix);
         return node;
     }
 
